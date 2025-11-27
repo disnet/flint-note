@@ -902,10 +902,12 @@ export class NoteManager {
             // Generate content hash for optimistic locking
             const contentHash = generateContentHash(dbNote.content);
 
-            // Determine kind from metadata, defaulting to markdown
+            // Determine kind from database column first, then metadata, then default
             const metadata = dbNote.metadata as NoteMetadata;
             const noteKind: NoteKind =
-              (metadata.flint_kind as NoteKind) || DEFAULT_NOTE_KIND;
+              (dbNote.flint_kind as NoteKind) ||
+              (metadata.flint_kind as NoteKind) ||
+              DEFAULT_NOTE_KIND;
 
             return {
               id: dbNote.id,

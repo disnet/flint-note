@@ -1671,6 +1671,7 @@ export class HybridSearchManager {
     title: string;
     content: string;
     type: string;
+    flint_kind: string | undefined;
     filename: string;
     path: string;
     created: string;
@@ -1714,6 +1715,7 @@ export class HybridSearchManager {
         title: note.title,
         content: note.content || '',
         type: note.type,
+        flint_kind: note.flint_kind || undefined,
         filename: note.filename,
         path: absolutePath,
         created: note.created,
@@ -1738,6 +1740,7 @@ export class HybridSearchManager {
     title: string;
     content: string;
     type: string;
+    flint_kind: string | undefined;
     filename: string;
     path: string;
     created: string;
@@ -1784,6 +1787,7 @@ export class HybridSearchManager {
         title: note.title,
         content: note.content || '',
         type: note.type,
+        flint_kind: note.flint_kind || undefined,
         filename: note.filename,
         path: absolutePath,
         created: note.created,

@@ -199,7 +199,7 @@
         }
       }
 
-      // Navigate to initial CFI if provided
+      // Navigate to initial CFI if provided, otherwise go to the beginning
       if (initialCfi) {
         console.log('[EPUB] Restoring position to:', initialCfi);
         try {
@@ -209,7 +209,12 @@
           console.warn('[EPUB] Failed to navigate to initial CFI:', e);
         }
       } else {
-        console.log('[EPUB] No saved position to restore');
+        console.log('[EPUB] No saved position, navigating to beginning');
+        try {
+          await view!.goToFraction(0);
+        } catch (e) {
+          console.warn('[EPUB] Failed to navigate to beginning:', e);
+        }
       }
 
       // Set up event listeners

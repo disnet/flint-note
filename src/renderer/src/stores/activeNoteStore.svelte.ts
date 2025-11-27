@@ -274,6 +274,7 @@ class ActiveNoteStore {
                 this.state.activeNote = {
                   id: note.id,
                   type: note.type || 'note',
+                  flint_kind: (note.kind as string) || undefined,
                   filename: note.filename || `${activeNoteId}.md`,
                   title: note.title || '',
                   created: note.created || new Date().toISOString(),
