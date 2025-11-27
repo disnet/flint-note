@@ -481,9 +481,7 @@ export class FlintNoteApi {
       try {
         logger.info(`[createNote] Auto-enabling review for note ${noteInfo.id}`);
         await reviewManager.enableReview(noteInfo.id);
-        logger.info(
-          `[createNote] Successfully enabled review for note ${noteInfo.id}`
-        );
+        logger.info(`[createNote] Successfully enabled review for note ${noteInfo.id}`);
         reviewAutoEnabled = true;
       } catch (error) {
         console.error(

@@ -116,9 +116,7 @@ export class VaultFileWatcher {
       return;
     }
 
-    logger.info(
-      `[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`
-    );
+    logger.info(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
 
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: (filepath: string) => {
