@@ -18,6 +18,7 @@ import {
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
+import { logger } from '../utils/logger';
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
@@ -566,7 +567,7 @@ class WikilinkWidget extends WidgetType {
           this.clickHandler(this.noteId, this.title, false, e.shiftKey);
         } else {
           // Handle broken link - create new note with this title
-          console.log('Creating new note for broken wikilink:', this.title);
+          logger.debug('Creating new note for broken wikilink:', this.title);
           this.clickHandler(this.identifier, this.title, true, e.shiftKey);
         }
       }

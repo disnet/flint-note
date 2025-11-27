@@ -1,6 +1,7 @@
 import type { Message, ChatService, ToolCall } from '../services/types';
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
+import { logger } from '../utils/logger';
 
 interface ExtendedChatService extends ChatService {
   setActiveConversation(
@@ -118,7 +119,7 @@ class UnifiedChatStore {
   constructor() {
     // Subscribe to vault switch events (like other stores)
     messageBus.subscribe('vault.switched', async (event) => {
-      console.log('[unifiedChatStore] vault.switched event received:', event.vaultId);
+      logger.debug('[unifiedChatStore] vault.switched event received:', event.vaultId);
       await this.refreshForVault(event.vaultId);
     });
 
@@ -474,12 +475,12 @@ class UnifiedChatStore {
 
   // Vault operations
   async refreshForVault(vaultId?: string): Promise<void> {
-    console.log('🔄 refreshForVault: switching threads to vault', vaultId);
+    logger.debug('🔄 refreshForVault: switching threads to vault', vaultId);
 
     // 1. Save current vault's state before switching
     const oldVaultId = this.state.currentVaultId;
     if (oldVaultId) {
-      console.log(`💾 Saving state for vault ${oldVaultId} before switch`);
+      logger.debug(`💾 Saving state for vault ${oldVaultId} before switch`);
       try {
         await this.saveToStorage();
       } catch (error) {
@@ -517,14 +518,14 @@ class UnifiedChatStore {
     };
 
     // 4. Load threads for new vault from storage
-    console.log(`📥 Loading state for vault ${newVaultId}`);
+    logger.debug(`📥 Loading state for vault ${newVaultId}`);
     await this.loadFromStorage();
 
     // 5. Set active thread from loaded data
     const currentThreads = this.getThreadsForCurrentVault();
     this.state.activeThreadId = currentThreads.length > 0 ? currentThreads[0].id : null;
 
-    console.log(
+    logger.debug(
       '💾 refreshForVault: loaded',
       currentThreads.length,
       'threads for vault',
@@ -643,7 +644,7 @@ class UnifiedChatStore {
 
         // Remove old localStorage data after successful migration
         localStorage.removeItem('flint-unified-chat-store');
-        console.log(
+        logger.debug(
           'Successfully migrated unified chat store from localStorage to file system'
         );
       }
@@ -676,7 +677,7 @@ class UnifiedChatStore {
     }
 
     try {
-      console.log(`📥 Loading threads for vault ${this.state.currentVaultId}`);
+      logger.debug(`📥 Loading threads for vault ${this.state.currentVaultId}`);
 
       const stored = await window.api?.loadUIState({
         vaultId: this.state.currentVaultId,
@@ -708,7 +709,7 @@ class UnifiedChatStore {
         newMap.set(this.state.currentVaultId!, processedThreads);
         this.state.threadsByVault = newMap;
 
-        console.log(
+        logger.debug(
           `✅ Loaded ${processedThreads.length} threads for vault ${this.state.currentVaultId}`
         );
 
@@ -726,7 +727,7 @@ class UnifiedChatStore {
             ? stored.maxThreadsPerVault
             : 50;
       } else {
-        console.log(
+        logger.debug(
           `📥 No saved threads found for vault ${this.state.currentVaultId}, initializing empty`
         );
         // Initialize empty state for current vault
@@ -764,7 +765,7 @@ class UnifiedChatStore {
       };
 
       const serializable = $state.snapshot(toSave);
-      console.log(
+      logger.debug(
         `💾 Saving ${threadsForCurrentVault.length} threads for vault ${vaultIdBeingSaved}`
       );
 
@@ -774,7 +775,7 @@ class UnifiedChatStore {
         stateValue: serializable
       });
 
-      console.log(`✅ Successfully saved to vault ${vaultIdBeingSaved}`);
+      logger.debug(`✅ Successfully saved to vault ${vaultIdBeingSaved}`);
     } catch (error) {
       console.error('❌ Failed to save conversations to storage:', error);
       throw error;

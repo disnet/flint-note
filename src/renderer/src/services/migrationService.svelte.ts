@@ -8,6 +8,8 @@
  * has completed, updating all localStorage references to use new IDs.
  */
 
+import { logger } from '../utils/logger';
+
 interface PinnedNote {
   id: string;
   [key: string]: unknown;
@@ -43,7 +45,7 @@ export class MigrationService {
       return; // Already migrated, don't clear
     }
 
-    console.log('Backing up and clearing stale UI state before migration...');
+    logger.info('Backing up and clearing stale UI state before migration...');
 
     // Keys that reference note IDs
     const keysToBackup = [
@@ -70,7 +72,7 @@ export class MigrationService {
       localStorage.removeItem(key);
     });
 
-    console.log('Stale UI state backed up and cleared');
+    logger.info('Stale UI state backed up and cleared');
   }
 
   /**
@@ -94,11 +96,11 @@ export class MigrationService {
   async migrateUIState(): Promise<void> {
     // Check if already migrated
     if (this.isMigrationComplete()) {
-      console.log('UI state migration already complete, skipping');
+      logger.info('UI state migration already complete, skipping');
       return;
     }
 
-    console.log('Starting UI state migration...');
+    logger.info('Starting UI state migration...');
 
     try {
       // Clear vault-specific UI state (server-side JSON files)
@@ -108,7 +110,7 @@ export class MigrationService {
         const vault = await chatService.getCurrentVault();
         if (vault?.id && window.api?.clearVaultUIState) {
           await window.api.clearVaultUIState({ vaultId: vault.id });
-          console.log('Cleared vault-specific UI state');
+          logger.info('Cleared vault-specific UI state');
         }
       } catch (error) {
         console.warn('Failed to clear vault-specific UI state:', error);
@@ -119,12 +121,12 @@ export class MigrationService {
       const mapping = await window.api?.getMigrationMapping();
 
       if (!mapping) {
-        console.log('No migration mapping available, skipping UI migration');
+        logger.info('No migration mapping available, skipping UI migration');
         this.markMigrationComplete();
         return;
       }
 
-      console.log(`Migrating UI state with ${Object.keys(mapping).length} ID mappings`);
+      logger.info(`Migrating UI state with ${Object.keys(mapping).length} ID mappings`);
 
       // Migrate all localStorage keys
       this.migratePinnedNotes(mapping);
@@ -138,7 +140,7 @@ export class MigrationService {
       // Mark migration as complete
       this.markMigrationComplete();
 
-      console.log('UI state migration completed successfully');
+      logger.info('UI state migration completed successfully');
     } catch (error) {
       console.error('UI state migration failed:', error);
       // Don't mark as complete - will retry on next app open
@@ -166,7 +168,7 @@ export class MigrationService {
         .filter((note) => note.id); // Remove entries with invalid IDs
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${migrated.length} pinned notes`);
+      logger.info(`Migrated ${migrated.length} pinned notes`);
     } catch (error) {
       console.error('Failed to migrate pinned notes:', error);
       // Clear corrupted data
@@ -194,7 +196,7 @@ export class MigrationService {
         .filter((note) => note.noteId);
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${migrated.length} sidebar notes`);
+      logger.info(`Migrated ${migrated.length} sidebar notes`);
     } catch (error) {
       console.error('Failed to migrate sidebar notes:', error);
       localStorage.removeItem(key);
@@ -221,7 +223,7 @@ export class MigrationService {
         .filter((tab) => tab.id);
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${migrated.length} temporary tabs`);
+      logger.info(`Migrated ${migrated.length} temporary tabs`);
     } catch (error) {
       console.error('Failed to migrate temporary tabs:', error);
       localStorage.removeItem(key);
@@ -250,7 +252,7 @@ export class MigrationService {
       }
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${Object.keys(migrated).length} cursor positions`);
+      logger.info(`Migrated ${Object.keys(migrated).length} cursor positions`);
     } catch (error) {
       console.error('Failed to migrate cursor positions:', error);
       localStorage.removeItem(key);
@@ -279,7 +281,7 @@ export class MigrationService {
       }
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${Object.keys(migrated).length} scroll positions`);
+      logger.info(`Migrated ${Object.keys(migrated).length} scroll positions`);
     } catch (error) {
       console.error('Failed to migrate scroll positions:', error);
       localStorage.removeItem(key);
@@ -301,7 +303,7 @@ export class MigrationService {
       const migrated = recent.map((id) => mapping[id] || id).filter((id) => id);
 
       localStorage.setItem(key, JSON.stringify(migrated));
-      console.log(`Migrated ${migrated.length} recent notes`);
+      logger.info(`Migrated ${migrated.length} recent notes`);
     } catch (error) {
       console.error('Failed to migrate recent notes:', error);
       localStorage.removeItem(key);
@@ -322,7 +324,7 @@ export class MigrationService {
       const newId = mapping[lastOpened];
       if (newId) {
         localStorage.setItem(key, newId);
-        console.log('Migrated last opened note');
+        logger.info('Migrated last opened note');
       } else {
         // Old ID not in mapping - clear it
         localStorage.removeItem(key);
@@ -347,7 +349,7 @@ export class MigrationService {
    */
   resetMigration(): void {
     localStorage.removeItem(this.migrationCompleteKey);
-    console.log('Migration state reset - will run on next startup');
+    logger.info('Migration state reset - will run on next startup');
   }
 }
 

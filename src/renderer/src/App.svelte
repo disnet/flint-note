@@ -35,6 +35,7 @@
     ReviewEvent
   } from './services/messageBus.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
+  import { logger } from './utils/logger';
 
   // Forward note events from main process to message bus
   $effect(() => {
@@ -698,14 +699,14 @@
       const customEvent = event as CustomEvent;
       const { noteIds } = customEvent.detail;
 
-      console.log('[App] notes-unpinned event received:', { noteIds });
+      logger.debug('[App] notes-unpinned event received:', { noteIds });
 
       // Add unpinned notes to temporary tabs
       // BUT: only if the note actually exists in the notes store
       for (const noteId of noteIds) {
         const note = notesStore.notes.find((n) => n.id === noteId);
         if (note) {
-          console.log('[App] Adding unpinned note to tabs:', {
+          logger.debug('[App] Adding unpinned note to tabs:', {
             noteId,
             title: note.title
           });
@@ -1082,9 +1083,9 @@
   async function handleVaultCreatedFromFirstTime(
     vault: CreateVaultResult
   ): Promise<void> {
-    console.log('App.svelte: handleVaultCreatedFromFirstTime called with vault:', vault);
-    console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
-    console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
+    logger.debug('App.svelte: handleVaultCreatedFromFirstTime called with vault:', vault);
+    logger.debug('App.svelte: vault.isNewVault =', vault.isNewVault);
+    logger.debug('App.svelte: vault.initialNoteId =', vault.initialNoteId);
 
     // The vault availability service should already be updated by FirstTimeExperience
     // Now we need to trigger reinitialization of the note service and refresh stores
@@ -1092,33 +1093,33 @@
       // Reinitialize the note service in the main process
       const result = await window.api?.reinitializeNoteService();
       if (result?.success) {
-        console.log('Note service reinitialized successfully');
+        logger.debug('Note service reinitialized successfully');
 
         // Publish vault switched event - noteStore will automatically reinitialize
         messageBus.publish({
           type: 'vault.switched',
           vaultId: vault.id
         });
-        console.log('Vault switched event published for vault:', vault.id);
+        logger.debug('Vault switched event published for vault:', vault.id);
 
         // Reinitialize the daily view store now that a vault is available
         await dailyViewStore.reinitialize();
-        console.log('Daily view store reinitialized after vault creation');
+        logger.debug('Daily view store reinitialized after vault creation');
 
         // NOW add initial note tab AFTER vault switching is complete
         // This ensures we have the correct vault ID in temporary tabs store
-        console.log('App.svelte: Checking if should add initial note...');
-        console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
-        console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
+        logger.debug('App.svelte: Checking if should add initial note...');
+        logger.debug('App.svelte: vault.isNewVault =', vault.isNewVault);
+        logger.debug('App.svelte: vault.initialNoteId =', vault.initialNoteId);
         if (vault.isNewVault && vault.initialNoteId) {
-          console.log('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
+          logger.debug('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
           await workspacesStore.addTutorialNoteTabs([vault.initialNoteId]);
-          console.log('App.svelte: Initial note added to tabs');
+          logger.debug('App.svelte: Initial note added to tabs');
         } else {
-          console.log('App.svelte: NOT adding initial note - conditions not met');
+          logger.debug('App.svelte: NOT adding initial note - conditions not met');
         }
 
-        console.log(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
+        logger.debug(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
       } else {
         console.error('Failed to reinitialize note service:', result?.error);
       }

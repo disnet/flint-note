@@ -8,6 +8,7 @@ import { createHash, randomBytes } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
 import { toRelativePath } from '../utils/path-utils.js';
 import { LEGACY_TO_FLINT } from '../core/system-fields.js';
+import { logger } from '../../main/logger.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -1181,7 +1182,7 @@ export class HybridSearchManager {
       return { added: 0, updated: 0, deleted: 0 };
     }
 
-    console.log(
+    logger.info(
       `Syncing filesystem changes: ${filesToAdd.length} new, ${filesToUpdate.length} updated, ${filesToDelete.length} deleted`
     );
 
@@ -1372,7 +1373,7 @@ export class HybridSearchManager {
       const needsNormalization = !frontmatterType || frontmatterType !== parentDir;
 
       if (needsNormalization) {
-        console.log(
+        logger.info(
           `Normalizing type field in ${filePath}: ${frontmatterType || '(missing)'} → ${parentDir}`
         );
 
@@ -1384,7 +1385,7 @@ export class HybridSearchManager {
 
         if (!match) {
           // No frontmatter found - create new frontmatter block with flint_type
-          console.log(
+          logger.info(
             `Creating frontmatter for ${filePath} with flint_type: ${parentDir}`
           );
           updatedContent = `---\nflint_type: ${parentDir}\n---\n${content}`;
@@ -1482,7 +1483,7 @@ export class HybridSearchManager {
         // Generate a new immutable ID
         const newId = 'n-' + randomBytes(4).toString('hex');
 
-        console.log(
+        logger.info(
           `Normalizing id field in ${filePath}: ${parsed.metadata.flint_id || parsed.metadata.id || '(missing)'} → ${newId}`
         );
 
@@ -1494,7 +1495,9 @@ export class HybridSearchManager {
 
         if (!match) {
           // No frontmatter found - create new frontmatter block with flint_id
-          console.log(`Creating frontmatter for ${filePath} with flint_id: ${newId}`);
+          logger.info(
+            `Creating frontmatter for ${filePath} with flint_id: ${newId}`
+          );
           updatedContent = `---\nflint_id: ${newId}\n---\n${content}`;
         } else {
           const originalFrontmatter = match[1];
@@ -1589,7 +1592,7 @@ export class HybridSearchManager {
       }
 
       if (hasChanges) {
-        console.log(`Normalizing legacy frontmatter fields in ${filePath}`);
+        logger.info(`Normalizing legacy frontmatter fields in ${filePath}`);
         const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
         await this.writeFileWithTracking(filePath, updatedContent);
         return updatedContent;
@@ -1664,7 +1667,7 @@ export class HybridSearchManager {
         return;
       }
 
-      console.log(
+      logger.info(
         `Normalizing ${replacements.length} wikilink(s) in ${filePath} to ID-based format`
       );
 

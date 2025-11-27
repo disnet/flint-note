@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
   import type { CreateVaultResult } from '@/server/api/types';
+  import { logger } from '../utils/logger';
 
   interface TemplateMetadata {
     id: string;
@@ -152,16 +153,16 @@
         templateId: selectedTemplate
       });
 
-      console.log('CreateVaultModal: vaultInfo =', vaultInfo);
-      console.log('CreateVaultModal: isNewVault =', vaultInfo.isNewVault);
-      console.log('CreateVaultModal: initialNoteId =', vaultInfo.initialNoteId);
+      logger.debug('CreateVaultModal: vaultInfo =', vaultInfo);
+      logger.debug('CreateVaultModal: isNewVault =', vaultInfo.isNewVault);
+      logger.debug('CreateVaultModal: initialNoteId =', vaultInfo.initialNoteId);
 
       // Notify parent component - DON'T add tabs here, let the parent handle it
       // after vault switching is complete to ensure we have the correct vault ID
       // IMPORTANT: await the callback to ensure it completes before closing modal
-      console.log('CreateVaultModal: Calling onVaultCreated...');
+      logger.debug('CreateVaultModal: Calling onVaultCreated...');
       await onVaultCreated?.(vaultInfo);
-      console.log('CreateVaultModal: onVaultCreated completed');
+      logger.debug('CreateVaultModal: onVaultCreated completed');
 
       // Close modal AFTER callback completes
       onClose();

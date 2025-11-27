@@ -1,6 +1,7 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
+import { logger } from '../utils/logger';
 
 type SystemViewType = 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review';
 
@@ -82,11 +83,11 @@ class ActiveNoteStore {
 
     // Phase 3: Removed noteOpened/noteClosed tracking - not needed with FileWriteQueue
     if (oldNoteId && oldNoteId !== newNoteId) {
-      console.log(`[ActiveNoteStore] Closing note: ${oldNoteId}`);
+      logger.debug(`[ActiveNoteStore] Closing note: ${oldNoteId}`);
     }
 
     if (newNoteId && newNoteId !== oldNoteId) {
-      console.log(`[ActiveNoteStore] Opening note: ${newNoteId}`);
+      logger.debug(`[ActiveNoteStore] Opening note: ${newNoteId}`);
     }
 
     this.previousNoteId = newNoteId;

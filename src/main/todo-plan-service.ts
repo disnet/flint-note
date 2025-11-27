@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { logger } from './logger';
 
 export interface TodoItem {
   id: string;
@@ -172,7 +173,7 @@ export class TodoPlanService {
 
     plan.status = 'abandoned';
     plan.updated = new Date();
-    console.log(`Plan ${planId} abandoned: ${reason}`);
+    logger.info(`Plan ${planId} abandoned: ${reason}`);
   }
 
   /**

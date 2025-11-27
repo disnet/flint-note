@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { TocItem, EpubMetadata, EpubLocation, EpubHighlight } from './types';
+  import { logger } from '../../../utils/logger';
 
   // Selection info for highlight popup
   export interface SelectionInfo {
@@ -152,7 +153,7 @@
 
       // Check if component was unmounted during async operation
       if (!isMounted || !container) {
-        console.log('[EPUB] Component unmounted during initialization, aborting load');
+        logger.debug('[EPUB] Component unmounted during initialization, aborting load');
         return;
       }
 
@@ -180,7 +181,7 @@
 
       // Check if component was unmounted during file read
       if (!isMounted || !container) {
-        console.log('[EPUB] Component unmounted during file read, aborting load');
+        logger.debug('[EPUB] Component unmounted during file read, aborting load');
         return;
       }
 
@@ -202,7 +203,7 @@
 
       // Check if component was unmounted during book open
       if (!isMounted || !container) {
-        console.log('[EPUB] Component unmounted during book open, aborting load');
+        logger.debug('[EPUB] Component unmounted during book open, aborting load');
         return;
       }
 
@@ -221,15 +222,15 @@
 
       // Navigate to initial CFI if provided, otherwise go to the beginning
       if (initialCfi) {
-        console.log('[EPUB] Restoring position to:', initialCfi);
+        logger.debug('[EPUB] Restoring position to:', initialCfi);
         try {
           await view!.goTo(initialCfi);
-          console.log('[EPUB] Position restored successfully');
+          logger.debug('[EPUB] Position restored successfully');
         } catch (e) {
           console.warn('[EPUB] Failed to navigate to initial CFI:', e);
         }
       } else {
-        console.log('[EPUB] No saved position, navigating to beginning');
+        logger.debug('[EPUB] No saved position, navigating to beginning');
         try {
           await view!.goToFraction(0);
         } catch (e) {
