@@ -268,15 +268,7 @@ export function validateFieldSpecs(fields: FieldSpec[]): string[] {
  */
 export const COMMON_FIELD_PATTERNS = {
   // Note browser/listing view
-  LISTING: [
-    'id',
-    'type',
-    'title',
-    'created',
-    'updated',
-    'metadata.tags',
-    'metadata.status'
-  ],
+  LISTING: ['id', 'type', 'title', 'created', 'updated', 'metadata.status'],
 
   // Link resolution (checking if notes exist)
   LINK_CHECK: ['id', 'title'],

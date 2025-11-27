@@ -983,7 +983,8 @@ export class HybridSearchManager {
         title: 'flint_title',
         filename: 'flint_filename',
         created: 'flint_created',
-        updated: 'flint_updated'
+        updated: 'flint_updated',
+        archived: 'flint_archived'
       };
 
       for (const [key, value] of Object.entries(metadata)) {
@@ -1842,7 +1843,6 @@ export class HybridSearchManager {
       created: string;
       modified: string;
       size: number;
-      tags: string[];
       path: string;
       archived?: boolean;
       flint_kind?: string;
@@ -1883,44 +1883,26 @@ export class HybridSearchManager {
 
       const notes = await connection.all<NoteRow>(query, params);
 
-      // For each note, get the tags from metadata
-      const results = await Promise.all(
-        notes.map(async (note) => {
-          // Query tags metadata
-          const tagsRow = await connection.get<{ value: string; value_type: string }>(
-            "SELECT value, value_type FROM note_metadata WHERE note_id = ? AND key = 'tags'",
-            [note.id]
-          );
+      // Map notes to result format
+      const results = notes.map((note) => {
+        // Convert relative path to absolute path
+        const absolutePath = path.isAbsolute(note.path)
+          ? note.path
+          : path.join(this.workspacePath, note.path);
 
-          let tags: string[] = [];
-          if (tagsRow) {
-            const deserializedTags = this.deserializeMetadataValue(
-              tagsRow.value,
-              tagsRow.value_type as 'string' | 'number' | 'date' | 'boolean' | 'array'
-            );
-            tags = Array.isArray(deserializedTags) ? deserializedTags : [];
-          }
-
-          // Convert relative path to absolute path
-          const absolutePath = path.isAbsolute(note.path)
-            ? note.path
-            : path.join(this.workspacePath, note.path);
-
-          return {
-            id: note.id,
-            type: note.type,
-            filename: note.filename,
-            title: note.title,
-            created: note.created,
-            modified: note.updated, // Use 'updated' as 'modified' for consistency
-            size: note.size || 0,
-            tags,
-            path: absolutePath,
-            archived: note.archived === 1,
-            flint_kind: note.flint_kind || undefined
-          };
-        })
-      );
+        return {
+          id: note.id,
+          type: note.type,
+          filename: note.filename,
+          title: note.title,
+          created: note.created,
+          modified: note.updated, // Use 'updated' as 'modified' for consistency
+          size: note.size || 0,
+          path: absolutePath,
+          archived: note.archived === 1,
+          flint_kind: note.flint_kind || undefined
+        };
+      });
 
       return results;
     } catch (error) {

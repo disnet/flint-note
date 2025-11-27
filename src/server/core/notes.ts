@@ -104,7 +104,6 @@ export interface NoteListItem {
   created: string;
   modified: string;
   size: number;
-  tags: string[];
   path: string;
   archived?: boolean;
   flint_kind?: string;
@@ -817,12 +816,30 @@ export class NoteManager {
     formattedContent += `flint_created: ${timestamp}\n`;
     formattedContent += `flint_updated: ${timestamp}\n`;
 
+    // Mapping from legacy to flint_* field names for output
+    const LEGACY_TO_FLINT_OUTPUT: Record<string, string> = {
+      archived: 'flint_archived'
+    };
+
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {
       // Skip system fields (both old and new prefixed versions)
       if (SYSTEM_FIELDS.has(key)) {
         continue;
       }
+
+      // Skip legacy fields if their flint_* equivalent exists in metadata
+      const flintEquivalent = LEGACY_TO_FLINT_OUTPUT[key];
+      if (
+        flintEquivalent &&
+        metadata[flintEquivalent as keyof typeof metadata] !== undefined
+      ) {
+        continue;
+      }
+
+      // Convert legacy field names to flint_* equivalents when writing
+      const outputKey = flintEquivalent || key;
+
       if (Array.isArray(value)) {
         const escapedArray = value.map((v) => {
           if (typeof v === 'string') {
@@ -831,19 +848,14 @@ export class NoteManager {
           }
           return v;
         });
-        formattedContent += `${key}: [${escapedArray.join(', ')}]\n`;
+        formattedContent += `${outputKey}: [${escapedArray.join(', ')}]\n`;
       } else if (typeof value === 'string') {
         // Escape quotes and backslashes in string values
         const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        formattedContent += `${key}: "${escapedValue}"\n`;
+        formattedContent += `${outputKey}: "${escapedValue}"\n`;
       } else {
-        formattedContent += `${key}: ${value}\n`;
+        formattedContent += `${outputKey}: ${value}\n`;
       }
-    }
-
-    // Add default tags if not specified
-    if (!metadata.tags) {
-      formattedContent += 'tags: []\n';
     }
 
     formattedContent += '---\n\n';
@@ -894,6 +906,27 @@ export class NoteManager {
 
             // Determine kind from database column first, then metadata, then default
             const metadata = dbNote.metadata as NoteMetadata;
+
+            // Normalize metadata: populate legacy fields from flint_* fields for backward compatibility
+            const FLINT_TO_LEGACY: Record<string, string> = {
+              flint_id: 'id',
+              flint_type: 'type',
+              flint_title: 'title',
+              flint_filename: 'filename',
+              flint_created: 'created',
+              flint_updated: 'updated',
+              flint_archived: 'archived'
+            };
+            for (const [flintField, legacyField] of Object.entries(FLINT_TO_LEGACY)) {
+              if (
+                metadata[flintField as keyof NoteMetadata] !== undefined &&
+                metadata[legacyField as keyof NoteMetadata] === undefined
+              ) {
+                (metadata as Record<string, unknown>)[legacyField] =
+                  metadata[flintField as keyof NoteMetadata];
+              }
+            }
+
             const noteKind: NoteKind =
               (dbNote.flint_kind as NoteKind) ||
               (metadata.flint_kind as NoteKind) ||
@@ -1261,7 +1294,8 @@ export class NoteManager {
       title: 'flint_title',
       filename: 'flint_filename',
       created: 'flint_created',
-      updated: 'flint_updated'
+      updated: 'flint_updated',
+      archived: 'flint_archived'
     };
 
     let formattedContent = '---\n';
@@ -1277,6 +1311,9 @@ export class NoteManager {
       if (flintEquivalent && metadata[flintEquivalent] !== undefined) {
         continue;
       }
+
+      // Determine the output key - convert legacy field names to flint_* equivalents
+      const outputKey = flintEquivalent || key;
 
       if (key === 'links' && value && typeof value === 'object') {
         // Special handling for new bidirectional links structure
@@ -1333,17 +1370,17 @@ export class NoteManager {
             }
             return `"${v}"`;
           });
-          formattedContent += `${key}: [${escapedArray.join(', ')}]\n`;
+          formattedContent += `${outputKey}: [${escapedArray.join(', ')}]\n`;
         } else {
-          formattedContent += `${key}: []\n`;
+          formattedContent += `${outputKey}: []\n`;
         }
       } else if (typeof value === 'string') {
         // Always quote strings to handle special characters properly
         // Escape quotes and backslashes in string values
         const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        formattedContent += `${key}: "${escapedValue}"\n`;
+        formattedContent += `${outputKey}: "${escapedValue}"\n`;
       } else {
-        formattedContent += `${key}: ${value}\n`;
+        formattedContent += `${outputKey}: ${value}\n`;
       }
     }
 
@@ -1395,12 +1432,34 @@ export class NoteManager {
         flint_updated: updateTime
       };
 
+      // Mapping from legacy to flint_* field names
+      const LEGACY_TO_FLINT: Record<string, string> = {
+        id: 'flint_id',
+        type: 'flint_type',
+        title: 'flint_title',
+        filename: 'flint_filename',
+        created: 'flint_created',
+        updated: 'flint_updated',
+        archived: 'flint_archived'
+      };
+
       // Apply new metadata, explicitly deleting undefined values
+      // Also sync legacy fields to their flint_* equivalents
       for (const [key, value] of Object.entries(metadata)) {
         if (value === undefined) {
           delete updatedMetadata[key];
+          // Also delete the flint_* equivalent if a legacy field is deleted
+          const flintKey = LEGACY_TO_FLINT[key];
+          if (flintKey) {
+            delete updatedMetadata[flintKey];
+          }
         } else {
           updatedMetadata[key] = value;
+          // If a legacy field is updated, also update its flint_* equivalent
+          const flintKey = LEGACY_TO_FLINT[key];
+          if (flintKey) {
+            updatedMetadata[flintKey] = value;
+          }
         }
       }
 
@@ -1661,11 +1720,21 @@ export class NoteManager {
           matches = false;
         }
 
-        // Check tags filter
-        if (criteria.tags && criteria.tags.length > 0) {
-          const noteTags = note.tags || [];
-          const hasAllTags = criteria.tags.every((tag) => noteTags.includes(tag));
-          if (!hasAllTags) {
+        // Check tags filter - tags are now a user-managed custom field in metadata
+        if (criteria.tags && criteria.tags.length > 0 && matches) {
+          try {
+            const noteContent = await fs.readFile(note.path, 'utf-8');
+            const parsed = parseFrontmatter(noteContent);
+            // Tags are now a user-managed custom field, access via index signature
+            const metadataTags = (parsed.metadata as Record<string, unknown>)?.tags;
+            const noteTags = Array.isArray(metadataTags)
+              ? metadataTags.map((t) => String(t))
+              : [];
+            const hasAllTags = criteria.tags.every((tag) => noteTags.includes(tag));
+            if (!hasAllTags) {
+              matches = false;
+            }
+          } catch {
             matches = false;
           }
         }
@@ -1793,7 +1862,6 @@ export class NoteManager {
               created: stats.birthtime.toISOString(),
               modified: stats.mtime.toISOString(),
               size: stats.size,
-              tags: parsed.metadata.tags || [],
               path: notePath
             });
           }
@@ -2521,11 +2589,11 @@ export class NoteManager {
       const note = await this.getNote(identifier);
       const notePath = note.path;
 
-      // Update metadata to add archived: true
+      // Update metadata to add flint_archived: true
       const timestamp = new Date().toISOString();
       const updatedMetadata: NoteMetadata = {
         ...note.metadata,
-        archived: true,
+        flint_archived: true,
         flint_updated: timestamp
       };
 
@@ -2566,11 +2634,11 @@ export class NoteManager {
       const note = await this.getNote(identifier);
       const notePath = note.path;
 
-      // Update metadata to remove archived flag (set to undefined to remove from frontmatter)
+      // Update metadata to remove flint_archived flag (set to undefined to remove from frontmatter)
       const timestamp = new Date().toISOString();
       const updatedMetadata: NoteMetadata = {
         ...note.metadata,
-        archived: undefined,
+        flint_archived: undefined,
         flint_updated: timestamp
       };
 

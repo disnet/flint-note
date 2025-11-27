@@ -23,7 +23,6 @@ export class ReviewTools {
     return {
       get_note_full: this.getNoteFullTool,
       get_linked_notes: this.getLinkedNotesTool,
-      search_notes_by_tags: this.searchNotesByTagsTool,
       search_daily_notes: this.searchDailyNotesTool,
       complete_review: this.completeReviewTool,
       create_note_link: this.createNoteLinkTool
@@ -208,77 +207,6 @@ export class ReviewTools {
           _limited:
             outboundLinks.outgoing_internal.length > maxLimit ||
             backlinks.results.length > maxLimit
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
-    }
-  });
-
-  /**
-   * Tool: Search notes by tags
-   */
-  private searchNotesByTagsTool = tool({
-    description:
-      'Find notes that share specific tags. Use this during review to discover related notes with similar topics or themes. Helps identify connections in the knowledge graph.',
-    inputSchema: z.object({
-      tags: z
-        .array(z.string())
-        .describe('Array of tag names to search for (e.g., ["learning", "memory"])'),
-      limit: z
-        .number()
-        .optional()
-        .default(10)
-        .describe('Maximum number of notes to return')
-    }),
-    execute: async ({ tags, limit }) => {
-      if (!this.noteService) {
-        return {
-          success: false,
-          error: 'Note service not available'
-        };
-      }
-
-      try {
-        const flintApi = this.noteService.getFlintNoteApi();
-        const currentVault = await this.noteService.getCurrentVault();
-
-        if (!currentVault) {
-          return {
-            success: false,
-            error: 'No active vault'
-          };
-        }
-
-        // Search for notes with these tags using metadata query
-        const searchResults = await flintApi.searchNotesAdvanced({
-          vault_id: currentVault.id,
-          metadata_filters: tags.map((tag) => ({
-            key: 'tags',
-            value: `%${tag}%`,
-            operator: 'LIKE'
-          })),
-          limit
-        });
-
-        // Return only metadata to avoid bloating context
-        const noteSummaries = searchResults.map((note) => ({
-          id: note.id,
-          title: note.title,
-          type: note.type,
-          created: note.created,
-          modified: note.modified,
-          contentPreview:
-            typeof note.content === 'string' ? note.content.substring(0, 100) + '...' : ''
-        }));
-
-        return {
-          success: true,
-          notes: noteSummaries,
-          count: noteSummaries.length
         };
       } catch (error) {
         return {

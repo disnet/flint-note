@@ -50,8 +50,7 @@ class WikilinkService {
           path: createdNote.path,
           created: createdNote.created,
           modified: createdNote.created, // New notes have same created/modified time
-          size: 0,
-          tags: []
+          size: 0
         };
 
         if (shiftKey) {

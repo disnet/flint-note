@@ -193,7 +193,6 @@
             created: noteData.created,
             modified: noteData.updated,
             size: noteData.size || 0,
-            tags: noteData.metadata?.tags || [],
             path: noteData.path
           };
           onNoteSelect(noteMetadata, lineNumber);

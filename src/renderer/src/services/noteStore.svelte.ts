@@ -10,7 +10,6 @@ export type NoteMetadata = {
   created: string;
   modified: string;
   size: number;
-  tags: string[];
   path: string;
   archived?: boolean;
   flint_kind?: string;
@@ -118,7 +117,6 @@ function createNotesStore(): {
           created: note.created || new Date().toISOString(),
           modified: note.modified || new Date().toISOString(),
           size: note.size || 0,
-          tags: note.tags || [],
           path: note.path || '',
           archived: note.archived || false,
           flint_kind: note.flint_kind

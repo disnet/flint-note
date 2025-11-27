@@ -18,7 +18,8 @@ const FLINT_TO_LEGACY: Record<string, string> = {
   flint_title: 'title',
   flint_filename: 'filename',
   flint_created: 'created',
-  flint_updated: 'updated'
+  flint_updated: 'updated',
+  flint_archived: 'archived'
 };
 
 /**
@@ -31,7 +32,8 @@ const LEGACY_TO_FLINT: Record<string, string> = {
   title: 'flint_title',
   filename: 'flint_filename',
   created: 'flint_created',
-  updated: 'flint_updated'
+  updated: 'flint_updated',
+  archived: 'flint_archived'
 };
 
 /**

@@ -306,7 +306,6 @@ export class NoteService {
   async searchNotesAdvanced(params: {
     query: string;
     type?: string;
-    tags?: string[];
     dateFrom?: string;
     dateTo?: string;
     limit?: number;
@@ -316,15 +315,6 @@ export class NoteService {
     return await this.api.searchNotesAdvanced({
       content_contains: params.query,
       type: params.type,
-      metadata_filters: params.tags
-        ? [
-            {
-              key: 'tags',
-              value: params.tags.join(','),
-              operator: 'IN'
-            }
-          ]
-        : undefined,
       created_within: params.dateFrom,
       created_before: params.dateTo,
       limit: params.limit,
@@ -523,12 +513,6 @@ export class NoteService {
           ],
           metadata_schema: {
             fields: [
-              {
-                name: 'tags',
-                type: 'array',
-                required: false,
-                description: 'Optional tags for categorizing the note'
-              },
               {
                 name: 'created_by',
                 type: 'string',

@@ -357,9 +357,6 @@
     if (note.title.includes('daily') || note.title.match(/\d{4}-\d{2}-\d{2}/)) {
       return { type: 'svg', value: 'calendar' };
     }
-    if (note.tags?.includes('project')) {
-      return { type: 'svg', value: 'folder' };
-    }
     return { type: 'svg', value: 'document' };
   }
 

@@ -159,7 +159,6 @@
           'filename',
           'created',
           'modified',
-          'tags',
           'path',
           'size'
         ]);

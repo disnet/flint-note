@@ -401,8 +401,7 @@
         path: createdNote.path,
         created: createdNote.created,
         modified: createdNote.created,
-        size: 0,
-        tags: []
+        size: 0
       };
 
       // Open the note
@@ -457,8 +456,7 @@
           path: createdNote.path,
           created: createdNote.created,
           modified: createdNote.created, // New notes have same created/modified time
-          size: 0,
-          tags: []
+          size: 0
         };
 
         // Open the note immediately using the returned data

@@ -193,7 +193,6 @@ declare namespace FlintAPI {
     created: string;
     updated: string;
     size: number;
-    tags: string[];
     path: string;
   }
 
@@ -204,7 +203,6 @@ declare namespace FlintAPI {
     created: string;
     updated: string;
     size: number;
-    tags: string[];
     path: string;
   }
 

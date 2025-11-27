@@ -280,7 +280,6 @@ class ActiveNoteStore {
                   created: note.created || new Date().toISOString(),
                   modified: note.modified || new Date().toISOString(),
                   size: note.size || 0,
-                  tags: Array.isArray(note.tags) ? note.tags : [],
                   path: note.path || ''
                 };
                 this.state.activeSystemView = null;

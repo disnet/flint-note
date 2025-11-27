@@ -74,7 +74,6 @@
 
     const metadata: Record<string, unknown> = {
       title: activeNote.title,
-      tags: activeNote.tags || [],
       created: new Date(activeNote.created).toISOString(),
       modified: new Date(activeNote.modified).toISOString()
     };
@@ -201,10 +200,6 @@
       }
 
       // Additional validation for common metadata fields
-      if (parsed.tags && !Array.isArray(parsed.tags)) {
-        throw new Error('Field "tags" must be an array');
-      }
-
       if (parsed.aliases && !Array.isArray(parsed.aliases)) {
         throw new Error('Field "aliases" must be an array');
       }

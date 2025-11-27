@@ -21,7 +21,6 @@ interface SearchIndexEntry {
   content: string;
   title: string;
   type: string;
-  tags: string[];
   updated: string;
   metadata: Record<string, unknown>;
 }
@@ -30,7 +29,6 @@ interface SearchResult {
   id: string;
   title: string;
   type: string;
-  tags: string[];
   score: number;
   snippet: string;
   lastUpdated: string;
@@ -42,24 +40,10 @@ interface SearchResult {
   metadata: Record<string, unknown>;
 }
 
-interface TagSearchResult {
-  id: string;
-  title: string;
-  type: string;
-  tags: string[];
-  lastUpdated: string;
-}
-
-interface TagInfo {
-  tag: string;
-  count: number;
-}
-
 interface SimilarNoteResult {
   id: string;
   title: string;
   type: string;
-  tags: string[];
   similarity: number;
   lastUpdated: string;
 }
@@ -126,7 +110,6 @@ export class SearchManager {
             id: identifier,
             title: noteData.title,
             type: noteData.type,
-            tags: noteData.tags,
             score: 1, // Default score for empty query
             snippet: this.generateSnippet(noteData.content, []),
             lastUpdated: noteData.updated,
@@ -165,7 +148,6 @@ export class SearchManager {
             id: identifier,
             title: noteData.title,
             type: noteData.type,
-            tags: noteData.tags,
             score,
             snippet: this.generateSnippet(noteData.content, searchTerms),
             lastUpdated: noteData.updated,
@@ -218,7 +200,6 @@ export class SearchManager {
             id: identifier,
             title: noteData.title,
             type: noteData.type,
-            tags: noteData.tags,
             score: 1, // Default score for empty query
             snippet: this.generateSnippet(noteData.content, []),
             lastUpdated: noteData.updated,
@@ -255,10 +236,13 @@ export class SearchManager {
           continue;
         }
 
-        // Test regex against content, title, and tags
+        // Test regex against content, title, and tags from metadata
         const contentMatches = regex.test(noteData.content);
         const titleMatches = regex.test(noteData.title);
-        const tagMatches = noteData.tags.some((tag) => regex.test(tag));
+        const metadataTags = noteData.metadata?.tags;
+        const tagMatches =
+          Array.isArray(metadataTags) &&
+          metadataTags.some((tag: string) => regex.test(String(tag)));
 
         if (contentMatches || titleMatches || tagMatches) {
           // Reset regex for snippet generation
@@ -278,7 +262,6 @@ export class SearchManager {
             id: identifier,
             title: noteData.title,
             type: noteData.type,
-            tags: noteData.tags,
             score: score,
             snippet: this.generateRegexSnippet(noteData.content, regex),
             lastUpdated: noteData.updated,
@@ -381,7 +364,11 @@ export class SearchManager {
     let score = 0;
     const content = noteData.content.toLowerCase();
     const title = noteData.title.toLowerCase();
-    const tags = noteData.tags.map((tag) => tag.toLowerCase());
+    // Get tags from metadata if present (user-managed custom field)
+    const metadataTags = noteData.metadata?.tags;
+    const tags = Array.isArray(metadataTags)
+      ? metadataTags.map((tag: string) => String(tag).toLowerCase())
+      : [];
 
     for (const term of searchTerms) {
       // Title matches are weighted more heavily
@@ -515,80 +502,6 @@ export class SearchManager {
   }
 
   /**
-   * Search notes by tags
-   */
-  async searchByTags(
-    tags: string[],
-    matchAll: boolean = false
-  ): Promise<TagSearchResult[]> {
-    try {
-      const searchIndex = await this.loadSearchIndex();
-      const results: TagSearchResult[] = [];
-      const searchTags = tags.map((tag) => tag.toLowerCase());
-
-      for (const [notePath, noteData] of Object.entries(searchIndex.notes)) {
-        const noteTags = noteData.tags.map((tag) => tag.toLowerCase());
-
-        let matches = false;
-        if (matchAll) {
-          // All tags must be present
-          matches = searchTags.every((tag) => noteTags.includes(tag));
-        } else {
-          // At least one tag must be present
-          matches = searchTags.some((tag) => noteTags.includes(tag));
-        }
-
-        if (matches) {
-          const identifier = this.pathToIdentifier(notePath);
-          results.push({
-            id: identifier,
-            title: noteData.title,
-            type: noteData.type,
-            tags: noteData.tags,
-            lastUpdated: noteData.updated
-          });
-        }
-      }
-
-      // Sort by last updated (newest first)
-      results.sort(
-        (a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
-      );
-
-      return results;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Tag search failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Get all unique tags from notes
-   */
-  async getAllTags(): Promise<TagInfo[]> {
-    try {
-      const searchIndex = await this.loadSearchIndex();
-      const tagCounts: Record<string, number> = {};
-
-      for (const noteData of Object.values(searchIndex.notes)) {
-        for (const tag of noteData.tags) {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        }
-      }
-
-      // Convert to array and sort by frequency
-      const tags = Object.entries(tagCounts)
-        .map(([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count);
-
-      return tags;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get tags: ${errorMessage}`);
-    }
-  }
-
-  /**
    * Search for similar notes based on content similarity
    */
   async findSimilarNotes(
@@ -623,7 +536,6 @@ export class SearchManager {
             id: identifier,
             title: noteData.title,
             type: noteData.type,
-            tags: noteData.tags,
             similarity,
             lastUpdated: noteData.updated
           });
@@ -743,7 +655,6 @@ export class SearchManager {
                       (parsed.metadata.flint_title as string) ||
                       (parsed.metadata.title as string),
                     type: parsed.metadata.type || entry.name,
-                    tags: parsed.metadata.tags || [],
                     updated: new Date().toISOString(),
                     metadata: parsed.metadata
                   };
@@ -885,7 +796,7 @@ export class SearchManager {
         const searchableContent = [
           noteTitle,
           parsed.content,
-          (parsed.metadata.tags || []).join(' ')
+          Array.isArray(parsed.metadata.tags) ? parsed.metadata.tags.join(' ') : ''
         ].join(' ');
 
         // Add to index
@@ -893,7 +804,6 @@ export class SearchManager {
           content: searchableContent,
           title: noteTitle,
           type: parsed.metadata.type || path.basename(path.dirname(notePath)),
-          tags: parsed.metadata.tags || [],
           updated: new Date().toISOString(),
           metadata: parsed.metadata
         };

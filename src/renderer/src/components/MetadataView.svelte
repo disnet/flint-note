@@ -170,32 +170,6 @@
 
     // Type is now displayed in the header, not in metadata
 
-    // Add tags (editable)
-    const tagsKey = 'Tags';
-    if (!seenKeys.has(tagsKey)) {
-      seenKeys.add(tagsKey);
-      if (metadata.tags && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
-        result.push({
-          key: tagsKey,
-          value: metadata.tags.join(', '),
-          type: 'tags',
-          isSystem: false,
-          isEditable: true,
-          uniqueId: `${tagsKey}-${result.length}`
-        });
-      } else {
-        result.push({
-          key: tagsKey,
-          value: '—',
-          type: 'tags',
-          isEmpty: true,
-          isSystem: false,
-          isEditable: true,
-          uniqueId: `${tagsKey}-${result.length}`
-        });
-      }
-    }
-
     // Add schema-defined metadata fields if available
     // Note: standardFields is used to filter out fields from metadata that shouldn't be shown
     // This includes both system fields and fields handled elsewhere
@@ -212,6 +186,7 @@
       'flint_content',
       'flint_content_hash',
       'flint_size',
+      'flint_archived',
       // Legacy fields
       'id',
       'title',
@@ -219,7 +194,7 @@
       'created',
       'updated',
       'modified',
-      'tags',
+      'archived',
       'filename',
       'path',
       'content',
@@ -346,7 +321,6 @@
       }
       editedMetadata = {
         type: note.type,
-        tags: note.metadata?.tags ? [...(note.metadata.tags as string[])] : [],
         ...note.metadata
       };
       // Load review history if expanded
@@ -435,25 +409,6 @@
     }
   }
 
-  function addTag(): void {
-    const tags = (editedMetadata.tags as string[]) || [];
-    tags.push('');
-    editedMetadata.tags = [...tags];
-  }
-
-  function removeTag(index: number): void {
-    const tags = (editedMetadata.tags as string[]) || [];
-    tags.splice(index, 1);
-    editedMetadata.tags = [...tags];
-    handleMetadataChange('tags', editedMetadata.tags);
-  }
-
-  function updateTag(index: number, value: string): void {
-    const tags = (editedMetadata.tags as string[]) || [];
-    tags[index] = value.trim();
-    editedMetadata.tags = [...tags];
-  }
-
   async function handlePathClick(path: string): Promise<void> {
     try {
       await window.api?.showItemInFolder({ path });
@@ -493,42 +448,6 @@
                 {:else}
                   <span class="system-value">{item.value}</span>
                 {/if}
-              {:else if item.type === 'tags'}
-                <!-- Tags - always editable -->
-                <div class="tags-edit-container">
-                  {#each (editedMetadata.tags as string[]) || [] as tag, index (index)}
-                    <div class="tag-pill">
-                      <input
-                        type="text"
-                        class="tag-input"
-                        value={tag}
-                        onchange={(e) =>
-                          updateTag(index, (e.target as HTMLInputElement).value)}
-                        onblur={() => handleMetadataChange('tags', editedMetadata.tags)}
-                        placeholder="tag"
-                        disabled={isSaving}
-                      />
-                      <button
-                        class="tag-remove"
-                        onclick={() => removeTag(index)}
-                        type="button"
-                        title="Remove tag"
-                        disabled={isSaving}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  {/each}
-                  <button
-                    class="tag-add"
-                    onclick={addTag}
-                    type="button"
-                    title="Add tag"
-                    disabled={isSaving}
-                  >
-                    +
-                  </button>
-                </div>
               {:else if item.type === 'boolean'}
                 <!-- Boolean checkbox - always editable -->
                 <label class="inline-checkbox">
@@ -742,87 +661,6 @@
 
   .inline-checkbox span {
     font-size: 0.875rem;
-    color: var(--text-primary);
-  }
-
-  /* Tag editing - pill-style with inline editing */
-  .tags-edit-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    align-items: center;
-  }
-
-  .tag-pill {
-    display: inline-flex;
-    align-items: center;
-    background: var(--bg-secondary);
-    border-radius: 1rem;
-    padding: 0.125rem 0.125rem 0.125rem 0.5rem;
-    gap: 0.25rem;
-    transition: background 0.15s ease;
-  }
-
-  .tag-pill:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .tag-input {
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    padding: 0;
-    min-width: 3ch;
-    max-width: 12ch;
-    outline: none;
-  }
-
-  .tag-input::placeholder {
-    color: var(--text-secondary);
-    opacity: 0.5;
-  }
-
-  .tag-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1rem;
-    line-height: 1;
-    transition: all 0.15s ease;
-  }
-
-  .tag-remove:hover {
-    background: var(--bg-danger);
-    color: white;
-  }
-
-  .tag-add {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 1px dashed var(--border-light);
-    background: transparent;
-    color: var(--text-secondary);
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1rem;
-    line-height: 1;
-    transition: all 0.15s ease;
-  }
-
-  .tag-add:hover {
-    background: var(--bg-secondary);
-    border-color: var(--text-secondary);
     color: var(--text-primary);
   }
 

@@ -38,7 +38,8 @@ export const LEGACY_TO_FLINT: Record<string, string> = {
   path: 'flint_path',
   content: 'flint_content',
   content_hash: 'flint_content_hash',
-  size: 'flint_size'
+  size: 'flint_size',
+  archived: 'flint_archived'
 };
 
 /**
@@ -83,6 +84,7 @@ export const SYSTEM_FIELDS = new Set([
   'flint_content',
   'flint_content_hash',
   'flint_size',
+  'flint_archived',
   // Legacy fields (for backward compatibility)
   'id',
   'type',
@@ -93,7 +95,8 @@ export const SYSTEM_FIELDS = new Set([
   'path',
   'content',
   'content_hash',
-  'size'
+  'size',
+  'archived'
 ]);
 
 /**

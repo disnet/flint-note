@@ -299,8 +299,7 @@ class DailyViewStore {
           type: dailyNote.type,
           created: dailyNote.created,
           modified: dailyNote.modified,
-          size: dailyNote.size,
-          tags: dailyNote.tags || []
+          size: dailyNote.size
         });
       }
 
@@ -369,7 +368,6 @@ class DailyViewStore {
                 created: new Date().toISOString(),
                 modified: new Date().toISOString(),
                 size: content.length,
-                tags: [],
                 date: date,
                 autoCreated: true,
                 content
@@ -497,7 +495,6 @@ class DailyViewStore {
       created: apiNote.created,
       modified: apiNote.updated,
       size: apiNote.size || 0,
-      tags: [],
       date: (apiNote.metadata?.date as string) || apiNote.title,
       autoCreated: (apiNote.metadata?.autoCreated as boolean) || false,
       content: apiNote.content
@@ -520,8 +517,7 @@ class DailyViewStore {
       type: apiNote.type,
       created: new Date().toISOString(), // API doesn't provide these in the simple format
       modified: new Date().toISOString(),
-      size: 0,
-      tags: []
+      size: 0
     };
   }
 }

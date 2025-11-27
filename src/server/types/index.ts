@@ -41,6 +41,7 @@ export interface NoteMetadata {
   flint_filename?: string;
   flint_created?: string;
   flint_updated?: string;
+  flint_archived?: boolean;
 
   // Legacy system fields (for backward compatibility)
   id?: string;
@@ -49,9 +50,9 @@ export interface NoteMetadata {
   created?: string;
   updated?: string;
   filename?: string; // Store filename for easy reference
+  archived?: boolean;
 
   // User-managed fields
-  tags?: string[];
   subnotes?: string[]; // Array of child note identifiers (supports frontmatter)
   links?: {
     outbound?: NoteLink[];

@@ -11,8 +11,4 @@ agent_instructions:
   - 'Help ensure ideas are expressed in own words, not copied from sources'
   - 'Suggest literature notes that support or challenge the idea'
 metadata_schema:
-  fields:
-    - name: 'tags'
-      type: 'string'
-      description: 'Tags for categorization'
-      required: false
+  fields: []

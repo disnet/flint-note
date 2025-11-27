@@ -2177,8 +2177,39 @@ async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.15.0: Rename 'tags' to 'flint_tags' in note_metadata table
+ * Updates the key name for tags metadata to follow flint_* naming convention
+ */
+async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
+  console.log(
+    "Migrating to v2.15.0: Renaming 'tags' key to 'flint_tags' in note_metadata"
+  );
+
+  try {
+    // Check if note_metadata table exists
+    const tables = await db.all<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='note_metadata'"
+    );
+    if (tables.length === 0) {
+      console.log('note_metadata table does not exist, skipping tags key migration');
+      return;
+    }
+
+    // Update all 'tags' keys to 'flint_tags'
+    const result = await db.run(
+      "UPDATE note_metadata SET key = 'flint_tags' WHERE key = 'tags'"
+    );
+
+    console.log(`tags key migration completed: ${result.changes || 0} rows updated`);
+  } catch (error) {
+    console.error("Failed to rename 'tags' to 'flint_tags':", error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.14.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.15.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2300,6 +2331,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_14_0
+    },
+    {
+      version: '2.15.0',
+      description: "Rename 'tags' to 'flint_tags' in note_metadata table",
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_15_0
     }
   ];
 
