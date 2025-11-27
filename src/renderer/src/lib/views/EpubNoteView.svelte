@@ -15,6 +15,7 @@
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte.js';
   import { reviewStore } from '../../stores/reviewStore.svelte.js';
   import { getChatService } from '../../services/chatService.js';
+  import { messageBus } from '../../services/messageBus.svelte.js';
   import type { Note } from '@/server/core/notes';
 
   let {
@@ -340,8 +341,8 @@
     (metadata.epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
   );
 
-  // Note title (editable) - use activeNote.title directly
-  let noteTitle = $derived((activeNote.title as string) || 'Untitled');
+  // Note title (editable) - use flint_title from metadata as canonical source
+  let noteTitle = $derived((metadata.flint_title as string) || 'Untitled');
 
   // Action bar state
   let metadataExpanded = $state(false);
@@ -377,8 +378,8 @@
     const noteId = activeNote?.id as string;
     if (!noteId) return;
 
-    // Skip if unchanged
-    if (newTitle === activeNote.title) return;
+    // Skip if unchanged (compare against canonical flint_title)
+    if (newTitle === metadata.flint_title) return;
 
     try {
       const noteService = getChatService();
@@ -388,11 +389,29 @@
         return;
       }
 
-      await noteService.renameNote({
+      const result = await noteService.renameNote({
         vaultId: vault.id,
         identifier: noteId,
         newIdentifier: newTitle
       });
+
+      if (result.success) {
+        // Get the updated note to get the new filename
+        const updatedNote = await noteService.getNote({
+          identifier: result.new_id || noteId
+        });
+
+        if (updatedNote) {
+          // Publish rename event so the note cache and UI update
+          messageBus.publish({
+            type: 'note.renamed',
+            oldId: noteId,
+            newId: result.new_id || noteId,
+            title: newTitle,
+            filename: updatedNote.filename || ''
+          });
+        }
+      }
     } catch (err) {
       console.error('Error renaming note:', err);
     }
@@ -483,7 +502,9 @@
       await noteService.updateNote({
         identifier: noteId,
         content: noteContent || '',
-        metadata: $state.snapshot(updatedMetadata) as import('@/server/types').NoteMetadata
+        metadata: $state.snapshot(
+          updatedMetadata
+        ) as import('@/server/types').NoteMetadata
       });
 
       // Refresh note data

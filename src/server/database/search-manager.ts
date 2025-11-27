@@ -173,7 +173,7 @@ export class HybridSearchManager {
     // This path should rarely be hit after proper initialization
     console.warn(
       '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
-        'This may cause race conditions with external edit detection.'
+      'This may cause race conditions with external edit detection.'
     );
 
     await fs.writeFile(filePath, content, 'utf-8');
@@ -887,7 +887,7 @@ export class HybridSearchManager {
       if (existingByTypeFilename && existingByTypeFilename.id !== id) {
         console.warn(
           `Note ID mismatch detected: File has ID ${id} but database has ${existingByTypeFilename.id} for ${type}/${filename}. ` +
-            `Deleting old entry and using file's ID.`
+          `Deleting old entry and using file's ID.`
         );
         // Delete the old note with the conflicting (type, filename)
         await connection.run('DELETE FROM notes WHERE id = ?', [
@@ -1613,9 +1613,13 @@ export class HybridSearchManager {
       // Determine title from metadata, keep empty if not specified
       // (UI handles displaying placeholder for empty titles)
       const title =
-        typeof metadata.title === 'string' && metadata.title.trim().length > 0
-          ? metadata.title
-          : '';
+        typeof metadata.flint_title === 'string' &&
+          (metadata.flint_title as string).trim().length > 0
+          ? (metadata.flint_title as string)
+          : typeof metadata.title === 'string' &&
+            (metadata.title as string).trim().length > 0
+            ? (metadata.title as string)
+            : '';
 
       // Get ID from frontmatter (for migrated notes with immutable IDs)
       // Fall back to old-style ID if frontmatter doesn't have one

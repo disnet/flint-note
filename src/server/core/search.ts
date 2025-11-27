@@ -739,7 +739,9 @@ export class SearchManager {
 
                   index.notes[notePath] = {
                     content: content,
-                    title: parsed.metadata.title || '',
+                    title:
+                      (parsed.metadata.flint_title as string) ||
+                      (parsed.metadata.title as string),
                     type: parsed.metadata.type || entry.name,
                     tags: parsed.metadata.tags || [],
                     updated: new Date().toISOString(),
@@ -876,8 +878,12 @@ export class SearchManager {
 
         // Extract searchable content
         const parsed = this.parseNoteContent(content);
+        const noteTitle =
+          (parsed.metadata.flint_title as string) ||
+          (parsed.metadata.title as string) ||
+          '';
         const searchableContent = [
-          parsed.metadata.title || '',
+          noteTitle,
           parsed.content,
           (parsed.metadata.tags || []).join(' ')
         ].join(' ');
@@ -885,7 +891,7 @@ export class SearchManager {
         // Add to index
         index.notes[notePath] = {
           content: searchableContent,
-          title: parsed.metadata.title || '',
+          title: noteTitle,
           type: parsed.metadata.type || path.basename(path.dirname(notePath)),
           tags: parsed.metadata.tags || [],
           updated: new Date().toISOString(),

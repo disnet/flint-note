@@ -970,7 +970,10 @@ export class NoteManager {
         kind: noteKind,
         filename,
         path: notePath,
-        title: parsedContent.metadata.title || '',
+        title:
+          (parsedContent.metadata.flint_title as string) ||
+          (parsedContent.metadata.title as string) ||
+          '',
         content: parsedContent.content,
         content_hash: contentHash,
         metadata: parsedContent.metadata,
@@ -1108,7 +1111,10 @@ export class NoteManager {
         kind: noteKind,
         filename,
         path: filePath,
-        title: parsed.metadata.title || '',
+        title:
+          (parsed.metadata.flint_title as string) ||
+          (parsed.metadata.title as string) ||
+          '',
         content: parsed.content,
         content_hash: contentHash,
         metadata: parsed.metadata,
@@ -1219,10 +1225,12 @@ export class NoteManager {
 
       const { notePath } = await this.parseNoteIdentifier(identifier);
 
-      // Update the content while preserving metadata
+      // Update the content while preserving metadata (both flint_* and legacy versions)
+      const updateTime = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
-        updated: new Date().toISOString()
+        flint_updated: updateTime,
+        updated: updateTime
       };
 
       const updatedContent = this.formatUpdatedNoteContent(updatedMetadata, newContent);
@@ -1373,11 +1381,13 @@ export class NoteManager {
         this.#validateNoProtectedFields(metadata);
       }
 
-      // Merge metadata with existing metadata
+      // Merge metadata with existing metadata (both flint_* and legacy versions)
       // Handle undefined values explicitly to allow removing fields
+      const updateTime = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
-        updated: new Date().toISOString()
+        flint_updated: updateTime,
+        updated: updateTime
       };
 
       // Apply new metadata, explicitly deleting undefined values
@@ -1771,7 +1781,10 @@ export class NoteManager {
               id: noteId,
               type: noteType.name,
               filename,
-              title: parsed.metadata.title || '',
+              title:
+                (parsed.metadata.flint_title as string) ||
+                (parsed.metadata.title as string) ||
+                '',
               created: stats.birthtime.toISOString(),
               modified: stats.mtime.toISOString(),
               size: stats.size,
@@ -1838,7 +1851,8 @@ export class NoteManager {
 
         await this.#hybridSearchManager.upsertNote(
           noteId,
-          parsed.metadata.title || '',
+          (parsed.metadata.flint_title as string) ||
+          (parsed.metadata.title as string),
           rewrittenContent,
           noteType,
           filename,
@@ -2138,10 +2152,10 @@ export class NoteManager {
 
       throw new Error(
         `Cannot modify system field(s): ${fieldList}. ` +
-          typeMessage +
-          titleMessage +
-          timestampMessage +
-          otherMessage
+        typeMessage +
+        titleMessage +
+        timestampMessage +
+        otherMessage
       );
     }
   }
@@ -2238,12 +2252,16 @@ export class NoteManager {
       // Note ID remains unchanged - it's immutable and stored in frontmatter
       const noteId = currentNote.id;
 
-      // Update the metadata with new title and filename
+      // Update the metadata with new title and filename (both flint_* and legacy versions)
+      const timestamp = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
+        flint_title: trimmedTitle,
         title: trimmedTitle,
+        flint_filename: finalBaseFilename,
         filename: finalBaseFilename,
-        updated: new Date().toISOString()
+        flint_updated: timestamp,
+        updated: timestamp
       };
 
       // Create the updated content
@@ -2407,7 +2425,7 @@ export class NoteManager {
       // If we reach here, the file exists - throw conflict error
       throw new Error(
         `A note with filename '${filename}' already exists in note type '${newType}'. ` +
-          'Move operation would overwrite existing note.'
+        'Move operation would overwrite existing note.'
       );
     } catch (error) {
       // If it's a filesystem error (ENOENT), we can proceed
@@ -2426,11 +2444,14 @@ export class NoteManager {
     // before moving the file to prevent orphaned state in FileWriteQueue
     await this.#fileWriteQueue.cancelPendingOperations(currentPath);
 
-    // Update the metadata with new type and timestamp
+    // Update the metadata with new type and timestamp (both flint_* and legacy versions)
+    const updateTime = new Date().toISOString();
     const updatedMetadata = {
       ...currentNote.metadata,
+      flint_type: newType,
       type: newType,
-      updated: new Date().toISOString()
+      flint_updated: updateTime,
+      updated: updateTime
     };
 
     // Format the content with updated metadata
