@@ -2718,6 +2718,111 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Image attachment operations
+  ipcMain.handle(
+    'import-image',
+    async (_event, params: { fileData: Uint8Array; filename: string }) => {
+      try {
+        // Validate file extension
+        const ext = params.filename.split('.').pop()?.toLowerCase();
+        const validExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        if (!ext || !validExtensions.includes(ext)) {
+          throw new Error(`Unsupported image format: ${ext}`);
+        }
+
+        // Get current vault path
+        if (!noteService) {
+          throw new Error('Note service not available');
+        }
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+
+        // Ensure attachments/images directory exists
+        const imagesDir = join(currentVault.path, 'attachments', 'images');
+        await fsPromises.mkdir(imagesDir, { recursive: true });
+
+        // Handle duplicate filenames
+        let finalFilename = params.filename;
+        let finalPath = join(imagesDir, finalFilename);
+        let counter = 1;
+        while (true) {
+          try {
+            await fsPromises.access(finalPath);
+            // File exists, try with a counter suffix
+            const baseName = params.filename.replace(/\.[^.]+$/, '');
+            finalFilename = `${baseName}-${counter}.${ext}`;
+            finalPath = join(imagesDir, finalFilename);
+            counter++;
+          } catch {
+            // File doesn't exist, we can use this path
+            break;
+          }
+        }
+
+        // Write the image file
+        await fsPromises.writeFile(finalPath, params.fileData);
+
+        logger.info('Image imported successfully', {
+          filename: finalFilename,
+          path: finalPath
+        });
+
+        return {
+          filename: finalFilename,
+          path: `attachments/images/${finalFilename}`
+        };
+      } catch (error) {
+        logger.error('Failed to import image', { error });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle('read-image-file', async (_event, params: { relativePath: string }) => {
+    try {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      const fullPath = join(currentVault.path, params.relativePath);
+      const buffer = await fsPromises.readFile(fullPath);
+
+      return new Uint8Array(buffer);
+    } catch (error) {
+      logger.error('Failed to read image file', { error, path: params.relativePath });
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'get-image-absolute-path',
+    async (_event, params: { relativePath: string }) => {
+      try {
+        if (!noteService) {
+          throw new Error('Note service not available');
+        }
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+
+        return join(currentVault.path, params.relativePath);
+      } catch (error) {
+        logger.error('Failed to get image absolute path', {
+          error,
+          path: params.relativePath
+        });
+        throw error;
+      }
+    }
+  );
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

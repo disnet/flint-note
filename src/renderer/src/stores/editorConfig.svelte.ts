@@ -19,6 +19,11 @@ import {
   type WikilinkEditHandler,
   getSelectedWikilink
 } from '../lib/wikilinks.svelte.js';
+import {
+  inlineImagesExtension,
+  type ImagePathClickHandler
+} from '../lib/inlineImages.svelte';
+import { createImageDropExtension } from '../lib/imageDropHandler.svelte';
 
 export interface EditorConfigOptions {
   onWikilinkClick?: (
@@ -29,6 +34,8 @@ export interface EditorConfigOptions {
   ) => Promise<void>;
   onWikilinkHover?: WikilinkHoverHandler;
   onWikilinkEdit?: WikilinkEditHandler;
+  onImagePathClick?: ImagePathClickHandler;
+  enableImageDrop?: boolean;
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   onEnterKey?: () => void;
@@ -360,6 +367,10 @@ export class EditorConfig {
             )
           ]
         : []),
+      // Inline images extension
+      inlineImagesExtension(this.options.onImagePathClick),
+      // Image drop handler (enabled by default unless explicitly disabled)
+      ...(this.options.enableImageDrop !== false ? [createImageDropExtension()] : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true),
       updateListener,
