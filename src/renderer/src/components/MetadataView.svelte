@@ -51,6 +51,7 @@
     }> = [];
 
     // Track seen keys to prevent duplicates
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in derived
     const seenKeys = new Set<string>();
 
     // Add system metadata fields (read-only)
@@ -184,6 +185,7 @@
       'links'
     ]);
 
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in derived
     const schemaFields = new Set();
 
     // Add schema fields from noteTypeInfo if available

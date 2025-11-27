@@ -148,6 +148,7 @@ const filteredFunctions = $derived((): CustomFunction[] => {
 });
 
 const allTags = $derived(() => {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
   const tagSet = new Set<string>();
   functions.forEach((func) => {
     func.tags.forEach((tag) => tagSet.add(tag));
@@ -279,7 +280,8 @@ export const customFunctionsStore = {
     try {
       const result = await window.api.createCustomFunction(params);
 
-      // Convert dates
+      // Convert dates (eslint-disable-next-line doesn't work across multiple lines)
+      /* eslint-disable svelte/prefer-svelte-reactivity -- parsing API response, not reactive state */
       const newFunc = {
         ...result,
         metadata: {
@@ -291,6 +293,7 @@ export const customFunctionsStore = {
             : undefined
         }
       };
+      /* eslint-enable svelte/prefer-svelte-reactivity */
 
       functions = [...functions, newFunc];
       return newFunc;
@@ -314,6 +317,7 @@ export const customFunctionsStore = {
       const result = await window.api.getCustomFunction(params);
       if (!result) return null;
 
+      /* eslint-disable svelte/prefer-svelte-reactivity -- parsing API response, not reactive state */
       return {
         ...result,
         metadata: {
@@ -325,6 +329,7 @@ export const customFunctionsStore = {
             : undefined
         }
       };
+      /* eslint-enable svelte/prefer-svelte-reactivity */
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get function';
       error = errorMessage;
@@ -349,6 +354,7 @@ export const customFunctionsStore = {
       const result = await window.api.updateCustomFunction(params);
 
       // Convert dates
+      /* eslint-disable svelte/prefer-svelte-reactivity -- parsing API response, not reactive state */
       const updatedFunc = {
         ...result,
         metadata: {
@@ -360,6 +366,7 @@ export const customFunctionsStore = {
             : undefined
         }
       };
+      /* eslint-enable svelte/prefer-svelte-reactivity */
 
       functions = functions.map((func) => (func.id === params.id ? updatedFunc : func));
 

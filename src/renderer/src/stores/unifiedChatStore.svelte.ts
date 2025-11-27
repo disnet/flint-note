@@ -86,6 +86,7 @@ function generateThreadTitle(messages: Message[]): string {
 }
 
 function extractNotesDiscussed(messages: Message[]): string[] {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
   const noteSet = new Set<string>();
   messages.forEach((message) => {
     const wikilinks = extractWikiLinks(message.text);
@@ -270,6 +271,7 @@ class UnifiedChatStore {
     const updatedThreads = [newThread, ...currentThreads];
 
     // Create a new Map to trigger Svelte reactivity
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, updatedThreads);
     this.state.threadsByVault = newMap;
@@ -333,6 +335,7 @@ class UnifiedChatStore {
     ];
 
     // Create a new Map to trigger Svelte reactivity
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, updatedThreads);
     this.state.threadsByVault = newMap;
@@ -351,6 +354,7 @@ class UnifiedChatStore {
     const filteredThreads = threads.filter((t) => t.id !== threadId);
 
     // Create a new Map to trigger Svelte reactivity
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, filteredThreads);
     this.state.threadsByVault = newMap;
@@ -555,6 +559,7 @@ class UnifiedChatStore {
     const vaultId = this.state.currentVaultId || 'default';
 
     // Create a new Map to trigger Svelte reactivity
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, []);
     this.state.threadsByVault = newMap;
@@ -590,6 +595,7 @@ class UnifiedChatStore {
       );
 
       // Create a new Map to trigger Svelte reactivity
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
       const newMap = new Map(this.state.threadsByVault);
       newMap.set(vaultId, sortedThreads.slice(0, this.state.maxThreadsPerVault));
       this.state.threadsByVault = newMap;
@@ -647,6 +653,7 @@ class UnifiedChatStore {
   }
 
   private deduplicateMessages(messages: Message[]): Message[] {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const seen = new Set<string>();
     const deduplicated: Message[] = [];
 
@@ -696,6 +703,7 @@ class UnifiedChatStore {
         }));
 
         // Update state for current vault
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
         const newMap = new Map(this.state.threadsByVault);
         newMap.set(this.state.currentVaultId!, processedThreads);
         this.state.threadsByVault = newMap;
@@ -722,6 +730,7 @@ class UnifiedChatStore {
           `📥 No saved threads found for vault ${this.state.currentVaultId}, initializing empty`
         );
         // Initialize empty state for current vault
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
         const newMap = new Map(this.state.threadsByVault);
         newMap.set(this.state.currentVaultId!, []);
         this.state.threadsByVault = newMap;
@@ -730,6 +739,7 @@ class UnifiedChatStore {
       console.error('❌ Failed to load conversations from storage:', error);
       // Initialize empty state for current vault on error
       if (this.state.currentVaultId) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map intentionally for reactivity
         const newMap = new Map(this.state.threadsByVault);
         newMap.set(this.state.currentVaultId!, []);
         this.state.threadsByVault = newMap;

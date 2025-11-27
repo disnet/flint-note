@@ -71,6 +71,7 @@ export class CursorPositionManager {
       position: anchor,
       selectionStart: from !== to ? from : undefined,
       selectionEnd: from !== to ? to : undefined,
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating timestamp string, not reactive state
       lastUpdated: new Date().toISOString()
     };
   }

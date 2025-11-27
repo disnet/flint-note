@@ -26,6 +26,7 @@
 
   function formatDate(date: Date): string {
     const now = new Date();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
 

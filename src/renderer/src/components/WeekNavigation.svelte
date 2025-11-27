@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { WeekData } from '../stores/dailyViewStore.svelte';
   import { dailyViewStore } from '../stores/dailyViewStore.svelte';
-  import { formatWeekRange, getCurrentWeek, isSameWeek } from '../utils/dateUtils.svelte';
+  import { formatWeekRange, getCurrentWeek, isSameWeek } from '../utils/dateUtils';
 
   interface Props {
     weekData: WeekData;

@@ -14,6 +14,7 @@ export async function handleCrossSectionDrop(
     // Create pinned note from temporary tab
     const pinnedNote: PinnedNoteInfo = {
       id: tab.noteId,
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating timestamp string, not reactive state
       pinnedAt: new Date().toISOString(),
       order: targetIndex
     };

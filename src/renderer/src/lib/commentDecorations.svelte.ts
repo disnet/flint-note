@@ -106,6 +106,7 @@ class CommentMarkersPlugin implements PluginValue {
     const { suggestions, expanded } = state;
 
     // Group suggestions by line number
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in function
     const suggestionsByLine = new Map<number, NoteSuggestion[]>();
 
     for (const suggestion of suggestions) {

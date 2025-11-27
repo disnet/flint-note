@@ -1,5 +1,5 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
-import { getCurrentWeek, getPreviousWeek, getNextWeek } from '../utils/dateUtils.svelte';
+import { getCurrentWeek, getPreviousWeek, getNextWeek } from '../utils/dateUtils';
 import { messageBus } from '../services/messageBus.svelte';
 
 // Types for daily view data structures

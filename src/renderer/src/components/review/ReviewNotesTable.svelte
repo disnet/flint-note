@@ -73,6 +73,7 @@
     sessionsPerWeek: number,
     isSessionAvailable: boolean
   ): EnrichedReviewItem[] {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
@@ -94,6 +95,7 @@
     // If session is not available (completed for today), next available is tomorrow
     // So we start counting from session + 1, and base date is tomorrow
     const baseSession = isSessionAvailable ? currentSession : currentSession + 1;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const baseDate = new Date(today);
     if (!isSessionAvailable) {
       baseDate.setDate(baseDate.getDate() + 1);
@@ -123,6 +125,7 @@
       // Calculate estimated date based on which session this item will actually be in
       const sessionsAway = currentQueueSession - baseSession;
       const daysAway = Math.round((sessionsAway / sessionsPerWeek) * 7);
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
       const estimatedDate = new Date(baseDate);
       estimatedDate.setDate(estimatedDate.getDate() + daysAway);
       // Use local date string to avoid timezone issues (YYYY-MM-DD in local time)
@@ -217,6 +220,7 @@
     const [year, month, day] = dateString.split('-').map(Number);
     const date = new Date(year, month - 1, day);
 
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, mutated in place
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

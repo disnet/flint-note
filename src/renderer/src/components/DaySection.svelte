@@ -1,7 +1,7 @@
 <script lang="ts">
   import DailyNoteEditor from './DailyNoteEditor.svelte';
   import type { DayData } from '../stores/dailyViewStore.svelte';
-  import { parseISODate } from '../utils/dateUtils.svelte';
+  import { parseISODate } from '../utils/dateUtils';
 
   interface Props {
     dayData: DayData;

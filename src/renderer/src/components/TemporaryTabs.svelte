@@ -82,9 +82,11 @@
     const content = (noteContent?.content || '').trim();
     if (content.length > 0) {
       const preview = content.slice(0, 50) + (content.length > 50 ? '…' : '');
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map for reactivity trigger
       contentPreviews = new Map(contentPreviews).set(noteId, preview);
     } else {
       // Content is empty, remove any existing preview so "Untitled" shows
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map for reactivity trigger
       const newMap = new Map(contentPreviews);
       newMap.delete(noteId);
       contentPreviews = newMap;

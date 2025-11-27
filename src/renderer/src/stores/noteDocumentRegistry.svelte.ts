@@ -14,6 +14,7 @@ export class NoteDocument {
 
   // Track which editor components are currently viewing/editing this document
   // Format: 'main' | 'sidebar-0' | 'sidebar-1' etc.
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- initialization, Set will be mutated in place
   activeEditors = $state<Set<string>>(new Set());
 
   // Phase 6: Track the primary editor ID (the first editor to register)
@@ -155,6 +156,7 @@ export class NoteDocument {
           type: 'note.updated',
           noteId: this.noteId,
           updates: {
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating timestamp string, not reactive state
             modified: new Date().toISOString()
           },
           source: 'user',

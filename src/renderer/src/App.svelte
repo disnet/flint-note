@@ -779,6 +779,7 @@
 
     // Track streaming state to handle tool call separation by step
     let currentMessageId = agentResponseId;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local tracking variable, not reactive state
     let toolCallMessageIdsByStep: Map<number, string> = new Map();
     let highestStepIndexSeen = 0;
 

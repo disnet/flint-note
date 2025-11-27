@@ -226,6 +226,7 @@
       // Remove from local state
       suggestions = suggestions.filter((s) => s.id !== suggestionId);
       // Remove from expanded if it was expanded
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Set for reactivity trigger
       const newExpanded = new Set(expandedSuggestions);
       newExpanded.delete(suggestionId);
       expandedSuggestions = newExpanded;

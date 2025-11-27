@@ -7,6 +7,7 @@ export function generateSafeNoteIdentifier(
   const existingNotes = notesStore.notes;
 
   // Get existing identifiers for the specific note type
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
   const existingIdentifiers = new Set(
     existingNotes
       .filter((note) => note.type === noteType)

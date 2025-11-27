@@ -39,6 +39,7 @@
 
   // Group backlinks by source note
   let groupedBacklinks = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in derived
     const groups = new Map<string, GroupedBacklink>();
 
     for (const backlink of backlinks) {
@@ -129,6 +130,7 @@
 
   function expandAll(event: Event): void {
     event.stopPropagation();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map for reactivity trigger
     const newState = new Map<string, boolean>();
     for (const group of groupedBacklinks) {
       newState.set(group.sourceNoteId, true);
@@ -138,6 +140,7 @@
 
   function collapseAll(event: Event): void {
     event.stopPropagation();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map for reactivity trigger
     const newState = new Map<string, boolean>();
     for (const group of groupedBacklinks) {
       newState.set(group.sourceNoteId, false);
@@ -147,6 +150,7 @@
 
   function toggleGroup(sourceNoteId: string): void {
     const currentState = groupExpansionState.get(sourceNoteId) ?? false;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- creating new Map for reactivity trigger
     groupExpansionState = new Map(groupExpansionState);
     groupExpansionState.set(sourceNoteId, !currentState);
   }

@@ -112,6 +112,7 @@
   function formatDate(dateString: string): string {
     const date = new Date(dateString);
     const today = new Date();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 

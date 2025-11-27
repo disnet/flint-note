@@ -3,7 +3,7 @@
   import DaySection from './DaySection.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import { dailyViewStore } from '../stores/dailyViewStore.svelte';
-  import { formatDayHeader, isToday } from '../utils/dateUtils.svelte';
+  import { formatDayHeader, isToday } from '../utils/dateUtils';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';

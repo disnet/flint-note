@@ -12,6 +12,7 @@
   let shelfDocs = $state<Map<string, NoteDocument>>(new Map());
 
   // Track original titles for cancel/revert
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- module-level tracking, not reactive state
   const originalTitles = new Map<string, string>();
 
   // Track the note IDs to detect changes
@@ -35,6 +36,7 @@
 
     // Perform async operations outside the reactive context
     (async () => {
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in async function
       const newDocs = new Map<string, NoteDocument>();
 
       // Open documents for all current notes on shelf
