@@ -506,4 +506,14 @@ export function setupApplicationMenu(): void {
       }
     }
   );
+
+  // Listen for menu trigger events from custom title bar menu (Windows/Linux)
+  // These forward the action to the renderer, same as native menu clicks
+  ipcMain.on('menu-trigger-navigate', (_event, view: string) => {
+    sendToRenderer('menu-navigate', view);
+  });
+
+  ipcMain.on('menu-trigger-action', (_event, action: string, ...args: unknown[]) => {
+    sendToRenderer('menu-action', action, ...args);
+  });
 }

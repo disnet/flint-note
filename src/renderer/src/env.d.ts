@@ -691,6 +691,10 @@ declare global {
         workspaces: Array<{ id: string; name: string; icon: string }>;
         activeWorkspaceId: string;
       }) => void;
+
+      // Trigger menu actions from custom title bar menu (Windows/Linux)
+      triggerMenuNavigate: (view: string) => void;
+      triggerMenuAction: (action: string, ...args: unknown[]) => void;
     };
   }
 }

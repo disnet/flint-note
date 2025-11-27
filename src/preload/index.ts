@@ -642,6 +642,15 @@ const api = {
     activeWorkspaceId: string;
   }): void => {
     electronAPI.ipcRenderer.send('menu-set-workspaces', data);
+  },
+
+  // Trigger menu actions from custom title bar menu (Windows/Linux)
+  triggerMenuNavigate: (view: string): void => {
+    electronAPI.ipcRenderer.send('menu-trigger-navigate', view);
+  },
+
+  triggerMenuAction: (action: string, ...args: unknown[]): void => {
+    electronAPI.ipcRenderer.send('menu-trigger-action', action, ...args);
   }
 };
 

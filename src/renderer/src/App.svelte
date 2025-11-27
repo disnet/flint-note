@@ -9,6 +9,7 @@
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import ToastNotification from './components/ToastNotification.svelte';
   import ChangelogViewer from './components/ChangelogViewer.svelte';
+  import TitleBarMenu from './components/TitleBarMenu.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -1085,6 +1086,7 @@
             </svg>
           </button>
           <VaultSwitcher onNoteClose={closeNoteEditor} />
+          <TitleBarMenu />
           <div class="navigation-controls">
             <button
               class="nav-btn"
@@ -1472,15 +1474,14 @@
     border-left-color: transparent;
   }
 
-  /* Window controls */
+  /* Window controls - shown on Windows/Linux, hidden on macOS (uses traffic lights) */
   .window-controls {
     display: flex;
     align-items: center;
     gap: 0;
   }
 
-  /* Hide custom window controls - macOS uses traffic lights, Windows/Linux use native frame */
-  .window-controls {
+  :global(html[data-platform='macos']) .window-controls {
     display: none;
   }
 
