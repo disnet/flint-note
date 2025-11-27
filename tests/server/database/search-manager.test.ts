@@ -853,5 +853,75 @@ Content.`
       expect(notes).toHaveLength(1);
       expect(notes[0].id).toBe(noteId);
     });
+
+    it('should generate new ID when importing file with legacy ID that clashes with existing note', async () => {
+      // Create existing note in DB at path1
+      const noteDir1 = path.join(testWorkspacePath, 'general');
+      const noteDir2 = path.join(testWorkspacePath, 'meeting');
+      await fs.mkdir(noteDir1, { recursive: true });
+      await fs.mkdir(noteDir2, { recursive: true });
+
+      const existingPath = path.join(noteDir1, 'existing-note.md');
+      const clashingId = 'n-clash123';
+
+      // Create and sync the first note
+      await fs.writeFile(
+        existingPath,
+        `---
+flint_id: ${clashingId}
+flint_title: Existing Note
+flint_type: general
+---
+# Existing Note
+
+This is the original note.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify existing note is in DB
+      const db = await searchManager.getDatabaseConnection();
+      let existingNotes = await db.all('SELECT id, path FROM notes WHERE id = ?', [
+        clashingId
+      ]);
+      expect(existingNotes).toHaveLength(1);
+      expect(existingNotes[0].path).toBe('general/existing-note.md');
+
+      // Now import a file with LEGACY frontmatter that has the same ID (at different path)
+      const importedPath = path.join(noteDir2, 'imported-note.md');
+      await fs.writeFile(
+        importedPath,
+        `---
+id: ${clashingId}
+title: Imported Note
+type: meeting
+---
+# Imported Note
+
+This is an imported note with clashing legacy ID.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify the imported note got a NEW ID (not the clashing one)
+      const allNotes = await db.all('SELECT id, path, title FROM notes ORDER BY path');
+      expect(allNotes).toHaveLength(2);
+
+      // Original note should still have its ID
+      const originalNote = allNotes.find((n) => n.path === 'general/existing-note.md');
+      expect(originalNote?.id).toBe(clashingId);
+      expect(originalNote?.title).toBe('Existing Note');
+
+      // Imported note should have a different ID
+      const importedNote = allNotes.find((n) => n.path === 'meeting/imported-note.md');
+      expect(importedNote?.id).not.toBe(clashingId);
+      expect(importedNote?.id).toMatch(/^n-[a-f0-9]{8}$/);
+      expect(importedNote?.title).toBe('Imported Note');
+
+      // Verify the imported file was updated with the new flint_id
+      const importedContent = await fs.readFile(importedPath, 'utf-8');
+      expect(importedContent).toMatch(/flint_id: n-[a-f0-9]{8}/);
+      expect(importedContent).not.toContain(`flint_id: ${clashingId}`);
+    });
   });
 });

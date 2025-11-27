@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
   import type { TocItem } from './types';
 
   let {
@@ -13,16 +14,14 @@
     onClose?: () => void;
   } = $props();
 
-  let expandedItems = $state<Set<string>>(new Set());
+  let expandedItems = new SvelteSet<string>();
 
   function toggleExpand(href: string): void {
-    const newSet = new Set(expandedItems);
-    if (newSet.has(href)) {
-      newSet.delete(href);
+    if (expandedItems.has(href)) {
+      expandedItems.delete(href);
     } else {
-      newSet.add(href);
+      expandedItems.add(href);
     }
-    expandedItems = newSet;
   }
 
   function handleItemClick(item: TocItem): void {

@@ -1924,8 +1924,7 @@ export class NoteManager {
 
         await this.#hybridSearchManager.upsertNote(
           noteId,
-          (parsed.metadata.flint_title as string) ||
-          (parsed.metadata.title as string),
+          (parsed.metadata.flint_title as string) || (parsed.metadata.title as string),
           rewrittenContent,
           noteType,
           filename,
@@ -2225,10 +2224,10 @@ export class NoteManager {
 
       throw new Error(
         `Cannot modify system field(s): ${fieldList}. ` +
-        typeMessage +
-        titleMessage +
-        timestampMessage +
-        otherMessage
+          typeMessage +
+          titleMessage +
+          timestampMessage +
+          otherMessage
       );
     }
   }
@@ -2495,7 +2494,7 @@ export class NoteManager {
       // If we reach here, the file exists - throw conflict error
       throw new Error(
         `A note with filename '${filename}' already exists in note type '${newType}'. ` +
-        'Move operation would overwrite existing note.'
+          'Move operation would overwrite existing note.'
       );
     } catch (error) {
       // If it's a filesystem error (ENOENT), we can proceed

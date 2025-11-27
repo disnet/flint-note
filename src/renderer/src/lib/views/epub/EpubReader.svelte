@@ -454,6 +454,7 @@
   }
 
   // Store remove functions for highlights
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- not reactive state, just stores cleanup functions
   const highlightRemoveFunctions = new Map<string, () => void>();
 
   // Public methods exposed to parent

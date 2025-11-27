@@ -7,6 +7,7 @@ import path from 'path';
 import { createHash, randomBytes } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
 import { toRelativePath } from '../utils/path-utils.js';
+import { LEGACY_TO_FLINT } from '../core/system-fields.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -173,7 +174,7 @@ export class HybridSearchManager {
     // This path should rarely be hit after proper initialization
     console.warn(
       '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
-      'This may cause race conditions with external edit detection.'
+        'This may cause race conditions with external edit detection.'
     );
 
     await fs.writeFile(filePath, content, 'utf-8');
@@ -887,7 +888,7 @@ export class HybridSearchManager {
       if (existingByTypeFilename && existingByTypeFilename.id !== id) {
         console.warn(
           `Note ID mismatch detected: File has ID ${id} but database has ${existingByTypeFilename.id} for ${type}/${filename}. ` +
-          `Deleting old entry and using file's ID.`
+            `Deleting old entry and using file's ID.`
         );
         // Delete the old note with the conflicting (type, filename)
         await connection.run('DELETE FROM notes WHERE id = ?', [
@@ -1293,7 +1294,11 @@ export class HybridSearchManager {
   // Index a single note file
   private async indexNoteFile(filePath: string): Promise<void> {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      let content = await fs.readFile(filePath, 'utf-8');
+
+      // First, normalize legacy frontmatter field names to flint_* prefixed names
+      content = await this.normalizeLegacyFrontmatterFields(filePath, content);
+
       const parsed = this.parseNoteContent(filePath, content);
 
       if (parsed) {
@@ -1302,9 +1307,6 @@ export class HybridSearchManager {
 
         // Re-read content after ID normalization
         let updatedContent = await fs.readFile(filePath, 'utf-8');
-
-        // Re-read content after title normalization
-        updatedContent = await fs.readFile(filePath, 'utf-8');
 
         // Check if we need to normalize the frontmatter type field
         await this.normalizeFrontmatterType(filePath, updatedContent, parsed);
@@ -1342,6 +1344,8 @@ export class HybridSearchManager {
   /**
    * Normalize the type field in frontmatter if it's missing or incorrect
    * Writes the correct type back to the file if normalization is needed
+   * Note: This runs AFTER normalizeLegacyFrontmatterFields, so all fields should
+   * already be flint_* prefixed.
    */
   private async normalizeFrontmatterType(
     filePath: string,
@@ -1357,8 +1361,12 @@ export class HybridSearchManager {
   ): Promise<void> {
     try {
       const parentDir = path.basename(path.dirname(filePath));
+      // Check both flint_type and legacy type fields (flint_type takes precedence)
+      const flintType = parsed.metadata.flint_type;
+      const legacyType = parsed.metadata.type;
       const frontmatterType =
-        typeof parsed.metadata.type === 'string' ? parsed.metadata.type : null;
+        (typeof flintType === 'string' ? flintType : null) ||
+        (typeof legacyType === 'string' ? legacyType : null);
 
       // Check if type is missing or doesn't match the directory
       const needsNormalization = !frontmatterType || frontmatterType !== parentDir;
@@ -1375,27 +1383,31 @@ export class HybridSearchManager {
         let updatedContent: string;
 
         if (!match) {
-          // No frontmatter found - create new frontmatter block with type
-          console.log(`Creating frontmatter for ${filePath} with type: ${parentDir}`);
-          updatedContent = `---\ntype: ${parentDir}\n---\n${content}`;
+          // No frontmatter found - create new frontmatter block with flint_type
+          console.log(
+            `Creating frontmatter for ${filePath} with flint_type: ${parentDir}`
+          );
+          updatedContent = `---\nflint_type: ${parentDir}\n---\n${content}`;
         } else {
           const originalFrontmatter = match[1];
           const bodyContent = match[2];
 
-          // Replace or add the type field in the frontmatter
+          // Replace or add the flint_type field in the frontmatter
           let updatedFrontmatter: string;
-          if (frontmatterType) {
-            // Replace existing type field
+          const hasFlintType = /^flint_type:/m.test(originalFrontmatter);
+
+          if (hasFlintType) {
+            // Replace existing flint_type field
             updatedFrontmatter = originalFrontmatter.replace(
-              /^type:.*$/m,
-              `type: ${parentDir}`
+              /^flint_type:.*$/m,
+              `flint_type: ${parentDir}`
             );
           } else {
-            // Add type field after id (if it exists) or at the beginning
+            // Add flint_type field after flint_id (if it exists) or at the beginning
             const lines = originalFrontmatter.split('\n');
-            const idLineIndex = lines.findIndex((line) => line.startsWith('id:'));
+            const idLineIndex = lines.findIndex((line) => line.startsWith('flint_id:'));
             const insertIndex = idLineIndex >= 0 ? idLineIndex + 1 : 0;
-            lines.splice(insertIndex, 0, `type: ${parentDir}`);
+            lines.splice(insertIndex, 0, `flint_type: ${parentDir}`);
             updatedFrontmatter = lines.join('\n');
           }
 
@@ -1408,7 +1420,8 @@ export class HybridSearchManager {
 
         // Update the parsed object to reflect the correction
         parsed.type = parentDir;
-        parsed.metadata.type = parentDir;
+        parsed.metadata.flint_type = parentDir;
+        parsed.metadata.type = parentDir; // Also update legacy field for compatibility
       }
     } catch (error) {
       // Log but don't fail the indexing operation if normalization fails
@@ -1420,8 +1433,10 @@ export class HybridSearchManager {
   }
 
   /**
-   * Normalize the id field in frontmatter if it's missing
+   * Normalize the id field in frontmatter if it's missing or clashes with an existing note
    * Generates and writes an immutable ID back to the file if needed
+   * Note: This runs AFTER normalizeLegacyFrontmatterFields, so all fields should
+   * already be flint_* prefixed.
    */
   private async normalizeFrontmatterId(
     filePath: string,
@@ -1436,20 +1451,39 @@ export class HybridSearchManager {
     }
   ): Promise<void> {
     try {
+      // Check both flint_id and legacy id fields (flint_id takes precedence)
+      const flintId = parsed.metadata.flint_id;
+      const legacyId = parsed.metadata.id;
       const frontmatterId =
-        typeof parsed.metadata.id === 'string' && parsed.metadata.id.startsWith('n-')
-          ? parsed.metadata.id
-          : null;
+        (typeof flintId === 'string' && flintId.startsWith('n-') ? flintId : null) ||
+        (typeof legacyId === 'string' && legacyId.startsWith('n-') ? legacyId : null);
 
       // Check if id is missing or is an old-style ID (type/filename)
-      const needsNormalization = !frontmatterId;
+      let needsNormalization = !frontmatterId;
+
+      // Also check if the ID clashes with an existing note at a different path
+      // This can happen when importing external files with legacy frontmatter
+      if (frontmatterId && !needsNormalization) {
+        const relativePath = toRelativePath(filePath, this.workspacePath);
+        const db = await this.getConnection();
+        const existingNote = await db.get<{ path: string }>(
+          'SELECT path FROM notes WHERE id = ?',
+          [frontmatterId]
+        );
+        if (existingNote && existingNote.path !== relativePath) {
+          console.warn(
+            `ID clash detected: ${filePath} has ID ${frontmatterId} which belongs to existing note at ${existingNote.path}. Generating new ID.`
+          );
+          needsNormalization = true;
+        }
+      }
 
       if (needsNormalization) {
         // Generate a new immutable ID
         const newId = 'n-' + randomBytes(4).toString('hex');
 
         console.log(
-          `Normalizing id field in ${filePath}: ${parsed.metadata.id || '(missing)'} → ${newId}`
+          `Normalizing id field in ${filePath}: ${parsed.metadata.flint_id || parsed.metadata.id || '(missing)'} → ${newId}`
         );
 
         // Parse the original content to get the frontmatter boundary
@@ -1459,22 +1493,25 @@ export class HybridSearchManager {
         let updatedContent: string;
 
         if (!match) {
-          // No frontmatter found - create new frontmatter block
-          console.log(`Creating frontmatter for ${filePath} with id: ${newId}`);
-          updatedContent = `---\nid: ${newId}\n---\n${content}`;
+          // No frontmatter found - create new frontmatter block with flint_id
+          console.log(`Creating frontmatter for ${filePath} with flint_id: ${newId}`);
+          updatedContent = `---\nflint_id: ${newId}\n---\n${content}`;
         } else {
           const originalFrontmatter = match[1];
           const bodyContent = match[2];
 
-          // Add or replace the id field in the frontmatter
+          // Add or replace the flint_id field in the frontmatter
           let updatedFrontmatter: string;
-          if (parsed.metadata.id) {
-            // Replace existing id field (e.g., old-style ID)
-            updatedFrontmatter = originalFrontmatter.replace(/^id:.*$/m, `id: ${newId}`);
+          if (parsed.metadata.flint_id) {
+            // Replace existing flint_id field (e.g., old-style ID)
+            updatedFrontmatter = originalFrontmatter.replace(
+              /^flint_id:.*$/m,
+              `flint_id: ${newId}`
+            );
           } else {
-            // Add id field at the beginning
+            // Add flint_id field at the beginning
             const lines = originalFrontmatter.split('\n');
-            lines.unshift(`id: ${newId}`);
+            lines.unshift(`flint_id: ${newId}`);
             updatedFrontmatter = lines.join('\n');
           }
 
@@ -1487,7 +1524,8 @@ export class HybridSearchManager {
 
         // Update the parsed object to reflect the correction
         parsed.id = newId;
-        parsed.metadata.id = newId;
+        parsed.metadata.flint_id = newId;
+        parsed.metadata.id = newId; // Also update legacy field for compatibility
       }
     } catch (error) {
       // Log but don't fail the indexing operation if normalization fails
@@ -1495,6 +1533,75 @@ export class HybridSearchManager {
         `Failed to normalize id for ${filePath}:`,
         error instanceof Error ? error.message : 'Unknown error'
       );
+    }
+  }
+
+  /**
+   * Normalize legacy frontmatter field names to flint_* prefixed names
+   * Converts id → flint_id, type → flint_type, title → flint_title, etc.
+   * This ensures all files use the new field naming convention.
+   */
+  private async normalizeLegacyFrontmatterFields(
+    filePath: string,
+    content: string
+  ): Promise<string> {
+    try {
+      // Parse frontmatter
+      const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+      const match = content.match(frontmatterRegex);
+
+      if (!match) {
+        // No frontmatter - nothing to normalize
+        return content;
+      }
+
+      const originalFrontmatter = match[1];
+      const bodyContent = match[2];
+
+      // Check if any legacy fields need conversion
+      let updatedFrontmatter = originalFrontmatter;
+      let hasChanges = false;
+
+      for (const [legacyField, flintField] of Object.entries(LEGACY_TO_FLINT)) {
+        // Match the legacy field at start of line, not preceded by flint_
+        // Also ensure we don't match if flint_ version already exists
+        const legacyRegex = new RegExp(`^${legacyField}:(.*)$`, 'm');
+        const flintRegex = new RegExp(`^${flintField}:`, 'm');
+
+        const hasLegacyField = legacyRegex.test(updatedFrontmatter);
+        const hasFlintField = flintRegex.test(updatedFrontmatter);
+
+        if (hasLegacyField && !hasFlintField) {
+          // Convert legacy field to flint_ prefixed version
+          updatedFrontmatter = updatedFrontmatter.replace(
+            legacyRegex,
+            `${flintField}:$1`
+          );
+          hasChanges = true;
+        } else if (hasLegacyField && hasFlintField) {
+          // Both exist - remove the legacy field (flint_ takes precedence)
+          updatedFrontmatter = updatedFrontmatter.replace(
+            new RegExp(`^${legacyField}:.*\n?`, 'm'),
+            ''
+          );
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        console.log(`Normalizing legacy frontmatter fields in ${filePath}`);
+        const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+        await this.writeFileWithTracking(filePath, updatedContent);
+        return updatedContent;
+      }
+
+      return content;
+    } catch (error) {
+      console.error(
+        `Failed to normalize legacy frontmatter fields for ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return content;
     }
   }
 
@@ -1630,10 +1737,10 @@ export class HybridSearchManager {
       // (UI handles displaying placeholder for empty titles)
       const title =
         typeof metadata.flint_title === 'string' &&
-          (metadata.flint_title as string).trim().length > 0
+        (metadata.flint_title as string).trim().length > 0
           ? (metadata.flint_title as string)
           : typeof metadata.title === 'string' &&
-            (metadata.title as string).trim().length > 0
+              (metadata.title as string).trim().length > 0
             ? (metadata.title as string)
             : '';
 
