@@ -37,6 +37,7 @@
 
   // State
   let container: HTMLDivElement;
+  let isDarkMode = $state(false);
   let view:
     | (HTMLElement & {
         open: (file: File | Blob) => Promise<void>;
@@ -87,6 +88,54 @@
     } catch (err) {
       console.error('Failed to load foliate-js:', err);
       throw new Error('Failed to initialize EPUB reader');
+    }
+  }
+
+  // Generate CSS for EPUB content based on theme
+  function getEpubStyles(dark: boolean): string {
+    if (dark) {
+      return `
+        html {
+          color-scheme: dark;
+          background: #1a1a1a !important;
+          color: #e0e0e0 !important;
+        }
+        body {
+          background: #1a1a1a !important;
+          color: #e0e0e0 !important;
+        }
+        a:link {
+          color: #6db3f2 !important;
+        }
+        a:visited {
+          color: #b4a7d6 !important;
+        }
+        img {
+          filter: brightness(0.9);
+        }
+      `;
+    } else {
+      return `
+        html {
+          color-scheme: light;
+        }
+      `;
+    }
+  }
+
+  // Check if dark mode is active
+  function checkDarkMode(): boolean {
+    const dataTheme = document.documentElement.getAttribute('data-theme');
+    if (dataTheme === 'dark') return true;
+    if (dataTheme === 'light') return false;
+    // System preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  // Apply styles to the EPUB view
+  function applyThemeStyles(): void {
+    if (view?.renderer?.setStyles) {
+      view.renderer.setStyles(getEpubStyles(isDarkMode));
     }
   }
 
@@ -179,6 +228,10 @@
       if (highlights.length > 0) {
         applyHighlights(highlights);
       }
+
+      // Apply theme styles
+      isDarkMode = checkDarkMode();
+      applyThemeStyles();
 
       isLoading = false;
     } catch (err) {
@@ -458,12 +511,38 @@
     }
   });
 
+  // Theme change observers
+  let themeObserver: MutationObserver | null = null;
+  let mediaQueryList: MediaQueryList | null = null;
+
+  function handleThemeChange(): void {
+    const newDarkMode = checkDarkMode();
+    if (newDarkMode !== isDarkMode) {
+      isDarkMode = newDarkMode;
+      applyThemeStyles();
+    }
+  }
+
   onMount(() => {
-    // Initial load will be triggered by $effect when epubPath is set
+    // Watch for data-theme attribute changes
+    themeObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === 'data-theme') {
+          handleThemeChange();
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true });
+
+    // Watch for system theme changes
+    mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQueryList.addEventListener('change', handleThemeChange);
   });
 
   onDestroy(() => {
     stopSelectionChecking();
+    themeObserver?.disconnect();
+    mediaQueryList?.removeEventListener('change', handleThemeChange);
     if (view) {
       view.removeEventListener('relocate', handleRelocate as (event: Event) => void);
       view.removeEventListener('load', handleSectionLoad as (event: Event) => void);

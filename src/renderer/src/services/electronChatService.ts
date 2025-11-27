@@ -249,12 +249,13 @@ export class ElectronChatService implements ChatService, NoteService {
   async createNote(params: {
     vaultId: string;
     type: string;
+    kind?: 'markdown' | 'epub' | string;
     identifier: string;
     content: string;
   }): Promise<NoteInfo> {
-    const { vaultId, type, identifier, content } = params;
+    const { vaultId, type, kind, identifier, content } = params;
     try {
-      return await window.api.createNote({ vaultId, type, identifier, content });
+      return await window.api.createNote({ vaultId, type, kind, identifier, content });
     } catch (error) {
       console.error('Failed to create note:', error);
       throw new Error('Failed to create note. Please try again.');

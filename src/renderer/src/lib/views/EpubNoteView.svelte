@@ -68,7 +68,21 @@
   let epubPath = $derived((metadata.epubPath as string) || '');
 
   // System fields that cannot be modified through metadata update
+  // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
   const SYSTEM_FIELDS = [
+    // New flint_* prefixed fields
+    'flint_id',
+    'flint_title',
+    'flint_type',
+    'flint_kind',
+    'flint_created',
+    'flint_updated',
+    'flint_path',
+    'flint_content',
+    'flint_content_hash',
+    'flint_size',
+    'flint_filename',
+    // Legacy fields
     'id',
     'title',
     'type',

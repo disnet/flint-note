@@ -279,6 +279,7 @@ export class ToolService {
           note: {
             id: noteInfo.id,
             type: noteType,
+            flint_kind: (note.metadata.flint_kind as string) || 'markdown',
             filename: note.filename,
             title: note.title,
             created: note.created,
@@ -432,7 +433,7 @@ export class ToolService {
 
         // Update metadata if provided
         if (metadata !== undefined) {
-          // Merge with existing metadata, excluding protected fields
+          // Merge with existing metadata, excluding protected fields (both legacy and flint_* prefixed)
           const {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             id: _id,
@@ -446,6 +447,20 @@ export class ToolService {
             created: _created,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             updated: _updated,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_id: _flint_id,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_type: _flint_type,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_kind: _flint_kind,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_title: _flint_title,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_filename: _flint_filename,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_created: _flint_created,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_updated: _flint_updated,
             ...userMetadata
           } = currentNote.metadata;
           updates.metadata = { ...userMetadata, ...metadata };
@@ -703,6 +718,20 @@ export class ToolService {
             created: _created,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             updated: _updated,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_id: _flint_id,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_type: _flint_type,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_kind: _flint_kind,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_title: _flint_title,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_filename: _flint_filename,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_created: _flint_created,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            flint_updated: _flint_updated,
             ...userMetadata
           } = currentNote.metadata;
           updates.metadata = { ...userMetadata, ...metadata };

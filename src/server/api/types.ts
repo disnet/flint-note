@@ -82,11 +82,14 @@ export interface CreateNoteTypeArgs {
 
 export interface CreateNoteArgs {
   type?: string;
+  /** Content rendering type: 'markdown' (default) or 'epub' */
+  kind?: 'markdown' | 'epub' | string;
   title?: string;
   content?: string;
   metadata?: Record<string, unknown>;
   notes?: Array<{
     type: string;
+    kind?: 'markdown' | 'epub' | string;
     title: string;
     content: string;
     metadata?: Record<string, unknown>;

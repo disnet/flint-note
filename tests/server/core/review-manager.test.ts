@@ -26,13 +26,16 @@ describe('ReviewManager', () => {
     dbManager = new DatabaseManager(dbPath);
     const db = await dbManager.connect();
 
-    // Create notes table (required for foreign key)
+    // Drop and recreate notes table with test schema
+    // DatabaseManager creates the table during connect(), but we need flint_kind for tests
+    await db.run('DROP TABLE IF EXISTS notes');
     await db.run(`
-      CREATE TABLE IF NOT EXISTS notes (
+      CREATE TABLE notes (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         content TEXT,
         type TEXT NOT NULL,
+        flint_kind TEXT DEFAULT 'markdown',
         filename TEXT NOT NULL,
         path TEXT NOT NULL,
         created TEXT NOT NULL,

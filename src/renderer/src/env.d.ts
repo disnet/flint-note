@@ -150,6 +150,7 @@ declare global {
       // Note operations
       createNote: (params: {
         type: string;
+        kind?: 'markdown' | 'epub' | string;
         identifier: string;
         content: string;
         vaultId?: string;

@@ -33,12 +33,25 @@ export interface NoteLink {
 }
 
 export interface NoteMetadata {
+  // New flint_* prefixed system fields
+  flint_id?: string;
+  flint_type?: string;
+  flint_kind?: 'markdown' | 'epub' | string; // Content rendering type
+  flint_title?: string;
+  flint_filename?: string;
+  flint_created?: string;
+  flint_updated?: string;
+
+  // Legacy system fields (for backward compatibility)
+  id?: string;
   title?: string;
   type?: string;
   created?: string;
   updated?: string;
-  tags?: string[];
   filename?: string; // Store filename for easy reference
+
+  // User-managed fields
+  tags?: string[];
   subnotes?: string[]; // Array of child note identifiers (supports frontmatter)
   links?: {
     outbound?: NoteLink[];
@@ -162,6 +175,7 @@ export interface DeletionValidation {
 export interface NoteInfo {
   id: string;
   type: string;
+  kind: 'markdown' | 'epub' | string; // Content rendering type
   title: string;
   filename: string;
   path: string;

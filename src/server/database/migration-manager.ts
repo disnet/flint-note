@@ -696,11 +696,12 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
 
   console.log('Initializing fresh database with v2.0.0 schema...');
 
-  // Create notes table with v2.0.0 schema (immutable IDs)
+  // Create notes table with v2.13.0 schema (immutable IDs + flint_kind)
   await db.run(`
     CREATE TABLE notes (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
+      flint_kind TEXT DEFAULT 'markdown',
       filename TEXT NOT NULL,
       path TEXT NOT NULL,
       title TEXT,
@@ -713,6 +714,9 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
       UNIQUE(type, filename)
     )
   `);
+
+  // Create index for flint_kind
+  await db.run('CREATE INDEX IF NOT EXISTS idx_notes_flint_kind ON notes(flint_kind)');
 
   // Create note_links table
   await db.run(`
@@ -1964,8 +1968,53 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.13.0: Add flint_kind column to notes table
+ * Separates content rendering type (kind) from organizational category (type)
+ */
+async function migrateToV2_13_0(db: DatabaseConnection): Promise<void> {
+  console.log(
+    'Migrating to v2.13.0: Adding flint_kind column for content rendering type'
+  );
+
+  try {
+    // Check if notes table exists first
+    const tables = await db.all<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='notes'"
+    );
+    if (tables.length === 0) {
+      console.log('notes table does not exist, skipping flint_kind migration');
+      return;
+    }
+
+    // Check if flint_kind column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('notes')"
+    );
+    const hasFlintKind = columns.some((col) => col.name === 'flint_kind');
+
+    if (!hasFlintKind) {
+      console.log('Adding flint_kind column to notes table');
+      await db.run("ALTER TABLE notes ADD COLUMN flint_kind TEXT DEFAULT 'markdown'");
+
+      // Create index for kind-based queries
+      console.log('Creating index for flint_kind column');
+      await db.run(
+        'CREATE INDEX IF NOT EXISTS idx_notes_flint_kind ON notes(flint_kind)'
+      );
+
+      console.log('flint_kind column added successfully');
+    } else {
+      console.log('flint_kind column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add flint_kind column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.12.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.13.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2073,6 +2122,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_12_0
+    },
+    {
+      version: '2.13.0',
+      description: 'Add flint_kind column to separate content rendering from note type',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_13_0
     }
   ];
 

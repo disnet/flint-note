@@ -33,7 +33,7 @@ import type {
 import { WikilinkParser } from './wikilink-parser.js';
 import { LinkExtractor } from './link-extractor.js';
 import { HierarchyManager } from './hierarchy.js';
-import { SYSTEM_FIELDS } from './system-fields.js';
+import { SYSTEM_FIELDS, DEFAULT_NOTE_KIND, type NoteKind } from './system-fields.js';
 
 interface ParsedNote {
   metadata: NoteMetadata;
@@ -43,6 +43,7 @@ interface ParsedNote {
 export interface NoteInfo {
   id: string;
   type: string;
+  kind: NoteKind;
   title: string;
   filename: string;
   path: string;
@@ -53,6 +54,7 @@ export interface Note {
   [key: string]: unknown;
   id: string;
   type: string;
+  kind: NoteKind;
   filename: string;
   path: string;
   title: string;
@@ -105,6 +107,7 @@ export interface NoteListItem {
   tags: string[];
   path: string;
   archived?: boolean;
+  flint_kind?: string;
 }
 
 export interface ArchiveNoteResult {
@@ -592,13 +595,21 @@ export class NoteManager {
 
   /**
    * Create a new note of the specified type
+   *
+   * @param typeName - The note type for organization (e.g., 'note', 'reference')
+   * @param title - The note title
+   * @param content - The note content body
+   * @param metadata - Optional custom metadata fields
+   * @param enforceRequiredFields - Whether to enforce required metadata fields
+   * @param kind - The content rendering type ('markdown' or 'epub')
    */
   async createNote(
     typeName: string,
     title: string,
     content: string,
     metadata: Record<string, unknown> = {},
-    enforceRequiredFields: boolean = true
+    enforceRequiredFields: boolean = true,
+    kind: NoteKind = DEFAULT_NOTE_KIND
   ): Promise<NoteInfo> {
     try {
       // Trim the title for consistent handling (allow empty titles)
@@ -643,7 +654,8 @@ export class NoteManager {
         content,
         typeName,
         metadata,
-        noteId
+        noteId,
+        kind
       );
 
       // Phase 2: DB-first architecture - Update database before queuing file write
@@ -665,6 +677,7 @@ export class NoteManager {
       return {
         id: noteId,
         type: typeName,
+        kind,
         title: trimmedTitle,
         filename,
         path: notePath,
@@ -768,13 +781,23 @@ export class NoteManager {
 
   /**
    * Format note content with metadata frontmatter
+   *
+   * Writes both new flint_* prefixed fields and legacy fields for backward compatibility.
+   *
+   * @param title - Note title
+   * @param content - Note body content
+   * @param typeName - Note type for organization
+   * @param metadata - Custom metadata fields
+   * @param noteId - Optional note ID (generated if not provided)
+   * @param kind - Content rendering type (defaults to markdown)
    */
   async formatNoteContent(
     title: string,
     content: string,
     typeName: string,
     metadata: Record<string, unknown> = {},
-    noteId?: string
+    noteId?: string,
+    kind: NoteKind = DEFAULT_NOTE_KIND
   ): Promise<string> {
     const timestamp = new Date().toISOString();
     const filename = this.generateFilename(title);
@@ -782,8 +805,20 @@ export class NoteManager {
     const id = noteId || this.generateNoteId();
 
     let formattedContent = '---\n';
+
+    // Write new flint_* prefixed system fields first
+    formattedContent += `flint_id: ${id}\n`;
+    if (title && title.trim().length > 0) {
+      formattedContent += `flint_title: "${title}"\n`;
+    }
+    formattedContent += `flint_filename: "${baseFilename}"\n`;
+    formattedContent += `flint_type: ${typeName}\n`;
+    formattedContent += `flint_kind: ${kind}\n`;
+    formattedContent += `flint_created: ${timestamp}\n`;
+    formattedContent += `flint_updated: ${timestamp}\n`;
+
+    // Write legacy fields for backward compatibility
     formattedContent += `id: ${id}\n`;
-    // Only add title if it's not empty
     if (title && title.trim().length > 0) {
       formattedContent += `title: "${title}"\n`;
     }
@@ -794,30 +829,25 @@ export class NoteManager {
 
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {
-      if (
-        key !== 'id' &&
-        key !== 'title' &&
-        key !== 'filename' &&
-        key !== 'type' &&
-        key !== 'created' &&
-        key !== 'updated'
-      ) {
-        if (Array.isArray(value)) {
-          const escapedArray = value.map((v) => {
-            if (typeof v === 'string') {
-              const escapedValue = v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-              return `"${escapedValue}"`;
-            }
-            return v;
-          });
-          formattedContent += `${key}: [${escapedArray.join(', ')}]\n`;
-        } else if (typeof value === 'string') {
-          // Escape quotes and backslashes in string values
-          const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          formattedContent += `${key}: "${escapedValue}"\n`;
-        } else {
-          formattedContent += `${key}: ${value}\n`;
-        }
+      // Skip system fields (both old and new prefixed versions)
+      if (SYSTEM_FIELDS.has(key)) {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        const escapedArray = value.map((v) => {
+          if (typeof v === 'string') {
+            const escapedValue = v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            return `"${escapedValue}"`;
+          }
+          return v;
+        });
+        formattedContent += `${key}: [${escapedArray.join(', ')}]\n`;
+      } else if (typeof value === 'string') {
+        // Escape quotes and backslashes in string values
+        const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        formattedContent += `${key}: "${escapedValue}"\n`;
+      } else {
+        formattedContent += `${key}: ${value}\n`;
       }
     }
 
@@ -872,15 +902,21 @@ export class NoteManager {
             // Generate content hash for optimistic locking
             const contentHash = generateContentHash(dbNote.content);
 
+            // Determine kind from metadata, defaulting to markdown
+            const metadata = dbNote.metadata as NoteMetadata;
+            const noteKind: NoteKind =
+              (metadata.flint_kind as NoteKind) || DEFAULT_NOTE_KIND;
+
             return {
               id: dbNote.id,
               type: dbNote.type,
+              kind: noteKind,
               filename: dbNote.filename,
               path: dbNote.path,
               title: dbNote.title || '',
               content: dbNote.content,
               content_hash: contentHash,
-              metadata: dbNote.metadata as NoteMetadata,
+              metadata,
               created: dbNote.created,
               modified: dbNote.updated,
               updated: dbNote.updated,
@@ -922,9 +958,14 @@ export class NoteManager {
       // Generate content hash for optimistic locking
       const contentHash = generateContentHash(parsedContent.content);
 
+      // Determine kind from metadata, defaulting to markdown
+      const noteKind: NoteKind =
+        (parsedContent.metadata.flint_kind as NoteKind) || DEFAULT_NOTE_KIND;
+
       return {
         id: noteId,
         type: typeName,
+        kind: noteKind,
         filename,
         path: notePath,
         title: parsedContent.metadata.title || '',
@@ -996,15 +1037,21 @@ export class NoteManager {
             // Generate content hash for optimistic locking
             const contentHash = generateContentHash(dbNote.content);
 
+            // Determine kind from metadata, defaulting to markdown
+            const metadata = dbNote.metadata as NoteMetadata;
+            const noteKind: NoteKind =
+              (metadata.flint_kind as NoteKind) || DEFAULT_NOTE_KIND;
+
             return {
               id: dbNote.id,
               type: dbNote.type,
+              kind: noteKind,
               filename: dbNote.filename,
               path: dbNote.path,
               title: dbNote.title || '',
               content: dbNote.content,
               content_hash: contentHash,
-              metadata: dbNote.metadata as NoteMetadata,
+              metadata,
               created: dbNote.created,
               modified: dbNote.updated,
               updated: dbNote.updated,
@@ -1049,9 +1096,14 @@ export class NoteManager {
       // Generate content hash for optimistic locking
       const contentHash = generateContentHash(parsed.content);
 
+      // Determine kind from metadata, defaulting to markdown
+      const noteKind: NoteKind =
+        (parsed.metadata.flint_kind as NoteKind) || DEFAULT_NOTE_KIND;
+
       return {
         id: identifier,
         type: typeName,
+        kind: noteKind,
         filename,
         path: filePath,
         title: parsed.metadata.title || '',

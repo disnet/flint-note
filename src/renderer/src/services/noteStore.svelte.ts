@@ -13,6 +13,7 @@ export type NoteMetadata = {
   tags: string[];
   path: string;
   archived?: boolean;
+  flint_kind?: string;
 };
 
 export type NoteType = {
@@ -119,7 +120,8 @@ function createNotesStore(): {
           size: note.size || 0,
           tags: note.tags || [],
           path: note.path || '',
-          archived: note.archived || false
+          archived: note.archived || false,
+          flint_kind: note.flint_kind
         }));
       } else {
         throw new Error(`Invalid response from listNotesByType API for type: ${type}`);

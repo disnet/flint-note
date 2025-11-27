@@ -557,6 +557,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         type: string;
+        kind?: 'markdown' | 'epub' | string;
         identifier: string;
         content: string;
         vaultId: string;
@@ -569,7 +570,8 @@ app.whenReady().then(async () => {
         params.type,
         params.identifier,
         params.content,
-        params.vaultId
+        params.vaultId,
+        params.kind
       );
 
       // Publish event to renderer
@@ -578,6 +580,7 @@ app.whenReady().then(async () => {
         note: {
           id: result.id,
           type: result.type,
+          flint_kind: result.kind,
           filename: result.filename,
           title: result.title,
           created: result.created,
@@ -2334,6 +2337,7 @@ app.whenReady().then(async () => {
             note: {
               id: result.id,
               type: result.type,
+              flint_kind: 'markdown', // Daily notes are always markdown
               filename: result.filename,
               title: result.title,
               created: result.created,

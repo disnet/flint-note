@@ -24,6 +24,19 @@
   // System fields that are read-only (managed by the system, not user-editable)
   // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
   const SYSTEM_FIELDS = new Set([
+    // New flint_* prefixed fields
+    'flint_id',
+    'flint_type',
+    'flint_kind',
+    'flint_title',
+    'flint_filename',
+    'flint_created',
+    'flint_updated',
+    'flint_path',
+    'flint_content',
+    'flint_content_hash',
+    'flint_size',
+    // Legacy fields
     'id',
     'type',
     'title',
@@ -66,6 +79,23 @@
           isSystem: true,
           isEditable: false,
           uniqueId: `${key}-${result.length}`
+        });
+      }
+    }
+
+    // Show Kind only for non-markdown notes (visible but read-only)
+    const noteKind = (metadata.flint_kind as string) || 'markdown';
+    if (noteKind !== 'markdown') {
+      const kindKey = 'Kind';
+      if (!seenKeys.has(kindKey)) {
+        seenKeys.add(kindKey);
+        result.push({
+          key: kindKey,
+          value: noteKind,
+          type: 'kind',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${kindKey}-${result.length}`
         });
       }
     }
@@ -170,6 +200,19 @@
     // Note: standardFields is used to filter out fields from metadata that shouldn't be shown
     // This includes both system fields and fields handled elsewhere
     const standardFields = new Set([
+      // New flint_* prefixed fields
+      'flint_id',
+      'flint_title',
+      'flint_type',
+      'flint_kind',
+      'flint_created',
+      'flint_updated',
+      'flint_filename',
+      'flint_path',
+      'flint_content',
+      'flint_content_hash',
+      'flint_size',
+      // Legacy fields
       'id',
       'title',
       'type',
@@ -445,6 +488,8 @@
                   </button>
                 {:else if item.type === 'date'}
                   <span class="date-value">{item.value}</span>
+                {:else if item.type === 'kind'}
+                  <span class="kind-badge">{item.value}</span>
                 {:else}
                   <span class="system-value">{item.value}</span>
                 {/if}
@@ -614,6 +659,17 @@
 
   .date-value {
     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+  }
+
+  .kind-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-tertiary, #e0e0e0);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: capitalize;
+    color: var(--text-primary);
   }
 
   .path-button {

@@ -115,6 +115,8 @@ export interface SearchNotesByTextOptions {
 
 export interface CreateSingleNoteOptions {
   type: string;
+  /** Content rendering type: 'markdown' (default) or 'epub' */
+  kind?: 'markdown' | 'epub' | string;
   title: string;
   content: string;
   metadata?: NoteMetadata;
@@ -462,7 +464,8 @@ export class FlintNoteApi {
       options.title,
       options.content,
       options.metadata || {},
-      options.enforceRequiredFields ?? false
+      options.enforceRequiredFields ?? false,
+      (options.kind as 'markdown' | 'epub') || 'markdown'
     );
 
     // Check if note type has default review mode enabled
@@ -1718,10 +1721,25 @@ export class FlintNoteApi {
       return;
     }
 
-    // Create metadata object excluding protected fields
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, type, title, filename, created, updated, ...userMetadata } =
-      currentNote.metadata;
+    // Create metadata object excluding protected fields (both legacy and flint_* prefixed)
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    const {
+      id,
+      type,
+      title,
+      filename,
+      created,
+      updated,
+      flint_id,
+      flint_type,
+      flint_kind,
+      flint_title,
+      flint_filename,
+      flint_created,
+      flint_updated,
+      ...userMetadata
+    } = currentNote.metadata;
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     const updatedMetadata = { ...userMetadata };
 
     if (subnotes.length > 0) {

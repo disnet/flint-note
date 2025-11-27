@@ -11,56 +11,115 @@ export interface NoteViewProps {
 
 export type ViewMode = 'edit' | 'view' | 'hybrid';
 
+/**
+ * Content rendering types (kinds)
+ * - markdown: Standard markdown notes (default)
+ * - epub: EPUB ebook reader notes
+ */
+export type NoteKind = 'markdown' | 'epub';
+
 export interface NoteView {
   component: Component<NoteViewProps>;
   modes: ViewMode[];
-  supportedTypes: string[];
+  /**
+   * The content kinds this view supports (e.g., ['epub'], ['markdown'])
+   * Views are routed based on kind, not type
+   */
+  supportedKinds: string[];
   priority: number; // Higher priority views take precedence
 }
 
+/**
+ * ViewRegistry - Routes notes to appropriate view components based on their kind
+ *
+ * The registry separates content rendering (kind) from organizational categorization (type).
+ * This allows users to organize notes into any type while preserving correct rendering.
+ */
 class ViewRegistryClass {
-  private views = new Map<string, NoteView[]>();
+  // Map of kind -> views
+  private viewsByKind = new Map<string, NoteView[]>();
 
-  registerView(noteType: string, view: NoteView): void {
-    if (!this.views.has(noteType)) {
-      this.views.set(noteType, []);
+  /**
+   * Register a view for a specific content kind
+   *
+   * @param kind - The content kind this view handles (e.g., 'epub', 'markdown')
+   * @param view - The view configuration
+   */
+  registerView(kind: string, view: NoteView): void {
+    if (!this.viewsByKind.has(kind)) {
+      this.viewsByKind.set(kind, []);
     }
 
-    const typeViews = this.views.get(noteType)!;
-    typeViews.push(view);
+    const kindViews = this.viewsByKind.get(kind)!;
+    kindViews.push(view);
 
     // Sort by priority (highest first)
-    typeViews.sort((a, b) => b.priority - a.priority);
+    kindViews.sort((a, b) => b.priority - a.priority);
   }
 
-  getView(noteType: string, mode: ViewMode = 'hybrid'): NoteView | null {
-    const typeViews = this.views.get(noteType);
-    if (!typeViews || typeViews.length === 0) {
+  /**
+   * Get a view for a specific content kind
+   *
+   * @param kind - The content kind to get a view for
+   * @param mode - The view mode to filter by
+   * @returns The highest priority view that supports the mode, or null
+   */
+  getViewByKind(kind: string, mode: ViewMode = 'hybrid'): NoteView | null {
+    const kindViews = this.viewsByKind.get(kind);
+    if (!kindViews || kindViews.length === 0) {
       return null;
     }
 
     // Find the highest priority view that supports the requested mode
-    return typeViews.find((view) => view.modes.includes(mode)) || null;
+    return kindViews.find((view) => view.modes.includes(mode)) || null;
   }
 
+  /**
+   * @deprecated Use getViewByKind() instead. This method exists for backward compatibility.
+   * Get a view for a note type (treats type as kind for legacy support)
+   */
+  getView(noteType: string, mode: ViewMode = 'hybrid'): NoteView | null {
+    return this.getViewByKind(noteType, mode);
+  }
+
+  /**
+   * Check if a custom view exists for a content kind
+   */
+  hasCustomViewForKind(kind: string): boolean {
+    return this.viewsByKind.has(kind) && this.viewsByKind.get(kind)!.length > 0;
+  }
+
+  /**
+   * @deprecated Use hasCustomViewForKind() instead
+   */
   hasCustomView(noteType: string): boolean {
-    return this.views.has(noteType) && this.views.get(noteType)!.length > 0;
+    return this.hasCustomViewForKind(noteType);
   }
 
   getAllViews(): Map<string, NoteView[]> {
-    return new Map(this.views);
+    return new Map(this.viewsByKind);
   }
 
-  unregisterView(noteType: string, component: Component<NoteViewProps>): void {
-    const typeViews = this.views.get(noteType);
-    if (!typeViews) return;
+  /**
+   * Unregister a view for a specific kind
+   */
+  unregisterViewByKind(kind: string, component: Component<NoteViewProps>): void {
+    const kindViews = this.viewsByKind.get(kind);
+    if (!kindViews) return;
 
-    const filtered = typeViews.filter((view) => view.component !== component);
+    const filtered = kindViews.filter((view) => view.component !== component);
     if (filtered.length === 0) {
-      this.views.delete(noteType);
+      this.viewsByKind.delete(kind);
     } else {
-      this.views.set(noteType, filtered);
+      this.viewsByKind.set(kind, filtered);
     }
+  }
+
+  /**
+   * @deprecated Use unregisterViewByKind() instead
+   */
+  unregisterView(noteType: string, component: Component<NoteViewProps>): void {
+    this.unregisterViewByKind(noteType, component);
   }
 }
 

@@ -537,6 +537,7 @@ export interface NoteRow {
   title: string;
   content: string | null;
   type: string;
+  flint_kind: string | null; // Content rendering type (markdown, epub)
   filename: string;
   path: string;
   created: string;

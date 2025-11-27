@@ -900,17 +900,22 @@ export class HybridSearchManager {
         // Only update the 'updated' timestamp if content has actually changed
         const contentChanged = existingById.content_hash !== contentHash;
 
+        // Get flint_kind from metadata for storing in notes table
+        const flintKind =
+          typeof metadata.flint_kind === 'string' ? metadata.flint_kind : 'markdown';
+
         if (contentChanged) {
           // Content has changed, update with new timestamp
           await connection.run(
             `UPDATE notes SET
-             title = ?, content = ?, type = ?, filename = ?, path = ?,
+             title = ?, content = ?, type = ?, flint_kind = ?, filename = ?, path = ?,
              updated = ?, size = ?, content_hash = ?, file_mtime = ?
              WHERE id = ?`,
             [
               title,
               content,
               type,
+              flintKind,
               filename,
               relativePath,
               now,
@@ -924,13 +929,14 @@ export class HybridSearchManager {
           // Content hasn't changed, preserve existing updated timestamp
           await connection.run(
             `UPDATE notes SET
-             title = ?, content = ?, type = ?, filename = ?, path = ?,
+             title = ?, content = ?, type = ?, flint_kind = ?, filename = ?, path = ?,
              size = ?, content_hash = ?, file_mtime = ?
              WHERE id = ?`,
             [
               title,
               content,
               type,
+              flintKind,
               filename,
               relativePath,
               stats.size,
@@ -941,16 +947,21 @@ export class HybridSearchManager {
           );
         }
       } else {
+        // Get flint_kind from metadata for storing in notes table
+        const flintKind =
+          typeof metadata.flint_kind === 'string' ? metadata.flint_kind : 'markdown';
+
         // Insert new note
         await connection.run(
           `INSERT INTO notes
-           (id, title, content, type, filename, path, created, updated, size, content_hash, file_mtime)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, title, content, type, flint_kind, filename, path, created, updated, size, content_hash, file_mtime)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             title,
             content,
             type,
+            flintKind,
             filename,
             relativePath,
             stats.created,
@@ -1811,6 +1822,7 @@ export class HybridSearchManager {
       tags: string[];
       path: string;
       archived?: boolean;
+      flint_kind?: string;
     }>
   > {
     const connection = await this.getConnection();
@@ -1881,7 +1893,8 @@ export class HybridSearchManager {
             size: note.size || 0,
             tags,
             path: absolutePath,
-            archived: note.archived === 1
+            archived: note.archived === 1,
+            flint_kind: note.flint_kind || undefined
           };
         })
       );

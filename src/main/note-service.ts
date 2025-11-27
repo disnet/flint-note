@@ -193,11 +193,13 @@ export class NoteService {
     identifier: string,
     content: string,
     vaultId: string,
+    kind?: 'markdown' | 'epub' | string,
     metadata?: NoteMetadata
   ): Promise<NoteInfo> {
     this.ensureInitialized();
     return await this.api.createNote({
       type,
+      kind,
       title: identifier,
       content,
       vaultId,

@@ -409,6 +409,7 @@ export class ReviewManager {
       title: string;
       content: string | null;
       type: string;
+      flint_kind: string | null;
       filename: string;
       path: string;
       created: string;
@@ -439,6 +440,7 @@ export class ReviewManager {
         n.title,
         n.content,
         n.type,
+        n.flint_kind,
         n.filename,
         n.path,
         n.created,
@@ -480,6 +482,7 @@ export class ReviewManager {
         title: row.title,
         content: row.content,
         type: row.type,
+        flint_kind: row.flint_kind || null,
         filename: row.filename,
         path: row.path,
         created: row.created,

@@ -76,8 +76,11 @@
     try {
       isLoadingNote = true;
 
-      // Check for custom view
-      const view = ViewRegistry.getView(note.type, 'hybrid');
+      // Determine content kind from metadata (prefer flint_kind, fallback to type for legacy)
+      const noteKind = (note.flint_kind as string) || 'markdown';
+
+      // Check for custom view based on content kind (not type)
+      const view = ViewRegistry.getViewByKind(noteKind, 'hybrid');
       customView = view;
       useCustomView = !!view;
 
