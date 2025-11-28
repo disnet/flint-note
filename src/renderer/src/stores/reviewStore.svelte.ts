@@ -16,7 +16,6 @@ import type {
   ReviewRating
 } from '../types/review';
 import { messageBus } from '../services/messageBus.svelte';
-import { logger } from '../utils/logger';
 
 export interface ReviewNote {
   id: string;
@@ -82,17 +81,17 @@ class ReviewStore {
   constructor() {
     // Subscribe to review events to keep stats in sync
     messageBus.subscribe('review.enabled', () => {
-      logger.debug('[ReviewStore] Review enabled event received, reloading stats');
+      console.log('[ReviewStore] Review enabled event received, reloading stats');
       this.loadStats();
     });
 
     messageBus.subscribe('review.disabled', () => {
-      logger.debug('[ReviewStore] Review disabled event received, reloading stats');
+      console.log('[ReviewStore] Review disabled event received, reloading stats');
       this.loadStats();
     });
 
     messageBus.subscribe('review.completed', () => {
-      logger.debug('[ReviewStore] Review completed event received, reloading stats');
+      console.log('[ReviewStore] Review completed event received, reloading stats');
       this.loadStats();
     });
   }

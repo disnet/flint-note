@@ -16,7 +16,6 @@
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
   import { messageBus } from '../services/messageBus.svelte';
-  import { logger } from '../utils/logger';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -127,7 +126,7 @@
   ): Promise<void> {
     // Don't allow clicks while notes are loading
     if (!isNotesReady) {
-      logger.debug('[PinnedNotes] Click blocked - notes are not ready');
+      console.log('[PinnedNotes] Click blocked - notes are not ready');
       return;
     }
 

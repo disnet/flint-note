@@ -2,7 +2,6 @@ import { getChatService } from './chatService';
 import type { PinnedNoteInfo } from './types';
 import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
 import { messageBus } from './messageBus.svelte';
-import { logger } from '../utils/logger';
 
 interface PinnedNotesState {
   notes: PinnedNoteInfo[];
@@ -296,7 +295,7 @@ class PinnedNotesStore {
       // Save the cleaned state
       await this.saveToStorage();
     } else {
-      logger.debug('[pinnedStore] ✓ All pinned notes validated successfully');
+      console.log('[pinnedStore] ✓ All pinned notes validated successfully');
     }
   }
 

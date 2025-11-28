@@ -563,7 +563,7 @@ Use these tools to help users manage their notes effectively and answer their qu
 
   private async getSystemMessageWithCaching(): Promise<ModelMessage> {
     const content = await this.getSystemMessage();
-    logger.debug('System message:', { content });
+    console.log('System message:', content);
 
     // Only apply caching for Anthropic models and if caching is enabled
     if (

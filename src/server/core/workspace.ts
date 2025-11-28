@@ -11,7 +11,6 @@ import yaml from 'js-yaml';
 import type { MetadataSchema } from './metadata-schema.js';
 import { DatabaseMigrationManager } from '../database/migration-manager.js';
 import type { DatabaseManager } from '../database/schema.js';
-import { logger } from '../../main/logger.js';
 
 interface WorkspaceConfig {
   workspace_root: string;
@@ -238,12 +237,12 @@ export class Workspace {
         // Save updated config
         await this.saveConfig();
 
-        logger.info(
+        console.log(
           `Database migration completed: ${migrationResult.fromVersion} -> ${migrationResult.toVersion}`
         );
 
         if (migrationResult.migratedLinks) {
-          logger.info('Links migration completed successfully');
+          console.log('Links migration completed successfully');
         }
       }
     } catch (error) {

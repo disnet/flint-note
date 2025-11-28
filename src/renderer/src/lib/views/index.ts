@@ -9,6 +9,7 @@
 import { ViewRegistry } from './ViewRegistry';
 import ImageNoteView from './ImageNoteView.svelte';
 import EpubNoteView from './EpubNoteView.svelte';
+import PdfNoteView from './PdfNoteView.svelte';
 
 // Register the ImageNoteView for 'image' content kind
 ViewRegistry.registerView('image', {
@@ -24,6 +25,15 @@ ViewRegistry.registerView('epub', {
   component: EpubNoteView,
   modes: ['hybrid', 'view'],
   supportedKinds: ['epub'],
+  priority: 1
+});
+
+// Register the PdfNoteView for 'pdf' content kind
+// This view handles pdf notes regardless of their organizational type
+ViewRegistry.registerView('pdf', {
+  component: PdfNoteView,
+  modes: ['hybrid', 'view'],
+  supportedKinds: ['pdf'],
   priority: 1
 });
 

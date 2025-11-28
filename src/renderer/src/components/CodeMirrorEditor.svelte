@@ -115,22 +115,8 @@
     onWikilinkHover: handleWikilinkHover,
     onWikilinkEdit: handleActionPopoverEdit,
     onHoverPopoverEnter: handleHoverPopoverEnter,
-    onHoverPopoverAltEnter: handleHoverPopoverAltEnter,
-    onImagePathClick: handleImagePathClick
+    onHoverPopoverAltEnter: handleHoverPopoverAltEnter
   });
-
-  async function handleImagePathClick(relativePath: string): Promise<void> {
-    try {
-      const absolutePath = await window.api?.getImageAbsolutePath({
-        relativePath
-      });
-      if (absolutePath) {
-        await window.api?.showItemInFolder({ path: absolutePath });
-      }
-    } catch (error) {
-      console.error('Failed to open image location:', error);
-    }
-  }
 
   const scrollAutoService = new ScrollAutoService(variant);
 

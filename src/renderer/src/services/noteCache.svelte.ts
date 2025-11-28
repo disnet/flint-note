@@ -1,6 +1,5 @@
 import type { NoteMetadata } from './noteStore.svelte';
 import { messageBus, type NoteEvent } from './messageBus.svelte';
-import { logger } from '../utils/logger';
 
 class NoteCache {
   // Use reactive array as source of truth for Svelte reactivity
@@ -98,9 +97,9 @@ class NoteCache {
     event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>
   ): void {
     // Replace entire cache (used for initial load and vault switches)
-    logger.debug(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
+    console.log(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
     this.cacheArray = event.notes;
-    logger.debug(`[noteCache] Cache now contains ${this.cacheArray.length} notes`);
+    console.log(`[noteCache] Cache now contains ${this.cacheArray.length} notes`);
   }
 
   // --- Public API ---
@@ -116,7 +115,7 @@ class NoteCache {
    * Get all notes - returns the reactive array directly
    */
   getAllNotes(): NoteMetadata[] {
-    logger.debug(
+    console.log(
       '[noteCache] getAllNotes() called, returning',
       this.cacheArray.length,
       'notes'

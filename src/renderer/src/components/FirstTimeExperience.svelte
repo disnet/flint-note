@@ -3,7 +3,6 @@
   import type { VaultInfo } from '@/server/utils/global-config';
   import type { CreateVaultResult } from '@/server/api/types';
   import { vaultAvailabilityService } from '../services/vaultAvailabilityService.svelte';
-  import { logger } from '../utils/logger';
 
   interface Props {
     onVaultCreated: (vault: CreateVaultResult) => void;
@@ -22,9 +21,9 @@
   }
 
   async function handleVaultCreated(vault: CreateVaultResult): Promise<void> {
-    logger.debug('FirstTimeExperience: handleVaultCreated called with vault:', vault);
-    logger.debug('FirstTimeExperience: vault.isNewVault =', vault.isNewVault);
-    logger.debug('FirstTimeExperience: vault.initialNoteId =', vault.initialNoteId);
+    console.log('FirstTimeExperience: handleVaultCreated called with vault:', vault);
+    console.log('FirstTimeExperience: vault.isNewVault =', vault.isNewVault);
+    console.log('FirstTimeExperience: vault.initialNoteId =', vault.initialNoteId);
 
     // Update the vault availability service with VaultInfo portion
     const vaultInfo: VaultInfo = {
@@ -38,7 +37,7 @@
     vaultAvailabilityService.handleVaultCreated(vaultInfo);
 
     // Notify parent component with full CreateVaultResult
-    logger.debug('FirstTimeExperience: Calling onVaultCreated with vault:', vault);
+    console.log('FirstTimeExperience: Calling onVaultCreated with vault:', vault);
     onVaultCreated(vault);
 
     // Close modal

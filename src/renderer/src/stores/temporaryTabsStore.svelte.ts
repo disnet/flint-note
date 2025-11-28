@@ -1,6 +1,5 @@
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
-import { logger } from '../utils/logger';
 
 interface TemporaryTab {
   id: string;
@@ -39,7 +38,7 @@ class TemporaryTabsStore {
 
     // Subscribe to note events
     messageBus.subscribe('note.renamed', async (event) => {
-      logger.debug('[temporaryTabsStore] note.renamed event:', {
+      console.log('[temporaryTabsStore] note.renamed event:', {
         oldId: event.oldId,
         newId: event.newId
       });
@@ -47,7 +46,7 @@ class TemporaryTabsStore {
     });
 
     messageBus.subscribe('note.deleted', async (event) => {
-      logger.debug('[temporaryTabsStore] note.deleted event:', {
+      console.log('[temporaryTabsStore] note.deleted event:', {
         noteId: event.noteId
       });
       await this.removeTabsByNoteIds([event.noteId]);
@@ -58,7 +57,7 @@ class TemporaryTabsStore {
     // This prevents race conditions between event-driven and explicit refresh paths
 
     messageBus.subscribe('notes.bulkRefresh', async () => {
-      logger.debug('[temporaryTabsStore] notes.bulkRefresh event: Validating tabs');
+      console.log('[temporaryTabsStore] notes.bulkRefresh event: Validating tabs');
       await this.validateTabs();
     });
   }
@@ -105,13 +104,13 @@ class TemporaryTabsStore {
     await this.ensureInitialized();
     // Don't add tabs while we're switching vaults
     if (this.isVaultSwitching) {
-      logger.debug(
+      console.log(
         '[temporaryTabsStore] addTab: Blocked by isVaultSwitching flag for noteId:',
         noteId
       );
       return;
     }
-    logger.debug(
+    console.log(
       '[temporaryTabsStore] addTab: Adding tab for noteId:',
       noteId,
       'source:',
@@ -121,7 +120,7 @@ class TemporaryTabsStore {
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
     if (existingIndex !== -1) {
-      logger.debug(
+      console.log(
         '[temporaryTabsStore] addTab: Tab already exists, updating lastAccessed'
       );
       // Update existing tab without moving it
@@ -139,7 +138,7 @@ class TemporaryTabsStore {
         order: this.state.tabs.length
       };
 
-      logger.debug('[temporaryTabsStore] addTab: Creating new tab:', {
+      console.log('[temporaryTabsStore] addTab: Creating new tab:', {
         tabId: newTab.id,
         noteId: newTab.noteId,
         source: newTab.source,
@@ -157,7 +156,7 @@ class TemporaryTabsStore {
           0,
           this.state.tabs.length - this.state.maxTabs
         );
-        logger.debug('[temporaryTabsStore] addTab: Removing old tabs due to max limit:', {
+        console.log('[temporaryTabsStore] addTab: Removing old tabs due to max limit:', {
           maxTabs: this.state.maxTabs,
           removedCount: removedTabs.length,
           removedTabIds: removedTabs.map((t) => ({ tabId: t.id, noteId: t.noteId }))
@@ -199,7 +198,7 @@ class TemporaryTabsStore {
 
   async startVaultSwitch(): Promise<void> {
     await this.ensureInitialized();
-    logger.debug(
+    console.log(
       '🔒 startVaultSwitch: current vault',
       this.currentVaultId,
       'tabs:',
@@ -208,14 +207,14 @@ class TemporaryTabsStore {
     this.isVaultSwitching = true;
     // Save current tabs to storage before clearing
     await this.saveToStorage();
-    logger.debug(
+    console.log(
       '💾 startVaultSwitch: saved tabs to storage for vault',
       this.currentVaultId
     );
     // Clear the UI but keep vault-specific storage intact
     this.state.tabs = [];
     this.state.activeTabId = null;
-    logger.debug('🧹 startVaultSwitch: cleared UI tabs');
+    console.log('🧹 startVaultSwitch: cleared UI tabs');
   }
 
   endVaultSwitch(): void {
@@ -234,7 +233,7 @@ class TemporaryTabsStore {
     const removedTabs = this.state.tabs.filter((tab) => noteIds.includes(tab.noteId));
 
     if (removedTabs.length > 0) {
-      logger.debug('[temporaryTabsStore] removeTabsByNoteIds: Removing tabs:', {
+      console.log('[temporaryTabsStore] removeTabsByNoteIds: Removing tabs:', {
         noteIds,
         removedTabs: removedTabs.map((t) => ({
           tabId: t.id,
@@ -319,7 +318,7 @@ class TemporaryTabsStore {
 
     this.state.tabs.forEach((tab) => {
       if (tab.noteId === oldId) {
-        logger.debug('[temporaryTabsStore] updateNoteId: Updating tab:', {
+        console.log('[temporaryTabsStore] updateNoteId: Updating tab:', {
           tabId: tab.id,
           oldNoteId: oldId,
           newNoteId: newId
@@ -331,7 +330,7 @@ class TemporaryTabsStore {
     });
 
     if (updated) {
-      logger.debug('[temporaryTabsStore] updateNoteId: Updated tabs:', {
+      console.log('[temporaryTabsStore] updateNoteId: Updated tabs:', {
         count: updatedTabs.length,
         tabIds: updatedTabs
       });
@@ -426,7 +425,7 @@ class TemporaryTabsStore {
         }
       );
     } else {
-      logger.debug(
+      console.log(
         '[temporaryTabsStore] ✓ Tab validation passed - all tabs reference valid notes'
       );
     }
@@ -443,7 +442,7 @@ class TemporaryTabsStore {
     });
 
     if (removedTabs.length > 0) {
-      logger.debug('[temporaryTabsStore] cleanupOldTabs: Removing old tabs:', {
+      console.log('[temporaryTabsStore] cleanupOldTabs: Removing old tabs:', {
         cutoffTime: cutoffTime.toISOString(),
         autoCleanupHours: this.state.autoCleanupHours,
         removedCount: removedTabs.length,
@@ -522,7 +521,7 @@ class TemporaryTabsStore {
     if (!this.currentVaultId) return;
 
     try {
-      logger.debug(
+      console.log(
         '[temporaryTabsStore] loadFromStorage: Loading for vault:',
         this.currentVaultId
       );
@@ -536,7 +535,7 @@ class TemporaryTabsStore {
         'tabs' in stored &&
         Array.isArray(stored.tabs)
       ) {
-        logger.debug('[temporaryTabsStore] loadFromStorage: Found stored tabs:', {
+        console.log('[temporaryTabsStore] loadFromStorage: Found stored tabs:', {
           count: stored.tabs.length,
           noteIds: stored.tabs.map((t: TemporaryTab) => t.noteId)
         });
@@ -558,7 +557,7 @@ class TemporaryTabsStore {
           tabs: parsedTabs
         };
 
-        logger.debug('[temporaryTabsStore] loadFromStorage: Loaded tabs:', {
+        console.log('[temporaryTabsStore] loadFromStorage: Loaded tabs:', {
           count: this.state.tabs.length,
           tabs: this.state.tabs.map((t) => ({
             tabId: t.id,
@@ -568,7 +567,7 @@ class TemporaryTabsStore {
           }))
         });
       } else {
-        logger.debug(
+        console.log(
           '[temporaryTabsStore] loadFromStorage: No stored tabs found or invalid format'
         );
       }
@@ -598,7 +597,7 @@ class TemporaryTabsStore {
   }
 
   async refreshForVault(vaultId?: string): Promise<void> {
-    logger.debug('🔄 refreshForVault: switching to vault', vaultId);
+    console.log('🔄 refreshForVault: switching to vault', vaultId);
     // Note: isVaultSwitching flag is set by startVaultSwitch() and cleared by endVaultSwitch()
 
     // Mark as not hydrated during refresh
@@ -616,7 +615,7 @@ class TemporaryTabsStore {
       }
     }
 
-    logger.debug('🔑 refreshForVault: using vault', this.currentVaultId);
+    console.log('🔑 refreshForVault: using vault', this.currentVaultId);
 
     // Reset to completely new state object to force reactivity
     this.state = {
@@ -628,7 +627,7 @@ class TemporaryTabsStore {
 
     // Load from storage for the new vault
     await this.loadFromStorage();
-    logger.debug(
+    console.log(
       '💾 refreshForVault: loaded',
       this.state.tabs.length,
       'tabs for vault',
@@ -641,7 +640,7 @@ class TemporaryTabsStore {
 
     // Mark as hydrated and ready
     this.isHydrated = true;
-    logger.debug('✅ refreshForVault: tabs validated and hydrated');
+    console.log('✅ refreshForVault: tabs validated and hydrated');
 
     // Note: Don't clear vault switching flag here - let VaultSwitcher control the full sequence
   }
@@ -653,7 +652,7 @@ class TemporaryTabsStore {
   private async ensureNotesAvailable(): Promise<void> {
     // If there are no tabs to validate, skip the check
     if (this.state.tabs.length === 0) {
-      logger.debug('[temporaryTabsStore] No tabs to validate, skipping');
+      console.log('[temporaryTabsStore] No tabs to validate, skipping');
       return;
     }
 
@@ -711,7 +710,7 @@ class TemporaryTabsStore {
       // Save the cleaned state
       await this.saveToStorage();
     } else {
-      logger.debug('[temporaryTabsStore] ✓ All tabs validated successfully');
+      console.log('[temporaryTabsStore] ✓ All tabs validated successfully');
     }
   }
 
@@ -722,24 +721,24 @@ class TemporaryTabsStore {
   async addTutorialNoteTabs(tutorialNoteIds?: string[]): Promise<void> {
     await this.ensureInitialized();
 
-    logger.debug('addTutorialNoteTabs: tutorialNoteIds =', tutorialNoteIds);
-    logger.debug('addTutorialNoteTabs: isVaultSwitching =', this.isVaultSwitching);
-    logger.debug('addTutorialNoteTabs: currentVaultId =', this.currentVaultId);
+    console.log('addTutorialNoteTabs: tutorialNoteIds =', tutorialNoteIds);
+    console.log('addTutorialNoteTabs: isVaultSwitching =', this.isVaultSwitching);
+    console.log('addTutorialNoteTabs: currentVaultId =', this.currentVaultId);
 
     if (tutorialNoteIds && tutorialNoteIds.length > 0) {
       // Use provided tutorial note IDs
       // Temporarily clear vault switching flag to allow adding tutorial tabs
       const wasVaultSwitching = this.isVaultSwitching;
-      logger.debug('addTutorialNoteTabs: Temporarily clearing vault switching flag');
+      console.log('addTutorialNoteTabs: Temporarily clearing vault switching flag');
       this.isVaultSwitching = false;
 
       for (const noteId of tutorialNoteIds) {
-        logger.debug('addTutorialNoteTabs: Adding tab for noteId:', noteId);
+        console.log('addTutorialNoteTabs: Adding tab for noteId:', noteId);
         await this.addTab(noteId, 'navigation');
       }
 
       // Restore vault switching flag
-      logger.debug(
+      console.log(
         'addTutorialNoteTabs: Restoring vault switching flag to:',
         wasVaultSwitching
       );

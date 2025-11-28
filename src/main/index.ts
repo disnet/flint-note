@@ -595,7 +595,7 @@ app.whenReady().then(async () => {
 
       // If review was auto-enabled, publish review.enabled event
       if ('reviewAutoEnabled' in result && result.reviewAutoEnabled) {
-        logger.debug(`[IPC] Publishing review.enabled event for ${result.id}`);
+        console.log(`[IPC] Publishing review.enabled event for ${result.id}`);
         publishReviewEvent({
           type: 'review.enabled',
           noteId: result.id
@@ -642,7 +642,7 @@ app.whenReady().then(async () => {
         throw new Error('Note service not available');
       }
 
-      logger.debug(
+      console.log(
         `[IPC] update-note called for ${params.identifier}, silent: ${params.silent}`
       );
 
@@ -664,7 +664,7 @@ app.whenReady().then(async () => {
 
       // Only publish event if not a silent update (auto-save)
       if (!params.silent) {
-        logger.debug(`[IPC] Publishing note.updated event for ${params.identifier}`);
+        console.log(`[IPC] Publishing note.updated event for ${params.identifier}`);
         publishNoteEvent({
           type: 'note.updated',
           noteId: params.identifier,
@@ -674,7 +674,7 @@ app.whenReady().then(async () => {
           source: 'user' // This comes from the UI, not the agent
         });
       } else {
-        logger.debug(`[IPC] Suppressing note.updated event (silent mode)`);
+        console.log(`[IPC] Suppressing note.updated event (silent mode)`);
       }
 
       return result;
@@ -2718,69 +2718,72 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Image attachment operations
-  ipcMain.handle(
-    'import-image',
-    async (_event, params: { fileData: Uint8Array; filename: string }) => {
-      try {
-        // Validate file extension
-        const ext = params.filename.split('.').pop()?.toLowerCase();
-        const validExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-        if (!ext || !validExtensions.includes(ext)) {
-          throw new Error(`Unsupported image format: ${ext}`);
-        }
+  // PDF operations
+  ipcMain.handle('import-pdf', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        properties: ['openFile']
+      });
 
-        // Get current vault path
-        if (!noteService) {
-          throw new Error('Note service not available');
-        }
-        const currentVault = await noteService.getCurrentVault();
-        if (!currentVault) {
-          throw new Error('No vault available');
-        }
-
-        // Ensure attachments/images directory exists
-        const imagesDir = join(currentVault.path, 'attachments', 'images');
-        await fsPromises.mkdir(imagesDir, { recursive: true });
-
-        // Handle duplicate filenames
-        let finalFilename = params.filename;
-        let finalPath = join(imagesDir, finalFilename);
-        let counter = 1;
-        while (true) {
-          try {
-            await fsPromises.access(finalPath);
-            // File exists, try with a counter suffix
-            const baseName = params.filename.replace(/\.[^.]+$/, '');
-            finalFilename = `${baseName}-${counter}.${ext}`;
-            finalPath = join(imagesDir, finalFilename);
-            counter++;
-          } catch {
-            // File doesn't exist, we can use this path
-            break;
-          }
-        }
-
-        // Write the image file
-        await fsPromises.writeFile(finalPath, params.fileData);
-
-        logger.info('Image imported successfully', {
-          filename: finalFilename,
-          path: finalPath
-        });
-
-        return {
-          filename: finalFilename,
-          path: `attachments/images/${finalFilename}`
-        };
-      } catch (error) {
-        logger.error('Failed to import image', { error });
-        throw error;
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
       }
-    }
-  );
 
-  ipcMain.handle('read-image-file', async (_event, params: { relativePath: string }) => {
+      const sourcePath = result.filePaths[0];
+      const filename = basename(sourcePath);
+
+      // Get current vault path
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      // Ensure attachments/pdfs directory exists
+      const pdfsDir = join(currentVault.path, 'attachments', 'pdfs');
+      await fsPromises.mkdir(pdfsDir, { recursive: true });
+
+      // Copy the PDF file to vault
+      const destPath = join(pdfsDir, filename);
+
+      // Check if file already exists, add suffix if needed
+      let finalPath = destPath;
+      let finalFilename = filename;
+      let counter = 1;
+      while (true) {
+        try {
+          await fsPromises.access(finalPath);
+          // File exists, try with a counter suffix
+          const baseName = filename.replace(/\.pdf$/i, '');
+          finalFilename = `${baseName}-${counter}.pdf`;
+          finalPath = join(pdfsDir, finalFilename);
+          counter++;
+        } catch {
+          // File doesn't exist, we can use this path
+          break;
+        }
+      }
+
+      await fsPromises.copyFile(sourcePath, finalPath);
+
+      logger.info('PDF imported successfully', {
+        filename: finalFilename,
+        path: finalPath
+      });
+      return {
+        filename: finalFilename,
+        path: `attachments/pdfs/${finalFilename}`
+      };
+    } catch (error) {
+      logger.error('Failed to import PDF', { error });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('read-pdf-file', async (_event, params: { relativePath: string }) => {
     try {
       if (!noteService) {
         throw new Error('Note service not available');
@@ -2793,35 +2796,13 @@ app.whenReady().then(async () => {
       const fullPath = join(currentVault.path, params.relativePath);
       const buffer = await fsPromises.readFile(fullPath);
 
+      // Return as Uint8Array for transfer to renderer
       return new Uint8Array(buffer);
     } catch (error) {
-      logger.error('Failed to read image file', { error, path: params.relativePath });
+      logger.error('Failed to read PDF file', { error, path: params.relativePath });
       throw error;
     }
   });
-
-  ipcMain.handle(
-    'get-image-absolute-path',
-    async (_event, params: { relativePath: string }) => {
-      try {
-        if (!noteService) {
-          throw new Error('Note service not available');
-        }
-        const currentVault = await noteService.getCurrentVault();
-        if (!currentVault) {
-          throw new Error('No vault available');
-        }
-
-        return join(currentVault.path, params.relativePath);
-      } catch (error) {
-        logger.error('Failed to get image absolute path', {
-          error,
-          path: params.relativePath
-        });
-        throw error;
-      }
-    }
-  );
 
   createWindow();
   logger.info('Main window created and IPC handlers registered');

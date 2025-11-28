@@ -24,7 +24,6 @@ import type {
 import { noteDocumentRegistry } from '../stores/noteDocumentRegistry.svelte';
 import type { GetNoteTypeInfoResult } from '@/server/api/types';
 import type { NoteTypeDescription } from '@/server/core/note-types';
-import { logger } from '../utils/logger';
 
 // Cache monitoring interfaces
 interface CacheConfig {
@@ -150,7 +149,7 @@ export class ElectronChatService implements ChatService, NoteService {
       { message: text, conversationId, model, requestId },
       (data) => {
         // Stream started
-        logger.debug('Stream started:', data.requestId);
+        console.log('Stream started:', data.requestId);
       },
       (data) => {
         // Handle text chunk

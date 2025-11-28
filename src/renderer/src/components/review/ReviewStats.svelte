@@ -111,9 +111,9 @@
         <h4>Deep Engagement Over Time</h4>
         <p>
           Review mode helps you <strong>deeply engage</strong> with your notes on a recurring
-          basis. The goal isn't memorization - it's to actively work with ideas until they become
-          part of how you think. Each review challenges you to explain, connect, and apply what
-          you've captured.
+          basis. The goal isn't memorization - it's to actively work with ideas until they
+          become part of how you think. Each review challenges you to explain, connect, and
+          apply what you've captured.
         </p>
       </div>
 

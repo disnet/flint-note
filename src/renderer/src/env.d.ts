@@ -676,13 +676,9 @@ declare global {
       importEpub: () => Promise<{ filename: string; path: string } | null>;
       readEpubFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
-      // Image operations
-      importImage: (params: {
-        fileData: Uint8Array;
-        filename: string;
-      }) => Promise<{ filename: string; path: string } | null>;
-      readImageFile: (params: { relativePath: string }) => Promise<Uint8Array>;
-      getImageAbsolutePath: (params: { relativePath: string }) => Promise<string>;
+      // PDF operations
+      importPdf: () => Promise<{ filename: string; path: string } | null>;
+      readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
       // Event listener for note events from main process
       onNoteEvent: (callback: (event: unknown) => void) => () => void;
@@ -702,6 +698,7 @@ declare global {
       // Update menu state
       setMenuActiveNote: (isActive: boolean) => void;
       setMenuActiveEpub: (isActive: boolean) => void;
+      setMenuActivePdf: (isActive: boolean) => void;
       setMenuWorkspaces: (data: {
         workspaces: Array<{ id: string; name: string; icon: string }>;
         activeWorkspaceId: string;

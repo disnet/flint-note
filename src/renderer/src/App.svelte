@@ -35,7 +35,6 @@
     ReviewEvent
   } from './services/messageBus.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
-  import { logger } from './utils/logger';
 
   // Forward note events from main process to message bus
   $effect(() => {
@@ -261,6 +260,9 @@
         case 'import-epub':
           await handleImportEpub();
           break;
+        case 'import-pdf':
+          await handleImportPdf();
+          break;
       }
     });
 
@@ -409,6 +411,68 @@
       );
     } catch (error) {
       console.error('Failed to import EPUB:', error);
+    }
+  }
+
+  async function handleImportPdf(): Promise<void> {
+    try {
+      // Open file picker and import PDF
+      const result = await window.api?.importPdf();
+      if (!result) {
+        // User cancelled the file picker
+        return;
+      }
+
+      // Get the current vault
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for PDF import');
+        return;
+      }
+
+      // Create the pdf note with metadata
+      const docName = result.filename.replace(/\.pdf$/i, '');
+      const identifier = docName; // Use doc name as identifier
+
+      // Create note with 'note' type and 'pdf' kind, including PDF-specific metadata
+      const createdNote = await chatService.createNote({
+        type: 'note',
+        kind: 'pdf',
+        identifier,
+        content: `# Notes on ${docName}\n\n`,
+        vaultId: currentVault.id,
+        metadata: {
+          flint_pdfPath: result.path,
+          flint_progress: 0,
+          flint_lastRead: new Date().toISOString()
+        }
+      });
+
+      // Convert to NoteMetadata format and open
+      const noteMetadata: NoteMetadata = {
+        id: createdNote.id,
+        type: createdNote.type,
+        flint_kind: 'pdf',
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0
+      };
+
+      // Open the note
+      await noteNavigationService.openNote(
+        noteMetadata,
+        'navigation',
+        openNoteEditor,
+        () => {
+          activeSystemView = null;
+        }
+      );
+    } catch (error) {
+      console.error('Failed to import PDF:', error);
     }
   }
 
@@ -699,14 +763,14 @@
       const customEvent = event as CustomEvent;
       const { noteIds } = customEvent.detail;
 
-      logger.debug('[App] notes-unpinned event received:', { noteIds });
+      console.log('[App] notes-unpinned event received:', { noteIds });
 
       // Add unpinned notes to temporary tabs
       // BUT: only if the note actually exists in the notes store
       for (const noteId of noteIds) {
         const note = notesStore.notes.find((n) => n.id === noteId);
         if (note) {
-          logger.debug('[App] Adding unpinned note to tabs:', {
+          console.log('[App] Adding unpinned note to tabs:', {
             noteId,
             title: note.title
           });
@@ -1083,9 +1147,9 @@
   async function handleVaultCreatedFromFirstTime(
     vault: CreateVaultResult
   ): Promise<void> {
-    logger.debug('App.svelte: handleVaultCreatedFromFirstTime called with vault:', vault);
-    logger.debug('App.svelte: vault.isNewVault =', vault.isNewVault);
-    logger.debug('App.svelte: vault.initialNoteId =', vault.initialNoteId);
+    console.log('App.svelte: handleVaultCreatedFromFirstTime called with vault:', vault);
+    console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
+    console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
 
     // The vault availability service should already be updated by FirstTimeExperience
     // Now we need to trigger reinitialization of the note service and refresh stores
@@ -1093,33 +1157,33 @@
       // Reinitialize the note service in the main process
       const result = await window.api?.reinitializeNoteService();
       if (result?.success) {
-        logger.debug('Note service reinitialized successfully');
+        console.log('Note service reinitialized successfully');
 
         // Publish vault switched event - noteStore will automatically reinitialize
         messageBus.publish({
           type: 'vault.switched',
           vaultId: vault.id
         });
-        logger.debug('Vault switched event published for vault:', vault.id);
+        console.log('Vault switched event published for vault:', vault.id);
 
         // Reinitialize the daily view store now that a vault is available
         await dailyViewStore.reinitialize();
-        logger.debug('Daily view store reinitialized after vault creation');
+        console.log('Daily view store reinitialized after vault creation');
 
         // NOW add initial note tab AFTER vault switching is complete
         // This ensures we have the correct vault ID in temporary tabs store
-        logger.debug('App.svelte: Checking if should add initial note...');
-        logger.debug('App.svelte: vault.isNewVault =', vault.isNewVault);
-        logger.debug('App.svelte: vault.initialNoteId =', vault.initialNoteId);
+        console.log('App.svelte: Checking if should add initial note...');
+        console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
+        console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
         if (vault.isNewVault && vault.initialNoteId) {
-          logger.debug('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
+          console.log('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
           await workspacesStore.addTutorialNoteTabs([vault.initialNoteId]);
-          logger.debug('App.svelte: Initial note added to tabs');
+          console.log('App.svelte: Initial note added to tabs');
         } else {
-          logger.debug('App.svelte: NOT adding initial note - conditions not met');
+          console.log('App.svelte: NOT adding initial note - conditions not met');
         }
 
-        logger.debug(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
+        console.log(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
       } else {
         console.error('Failed to reinitialize note service:', result?.error);
       }

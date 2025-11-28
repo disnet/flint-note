@@ -38,7 +38,6 @@ import type {
   GetParentsArgs,
   HierarchyOperationResult
 } from './types.js';
-import { logger } from '../../main/logger.js';
 import type {
   NoteInfo,
   Note,
@@ -67,6 +66,7 @@ import { RelationshipManager } from '../core/relationship-manager.js';
 import type { NoteRelationships } from '../core/relationship-manager.js';
 import { TemplateManager } from '../core/template-manager.js';
 import type { TemplateMetadata } from '../core/template-manager.js';
+import { logger } from '../../main/logger.js';
 import { validateNoSystemFields } from '../core/system-fields.js';
 import { VaultFileWatcher } from '../core/file-watcher.js';
 import type { FileWatcherEvent } from '../core/file-watcher.js';
@@ -473,15 +473,15 @@ export class FlintNoteApi {
       options.vaultId
     );
     const noteTypeDesc = await noteTypeManager.getNoteTypeDescription(options.type);
-    logger.info(
+    console.log(
       `[createNote] Checking auto-enable review for note ${noteInfo.id}, type: ${options.type}, default_review_mode: ${noteTypeDesc.default_review_mode}`
     );
     let reviewAutoEnabled = false;
     if (noteTypeDesc.default_review_mode) {
       try {
-        logger.info(`[createNote] Auto-enabling review for note ${noteInfo.id}`);
+        console.log(`[createNote] Auto-enabling review for note ${noteInfo.id}`);
         await reviewManager.enableReview(noteInfo.id);
-        logger.info(`[createNote] Successfully enabled review for note ${noteInfo.id}`);
+        console.log(`[createNote] Successfully enabled review for note ${noteInfo.id}`);
         reviewAutoEnabled = true;
       } catch (error) {
         console.error(
@@ -2184,14 +2184,14 @@ export class FlintNoteApi {
       await hybridSearchManager.rebuildIndex((processed: number, total: number) => {
         noteCount = total;
         if (processed % 10 === 0 || processed === total) {
-          logger.info(`Rebuilding database: ${processed}/${total} notes processed`);
+          console.log(`Rebuilding database: ${processed}/${total} notes processed`);
         }
       });
 
       // CRITICAL: Refresh database connections after rebuild to avoid stale read snapshots
       // SQLite WAL mode can cause existing connections to see old data after major writes
       await hybridSearchManager.refreshConnections();
-      logger.info('Database connections refreshed after rebuild');
+      console.log('Database connections refreshed after rebuild');
 
       return {
         success: true,

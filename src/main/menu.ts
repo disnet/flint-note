@@ -8,6 +8,9 @@ let hasActiveNote = false;
 // Track whether an epub is currently being viewed
 let hasActiveEpub = false;
 
+// Track whether a pdf is currently being viewed
+let hasActivePdf = false;
+
 // Track whether multiple workspaces exist (for delete menu item)
 let hasMultipleWorkspaces = false;
 
@@ -134,6 +137,12 @@ export function createApplicationMenu(): Menu {
           label: 'Import EPUB...',
           click: (): void => {
             sendToRenderer('menu-action', 'import-epub');
+          }
+        },
+        {
+          label: 'Import PDF...',
+          click: (): void => {
+            sendToRenderer('menu-action', 'import-pdf');
           }
         },
         {
@@ -418,7 +427,7 @@ export function createApplicationMenu(): Menu {
           label: 'Previous Page',
           accelerator: 'Left',
           icon: menuIcons.readerPrev,
-          enabled: hasActiveEpub,
+          enabled: hasActiveEpub || hasActivePdf,
           click: (): void => {
             sendToRenderer('menu-action', 'reader-prev');
           }
@@ -427,7 +436,7 @@ export function createApplicationMenu(): Menu {
           label: 'Next Page',
           accelerator: 'Right',
           icon: menuIcons.readerNext,
-          enabled: hasActiveEpub,
+          enabled: hasActiveEpub || hasActivePdf,
           click: (): void => {
             sendToRenderer('menu-action', 'reader-next');
           }
@@ -515,6 +524,16 @@ export function setupApplicationMenu(): void {
   ipcMain.on('menu-set-active-epub', (_event, isActive: boolean) => {
     if (hasActiveEpub !== isActive) {
       hasActiveEpub = isActive;
+      // Rebuild menu with updated state
+      const updatedMenu = createApplicationMenu();
+      Menu.setApplicationMenu(updatedMenu);
+    }
+  });
+
+  // Listen for active pdf state changes from renderer
+  ipcMain.on('menu-set-active-pdf', (_event, isActive: boolean) => {
+    if (hasActivePdf !== isActive) {
+      hasActivePdf = isActive;
       // Rebuild menu with updated state
       const updatedMenu = createApplicationMenu();
       Menu.setApplicationMenu(updatedMenu);

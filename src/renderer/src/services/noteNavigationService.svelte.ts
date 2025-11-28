@@ -2,7 +2,6 @@ import type { NoteMetadata } from './noteStore.svelte';
 import { workspacesStore } from '../stores/workspacesStore.svelte';
 import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
 import { activeNoteStore } from '../stores/activeNoteStore.svelte';
-import { logger } from '../utils/logger';
 
 /**
  * Centralized service for handling note navigation and coordination between
@@ -32,7 +31,7 @@ class NoteNavigationService {
     onNoteOpen: (note: NoteMetadata) => Promise<void> | void,
     onSystemViewClear?: () => void
   ): Promise<void> {
-    logger.debug('[noteNavigationService] openNote called:', {
+    console.log('[noteNavigationService] openNote called:', {
       noteId: note.id,
       title: note.title,
       source
@@ -54,7 +53,7 @@ class NoteNavigationService {
       await workspacesStore.clearActiveTab();
     } else {
       // Regular note: add to recent list
-      logger.debug('[noteNavigationService] Adding note to temporary tabs:', note.id);
+      console.log('[noteNavigationService] Adding note to temporary tabs:', note.id);
       await workspacesStore.addTab(note.id, source);
     }
 

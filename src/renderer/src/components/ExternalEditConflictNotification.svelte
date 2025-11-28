@@ -1,7 +1,6 @@
 <script lang="ts">
   import { messageBus } from '../services/messageBus.svelte';
   import { noteDocumentRegistry } from '../stores/noteDocumentRegistry.svelte';
-  import { logger } from '../utils/logger';
 
   interface ConflictNotification {
     id: string;
@@ -14,9 +13,9 @@
 
   // Listen for conflict events
   $effect(() => {
-    logger.debug('[Conflict] Setting up listener for external-edit-conflict events');
+    console.log('[Conflict] Setting up listener for external-edit-conflict events');
     const unsubscribe = messageBus.subscribe('file.external-edit-conflict', (event) => {
-      logger.debug('[Conflict] ⚠️ External edit conflict detected:', event);
+      console.log('[Conflict] ⚠️ External edit conflict detected:', event);
 
       // Add to conflicts list
       const conflict: ConflictNotification = {
@@ -45,7 +44,7 @@
       if (doc) {
         // Reload from disk
         await doc.reload();
-        logger.debug('[Conflict] Note reloaded from disk:', noteId);
+        console.log('[Conflict] Note reloaded from disk:', noteId);
       }
 
       // Dismiss the conflict notification

@@ -17,7 +17,6 @@
   import { getChatService } from '../../services/chatService.js';
   import { messageBus } from '../../services/messageBus.svelte.js';
   import type { Note } from '@/server/core/notes';
-  import { logger } from '../../utils/logger';
 
   let {
     activeNote,
@@ -58,7 +57,7 @@
   onMount(() => {
     mountedNoteId = (activeNote?.id as string) || null;
     latestNoteContent = noteContent || '';
-    logger.debug('[EPUB] Component mounted for note:', mountedNoteId);
+    console.log('[EPUB] Component mounted for note:', mountedNoteId);
 
     // Enable epub menu items
     window.api?.setMenuActiveEpub(true);
@@ -178,7 +177,7 @@
     // Ensure progress is a valid number
     const validProgress = isNaN(prog) ? lastSavedProgress : prog;
 
-    logger.debug('[EPUB] Saving position:', {
+    console.log('[EPUB] Saving position:', {
       cfi,
       progress: validProgress,
       noteId,
@@ -204,7 +203,7 @@
       // On unmount, save directly via API to ensure it persists
       // The callback might be stale at this point
       const content = latestNoteContent || '';
-      logger.debug(
+      console.log(
         '[EPUB] Saving via direct API call for unmount, content length:',
         content.length
       );
@@ -216,7 +215,7 @@
           silent: true
         })
         .then(() => {
-          logger.debug('[EPUB] Direct API save successful');
+          console.log('[EPUB] Direct API save successful');
         })
         .catch((err) => {
           console.error('[EPUB] Direct API save failed:', err);
@@ -229,7 +228,7 @@
 
   // Handle EPUB navigation events
   function handleRelocate(cfi: string, prog: number, location: EpubLocation): void {
-    logger.debug('[EPUB] handleRelocate called:', { cfi, progress: prog, location });
+    console.log('[EPUB] handleRelocate called:', { cfi, progress: prog, location });
     currentCfi = cfi;
     // Ensure progress is valid
     progress = isNaN(prog) ? progress : prog;
@@ -257,7 +256,7 @@
     }
     // Always save final position if it changed - use mounted values!
     if (currentCfi && currentCfi !== lastSavedCfi && mountedNoteId) {
-      logger.debug('[EPUB] Saving final position on unmount for note:', mountedNoteId);
+      console.log('[EPUB] Saving final position on unmount for note:', mountedNoteId);
       saveMetadata(currentCfi, progress, true);
     }
     // Disable epub menu items

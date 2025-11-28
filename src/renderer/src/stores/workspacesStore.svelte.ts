@@ -1,6 +1,5 @@
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
-import { logger } from '../utils/logger';
 
 export interface PinnedNoteInfo {
   id: string;
@@ -198,8 +197,9 @@ class WorkspacesStore {
     await this.saveToStorage();
 
     // Refresh navigation service's pinned tracking for the new workspace
-    const { noteNavigationService } =
-      await import('../services/noteNavigationService.svelte');
+    const { noteNavigationService } = await import(
+      '../services/noteNavigationService.svelte'
+    );
     noteNavigationService.refreshPinnedTracking();
   }
 
@@ -748,7 +748,7 @@ class WorkspacesStore {
             (stored as WorkspacesState).activeWorkspaceId || workspaces[0].id
         };
 
-        logger.debug('[workspacesStore] Loaded workspaces:', {
+        console.log('[workspacesStore] Loaded workspaces:', {
           count: this.state.workspaces.length,
           activeId: this.state.activeWorkspaceId
         });
@@ -765,7 +765,7 @@ class WorkspacesStore {
   private async migrateFromOldStores(): Promise<void> {
     if (!this.currentVaultId) return;
 
-    logger.debug('[workspacesStore] Migrating from old stores...');
+    console.log('[workspacesStore] Migrating from old stores...');
 
     // Load old pinned notes
     let pinnedNotes: PinnedNoteInfo[] = [];
@@ -830,7 +830,7 @@ class WorkspacesStore {
 
     await this.saveToStorage();
 
-    logger.debug('[workspacesStore] Migration complete:', {
+    console.log('[workspacesStore] Migration complete:', {
       pinnedCount: pinnedNotes.length,
       tabsCount: temporaryTabs.length
     });
@@ -1023,8 +1023,9 @@ class WorkspacesStore {
 
     // Refresh navigation service's pinned tracking to prevent the moved note
     // from being re-added to tabs when navigating to another note
-    const { noteNavigationService } =
-      await import('../services/noteNavigationService.svelte');
+    const { noteNavigationService } = await import(
+      '../services/noteNavigationService.svelte'
+    );
     noteNavigationService.refreshPinnedTracking();
   }
 }

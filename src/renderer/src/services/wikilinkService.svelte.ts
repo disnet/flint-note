@@ -2,7 +2,6 @@ import { getChatService } from './chatService.js';
 import { notesStore, type NoteMetadata } from './noteStore.svelte';
 import { notesShelfStore } from '../stores/notesShelfStore.svelte';
 import { sidebarState } from '../stores/sidebarState.svelte';
-import { logger } from '../utils/logger';
 
 /**
  * Centralized service for handling wikilink click interactions.
@@ -33,7 +32,7 @@ class WikilinkService {
           return;
         }
 
-        logger.debug('Creating new note for broken wikilink:', title);
+        console.log('Creating new note for broken wikilink:', title);
         const createdNote = await chatService.createNote({
           vaultId: currentVault.id,
           type: 'note',

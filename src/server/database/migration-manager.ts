@@ -12,8 +12,7 @@ import { LinkExtractor } from '../core/link-extractor.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
-import { toRelativePath, toAbsolutePath, isAbsolutePath } from '../utils/path-utils.js';
-import { logger } from '../../main/logger.js';
+import { toRelativePath, toAbsolutePath } from '../utils/path-utils.js';
 
 export interface DatabaseMigration {
   version: string;
@@ -99,11 +98,10 @@ function addOrUpdateFrontmatter(
  * Migration function to convert notes to use immutable IDs
  */
 async function migrateToImmutableIds(
-  db: DatabaseConnection,
-  _dbManager: DatabaseManager,
-  workspacePath: string
+  db: DatabaseConnection
+  // dbManager and workspacePath are not currently used but required by interface signature
 ): Promise<void> {
-  logger.info('Starting immutable ID migration...');
+  console.log('Starting immutable ID migration...');
 
   // 1. Check if already migrated (idempotency)
   const hasNewSchema = await db.get<{ count: number }>(`
@@ -129,10 +127,10 @@ async function migrateToImmutableIds(
       );
 
       if ((notesCount?.count || 0) > 0 && (migrationCount?.count || 0) > 0) {
-        logger.info('Database already migrated to immutable IDs, skipping');
+        console.log('Database already migrated to immutable IDs, skipping');
         return;
       } else {
-        logger.info(
+        console.log(
           `Detected partial migration (notes: ${notesCount?.count || 0}, mappings: ${migrationCount?.count || 0}), will retry...`
         );
         // Continue with migration to fix partial state
@@ -161,7 +159,7 @@ async function migrateToImmutableIds(
     SELECT id, type, filename, created, path FROM notes
   `);
 
-  logger.info(`Generating immutable IDs for ${existingNotes.length} notes...`);
+  console.log(`Generating immutable IDs for ${existingNotes.length} notes...`);
 
   const idMapping: Map<string, string> = new Map();
 
@@ -173,10 +171,7 @@ async function migrateToImmutableIds(
     idMapping.set(oldIdentifier, newId);
 
     // Write ID to frontmatter - this is the source of truth
-    // Handle both relative paths (after v2.1.0) and absolute paths (before v2.1.0 or in tests)
-    const filepath = isAbsolutePath(note.path)
-      ? note.path
-      : toAbsolutePath(note.path, workspacePath);
+    const filepath = note.path;
     try {
       const content = await fs.readFile(filepath, 'utf-8');
       const updatedContent = addOrUpdateFrontmatter(content, {
@@ -195,7 +190,7 @@ async function migrateToImmutableIds(
     } catch (error) {
       // Skip files that don't exist (e.g., paths changed due to user migration)
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        logger.warn(
+        console.warn(
           `Skipping note ${oldIdentifier} (file not found at ${filepath}) - will be reindexed from disk later`
         );
         skippedCount++;
@@ -216,7 +211,7 @@ async function migrateToImmutableIds(
   }
 
   if (skippedCount > 0) {
-    logger.info(
+    console.log(
       `Skipped ${skippedCount} notes with missing files - these will be reindexed from disk`
     );
   }
@@ -233,8 +228,9 @@ async function migrateToImmutableIds(
     const oldSchemaColumns = await db.all<{ name: string }>(
       "SELECT name FROM pragma_table_info('notes')"
     );
-    logger.info(
-      `Old notes table columns: ${oldSchemaColumns.map((c) => c.name).join(', ')}`
+    console.log(
+      'Old notes table columns:',
+      oldSchemaColumns.map((c) => c.name).join(', ')
     );
 
     await db.run('CREATE TABLE notes_backup AS SELECT * FROM notes');
@@ -243,13 +239,13 @@ async function migrateToImmutableIds(
     const backupCount = await db.get<{ count: number }>(
       'SELECT COUNT(*) as count FROM notes_backup'
     );
-    logger.info(`Created backup with ${backupCount?.count || 0} notes`);
+    console.log(`Created backup with ${backupCount?.count || 0} notes`);
   } else {
     // Backup already exists from previous failed migration, reuse it
     const backupCount = await db.get<{ count: number }>(
       'SELECT COUNT(*) as count FROM notes_backup'
     );
-    logger.info(
+    console.log(
       `Reusing existing backup with ${backupCount?.count || 0} notes from previous migration attempt`
     );
   }
@@ -337,11 +333,11 @@ async function migrateToImmutableIds(
      ) latest ON b.type = latest.type AND b.filename = latest.filename AND b.updated = latest.max_updated`
   );
 
-  logger.info(
+  console.log(
     `Deduplicating: ${existingNotes.length} original notes -> ${deduplicatedIds.length} unique (type, filename) pairs`
   );
 
-  if (deduplicatedIds.length === 0 && existingNotes.length > 0) {
+  if (deduplicatedIds.length === 0) {
     console.warn('WARNING: No notes to migrate after deduplication!');
   } else {
     // Now insert only the deduplicated notes
@@ -368,7 +364,7 @@ async function migrateToImmutableIds(
   const migratedCount = await db.get<{ count: number }>(
     'SELECT COUNT(*) as count FROM notes'
   );
-  logger.info(`Migrated ${migratedCount?.count || 0} notes to new schema`);
+  console.log(`Migrated ${migratedCount?.count || 0} notes to new schema`);
 
   if ((migratedCount?.count || 0) === 0 && existingNotes.length > 0) {
     console.error('ERROR: No notes were migrated! Checking mapping table...');
@@ -574,7 +570,7 @@ async function migrateToImmutableIds(
   // Rebuild FTS index
   await db.run(`INSERT INTO notes_fts(notes_fts) VALUES('rebuild')`);
 
-  logger.info(`Migration completed: ${existingNotes.length} notes migrated`);
+  console.log(`Migration completed: ${existingNotes.length} notes migrated`);
 
   // Keep note_id_migration table for UI migration
   // Keep backup tables for one release cycle (can drop later)
@@ -698,7 +694,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
     return;
   }
 
-  logger.info('Initializing fresh database with v2.0.0 schema...');
+  console.log('Initializing fresh database with v2.0.0 schema...');
 
   // Create notes table with v2.13.0 schema (immutable IDs + flint_kind)
   await db.run(`
@@ -800,7 +796,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_note_suggestions_generated_at ON note_suggestions(generated_at)
   `);
 
-  logger.info('Fresh database initialized successfully');
+  console.log('Fresh database initialized successfully');
 }
 
 /**
@@ -808,15 +804,14 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
  * Combined migration for version 2.0.0
  */
 async function migrateToV2(
-  db: DatabaseConnection,
-  dbManager: DatabaseManager,
-  workspacePath: string
+  db: DatabaseConnection
+  // dbManager and workspacePath are not currently used but required by interface signature
 ): Promise<void> {
   // First migrate to immutable IDs
-  await migrateToImmutableIds(db, dbManager, workspacePath);
+  await migrateToImmutableIds(db);
 
   // Then add UI state table
-  logger.info('Adding UI state table...');
+  console.log('Adding UI state table...');
 
   await db.run(`
     CREATE TABLE IF NOT EXISTS ui_state (
@@ -840,13 +835,13 @@ async function migrateToV2(
     ON ui_state(vault_id, state_key)
   `);
 
-  logger.info('UI state table added successfully');
+  console.log('UI state table added successfully');
 
   // Clear any existing UI state since note IDs have changed
   // This prevents stores from trying to load notes with old IDs
-  logger.info('Clearing old UI state (note IDs have changed)...');
+  console.log('Clearing old UI state (note IDs have changed)...');
   await db.run('DELETE FROM ui_state');
-  logger.info('Old UI state cleared - UI will start fresh');
+  console.log('Old UI state cleared - UI will start fresh');
 
   // IMPORTANT: We can't clear localStorage from here (main process),
   // but we've already disabled the legacy IPC handlers that would load old data.
@@ -858,7 +853,7 @@ async function migrateToV2(
  * Renames link_text to title and adds link_type column
  */
 async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
-  logger.info('Starting external_links schema update...');
+  console.log('Starting external_links schema update...');
 
   // Check if external_links table exists
   const externalLinksExists = await db.get<{ count: number }>(`
@@ -867,7 +862,7 @@ async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
   `);
 
   if (!externalLinksExists || externalLinksExists.count === 0) {
-    logger.info('external_links table does not exist, skipping migration');
+    console.log('external_links table does not exist, skipping migration');
     return;
   }
 
@@ -890,7 +885,7 @@ async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
     linkTypeColumnExists &&
     linkTypeColumnExists.count > 0
   ) {
-    logger.info('external_links table already has new schema, skipping migration');
+    console.log('external_links table already has new schema, skipping migration');
     return;
   }
 
@@ -960,7 +955,7 @@ async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
   }
 
   // Keep backup table for now
-  logger.info('external_links table schema updated successfully');
+  console.log('external_links table schema updated successfully');
 }
 
 /**
@@ -972,7 +967,7 @@ async function migrateToV2_2_0(
   _dbManager: DatabaseManager,
   workspacePath: string
 ): Promise<void> {
-  logger.info('Starting note type descriptions migration to database...');
+  console.log('Starting note type descriptions migration to database...');
 
   // First, create the note_type_descriptions table if it doesn't exist
   await db.run(`
@@ -1014,7 +1009,7 @@ async function migrateToV2_2_0(
       entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules'
   );
 
-  logger.info(`Found ${noteTypeDirectories.length} potential note type directories`);
+  console.log(`Found ${noteTypeDirectories.length} potential note type directories`);
 
   let migratedCount = 0;
   let skippedCount = 0;
@@ -1062,8 +1057,9 @@ async function migrateToV2_2_0(
 
       // Generate ID and content hash
       const typeId = `type-${crypto.randomBytes(4).toString('hex')}`;
-      const { generateContentHash, createNoteTypeHashableContent } =
-        await import('../utils/content-hash.js');
+      const { generateContentHash, createNoteTypeHashableContent } = await import(
+        '../utils/content-hash.js'
+      );
       const hashableContent = createNoteTypeHashableContent({
         description: descriptionContent,
         agent_instructions: parsed.agentInstructions.join('\n'),
@@ -1088,7 +1084,7 @@ async function migrateToV2_2_0(
       );
 
       migratedCount++;
-      logger.info(`Migrated note type '${typeName}' from ${descriptionPath}`);
+      console.log(`Migrated note type '${typeName}' from ${descriptionPath}`);
     } catch (error) {
       console.warn(
         `Failed to migrate note type '${typeName}':`,
@@ -1098,7 +1094,7 @@ async function migrateToV2_2_0(
     }
   }
 
-  logger.info(
+  console.log(
     `Note type descriptions migration completed: ${migratedCount} migrated, ${skippedCount} skipped`
   );
 }
@@ -1112,7 +1108,7 @@ async function migrateToV2_1_0(
   _dbManager: DatabaseManager,
   workspacePath: string
 ): Promise<void> {
-  logger.info('Starting path migration to relative paths...');
+  console.log('Starting path migration to relative paths...');
 
   // Get all notes with their current paths
   const notes = await db.all<{
@@ -1123,11 +1119,11 @@ async function migrateToV2_1_0(
   }>('SELECT id, path, type, filename FROM notes');
 
   if (notes.length === 0) {
-    logger.info('No notes found for path migration');
+    console.log('No notes found for path migration');
     return;
   }
 
-  logger.info(`Converting ${notes.length} note paths from absolute to relative...`);
+  console.log(`Converting ${notes.length} note paths from absolute to relative...`);
 
   let convertedCount = 0;
   let remappedCount = 0;
@@ -1157,7 +1153,7 @@ async function migrateToV2_1_0(
         convertedCount++;
       } catch {
         // File doesn't exist at expected location - try to remap
-        logger.warn(
+        console.warn(
           `File not found at expected location for note ${note.id}: ${newAbsolutePath}`
         );
 
@@ -1168,13 +1164,13 @@ async function migrateToV2_1_0(
 
         try {
           await fs.access(newAbsolutePath);
-          logger.info(
+          console.log(
             `Successfully remapped path for note ${note.id} to ${newRelativePath}`
           );
           remappedCount++;
         } catch {
           // Can't find file anywhere - keep old absolute path and log warning
-          logger.warn(
+          console.warn(
             `Could not locate file for note ${note.id} (${note.type}/${note.filename}) - keeping absolute path`
           );
           skippedCount++;
@@ -1188,7 +1184,7 @@ async function migrateToV2_1_0(
 
     await db.run('COMMIT');
 
-    logger.info(
+    console.log(
       `Path migration completed: ${convertedCount} converted, ${remappedCount} remapped, ${skippedCount} skipped`
     );
   } catch (error) {
@@ -1202,7 +1198,7 @@ async function migrateToV2_1_0(
  * Migration to v2.3.0: Add file_mtime column for hybrid change detection
  */
 async function migrateToV2_3_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.3.0: Adding file_mtime column for change detection');
+  console.log('Migrating to v2.3.0: Adding file_mtime column for change detection');
 
   try {
     // Check if file_mtime column already exists
@@ -1212,11 +1208,11 @@ async function migrateToV2_3_0(db: DatabaseConnection): Promise<void> {
     const hasFileMtime = columns.some((col) => col.name === 'file_mtime');
 
     if (!hasFileMtime) {
-      logger.info('Adding file_mtime column to notes table');
+      console.log('Adding file_mtime column to notes table');
       await db.run('ALTER TABLE notes ADD COLUMN file_mtime BIGINT');
-      logger.info('file_mtime column added successfully');
+      console.log('file_mtime column added successfully');
     } else {
-      logger.info('file_mtime column already exists, skipping');
+      console.log('file_mtime column already exists, skipping');
     }
   } catch (error) {
     console.error('Failed to add file_mtime column:', error);
@@ -1228,12 +1224,12 @@ async function migrateToV2_3_0(db: DatabaseConnection): Promise<void> {
  * Migration to v2.4.0: Add workflow tables for agent workflow management
  */
 async function migrateToV2_4_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.4.0: Adding workflow tables');
+  console.log('Migrating to v2.4.0: Adding workflow tables');
 
   try {
     // createWorkflowTables is idempotent - it checks if tables exist and skips if they do
     await createWorkflowTables(db);
-    logger.info('Workflow tables migration completed');
+    console.log('Workflow tables migration completed');
   } catch (error) {
     console.error('Failed to create workflow tables:', error);
     throw error;
@@ -1244,7 +1240,7 @@ async function migrateToV2_4_0(db: DatabaseConnection): Promise<void> {
  * Migration to v2.5.0: Add icon column to note_type_descriptions table
  */
 async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.5.0: Adding icon column to note_type_descriptions');
+  console.log('Migrating to v2.5.0: Adding icon column to note_type_descriptions');
 
   try {
     // First ensure the note_type_descriptions table exists
@@ -1255,7 +1251,7 @@ async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!tableExists || tableExists.count === 0) {
-      logger.info(
+      console.log(
         'Creating note_type_descriptions table (missing from previous migrations)'
       );
       await db.run(`
@@ -1285,11 +1281,11 @@ async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
     const hasIcon = columns.some((col) => col.name === 'icon');
 
     if (!hasIcon) {
-      logger.info('Adding icon column to note_type_descriptions table');
+      console.log('Adding icon column to note_type_descriptions table');
       await db.run('ALTER TABLE note_type_descriptions ADD COLUMN icon TEXT');
-      logger.info('icon column added successfully');
+      console.log('icon column added successfully');
     } else {
-      logger.info('icon column already exists, skipping');
+      console.log('icon column already exists, skipping');
     }
   } catch (error) {
     console.error('Failed to add icon column:', error);
@@ -1305,7 +1301,7 @@ async function migrateToV2_7_0(
   _dbManager: DatabaseManager,
   workspacePath: string
 ): Promise<void> {
-  logger.info('Migrating to v2.7.0: Adding review_items table');
+  console.log('Migrating to v2.7.0: Adding review_items table');
 
   try {
     // Check if table already exists (idempotency)
@@ -1315,7 +1311,7 @@ async function migrateToV2_7_0(
     `);
 
     if (tableExists && tableExists.count > 0) {
-      logger.info('review_items table already exists, skipping creation');
+      console.log('review_items table already exists, skipping creation');
       return;
     }
 
@@ -1342,10 +1338,10 @@ async function migrateToV2_7_0(
     );
     await db.run('CREATE INDEX idx_review_vault ON review_items(vault_id)');
 
-    logger.info('review_items table created successfully');
+    console.log('review_items table created successfully');
 
     // Scan existing notes for review: true in frontmatter
-    logger.info('Scanning existing notes for review metadata...');
+    console.log('Scanning existing notes for review metadata...');
 
     // Check if content column exists in notes table
     const contentColumnExists = await db.get<{ count: number }>(`
@@ -1356,7 +1352,7 @@ async function migrateToV2_7_0(
 
     // Only scan notes if content column exists
     if (!contentColumnExists || contentColumnExists.count === 0) {
-      logger.info('Content column does not exist yet, skipping note scan');
+      console.log('Content column does not exist yet, skipping note scan');
       return;
     }
 
@@ -1418,7 +1414,7 @@ async function migrateToV2_7_0(
       }
     }
 
-    logger.info(`Migrated ${migratedCount} existing notes with review enabled`);
+    console.log(`Migrated ${migratedCount} existing notes with review enabled`);
   } catch (error) {
     console.error('Failed to create review_items table:', error);
     throw error;
@@ -1433,7 +1429,7 @@ async function migrateToV2_6_0(
   _dbManager: DatabaseManager,
   workspacePath: string
 ): Promise<void> {
-  logger.info('Migrating to v2.6.0: Converting wikilinks to ID-based format');
+  console.log('Migrating to v2.6.0: Converting wikilinks to ID-based format');
 
   try {
     const { WikilinkParser } = await import('../core/wikilink-parser.js');
@@ -1443,7 +1439,7 @@ async function migrateToV2_6_0(
     const hasContentColumn = tableInfo.some((col) => col.name === 'content');
 
     if (!hasContentColumn) {
-      logger.info(
+      console.log(
         'Skipping wikilink migration - content column not found (test environment?)'
       );
       return;
@@ -1454,7 +1450,7 @@ async function migrateToV2_6_0(
       'SELECT id, path, content FROM notes'
     );
 
-    logger.info(`Processing ${notes.length} notes for wikilink migration...`);
+    console.log(`Processing ${notes.length} notes for wikilink migration...`);
 
     let updatedCount = 0;
     let errorCount = 0;
@@ -1547,13 +1543,13 @@ async function migrateToV2_6_0(
       }
     }
 
-    logger.info(
+    console.log(
       `Wikilink migration complete: ${updatedCount} notes updated, ${errorCount} errors`
     );
 
     // Re-extract links only for notes that were updated
     if (updatedNoteIds.size > 0) {
-      logger.info(`Re-extracting links for ${updatedNoteIds.size} updated notes...`);
+      console.log(`Re-extracting links for ${updatedNoteIds.size} updated notes...`);
       for (const note of notes) {
         // Skip notes that weren't updated
         if (!updatedNoteIds.has(note.id)) {
@@ -1572,15 +1568,16 @@ async function migrateToV2_6_0(
           const extractionResult = LinkExtractor.extractLinks(content);
           await LinkExtractor.storeLinks(note.id, extractionResult, db, false);
         } catch (error) {
-          logger.error(`Failed to re-extract links for note ${note.id}`, {
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
+          console.error(
+            `Failed to re-extract links for note ${note.id}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
         }
       }
 
-      logger.info('Link re-extraction complete');
+      console.log('Link re-extraction complete');
     } else {
-      logger.info('No notes updated, skipping link re-extraction');
+      console.log('No notes updated, skipping link re-extraction');
     }
   } catch (error) {
     console.error(
@@ -1595,7 +1592,7 @@ async function migrateToV2_6_0(
  * Migration to v2.7.0: Add note suggestions support
  */
 async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.8.0: Adding note suggestions support');
+  console.log('Migrating to v2.8.0: Adding note suggestions support');
 
   try {
     // Check if note_suggestions table already exists
@@ -1605,7 +1602,7 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!tableExists || tableExists.count === 0) {
-      logger.info('Creating note_suggestions table');
+      console.log('Creating note_suggestions table');
       await db.run(`
         CREATE TABLE note_suggestions (
           id INTEGER PRIMARY KEY,
@@ -1626,9 +1623,9 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
         CREATE INDEX idx_note_suggestions_generated_at ON note_suggestions(generated_at)
       `);
 
-      logger.info('note_suggestions table created successfully');
+      console.log('note_suggestions table created successfully');
     } else {
-      logger.info('note_suggestions table already exists, skipping');
+      console.log('note_suggestions table already exists, skipping');
     }
 
     // Check if suggestions_config column exists in note_type_descriptions table
@@ -1646,16 +1643,16 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
       );
 
       if (!hasSuggestionsConfig) {
-        logger.info('Adding suggestions_config column to note_type_descriptions table');
+        console.log('Adding suggestions_config column to note_type_descriptions table');
         await db.run(
           'ALTER TABLE note_type_descriptions ADD COLUMN suggestions_config TEXT'
         );
-        logger.info('suggestions_config column added successfully');
+        console.log('suggestions_config column added successfully');
       } else {
-        logger.info('suggestions_config column already exists, skipping');
+        console.log('suggestions_config column already exists, skipping');
       }
     } else {
-      logger.info(
+      console.log(
         'note_type_descriptions table does not exist, skipping column addition'
       );
     }
@@ -1669,7 +1666,7 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
  * Migration to v2.9.0: Remove slash commands feature
  */
 async function migrateToV2_9_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.9.0: Removing slash commands feature');
+  console.log('Migrating to v2.9.0: Removing slash commands feature');
 
   try {
     // Check if slash_commands table exists
@@ -1679,11 +1676,11 @@ async function migrateToV2_9_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (tableExists && tableExists.count > 0) {
-      logger.info('Dropping slash_commands table');
+      console.log('Dropping slash_commands table');
       await db.run('DROP TABLE IF EXISTS slash_commands');
-      logger.info('slash_commands table dropped successfully');
+      console.log('slash_commands table dropped successfully');
     } else {
-      logger.info('slash_commands table does not exist, skipping');
+      console.log('slash_commands table does not exist, skipping');
     }
   } catch (error) {
     console.error('Failed to remove slash commands feature:', error);
@@ -1695,7 +1692,7 @@ async function migrateToV2_9_0(db: DatabaseConnection): Promise<void> {
  * Migration to v2.10.0: Add archived column to notes table for archive functionality
  */
 async function migrateToV2_10_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.10.0: Adding archived column to notes table');
+  console.log('Migrating to v2.10.0: Adding archived column to notes table');
 
   try {
     // Check if archived column already exists
@@ -1705,19 +1702,19 @@ async function migrateToV2_10_0(db: DatabaseConnection): Promise<void> {
     const hasArchived = columns.some((col) => col.name === 'archived');
 
     if (!hasArchived) {
-      logger.info('Adding archived column to notes table');
+      console.log('Adding archived column to notes table');
       await db.run('ALTER TABLE notes ADD COLUMN archived INTEGER DEFAULT 0');
-      logger.info('archived column added successfully');
+      console.log('archived column added successfully');
 
       // Create indexes for performance
-      logger.info('Creating indexes for archived column');
+      console.log('Creating indexes for archived column');
       await db.run('CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)');
       await db.run(
         'CREATE INDEX IF NOT EXISTS idx_notes_type_archived ON notes(type, archived)'
       );
-      logger.info('Indexes created successfully');
+      console.log('Indexes created successfully');
     } else {
-      logger.info('archived column already exists, skipping');
+      console.log('archived column already exists, skipping');
     }
   } catch (error) {
     console.error('Failed to add archived column:', error);
@@ -1729,7 +1726,7 @@ async function migrateToV2_10_0(db: DatabaseConnection): Promise<void> {
  * Migration to v2.11.0: Add default_review_mode column to note_type_descriptions table
  */
 async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
-  logger.info(
+  console.log(
     'Migrating to v2.11.0: Adding default_review_mode column to note_type_descriptions table'
   );
 
@@ -1741,7 +1738,7 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!tableExists || tableExists.count === 0) {
-      logger.info('note_type_descriptions table does not exist, skipping migration');
+      console.log('note_type_descriptions table does not exist, skipping migration');
       return;
     }
 
@@ -1754,13 +1751,13 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
     );
 
     if (!hasDefaultReviewMode) {
-      logger.info('Adding default_review_mode column to note_type_descriptions table');
+      console.log('Adding default_review_mode column to note_type_descriptions table');
       await db.run(
         'ALTER TABLE note_type_descriptions ADD COLUMN default_review_mode INTEGER DEFAULT 0'
       );
-      logger.info('default_review_mode column added successfully');
+      console.log('default_review_mode column added successfully');
     } else {
-      logger.info('default_review_mode column already exists, skipping');
+      console.log('default_review_mode column already exists, skipping');
     }
   } catch (error) {
     console.error('Failed to add default_review_mode column:', error);
@@ -1773,7 +1770,7 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
  * Converts from date-based to session-based spaced repetition
  */
 async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
-  logger.info('Migrating to v2.12.0: Session-based review scheduling');
+  console.log('Migrating to v2.12.0: Session-based review scheduling');
 
   try {
     // Check if review_items table exists
@@ -1799,25 +1796,25 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
       const hasStatus = reviewItemColumns.some((col) => col.name === 'status');
 
       if (!hasNextSessionNumber) {
-        logger.info('Adding next_session_number column to review_items');
+        console.log('Adding next_session_number column to review_items');
         await db.run(
           'ALTER TABLE review_items ADD COLUMN next_session_number INTEGER DEFAULT 1'
         );
       }
 
       if (!hasCurrentInterval) {
-        logger.info('Adding current_interval column to review_items');
+        console.log('Adding current_interval column to review_items');
         await db.run(
           'ALTER TABLE review_items ADD COLUMN current_interval INTEGER DEFAULT 1'
         );
       }
 
       if (!hasStatus) {
-        logger.info('Adding status column to review_items');
+        console.log('Adding status column to review_items');
         await db.run("ALTER TABLE review_items ADD COLUMN status TEXT DEFAULT 'active'");
       }
     } else {
-      logger.info('review_items table does not exist, skipping column additions');
+      console.log('review_items table does not exist, skipping column additions');
     }
 
     // 2. Create review_state table
@@ -1827,7 +1824,7 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!reviewStateExists || reviewStateExists.count === 0) {
-      logger.info('Creating review_state table');
+      console.log('Creating review_state table');
       await db.run(`
         CREATE TABLE review_state (
           id INTEGER PRIMARY KEY DEFAULT 1,
@@ -1852,7 +1849,7 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!reviewConfigExists || reviewConfigExists.count === 0) {
-      logger.info('Creating review_config table');
+      console.log('Creating review_config table');
       await db.run(`
         CREATE TABLE review_config (
           id INTEGER PRIMARY KEY DEFAULT 1,
@@ -1874,7 +1871,7 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
 
     // 4. Migrate existing review items data (only if table exists)
     if (hasReviewItems) {
-      logger.info('Migrating existing review items to session-based scheduling...');
+      console.log('Migrating existing review items to session-based scheduling...');
 
       // Get current date for calculations
       const now = new Date();
@@ -1959,11 +1956,11 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
         'CREATE INDEX IF NOT EXISTS idx_review_session ON review_items(next_session_number, status, enabled)'
       );
 
-      logger.info(
+      console.log(
         `Session-based review scheduling migration completed: ${migratedCount} items migrated`
       );
     } else {
-      logger.info('No review_items table found, skipping data migration');
+      console.log('No review_items table found, skipping data migration');
     }
   } catch (error) {
     console.error('Failed to migrate to session-based scheduling:', error);
@@ -1976,7 +1973,7 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
  * Separates content rendering type (kind) from organizational category (type)
  */
 async function migrateToV2_13_0(db: DatabaseConnection): Promise<void> {
-  logger.info(
+  console.log(
     'Migrating to v2.13.0: Adding flint_kind column for content rendering type'
   );
 
@@ -1986,7 +1983,7 @@ async function migrateToV2_13_0(db: DatabaseConnection): Promise<void> {
       "SELECT name FROM sqlite_master WHERE type='table' AND name='notes'"
     );
     if (tables.length === 0) {
-      logger.info('notes table does not exist, skipping flint_kind migration');
+      console.log('notes table does not exist, skipping flint_kind migration');
       return;
     }
 
@@ -1997,18 +1994,18 @@ async function migrateToV2_13_0(db: DatabaseConnection): Promise<void> {
     const hasFlintKind = columns.some((col) => col.name === 'flint_kind');
 
     if (!hasFlintKind) {
-      logger.info('Adding flint_kind column to notes table');
+      console.log('Adding flint_kind column to notes table');
       await db.run("ALTER TABLE notes ADD COLUMN flint_kind TEXT DEFAULT 'markdown'");
 
       // Create index for kind-based queries
-      logger.info('Creating index for flint_kind column');
+      console.log('Creating index for flint_kind column');
       await db.run(
         'CREATE INDEX IF NOT EXISTS idx_notes_flint_kind ON notes(flint_kind)'
       );
 
-      logger.info('flint_kind column added successfully');
+      console.log('flint_kind column added successfully');
     } else {
-      logger.info('flint_kind column already exists, skipping');
+      console.log('flint_kind column already exists, skipping');
     }
   } catch (error) {
     console.error('Failed to add flint_kind column:', error);
@@ -2089,12 +2086,8 @@ function addFlintPrefixedFields(content: string): string {
  * Migration to v2.14.0: Add flint_* prefixed fields to existing notes
  * Ensures all notes have flint_* fields for system metadata
  */
-async function migrateToV2_14_0(
-  db: DatabaseConnection,
-  _dbManager: DatabaseManager,
-  workspacePath: string
-): Promise<void> {
-  logger.info('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
+async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
 
   try {
     // Check if notes table exists first
@@ -2102,7 +2095,7 @@ async function migrateToV2_14_0(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='notes'"
     );
     if (tables.length === 0) {
-      logger.info('notes table does not exist, skipping flint_* field migration');
+      console.log('notes table does not exist, skipping flint_* field migration');
       return;
     }
 
@@ -2114,18 +2107,14 @@ async function migrateToV2_14_0(
       filename: string;
     }>('SELECT id, path, type, filename FROM notes');
 
-    logger.info(`Processing ${notes.length} notes for flint_* field migration...`);
+    console.log(`Processing ${notes.length} notes for flint_* field migration...`);
 
     let migratedCount = 0;
     let skippedCount = 0;
 
     for (const note of notes) {
-      // Handle both relative paths (after v2.1.0) and absolute paths (before v2.1.0 or in tests)
-      const absolutePath = isAbsolutePath(note.path)
-        ? note.path
-        : toAbsolutePath(note.path, workspacePath);
       try {
-        const content = await fs.readFile(absolutePath, 'utf-8');
+        const content = await fs.readFile(note.path, 'utf-8');
 
         // Parse frontmatter to check for legacy fields
         const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
@@ -2165,21 +2154,21 @@ async function migrateToV2_14_0(
 
         // Add flint_* fields
         const updatedContent = addFlintPrefixedFields(content);
-        await fs.writeFile(absolutePath, updatedContent);
+        await fs.writeFile(note.path, updatedContent);
         migratedCount++;
       } catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          logger.warn(`Skipping note ${note.id} (file not found at ${absolutePath})`);
+          console.warn(`Skipping note ${note.id} (file not found at ${note.path})`);
           skippedCount++;
           continue;
         }
-        logger.error(`Failed to migrate note ${note.id}`, { error });
+        console.error(`Failed to migrate note ${note.id}:`, error);
         // Continue with other notes
         skippedCount++;
       }
     }
 
-    logger.info(
+    console.log(
       `flint_* field migration completed: ${migratedCount} notes migrated, ${skippedCount} skipped`
     );
   } catch (error) {
@@ -2193,7 +2182,7 @@ async function migrateToV2_14_0(
  * Updates the key name for tags metadata to follow flint_* naming convention
  */
 async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
-  logger.info(
+  console.log(
     "Migrating to v2.15.0: Renaming 'tags' key to 'flint_tags' in note_metadata"
   );
 
@@ -2203,7 +2192,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
       "SELECT name FROM sqlite_master WHERE type='table' AND name='note_metadata'"
     );
     if (tables.length === 0) {
-      logger.info('note_metadata table does not exist, skipping tags key migration');
+      console.log('note_metadata table does not exist, skipping tags key migration');
       return;
     }
 
@@ -2212,7 +2201,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
       "UPDATE note_metadata SET key = 'flint_tags' WHERE key = 'tags'"
     );
 
-    logger.info(`tags key migration completed: ${result.changes || 0} rows updated`);
+    console.log(`tags key migration completed: ${result.changes || 0} rows updated`);
   } catch (error) {
     console.error("Failed to rename 'tags' to 'flint_tags':", error);
     throw error;
@@ -2220,7 +2209,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.16.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.15.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2349,13 +2338,6 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_15_0
-    },
-    {
-      version: '2.16.0',
-      description: 'Re-run flint_* field migration (fixes path resolution bug in 2.14.0)',
-      requiresFullRebuild: false,
-      requiresLinkMigration: false,
-      migrationFunction: migrateToV2_14_0
     }
   ];
 
@@ -2395,8 +2377,8 @@ export class DatabaseMigrationManager {
       return result;
     }
 
-    logger.info(`Database migration required: ${fromVersion} -> ${toVersion}`);
-    logger.info(`Executing ${pendingMigrations.length} migration(s)...`);
+    console.log(`Database migration required: ${fromVersion} -> ${toVersion}`);
+    console.log(`Executing ${pendingMigrations.length} migration(s)...`);
 
     let db: DatabaseConnection;
 
@@ -2404,10 +2386,10 @@ export class DatabaseMigrationManager {
       db = await dbManager.connect();
       // Execute migrations in order
       for (const migration of pendingMigrations) {
-        logger.info(`Executing migration: ${migration.description}`);
+        console.log(`Executing migration: ${migration.description}`);
 
         if (migration.requiresFullRebuild) {
-          logger.info('Performing full database rebuild...');
+          console.log('Performing full database rebuild...');
           await dbManager.rebuild();
           result.rebuiltDatabase = true;
         }
@@ -2419,7 +2401,7 @@ export class DatabaseMigrationManager {
 
         // Handle link migration
         if (migration.requiresLinkMigration) {
-          logger.info('Migrating existing notes to extract links...');
+          console.log('Migrating existing notes to extract links...');
           const linksMigrated = await this.migrateLinkExtraction(db, workspacePath);
           result.migratedLinks = linksMigrated;
         }
@@ -2428,7 +2410,7 @@ export class DatabaseMigrationManager {
       }
 
       result.migrated = true;
-      logger.info('Database migration completed successfully');
+      console.log('Database migration completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Database migration failed:', errorMessage);
@@ -2483,7 +2465,7 @@ export class DatabaseMigrationManager {
       const hasContentColumn = tableInfo.some((col) => col.name === 'content');
 
       if (!hasContentColumn) {
-        logger.info(
+        console.log(
           'Skipping link migration - content column not found (test environment?)'
         );
         return false;
@@ -2495,11 +2477,11 @@ export class DatabaseMigrationManager {
       );
 
       if (notes.length === 0) {
-        logger.info('No notes found for link migration');
+        console.log('No notes found for link migration');
         return false;
       }
 
-      logger.info(`Extracting links from ${notes.length} existing notes...`);
+      console.log(`Extracting links from ${notes.length} existing notes...`);
 
       let processedCount = 0;
       let errorCount = 0;
@@ -2537,7 +2519,7 @@ export class DatabaseMigrationManager {
           // Log progress for large migrations
           if (notes.length > 100) {
             const progress = Math.round(((i + batch.length) / notes.length) * 100);
-            logger.info(
+            console.log(
               `Link migration progress: ${progress}% (${processedCount}/${notes.length})`
             );
           }
@@ -2547,7 +2529,7 @@ export class DatabaseMigrationManager {
         }
       }
 
-      logger.info(
+      console.log(
         `Link migration completed: ${processedCount} notes processed, ${errorCount} errors`
       );
 
@@ -2621,7 +2603,7 @@ export class DatabaseMigrationManager {
       throw new Error(`Migration not found for version: ${migrationVersion}`);
     }
 
-    logger.info(`Running specific migration: ${migration.description}`);
+    console.log(`Running specific migration: ${migration.description}`);
 
     const db = await dbManager.connect();
 
@@ -2637,6 +2619,6 @@ export class DatabaseMigrationManager {
       await this.migrateLinkExtraction(db, workspacePath);
     }
 
-    logger.info(`Migration ${migrationVersion} completed`);
+    console.log(`Migration ${migrationVersion} completed`);
   }
 }

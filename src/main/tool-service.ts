@@ -19,7 +19,6 @@ import {
   addWorkflowMaterialSchema,
   removeWorkflowMaterialSchema
 } from '../server/types/workflow-schemas.js';
-import { logger } from './logger';
 
 export class ToolService {
   private todoPlanService: TodoPlanService | null = null;
@@ -1118,7 +1117,7 @@ export class ToolService {
         } catch (error) {
           // If we can't get the note, it might not exist or the identifier is invalid
           // Continue with the original id and let deleteNote handle the error
-          logger.warn('[deleteNoteTool] Could not fetch note before deletion', { error });
+          console.warn('[deleteNoteTool] Could not fetch note before deletion:', error);
         }
 
         const result = await flintApi.deleteNote({

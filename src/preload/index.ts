@@ -595,16 +595,11 @@ const api = {
   readEpubFile: (params: { relativePath: string }): Promise<Uint8Array> =>
     electronAPI.ipcRenderer.invoke('read-epub-file', params),
 
-  // Image operations
-  importImage: (params: {
-    fileData: Uint8Array;
-    filename: string;
-  }): Promise<{ filename: string; path: string } | null> =>
-    electronAPI.ipcRenderer.invoke('import-image', params),
-  readImageFile: (params: { relativePath: string }): Promise<Uint8Array> =>
-    electronAPI.ipcRenderer.invoke('read-image-file', params),
-  getImageAbsolutePath: (params: { relativePath: string }): Promise<string> =>
-    electronAPI.ipcRenderer.invoke('get-image-absolute-path', params),
+  // PDF operations
+  importPdf: (): Promise<{ filename: string; path: string } | null> =>
+    electronAPI.ipcRenderer.invoke('import-pdf'),
+  readPdfFile: (params: { relativePath: string }): Promise<Uint8Array> =>
+    electronAPI.ipcRenderer.invoke('read-pdf-file', params),
 
   // Event listener for note events from main process
   onNoteEvent: (callback: (event: unknown) => void): (() => void) => {
@@ -658,6 +653,11 @@ const api = {
   // Update menu state for active epub (enables reader navigation shortcuts)
   setMenuActiveEpub: (isActive: boolean): void => {
     electronAPI.ipcRenderer.send('menu-set-active-epub', isActive);
+  },
+
+  // Update menu state for active pdf (enables reader navigation shortcuts)
+  setMenuActivePdf: (isActive: boolean): void => {
+    electronAPI.ipcRenderer.send('menu-set-active-pdf', isActive);
   },
 
   // Update menu state for workspaces (enables/disables delete, shows workspace list)

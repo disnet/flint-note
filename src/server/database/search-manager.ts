@@ -8,7 +8,6 @@ import { createHash, randomBytes } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
 import { toRelativePath } from '../utils/path-utils.js';
 import { LEGACY_TO_FLINT } from '../core/system-fields.js';
-import { logger } from '../../main/logger.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -173,7 +172,7 @@ export class HybridSearchManager {
 
     // Fallback to immediate write (legacy behavior)
     // This path should rarely be hit after proper initialization
-    logger.warn(
+    console.warn(
       '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
         'This may cause race conditions with external edit detection.'
     );
@@ -887,7 +886,7 @@ export class HybridSearchManager {
 
       // Handle conflict: same (type, filename) but different ID
       if (existingByTypeFilename && existingByTypeFilename.id !== id) {
-        logger.warn(
+        console.warn(
           `Note ID mismatch detected: File has ID ${id} but database has ${existingByTypeFilename.id} for ${type}/${filename}. ` +
             `Deleting old entry and using file's ID.`
         );
@@ -1182,7 +1181,7 @@ export class HybridSearchManager {
       return { added: 0, updated: 0, deleted: 0 };
     }
 
-    logger.info(
+    console.log(
       `Syncing filesystem changes: ${filesToAdd.length} new, ${filesToUpdate.length} updated, ${filesToDelete.length} deleted`
     );
 
@@ -1233,15 +1232,6 @@ export class HybridSearchManager {
         // Also clean up metadata, links, etc.
         // Note: Foreign key constraints should handle cascade delete
       } catch (error) {
-        // SQLITE_CORRUPT/SQLITE_READONLY expected when database is closed during cleanup (race condition)
-        if (
-          error instanceof Error &&
-          'code' in error &&
-          (error.code === 'SQLITE_CORRUPT' || error.code === 'SQLITE_READONLY')
-        ) {
-          // Silently ignore - database is being cleaned up
-          continue;
-        }
         console.error(`Failed to remove deleted file ${filePath}:`, error);
       }
       processed++;
@@ -1287,10 +1277,6 @@ export class HybridSearchManager {
               .filter((file) => file.endsWith('.md') && file !== '_description.md')
               .map((file) => path.join(dirPath, file));
           } catch (error) {
-            // ENOENT is expected when directory is deleted during scan (race condition)
-            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-              return [];
-            }
             console.error(`Error scanning directory ${entry.name}:`, error);
             return [];
           }
@@ -1299,10 +1285,6 @@ export class HybridSearchManager {
       const results = await Promise.all(dirPromises);
       noteFiles.push(...results.flat());
     } catch (error) {
-      // ENOENT is expected when vault directory is removed during cleanup (race condition)
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        return noteFiles;
-      }
       console.error('Error scanning for note files:', error);
     }
 
@@ -1390,7 +1372,7 @@ export class HybridSearchManager {
       const needsNormalization = !frontmatterType || frontmatterType !== parentDir;
 
       if (needsNormalization) {
-        logger.info(
+        console.log(
           `Normalizing type field in ${filePath}: ${frontmatterType || '(missing)'} → ${parentDir}`
         );
 
@@ -1402,7 +1384,7 @@ export class HybridSearchManager {
 
         if (!match) {
           // No frontmatter found - create new frontmatter block with flint_type
-          logger.info(
+          console.log(
             `Creating frontmatter for ${filePath} with flint_type: ${parentDir}`
           );
           updatedContent = `---\nflint_type: ${parentDir}\n---\n${content}`;
@@ -1489,7 +1471,7 @@ export class HybridSearchManager {
           [frontmatterId]
         );
         if (existingNote && existingNote.path !== relativePath) {
-          logger.warn(
+          console.warn(
             `ID clash detected: ${filePath} has ID ${frontmatterId} which belongs to existing note at ${existingNote.path}. Generating new ID.`
           );
           needsNormalization = true;
@@ -1500,7 +1482,7 @@ export class HybridSearchManager {
         // Generate a new immutable ID
         const newId = 'n-' + randomBytes(4).toString('hex');
 
-        logger.info(
+        console.log(
           `Normalizing id field in ${filePath}: ${parsed.metadata.flint_id || parsed.metadata.id || '(missing)'} → ${newId}`
         );
 
@@ -1512,7 +1494,7 @@ export class HybridSearchManager {
 
         if (!match) {
           // No frontmatter found - create new frontmatter block with flint_id
-          logger.info(`Creating frontmatter for ${filePath} with flint_id: ${newId}`);
+          console.log(`Creating frontmatter for ${filePath} with flint_id: ${newId}`);
           updatedContent = `---\nflint_id: ${newId}\n---\n${content}`;
         } else {
           const originalFrontmatter = match[1];
@@ -1607,7 +1589,7 @@ export class HybridSearchManager {
       }
 
       if (hasChanges) {
-        logger.info(`Normalizing legacy frontmatter fields in ${filePath}`);
+        console.log(`Normalizing legacy frontmatter fields in ${filePath}`);
         const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
         await this.writeFileWithTracking(filePath, updatedContent);
         return updatedContent;
@@ -1682,7 +1664,7 @@ export class HybridSearchManager {
         return;
       }
 
-      logger.info(
+      console.log(
         `Normalizing ${replacements.length} wikilink(s) in ${filePath} to ID-based format`
       );
 

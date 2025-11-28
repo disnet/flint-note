@@ -11,7 +11,6 @@
   import { notesStore } from '../services/noteStore.svelte';
   import { noteNavigationService } from '../services/noteNavigationService.svelte';
   import CreateVaultModal from './CreateVaultModal.svelte';
-  import { logger } from '../utils/logger';
 
   interface Props {
     onNoteClose: () => void;
@@ -97,7 +96,7 @@
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
-      logger.debug(
+      console.log(
         '[VaultSwitcher] Notes loaded and propagated:',
         notesStore.notes.length,
         'notes'
@@ -183,9 +182,9 @@
   }
 
   async function handleVaultCreated(vaultInfo: CreateVaultResult): Promise<void> {
-    logger.debug('VaultSwitcher: handleVaultCreated called with vaultInfo:', vaultInfo);
-    logger.debug('VaultSwitcher: vaultInfo.isNewVault =', vaultInfo.isNewVault);
-    logger.debug('VaultSwitcher: vaultInfo.initialNoteId =', vaultInfo.initialNoteId);
+    console.log('VaultSwitcher: handleVaultCreated called with vaultInfo:', vaultInfo);
+    console.log('VaultSwitcher: vaultInfo.isNewVault =', vaultInfo.isNewVault);
+    console.log('VaultSwitcher: vaultInfo.initialNoteId =', vaultInfo.initialNoteId);
 
     try {
       // Refresh vault list to include the new vault
@@ -207,13 +206,13 @@
           try {
             // If template specified an initial note, use that; otherwise fall back to tutorial notes
             if (vaultInfo.initialNoteId) {
-              logger.debug(
+              console.log(
                 'VaultSwitcher: Adding initial note from template:',
                 vaultInfo.initialNoteId
               );
               await workspacesStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
             } else {
-              logger.debug(
+              console.log(
                 'VaultSwitcher: No initial note from template, adding tutorial notes'
               );
               await workspacesStore.addTutorialNoteTabs();

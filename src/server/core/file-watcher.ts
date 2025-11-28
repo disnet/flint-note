@@ -12,7 +12,6 @@ import fs from 'fs/promises';
 import { generateContentHash } from '../utils/content-hash.js';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
-import { logger } from '../../main/logger.js';
 
 // Phase 4: Removed FileOperation interface - no longer tracking individual operations
 // FileWriteQueue's ongoingWrites flag is now the single source of truth
@@ -116,7 +115,7 @@ export class VaultFileWatcher {
       return;
     }
 
-    logger.info(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
+    console.log(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
 
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: (filepath: string) => {
@@ -166,7 +165,7 @@ export class VaultFileWatcher {
       .on('unlink', (filePath) => this.onFileDeleted(filePath))
       .on('error', (error: unknown) => this.onError(error))
       .on('ready', () => {
-        logger.info(
+        console.log(
           '[FileWatcher] ✅ Chokidar watcher is ready and watching for changes'
         );
       });
@@ -310,10 +309,6 @@ export class VaultFileWatcher {
 
         this.emit({ type: 'external-add', path: filePath });
       } catch (error) {
-        // ENOENT is expected when file is deleted before we can read it (race condition)
-        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          return;
-        }
         console.error(`[FileWatcher] Error processing file addition: ${filePath}`, error);
       }
     });
@@ -359,10 +354,6 @@ export class VaultFileWatcher {
           noteId: noteId || undefined
         });
       } catch (error) {
-        // ENOENT is expected when file is deleted before we can read it (race condition)
-        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          return;
-        }
         console.error(`[FileWatcher] Error processing file change: ${filePath}`, error);
       }
     });
@@ -427,10 +418,6 @@ export class VaultFileWatcher {
           noteId: noteId || undefined
         });
       } catch (error) {
-        // ENOENT is expected when vault directory is removed during cleanup (race condition)
-        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          return;
-        }
         console.error(`[FileWatcher] Error processing file deletion: ${filePath}`, error);
       }
     });

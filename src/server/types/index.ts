@@ -36,7 +36,7 @@ export interface NoteMetadata {
   // New flint_* prefixed system fields
   flint_id?: string;
   flint_type?: string;
-  flint_kind?: 'markdown' | 'epub' | string; // Content rendering type
+  flint_kind?: 'markdown' | 'epub' | 'pdf' | string; // Content rendering type
   flint_title?: string;
   flint_filename?: string;
   flint_created?: string;
@@ -176,7 +176,7 @@ export interface DeletionValidation {
 export interface NoteInfo {
   id: string;
   type: string;
-  kind: 'markdown' | 'epub' | string; // Content rendering type
+  kind: 'markdown' | 'epub' | 'pdf' | string; // Content rendering type
   title: string;
   filename: string;
   path: string;

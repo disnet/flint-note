@@ -881,7 +881,7 @@ This is the original note.`
 
       // Verify existing note is in DB
       const db = await searchManager.getDatabaseConnection();
-      const existingNotes = await db.all('SELECT id, path FROM notes WHERE id = ?', [
+      let existingNotes = await db.all('SELECT id, path FROM notes WHERE id = ?', [
         clashingId
       ]);
       expect(existingNotes).toHaveLength(1);
