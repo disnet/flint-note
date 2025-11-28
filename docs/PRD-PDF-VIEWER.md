@@ -21,9 +21,11 @@ PdfNoteView.svelte
 ├── EditorHeader (title editing)
 ├── NoteActionBar (pin, shelf, metadata, archive)
 ├── MetadataView (expandable metadata panel)
-├── PDF Actions Bar (TOC toggle, document info)
+├── PDF Actions Bar (TOC toggle, highlights toggle, document info)
 ├── PdfToc.svelte (table of contents overlay)
-├── PdfReader.svelte (core PDF renderer)
+├── PdfHighlights.svelte (highlights panel overlay)
+├── PdfReader.svelte (core PDF renderer with text layer)
+├── Selection Popup (highlight creation UI)
 └── PdfProgress.svelte (progress bar + navigation)
 ```
 
@@ -41,19 +43,29 @@ The core PDF rendering component using pdf.js v5.
 - Dark mode support (CSS filter inversion)
 - Outline/TOC extraction
 - Metadata extraction (title, author, subject, etc.)
+- Text selection via pdf.js TextLayer
+- Highlight rendering overlay
 
 **Rendering Strategy:**
 
 1. On load, create placeholder divs for all pages with correct dimensions
 2. IntersectionObserver watches which placeholders are visible
 3. When a placeholder enters viewport, render actual page content to canvas
-4. Track most visible page for progress reporting
+4. Render text layer on top of canvas for text selection (using pdf.js TextLayer)
+5. Render highlight layer between canvas and text layer
+6. Track most visible page for progress reporting
 
 **Public Methods:**
 
 - `goToPage(pageNumber)` - Navigate to specific page
 - `prevPage()` / `nextPage()` - Sequential navigation
 - `navigateToOutlineItem(dest)` - Jump to TOC destination
+- `clearSelection()` - Clear current text selection
+
+**Props:**
+
+- `highlights` - Array of PdfHighlight objects to render
+- `onTextSelected` - Callback when text is selected (provides selection info for highlight creation)
 
 ### PdfToc.svelte
 
@@ -75,6 +87,18 @@ Footer progress bar with navigation controls.
 - "Page X of Y" display
 - Previous/Next page buttons
 
+### PdfHighlights.svelte
+
+Sidebar panel displaying all highlights in the document.
+
+**Features:**
+
+- Lists all highlights sorted by page number
+- Shows highlighted text snippet and creation date
+- Click to navigate to highlight's page
+- Delete button for each highlight
+- Overlay positioning (doesn't push content)
+
 ### PdfNoteView.svelte
 
 Main orchestrator component that:
@@ -83,6 +107,9 @@ Main orchestrator component that:
 - Handles metadata synchronization
 - Integrates with standard note features (pin, shelf, review, archive)
 - Responds to menu navigation commands
+- Manages highlight state and persistence
+- Shows selection popup for creating highlights
+- Toggles highlights panel visibility
 
 ## Data Model
 
@@ -109,6 +136,44 @@ vault/
 └── attachments/
     └── pdfs/
         └── document.pdf
+```
+
+### Highlights Storage
+
+Highlights are stored directly in the note's markdown content using special comment markers, following the same pattern as EPUB highlights:
+
+```markdown
+<!-- pdf-highlights-start -->
+
+## Highlights
+
+> "highlighted text here" [1:0-50](h-abc123|2024-11-28T10:30:00Z|encodedRects)
+
+> "another highlight" [3:100-200](h-def456|2024-11-28T11:00:00Z|encodedRects)
+
+<!-- pdf-highlights-end -->
+```
+
+**Format:** `> "text" [pageNumber:startOffset-endOffset](id|timestamp|encodedRects)`
+
+- `pageNumber` - Page number where highlight exists
+- `startOffset` / `endOffset` - Character offsets within the page's text content
+- `id` - Unique identifier (format: `h-{timestamp in base36}`)
+- `timestamp` - ISO creation timestamp
+- `encodedRects` - URL-encoded JSON array of bounding rectangles for rendering
+
+**Highlight Data Model:**
+
+```typescript
+interface PdfHighlight {
+  id: string;
+  pageNumber: number;
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  rects: Array<{ x: number; y: number; width: number; height: number }>;
+  createdAt: string;
+}
 ```
 
 ## IPC Communication
@@ -171,23 +236,40 @@ This inverts colors while preserving hue, making white backgrounds dark and blac
 
 ## Differences from EPUB Implementation
 
-| Aspect            | EPUB                              | PDF               |
-| ----------------- | --------------------------------- | ----------------- |
-| Rendering library | foliate-js                        | pdf.js            |
-| View mode         | Continuous scroll                 | Continuous scroll |
-| Position tracking | CFI (content fragment identifier) | Page number       |
-| Highlights        | Supported                         | Not implemented   |
-| Annotations       | Supported                         | Not implemented   |
-| Text selection    | Native                            | Not implemented   |
+| Aspect            | EPUB                              | PDF                            |
+| ----------------- | --------------------------------- | ------------------------------ |
+| Rendering library | foliate-js                        | pdf.js                         |
+| View mode         | Continuous scroll                 | Continuous scroll              |
+| Position tracking | CFI (content fragment identifier) | Page number + character offset |
+| Highlights        | Supported                         | Supported                      |
+| Annotations       | Supported                         | Not implemented                |
+| Text selection    | Native                            | pdf.js TextLayer               |
+| Highlight storage | Note content (markdown)           | Note content (markdown)        |
+
+## Highlight Flow
+
+1. User selects text in the PDF using the text layer
+2. Selection popup appears below the selection
+3. User clicks "Highlight" button
+4. Highlight is created with:
+   - Unique ID
+   - Page number
+   - Character offsets
+   - Bounding rectangles (for rendering)
+   - Selected text
+   - Timestamp
+5. Highlight is rendered as yellow overlay on the page
+6. Note content is updated with serialized highlight data
+7. Highlights persist across sessions via note content
 
 ## Future Enhancements
 
-Potential features not included in initial implementation:
+Potential features not included in current implementation:
 
-1. **Text selection and copying** - pdf.js text layer
-2. **Annotations/highlights** - pdf.js annotation layer
-3. **Search within PDF** - pdf.js find controller
-4. **Zoom controls** - Adjustable scale factor
-5. **Page thumbnails** - Sidebar with page previews
-6. **Two-page spread** - Side-by-side page viewing
-7. **Bookmarks** - User-defined position markers
+1. **Search within PDF** - pdf.js find controller
+2. **Zoom controls** - Adjustable scale factor
+3. **Page thumbnails** - Sidebar with page previews
+4. **Two-page spread** - Side-by-side page viewing
+5. **Bookmarks** - User-defined position markers
+6. **Multiple highlight colors** - Color picker for highlights
+7. **Highlight notes** - Add notes/comments to highlights

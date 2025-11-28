@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { PdfOutlineItem, PdfMetadata, PdfLocation } from './types';
+  import type {
+    PdfOutlineItem,
+    PdfMetadata,
+    PdfLocation,
+    PdfHighlight,
+    PdfSelectionInfo
+  } from './types';
   import * as pdfjsLib from 'pdfjs-dist';
   import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -11,16 +17,20 @@
   let {
     pdfPath = '',
     initialPage = 1,
+    highlights = [],
     onRelocate = (_page: number, _progress: number, _location: PdfLocation) => {},
     onOutlineLoaded = (_outline: PdfOutlineItem[]) => {},
     onMetadataLoaded = (_metadata: PdfMetadata) => {},
+    onTextSelected = (_selection: PdfSelectionInfo | null) => {},
     onError = (_error: Error) => {}
   }: {
     pdfPath: string;
     initialPage?: number;
+    highlights?: PdfHighlight[];
     onRelocate?: (page: number, progress: number, location: PdfLocation) => void;
     onOutlineLoaded?: (outline: PdfOutlineItem[]) => void;
     onMetadataLoaded?: (metadata: PdfMetadata) => void;
+    onTextSelected?: (selection: PdfSelectionInfo | null) => void;
     onError?: (error: Error) => void;
   } = $props();
 
@@ -34,10 +44,23 @@
   let loadError = $state<string | null>(null);
   let totalPages = $state(0);
   let currentPage = $state(1);
+  // These Map/Set instances are used for internal pdf.js rendering state,
+  // not for driving Svelte reactivity, so SvelteMap/SvelteSet are not needed
+  /* eslint-disable svelte/prefer-svelte-reactivity */
   let renderedPages = new Set<number>();
   let pageObserver: IntersectionObserver | null = null;
   let pageElements: Map<number, HTMLDivElement> = new Map();
+  let textLayers: Map<number, HTMLDivElement> = new Map();
+  let highlightLayers: Map<number, HTMLDivElement> = new Map();
+  let pageViewports: Map<number, { width: number; height: number; scale: number }> =
+    new Map();
+  /* eslint-enable svelte/prefer-svelte-reactivity */
   let scale = 1.5;
+
+  // Selection tracking
+  let selectionCheckInterval: ReturnType<typeof setInterval> | null = null;
+  let lastSelectionText = '';
+  let currentSelection = $state<PdfSelectionInfo | null>(null);
 
   // Check if dark mode is active
   function checkDarkMode(): boolean {
@@ -140,6 +163,9 @@
     }
   }
 
+  // PDF.js requires direct DOM manipulation for canvas/page rendering
+  // which is outside Svelte's control, so we disable this lint rule here
+  /* eslint-disable svelte/no-dom-manipulating */
   async function createPagePlaceholders(): Promise<void> {
     if (!pdfDoc || !pagesContainer) return;
 
@@ -170,6 +196,7 @@
       pageElements.set(i, pageDiv);
     }
   }
+  /* eslint-enable svelte/no-dom-manipulating */
 
   function setupPageObserver(): void {
     if (pageObserver) {
@@ -232,6 +259,13 @@
       const page = await pdfDoc.getPage(pageNumber);
       const viewport = page.getViewport({ scale });
 
+      // Store viewport info for later use
+      pageViewports.set(pageNumber, {
+        width: viewport.width,
+        height: viewport.height,
+        scale
+      });
+
       // Create canvas
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-canvas';
@@ -250,12 +284,44 @@
       // Add canvas
       pageDiv.appendChild(canvas);
 
-      // Render page
+      // Create highlight layer (rendered behind text layer)
+      const highlightDiv = document.createElement('div');
+      highlightDiv.className = 'pdf-highlight-layer';
+      highlightDiv.style.width = `${viewport.width}px`;
+      highlightDiv.style.height = `${viewport.height}px`;
+      pageDiv.appendChild(highlightDiv);
+      highlightLayers.set(pageNumber, highlightDiv);
+
+      // Create text layer container (using pdf.js class name convention)
+      const textLayerDiv = document.createElement('div');
+      textLayerDiv.className = 'textLayer';
+      // Set CSS variable that pdf.js TextLayer needs for dimensions
+      textLayerDiv.style.setProperty('--total-scale-factor', String(scale));
+      pageDiv.appendChild(textLayerDiv);
+      textLayers.set(pageNumber, textLayerDiv);
+
+      // Render page to canvas
       await page.render({
         canvasContext: context,
         viewport: viewport,
         canvas
       }).promise;
+
+      // Render text layer using pdf.js built-in TextLayer
+      const textContent = await page.getTextContent();
+      const textLayer = new pdfjsLib.TextLayer({
+        textContentSource: textContent,
+        container: textLayerDiv,
+        viewport: viewport
+      });
+      await textLayer.render();
+
+      // Ensure text layer has explicit dimensions (fallback if CSS vars don't work)
+      textLayerDiv.style.width = `${viewport.width}px`;
+      textLayerDiv.style.height = `${viewport.height}px`;
+
+      // Render existing highlights for this page
+      renderHighlightsForPage(pageNumber);
     } catch (err) {
       console.error(`Failed to render page ${pageNumber}:`, err);
     }
@@ -266,6 +332,170 @@
     for (let i = 1; i <= Math.min(3, totalPages); i++) {
       await renderPage(i);
     }
+  }
+
+  // Highlight rendering
+  function renderHighlightsForPage(pageNumber: number): void {
+    const highlightLayer = highlightLayers.get(pageNumber);
+    if (!highlightLayer) return;
+
+    // Clear existing highlights
+    highlightLayer.innerHTML = '';
+
+    // Find highlights for this page
+    const pageHighlights = highlights.filter((h) => h.pageNumber === pageNumber);
+
+    for (const highlight of pageHighlights) {
+      for (const rect of highlight.rects) {
+        const highlightEl = document.createElement('div');
+        highlightEl.className = 'pdf-highlight';
+        highlightEl.dataset.highlightId = highlight.id;
+        highlightEl.style.left = `${rect.x}px`;
+        highlightEl.style.top = `${rect.y}px`;
+        highlightEl.style.width = `${rect.width}px`;
+        highlightEl.style.height = `${rect.height}px`;
+        highlightLayer.appendChild(highlightEl);
+      }
+    }
+  }
+
+  // Re-render all highlights when highlights prop changes
+  $effect(() => {
+    if (highlights) {
+      for (const pageNumber of highlightLayers.keys()) {
+        renderHighlightsForPage(pageNumber);
+      }
+    }
+  });
+
+  // Selection detection
+  function checkForSelection(): void {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) {
+      if (currentSelection) {
+        currentSelection = null;
+        onTextSelected(null);
+        lastSelectionText = '';
+      }
+      return;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText || selectedText === lastSelectionText) {
+      return;
+    }
+
+    lastSelectionText = selectedText;
+
+    // Find which page the selection is in
+    const range = selection.getRangeAt(0);
+    const textLayerDiv = range.startContainer.parentElement?.closest(
+      '.textLayer'
+    ) as HTMLElement | null;
+
+    if (!textLayerDiv) {
+      return;
+    }
+
+    const pageDiv = textLayerDiv.closest('.pdf-page') as HTMLElement | null;
+    if (!pageDiv) {
+      return;
+    }
+
+    const pageNumber = parseInt(pageDiv.dataset.pageNumber || '1', 10);
+    const viewport = pageViewports.get(pageNumber);
+    if (!viewport) {
+      return;
+    }
+
+    // Get selection rectangles relative to text layer
+    const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const clientRects = range.getClientRects();
+    const textLayerRect = textLayerDiv.getBoundingClientRect();
+
+    for (let i = 0; i < clientRects.length; i++) {
+      const clientRect = clientRects[i];
+      rects.push({
+        x: clientRect.left - textLayerRect.left,
+        y: clientRect.top - textLayerRect.top,
+        width: clientRect.width,
+        height: clientRect.height
+      });
+    }
+
+    if (rects.length === 0) {
+      return;
+    }
+
+    // Calculate position for popup (bottom center of last rect, in viewport coords)
+    const lastClientRect = clientRects[clientRects.length - 1];
+    const containerRect = container.getBoundingClientRect();
+
+    const selectionInfo: PdfSelectionInfo = {
+      text: selectedText,
+      pageNumber,
+      startOffset: getTextOffset(textLayerDiv, range.startContainer, range.startOffset),
+      endOffset: getTextOffset(textLayerDiv, range.endContainer, range.endOffset),
+      rects,
+      position: {
+        x: lastClientRect.left + lastClientRect.width / 2 - containerRect.left,
+        y: lastClientRect.bottom - containerRect.top
+      }
+    };
+
+    currentSelection = selectionInfo;
+    onTextSelected(selectionInfo);
+  }
+
+  // Calculate text offset within the text layer
+  function getTextOffset(textLayerDiv: HTMLElement, node: Node, offset: number): number {
+    let totalOffset = 0;
+    const walker = document.createTreeWalker(textLayerDiv, NodeFilter.SHOW_TEXT, null);
+
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      if (currentNode === node) {
+        return totalOffset + offset;
+      }
+      totalOffset += currentNode.textContent?.length || 0;
+      currentNode = walker.nextNode();
+    }
+
+    return totalOffset + offset;
+  }
+
+  // Handle mouseup for faster selection detection
+  function handleMouseUp(): void {
+    // Small delay to ensure selection is finalized
+    setTimeout(checkForSelection, 50);
+  }
+
+  // Start selection monitoring
+  function startSelectionMonitoring(): void {
+    if (selectionCheckInterval) {
+      clearInterval(selectionCheckInterval);
+    }
+    selectionCheckInterval = setInterval(checkForSelection, 200);
+
+    // Also listen for mouseup on the container
+    container?.addEventListener('mouseup', handleMouseUp);
+  }
+
+  // Stop selection monitoring
+  function stopSelectionMonitoring(): void {
+    if (selectionCheckInterval) {
+      clearInterval(selectionCheckInterval);
+      selectionCheckInterval = null;
+    }
+    container?.removeEventListener('mouseup', handleMouseUp);
+  }
+
+  // Public method to clear selection
+  export function clearSelection(): void {
+    window.getSelection()?.removeAllRanges();
+    currentSelection = null;
+    lastSelectionText = '';
+    onTextSelected(null);
   }
 
   // Public methods
@@ -345,6 +575,11 @@
 
     loadPdf();
 
+    // Start selection monitoring after a short delay to ensure container is ready
+    setTimeout(() => {
+      startSelectionMonitoring();
+    }, 100);
+
     return () => {
       themeObserver.disconnect();
       mediaQuery.removeEventListener('change', handleMediaChange);
@@ -353,6 +588,8 @@
 
   onDestroy(() => {
     isMounted = false;
+
+    stopSelectionMonitoring();
 
     if (pageObserver) {
       pageObserver.disconnect();
@@ -365,6 +602,9 @@
     }
 
     pageElements.clear();
+    textLayers.clear();
+    highlightLayers.clear();
+    pageViewports.clear();
     renderedPages.clear();
   });
 
@@ -433,6 +673,8 @@
     display: block;
     max-width: 100%;
     height: auto;
+    position: relative;
+    z-index: 0;
   }
 
   :global(.page-label) {
@@ -474,5 +716,66 @@
     font-size: 0.875rem;
     color: var(--text-muted, #666);
     margin-top: 0.5rem;
+  }
+
+  /* Highlight layer - between canvas and text layer */
+  :global(.pdf-highlight-layer) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  :global(.pdf-highlight) {
+    position: absolute;
+    background: rgba(255, 235, 59, 0.4);
+    mix-blend-mode: multiply;
+    border-radius: 2px;
+  }
+
+  .dark-mode :global(.pdf-highlight) {
+    background: rgba(255, 235, 59, 0.3);
+    mix-blend-mode: screen;
+  }
+
+  /* Text layer for selection - using pdf.js styles */
+  :global(.textLayer) {
+    position: absolute;
+    text-align: initial;
+    inset: 0;
+    overflow: clip;
+    opacity: 1;
+    line-height: 1;
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    text-size-adjust: none;
+    forced-color-adjust: none;
+    transform-origin: 0 0;
+    z-index: 2;
+    pointer-events: auto;
+  }
+
+  :global(.textLayer :is(span, br)) {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+    pointer-events: auto;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+  }
+
+  :global(.textLayer > :not(.markedContent)),
+  :global(.textLayer .markedContent span:not(.markedContent)) {
+    z-index: 1;
+  }
+
+  :global(.textLayer ::selection) {
+    background: rgba(0, 100, 255, 0.3);
   }
 </style>

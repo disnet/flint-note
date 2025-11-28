@@ -3,9 +3,20 @@
   import BaseNoteView from './BaseNoteView.svelte';
   import type { NoteViewProps } from './ViewRegistry';
   import PdfReader from './pdf/PdfReader.svelte';
-  import type { PdfOutlineItem, PdfMetadata, PdfLocation } from './pdf/types';
+  import type {
+    PdfOutlineItem,
+    PdfMetadata,
+    PdfLocation,
+    PdfHighlight,
+    PdfSelectionInfo
+  } from './pdf/types';
+  import {
+    parsePdfHighlightsFromContent,
+    updatePdfContentWithHighlights
+  } from './pdf/types';
   import PdfToc from './pdf/PdfToc.svelte';
   import PdfProgress from './pdf/PdfProgress.svelte';
+  import PdfHighlights from './pdf/PdfHighlights.svelte';
   import EditorHeader from '../../components/EditorHeader.svelte';
   import NoteActionBar from '../../components/NoteActionBar.svelte';
   import MetadataView from '../../components/MetadataView.svelte';
@@ -30,9 +41,14 @@
   let outline = $state<PdfOutlineItem[]>([]);
   let pdfMetadata = $state<PdfMetadata | null>(null);
   let showToc = $state(false);
+  let showHighlights = $state(false);
   let currentPage = $state(1);
   let totalPages = $state(1);
   let progress = $state(0);
+
+  // Highlight state
+  let highlights = $state<PdfHighlight[]>([]);
+  let currentSelection = $state<PdfSelectionInfo | null>(null);
 
   // Debounce timer for metadata updates
   let metadataUpdateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +63,9 @@
   onMount(() => {
     mountedNoteId = (activeNote?.id as string) || null;
     latestNoteContent = noteContent || '';
+
+    // Parse highlights from content
+    highlights = parsePdfHighlightsFromContent(noteContent || '');
 
     // Enable pdf menu items
     window.api?.setMenuActivePdf(true);
@@ -237,6 +256,56 @@
   async function handleNext(): Promise<void> {
     if (pdfReader) {
       await pdfReader.nextPage();
+    }
+  }
+
+  // Highlight management
+  function handleTextSelected(selection: PdfSelectionInfo | null): void {
+    currentSelection = selection;
+  }
+
+  function generateHighlightId(): string {
+    return `h-${Date.now().toString(36)}`;
+  }
+
+  function addHighlight(): void {
+    if (!currentSelection) return;
+
+    const newHighlight: PdfHighlight = {
+      id: generateHighlightId(),
+      pageNumber: currentSelection.pageNumber,
+      text: currentSelection.text,
+      startOffset: currentSelection.startOffset,
+      endOffset: currentSelection.endOffset,
+      rects: currentSelection.rects,
+      createdAt: new Date().toISOString()
+    };
+
+    highlights = [...highlights, newHighlight];
+
+    // Update content with new highlights
+    const updatedContent = updatePdfContentWithHighlights(latestNoteContent, highlights);
+    latestNoteContent = updatedContent;
+    onContentChange(updatedContent);
+
+    // Clear selection
+    currentSelection = null;
+    pdfReader?.clearSelection();
+  }
+
+  function deleteHighlight(id: string): void {
+    highlights = highlights.filter((h) => h.id !== id);
+
+    // Update content
+    const updatedContent = updatePdfContentWithHighlights(latestNoteContent, highlights);
+    latestNoteContent = updatedContent;
+    onContentChange(updatedContent);
+  }
+
+  async function handleHighlightNavigate(pageNumber: number): Promise<void> {
+    if (pdfReader) {
+      await pdfReader.goToPage(pageNumber);
+      showHighlights = false;
     }
   }
 
@@ -460,6 +529,7 @@
               class:active={showToc}
               onclick={() => {
                 showToc = !showToc;
+                if (showToc) showHighlights = false;
               }}
               aria-label="Toggle table of contents"
             >
@@ -474,6 +544,27 @@
               <span>TOC</span>
             </button>
           {/if}
+          <button
+            class="pdf-button"
+            class:active={showHighlights}
+            onclick={() => {
+              showHighlights = !showHighlights;
+              if (showHighlights) showToc = false;
+            }}
+            aria-label="Toggle highlights panel"
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 3H17V13H10L6 17V13H3V3Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>Highlights{highlights.length > 0 ? ` (${highlights.length})` : ''}</span
+            >
+          </button>
         </div>
       </div>
 
@@ -490,6 +581,18 @@
           </div>
         {/if}
 
+        <!-- Highlights sidebar (overlay) -->
+        {#if showHighlights}
+          <div class="highlights-overlay">
+            <PdfHighlights
+              {highlights}
+              onNavigate={handleHighlightNavigate}
+              onDelete={deleteHighlight}
+              onClose={() => (showHighlights = false)}
+            />
+          </div>
+        {/if}
+
         <!-- Reader panel -->
         <div class="reader-panel">
           {#if pdfPath}
@@ -497,9 +600,11 @@
               bind:this={pdfReader}
               {pdfPath}
               {initialPage}
+              {highlights}
               onRelocate={handleRelocate}
               onOutlineLoaded={handleOutlineLoaded}
               onMetadataLoaded={handleMetadataLoaded}
+              onTextSelected={handleTextSelected}
               onError={handlePdfError}
             />
           {:else}
@@ -537,6 +642,28 @@
               onPrev={handlePrev}
               onNext={handleNext}
             />
+          </div>
+        {/if}
+
+        <!-- Selection popup for highlighting -->
+        {#if currentSelection}
+          <div
+            class="selection-popup"
+            style="left: {currentSelection.position.x}px; top: {currentSelection.position
+              .y + 8}px;"
+          >
+            <button class="highlight-button" onclick={addHighlight}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M2 11L11 2L14 5L5 14H2V11Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Highlight</span>
+            </button>
           </div>
         {/if}
       </div>
@@ -696,5 +823,45 @@
 
   .no-pdf .hint {
     font-size: 0.875rem;
+  }
+
+  .highlights-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 10;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .selection-popup {
+    position: absolute;
+    z-index: 20;
+    transform: translateX(-50%);
+    background: rgba(255, 235, 59, 0.2);
+    border: 1px solid rgba(255, 235, 59, 0.5);
+    border-radius: 6px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .highlight-button {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-primary, #333);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+  }
+
+  .highlight-button:hover {
+    background: rgba(255, 235, 59, 0.4);
   }
 </style>
