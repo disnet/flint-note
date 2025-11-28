@@ -38,7 +38,7 @@
 
   // State
   let container: HTMLDivElement;
-  let pagesContainer: HTMLDivElement;
+  let pagesContainer: HTMLDivElement | undefined = $state();
   let isMounted = $state(false);
   let isDarkMode = $state(false);
   let pdfDoc: pdfjsLib.PDFDocumentProxy | null = $state(null);
