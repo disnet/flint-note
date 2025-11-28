@@ -50,6 +50,12 @@
   let highlights = $state<PdfHighlight[]>([]);
   let currentSelection = $state<PdfSelectionInfo | null>(null);
 
+  // Zoom state
+  const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  const DEFAULT_ZOOM_INDEX = 4; // 1.5 (150%)
+  let zoomIndex = $state(DEFAULT_ZOOM_INDEX);
+  let zoomScale = $derived(ZOOM_LEVELS[zoomIndex]);
+
   // Debounce timer for metadata updates
   let metadataUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSavedProgress = $state(0);
@@ -309,6 +315,23 @@
     }
   }
 
+  // Zoom handlers
+  function zoomIn(): void {
+    if (zoomIndex < ZOOM_LEVELS.length - 1) {
+      zoomIndex++;
+    }
+  }
+
+  function zoomOut(): void {
+    if (zoomIndex > 0) {
+      zoomIndex--;
+    }
+  }
+
+  function resetZoom(): void {
+    zoomIndex = DEFAULT_ZOOM_INDEX;
+  }
+
   // Initialize with saved page
   let initialPage = $derived((metadata.flint_currentPage as number) || 1);
 
@@ -523,6 +546,47 @@
           {/if}
         </div>
         <div class="pdf-buttons">
+          <!-- Zoom controls -->
+          <div class="zoom-controls">
+            <button
+              class="zoom-button"
+              onclick={zoomOut}
+              disabled={zoomIndex === 0}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M3 8H13"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+            <button class="zoom-level" onclick={resetZoom} title="Reset zoom to 150%">
+              {Math.round(zoomScale * 100)}%
+            </button>
+            <button
+              class="zoom-button"
+              onclick={zoomIn}
+              disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M8 3V13M3 8H13"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="button-separator"></div>
+
           {#if outline.length > 0}
             <button
               class="pdf-button"
@@ -600,6 +664,7 @@
               bind:this={pdfReader}
               {pdfPath}
               {initialPage}
+              scale={zoomScale}
               {highlights}
               onRelocate={handleRelocate}
               onOutlineLoaded={handleOutlineLoaded}
@@ -758,6 +823,68 @@
     background: var(--bg-secondary, #f5f5f5);
     border-color: var(--accent-primary, #007bff);
     color: var(--text-primary, #333);
+  }
+
+  .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    background: var(--bg-secondary, #f5f5f5);
+    border-radius: 0.25rem;
+    padding: 0.125rem;
+    flex-shrink: 0;
+  }
+
+  .zoom-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    transition: all 0.15s ease;
+  }
+
+  .zoom-button:hover:not(:disabled) {
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #333);
+  }
+
+  .zoom-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .zoom-level {
+    width: 42px;
+    padding: 0.125rem 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .zoom-level:hover {
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #333);
+  }
+
+  .button-separator {
+    width: 1px;
+    height: 16px;
+    background: var(--border-light, #e0e0e0);
+    margin: 0 0.25rem;
   }
 
   .pdf-content {

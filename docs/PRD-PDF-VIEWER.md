@@ -21,7 +21,7 @@ PdfNoteView.svelte
 ├── EditorHeader (title editing)
 ├── NoteActionBar (pin, shelf, metadata, archive)
 ├── MetadataView (expandable metadata panel)
-├── PDF Actions Bar (TOC toggle, highlights toggle, document info)
+├── PDF Actions Bar (zoom controls, TOC toggle, highlights toggle, document info)
 ├── PdfToc.svelte (table of contents overlay)
 ├── PdfHighlights.svelte (highlights panel overlay)
 ├── PdfReader.svelte (core PDF renderer with text layer)
@@ -40,6 +40,7 @@ The core PDF rendering component using pdf.js v5.
 - Continuous scroll viewing mode
 - Lazy page rendering via IntersectionObserver
 - Virtual scrolling for large documents
+- Configurable zoom/scale (50% - 300%)
 - Dark mode support (CSS filter inversion)
 - Outline/TOC extraction
 - Metadata extraction (title, author, subject, etc.)
@@ -64,6 +65,7 @@ The core PDF rendering component using pdf.js v5.
 
 **Props:**
 
+- `scale` - Zoom scale factor (default: 1.5)
 - `highlights` - Array of PdfHighlight objects to render
 - `onTextSelected` - Callback when text is selected (provides selection info for highlight creation)
 
@@ -110,6 +112,7 @@ Main orchestrator component that:
 - Manages highlight state and persistence
 - Shows selection popup for creating highlights
 - Toggles highlights panel visibility
+- Manages zoom level state and controls
 
 ## Data Model
 
@@ -262,14 +265,33 @@ This inverts colors while preserving hue, making white backgrounds dark and blac
 6. Note content is updated with serialized highlight data
 7. Highlights persist across sessions via note content
 
+## Zoom Controls
+
+The PDF viewer supports adjustable zoom levels via the PDF Actions Bar.
+
+**Zoom Levels:** 50%, 75%, 100%, 125%, 150% (default), 175%, 200%, 250%, 300%
+
+**UI Controls:**
+
+- **Zoom out (-)** - Decrease zoom to previous level
+- **Zoom level display** - Shows current percentage, click to reset to 150%
+- **Zoom in (+)** - Increase zoom to next level
+
+**Implementation:**
+
+- Zoom state managed in `PdfNoteView.svelte` via `zoomIndex` and `zoomScale`
+- Scale passed to `PdfReader.svelte` as prop
+- On scale change, pages are re-rendered with new dimensions
+- Current page position is preserved during zoom changes
+- Uses direct container scroll (`scrollTo`) to avoid affecting parent layout
+
 ## Future Enhancements
 
 Potential features not included in current implementation:
 
 1. **Search within PDF** - pdf.js find controller
-2. **Zoom controls** - Adjustable scale factor
-3. **Page thumbnails** - Sidebar with page previews
-4. **Two-page spread** - Side-by-side page viewing
-5. **Bookmarks** - User-defined position markers
-6. **Multiple highlight colors** - Color picker for highlights
-7. **Highlight notes** - Add notes/comments to highlights
+2. **Page thumbnails** - Sidebar with page previews
+3. **Two-page spread** - Side-by-side page viewing
+4. **Bookmarks** - User-defined position markers
+5. **Multiple highlight colors** - Color picker for highlights
+6. **Highlight notes** - Add notes/comments to highlights

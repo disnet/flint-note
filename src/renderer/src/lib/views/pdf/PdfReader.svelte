@@ -17,6 +17,7 @@
   let {
     pdfPath = '',
     initialPage = 1,
+    scale = 1.5,
     highlights = [],
     onRelocate = (_page: number, _progress: number, _location: PdfLocation) => {},
     onOutlineLoaded = (_outline: PdfOutlineItem[]) => {},
@@ -26,6 +27,7 @@
   }: {
     pdfPath: string;
     initialPage?: number;
+    scale?: number;
     highlights?: PdfHighlight[];
     onRelocate?: (page: number, progress: number, location: PdfLocation) => void;
     onOutlineLoaded?: (outline: PdfOutlineItem[]) => void;
@@ -55,12 +57,14 @@
   let pageViewports: Map<number, { width: number; height: number; scale: number }> =
     new Map();
   /* eslint-enable svelte/prefer-svelte-reactivity */
-  let scale = 1.5;
 
   // Selection tracking
   let selectionCheckInterval: ReturnType<typeof setInterval> | null = null;
   let lastSelectionText = '';
   let currentSelection = $state<PdfSelectionInfo | null>(null);
+
+  // Scale tracking for re-render on change
+  let lastScale = scale;
 
   // Check if dark mode is active
   function checkDarkMode(): boolean {
@@ -368,6 +372,42 @@
     }
   });
 
+  // Handle scale changes - re-render all pages
+  async function handleScaleChange(): Promise<void> {
+    if (!pdfDoc || !pagesContainer || !isMounted) return;
+
+    // Store current scroll position relative to current page
+    const savedPage = currentPage;
+
+    // Clear rendered state
+    renderedPages.clear();
+    textLayers.clear();
+    highlightLayers.clear();
+    pageViewports.clear();
+
+    // Disconnect observer temporarily
+    if (pageObserver) {
+      pageObserver.disconnect();
+    }
+
+    // Re-create placeholders with new scale
+    await createPagePlaceholders();
+
+    // Re-setup observer
+    setupPageObserver();
+
+    // Navigate back to saved page (instant, no smooth scroll)
+    await goToPage(savedPage, false);
+  }
+
+  // Watch for scale changes
+  $effect(() => {
+    if (scale !== lastScale && pdfDoc && isMounted) {
+      lastScale = scale;
+      handleScaleChange();
+    }
+  });
+
   // Selection detection
   function checkForSelection(): void {
     const selection = window.getSelection();
@@ -499,12 +539,20 @@
   }
 
   // Public methods
-  export async function goToPage(pageNumber: number): Promise<void> {
+  export async function goToPage(pageNumber: number, smooth = true): Promise<void> {
     if (pageNumber < 1 || pageNumber > totalPages) return;
 
     const pageDiv = pageElements.get(pageNumber);
     if (pageDiv && container) {
-      pageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Calculate scroll position relative to container
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = pageDiv.getBoundingClientRect();
+      const scrollTop = container.scrollTop + (pageRect.top - containerRect.top);
+
+      container.scrollTo({
+        top: scrollTop,
+        behavior: smooth ? 'smooth' : 'instant'
+      });
 
       // Ensure page is rendered
       if (!renderedPages.has(pageNumber)) {
