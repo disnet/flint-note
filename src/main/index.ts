@@ -2769,13 +2769,40 @@ app.whenReady().then(async () => {
 
       await fsPromises.copyFile(sourcePath, finalPath);
 
+      // Try to extract PDF title from metadata
+      let pdfTitle: string | undefined;
+      try {
+        // Use legacy build for Node.js environment (no DOM APIs required)
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const pdfBuffer = await fsPromises.readFile(finalPath);
+        const pdfDoc = await pdfjs.getDocument({
+          data: new Uint8Array(pdfBuffer),
+          useSystemFonts: true
+        }).promise;
+        const metadata = await pdfDoc.getMetadata();
+        if (metadata.info) {
+          const info = metadata.info as Record<string, unknown>;
+          if (info.Title && typeof info.Title === 'string' && info.Title.trim()) {
+            pdfTitle = info.Title.trim();
+          }
+        }
+        // Clean up
+        await pdfDoc.destroy();
+      } catch (metaError) {
+        logger.warn('Failed to extract PDF metadata', {
+          error: metaError instanceof Error ? metaError.message : String(metaError)
+        });
+      }
+
       logger.info('PDF imported successfully', {
         filename: finalFilename,
-        path: finalPath
+        path: finalPath,
+        title: pdfTitle
       });
       return {
         filename: finalFilename,
-        path: `attachments/pdfs/${finalFilename}`
+        path: `attachments/pdfs/${finalFilename}`,
+        title: pdfTitle
       };
     } catch (error) {
       logger.error('Failed to import PDF', { error });

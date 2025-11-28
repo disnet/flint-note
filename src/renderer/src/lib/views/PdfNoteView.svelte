@@ -233,7 +233,8 @@
       const updatedMetadata = {
         ...baseMetadata,
         flint_pdfTitle: meta.title,
-        flint_pdfAuthor: metadata.flint_pdfAuthor == null ? (meta.author || '') : metadata.flint_pdfAuthor
+        flint_pdfAuthor:
+          metadata.flint_pdfAuthor == null ? meta.author || '' : metadata.flint_pdfAuthor
       };
       onMetadataChange(updatedMetadata);
     }

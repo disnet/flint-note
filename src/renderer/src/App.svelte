@@ -432,8 +432,9 @@
       }
 
       // Create the pdf note with metadata
-      const docName = result.filename.replace(/\.pdf$/i, '');
-      const identifier = docName; // Use doc name as identifier
+      // Use PDF title from metadata if available, otherwise fall back to filename
+      const docName = result.title || result.filename.replace(/\.pdf$/i, '');
+      const identifier = docName;
 
       // Create note with 'note' type and 'pdf' kind, including PDF-specific metadata
       const createdNote = await chatService.createNote({
@@ -444,6 +445,7 @@
         vaultId: currentVault.id,
         metadata: {
           flint_pdfPath: result.path,
+          flint_pdfTitle: result.title || '',
           flint_progress: 0,
           flint_lastRead: new Date().toISOString()
         }

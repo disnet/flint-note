@@ -596,7 +596,7 @@ const api = {
     electronAPI.ipcRenderer.invoke('read-epub-file', params),
 
   // PDF operations
-  importPdf: (): Promise<{ filename: string; path: string } | null> =>
+  importPdf: (): Promise<{ filename: string; path: string; title?: string } | null> =>
     electronAPI.ipcRenderer.invoke('import-pdf'),
   readPdfFile: (params: { relativePath: string }): Promise<Uint8Array> =>
     electronAPI.ipcRenderer.invoke('read-pdf-file', params),

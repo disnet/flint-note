@@ -677,7 +677,7 @@ declare global {
       readEpubFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
       // PDF operations
-      importPdf: () => Promise<{ filename: string; path: string } | null>;
+      importPdf: () => Promise<{ filename: string; path: string; title?: string } | null>;
       readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
       // Event listener for note events from main process

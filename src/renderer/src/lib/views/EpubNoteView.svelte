@@ -280,7 +280,10 @@
       const updatedMetadata = {
         ...baseMetadata,
         flint_epubTitle: meta.title,
-        flint_epubAuthor: metadata.flint_epubAuthor == null ? extractAuthorName(meta.author) : metadata.flint_epubAuthor
+        flint_epubAuthor:
+          metadata.flint_epubAuthor == null
+            ? extractAuthorName(meta.author)
+            : metadata.flint_epubAuthor
       };
       onMetadataChange(updatedMetadata);
     }
