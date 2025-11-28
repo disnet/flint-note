@@ -309,7 +309,7 @@
 
   async function handleHighlightNavigate(pageNumber: number): Promise<void> {
     if (pdfReader) {
-      await pdfReader.goToPage(pageNumber);
+      await pdfReader.goToPage(pageNumber, false);
       showHighlights = false;
     }
   }

@@ -150,9 +150,9 @@
       // Set up intersection observer for lazy rendering
       setupPageObserver();
 
-      // Navigate to initial page
+      // Navigate to initial page (instant scroll for restoration)
       if (initialPage > 1 && initialPage <= totalPages) {
-        await goToPage(initialPage);
+        await goToPage(initialPage, false);
       } else {
         // Render first few pages
         await renderVisiblePages();
@@ -604,7 +604,7 @@
         }
       }
 
-      await goToPage(pageNumber);
+      await goToPage(pageNumber, false);
     } catch (err) {
       console.error('Failed to navigate to outline item:', err);
     }
