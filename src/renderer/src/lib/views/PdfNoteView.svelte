@@ -15,7 +15,6 @@
     updatePdfContentWithHighlights
   } from './pdf/types';
   import PdfToc from './pdf/PdfToc.svelte';
-  import PdfProgress from './pdf/PdfProgress.svelte';
   import PdfHighlights from './pdf/PdfHighlights.svelte';
   import EditorHeader from '../../components/EditorHeader.svelte';
   import NoteActionBar from '../../components/NoteActionBar.svelte';
@@ -111,10 +110,8 @@
     'flint_size',
     'flint_filename',
     'flint_archived',
-    // PDF-specific system fields
+    // PDF-specific system fields (path is system-managed, title/author are user-editable)
     'flint_pdfPath',
-    'flint_pdfTitle',
-    'flint_pdfAuthor',
     'flint_currentPage',
     'flint_totalPages',
     'flint_progress',
@@ -230,12 +227,13 @@
   function handleMetadataLoaded(meta: PdfMetadata): void {
     pdfMetadata = meta;
 
-    if (!metadata.flint_pdfTitle && meta.title) {
+    // Only set from PDF metadata if not already set (check for undefined/null, not empty string)
+    if (metadata.flint_pdfTitle == null && meta.title) {
       const baseMetadata = filterSystemFields($state.snapshot(metadata));
       const updatedMetadata = {
         ...baseMetadata,
         flint_pdfTitle: meta.title,
-        flint_pdfAuthor: meta.author || ''
+        flint_pdfAuthor: metadata.flint_pdfAuthor == null ? (meta.author || '') : metadata.flint_pdfAuthor
       };
       onMetadataChange(updatedMetadata);
     }
@@ -335,13 +333,34 @@
   // Initialize with saved page
   let initialPage = $derived((metadata.flint_currentPage as number) || 1);
 
-  // Document display info
+  // Document display info (use ?? to preserve empty strings)
   let docTitle = $derived(
-    (metadata.flint_pdfTitle as string) || pdfMetadata?.title || ''
+    (metadata.flint_pdfTitle as string) ?? pdfMetadata?.title ?? ''
   );
   let docAuthor = $derived(
-    (metadata.flint_pdfAuthor as string) || pdfMetadata?.author || ''
+    (metadata.flint_pdfAuthor as string) ?? pdfMetadata?.author ?? ''
   );
+
+  // Handlers for updating document metadata
+  function handleDocTitleChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newTitle = input.value;
+    const baseMetadata = filterSystemFields($state.snapshot(metadata));
+    onMetadataChange({
+      ...baseMetadata,
+      flint_pdfTitle: newTitle
+    });
+  }
+
+  function handleDocAuthorChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newAuthor = input.value;
+    const baseMetadata = filterSystemFields($state.snapshot(metadata));
+    onMetadataChange({
+      ...baseMetadata,
+      flint_pdfAuthor: newAuthor
+    });
+  }
 
   // Note title
   let noteTitle = $derived((metadata.flint_title as string) || 'Untitled');
@@ -538,12 +557,21 @@
       <!-- PDF-specific actions bar -->
       <div class="pdf-actions">
         <div class="doc-info">
-          {#if docTitle}
-            <span class="doc-title">{docTitle}</span>
-          {/if}
-          {#if docAuthor}
-            <span class="doc-author">by {docAuthor}</span>
-          {/if}
+          <input
+            type="text"
+            class="doc-title"
+            value={docTitle}
+            placeholder="Title"
+            onchange={handleDocTitleChange}
+          />
+          <span class="doc-author-prefix">by</span>
+          <input
+            type="text"
+            class="doc-author"
+            value={docAuthor}
+            placeholder="Author"
+            onchange={handleDocAuthorChange}
+          />
         </div>
         <div class="pdf-buttons">
           <!-- Zoom controls -->
@@ -697,19 +725,6 @@
           {/if}
         </div>
 
-        <!-- Footer with progress (overlay, shows on hover) -->
-        {#if pdfPath}
-          <div class="progress-overlay">
-            <PdfProgress
-              {progress}
-              {currentPage}
-              {totalPages}
-              onPrev={handlePrev}
-              onNext={handleNext}
-            />
-          </div>
-        {/if}
-
         <!-- Selection popup for highlighting -->
         {#if currentSelection}
           <div
@@ -770,7 +785,7 @@
   .doc-info {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 0.25rem;
     min-width: 0;
     overflow: hidden;
   }
@@ -779,17 +794,52 @@
     font-size: 0.85rem;
     color: var(--text-primary, #333);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    field-sizing: content;
+    min-width: 4ch;
+  }
+
+  .doc-title:hover,
+  .doc-title:focus {
+    background: var(--bg-secondary, #f5f5f5);
+  }
+
+  .doc-title::placeholder {
+    color: var(--text-muted, #999);
+    font-weight: normal;
+  }
+
+  .doc-author-prefix {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #666);
+    font-style: italic;
   }
 
   .doc-author {
     font-size: 0.8rem;
     color: var(--text-secondary, #666);
     font-style: italic;
-    white-space: nowrap;
-    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    field-sizing: content;
+    min-width: 5ch;
+  }
+
+  .doc-author:hover,
+  .doc-author:focus {
+    background: var(--bg-secondary, #f5f5f5);
+  }
+
+  .doc-author::placeholder {
+    color: var(--text-muted, #999);
+    font-style: normal;
   }
 
   .pdf-buttons {
@@ -903,23 +953,6 @@
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   }
 
-  .progress-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 5;
-    pointer-events: none;
-  }
-
-  .progress-overlay :global(.pdf-progress) {
-    pointer-events: auto;
-  }
-
-  .pdf-content:hover .progress-overlay :global(.pdf-progress) {
-    opacity: 1;
-  }
-
   .reader-panel {
     height: 100%;
     width: 100%;
@@ -966,8 +999,8 @@
     position: absolute;
     z-index: 20;
     transform: translateX(-50%);
-    background: rgba(255, 235, 59, 0.2);
-    border: 1px solid rgba(255, 235, 59, 0.5);
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-light, #e0e0e0);
     border-radius: 6px;
     padding: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -989,6 +1022,6 @@
   }
 
   .highlight-button:hover {
-    background: rgba(255, 235, 59, 0.4);
+    background: var(--bg-secondary, #f5f5f5);
   }
 </style>

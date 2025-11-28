@@ -107,10 +107,8 @@
     'flint_size',
     'flint_filename',
     'flint_archived',
-    // EPUB-specific system fields (managed by the epub reader)
+    // EPUB-specific system fields (path is system-managed, title/author are user-editable)
     'flint_epubPath',
-    'flint_epubTitle',
-    'flint_epubAuthor',
     'flint_currentCfi',
     'flint_progress',
     'flint_lastRead',
@@ -274,15 +272,15 @@
   function handleMetadataLoaded(meta: EpubMetadata): void {
     epubMetadata = meta;
 
-    // Update note metadata with EPUB metadata if not already set
-    if (!metadata.flint_epubTitle && meta.title) {
+    // Only set from EPUB metadata if not already set (check for undefined/null, not empty string)
+    if (metadata.flint_epubTitle == null && meta.title) {
       // Use $state.snapshot() to ensure the object is serializable for IPC
       // Filter out system fields that can't be modified
       const baseMetadata = filterSystemFields($state.snapshot(metadata));
       const updatedMetadata = {
         ...baseMetadata,
         flint_epubTitle: meta.title,
-        flint_epubAuthor: extractAuthorName(meta.author)
+        flint_epubAuthor: metadata.flint_epubAuthor == null ? extractAuthorName(meta.author) : metadata.flint_epubAuthor
       };
       onMetadataChange(updatedMetadata);
     }
@@ -366,13 +364,34 @@
   // Initialize with saved CFI
   let initialCfi = $derived((metadata.flint_currentCfi as string) || '');
 
-  // Book display info (shown in EPUB actions bar)
+  // Book display info (use ?? to preserve empty strings)
   let bookTitle = $derived(
-    (metadata.flint_epubTitle as string) || epubMetadata?.title || ''
+    (metadata.flint_epubTitle as string) ?? epubMetadata?.title ?? ''
   );
   let bookAuthor = $derived(
-    (metadata.flint_epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
+    (metadata.flint_epubAuthor as string) ?? extractAuthorName(epubMetadata?.author) ?? ''
   );
+
+  // Handlers for updating book metadata
+  function handleBookTitleChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newTitle = input.value;
+    const baseMetadata = filterSystemFields($state.snapshot(metadata));
+    onMetadataChange({
+      ...baseMetadata,
+      flint_epubTitle: newTitle
+    });
+  }
+
+  function handleBookAuthorChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newAuthor = input.value;
+    const baseMetadata = filterSystemFields($state.snapshot(metadata));
+    onMetadataChange({
+      ...baseMetadata,
+      flint_epubAuthor: newAuthor
+    });
+  }
 
   // Note title (editable) - use flint_title from metadata as canonical source
   let noteTitle = $derived((metadata.flint_title as string) || 'Untitled');
@@ -598,12 +617,21 @@
       <!-- EPUB-specific actions bar -->
       <div class="epub-actions">
         <div class="book-info">
-          {#if bookTitle}
-            <span class="book-title">{bookTitle}</span>
-          {/if}
-          {#if bookAuthor}
-            <span class="book-author">by {bookAuthor}</span>
-          {/if}
+          <input
+            type="text"
+            class="book-title"
+            value={bookTitle}
+            placeholder="Title"
+            onchange={handleBookTitleChange}
+          />
+          <span class="book-author-prefix">by</span>
+          <input
+            type="text"
+            class="book-author"
+            value={bookAuthor}
+            placeholder="Author"
+            onchange={handleBookAuthorChange}
+          />
         </div>
         <div class="epub-buttons">
           <button
@@ -787,7 +815,7 @@
   .book-info {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 0.25rem;
     min-width: 0;
     overflow: hidden;
   }
@@ -796,17 +824,52 @@
     font-size: 0.85rem;
     color: var(--text-primary, #333);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    field-sizing: content;
+    min-width: 4ch;
+  }
+
+  .book-title:hover,
+  .book-title:focus {
+    background: var(--bg-secondary, #f5f5f5);
+  }
+
+  .book-title::placeholder {
+    color: var(--text-muted, #999);
+    font-weight: normal;
+  }
+
+  .book-author-prefix {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #666);
+    font-style: italic;
   }
 
   .book-author {
     font-size: 0.8rem;
     color: var(--text-secondary, #666);
     font-style: italic;
-    white-space: nowrap;
-    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    field-sizing: content;
+    min-width: 5ch;
+  }
+
+  .book-author:hover,
+  .book-author:focus {
+    background: var(--bg-secondary, #f5f5f5);
+  }
+
+  .book-author::placeholder {
+    color: var(--text-muted, #999);
+    font-style: normal;
   }
 
   .epub-buttons {
