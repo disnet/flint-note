@@ -693,7 +693,7 @@
   .pdf-reader {
     width: 100%;
     height: 100%;
-    overflow-y: auto;
+    overflow: auto;
     background: var(--bg-secondary, #f5f5f5);
   }
 
@@ -711,6 +711,7 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
+    min-width: fit-content;
   }
 
   :global(.pdf-page) {
