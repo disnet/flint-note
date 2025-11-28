@@ -270,14 +270,21 @@
         scale
       });
 
-      // Create canvas
+      // Create canvas with HiDPI/Retina support
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-canvas';
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+      const dpr = window.devicePixelRatio || 1;
+
+      // Set actual canvas size in memory (scaled up for crisp rendering)
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+
+      // Set display size via CSS (original dimensions)
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
 
       // Remove placeholder label
       const label = pageDiv.querySelector('.page-label');
@@ -304,11 +311,13 @@
       pageDiv.appendChild(textLayerDiv);
       textLayers.set(pageNumber, textLayerDiv);
 
-      // Render page to canvas
+      // Render page to canvas with HiDPI scaling
+      const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
       await page.render({
         canvasContext: context,
         viewport: viewport,
-        canvas
+        canvas,
+        transform
       }).promise;
 
       // Render text layer using pdf.js built-in TextLayer
