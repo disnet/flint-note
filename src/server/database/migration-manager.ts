@@ -1057,9 +1057,8 @@ async function migrateToV2_2_0(
 
       // Generate ID and content hash
       const typeId = `type-${crypto.randomBytes(4).toString('hex')}`;
-      const { generateContentHash, createNoteTypeHashableContent } = await import(
-        '../utils/content-hash.js'
-      );
+      const { generateContentHash, createNoteTypeHashableContent } =
+        await import('../utils/content-hash.js');
       const hashableContent = createNoteTypeHashableContent({
         description: descriptionContent,
         agent_instructions: parsed.agentInstructions.join('\n'),

@@ -63,6 +63,19 @@
   function toggleEditor(): void {
     showEditor = !showEditor;
   }
+
+  // Derived values for title and description to avoid inline type casts
+  const imageTitle = $derived.by(() => {
+    if (metadata.title) return metadata.title as string;
+    const nested = metadata.metadata as Record<string, unknown> | undefined;
+    return (nested?.title as string) || '';
+  });
+
+  const imageDescription = $derived.by(() => {
+    if (metadata.description) return metadata.description as string;
+    const nested = metadata.metadata as Record<string, unknown> | undefined;
+    return (nested?.description as string) || '';
+  });
 </script>
 
 <BaseNoteView
@@ -105,20 +118,13 @@
       <div class="content-area" class:editor-hidden={!showEditor}>
         {#if imageUrl}
           <div class="image-preview">
-            <img src={imageUrl} alt={(metadata.title as string) || 'Image'} />
+            <img src={imageUrl} alt={imageTitle || 'Image'} />
             <div class="image-metadata">
-              {#if metadata.title || (metadata.metadata as Record<string, unknown>)?.title}
-                <h3>
-                  {(metadata.title as string) ||
-                    ((metadata.metadata as Record<string, unknown>)?.title as string)}
-                </h3>
+              {#if imageTitle}
+                <h3>{imageTitle}</h3>
               {/if}
-              {#if metadata.description || (metadata.metadata as Record<string, unknown>)?.description}
-                <p class="description">
-                  {(metadata.description as string) ||
-                    ((metadata.metadata as Record<string, unknown>)
-                      ?.description as string)}
-                </p>
+              {#if imageDescription}
+                <p class="description">{imageDescription}</p>
               {/if}
             </div>
           </div>

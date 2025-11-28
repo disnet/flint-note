@@ -21,8 +21,10 @@ import {
 import { CustomFunctionsExecutor } from './custom-functions-executor.js';
 import { CustomFunctionsStore } from '../core/custom-functions-store.js';
 
-export interface EnhancedWASMCodeEvaluationOptions
-  extends Omit<WASMCodeEvaluationOptions, 'code'> {
+export interface EnhancedWASMCodeEvaluationOptions extends Omit<
+  WASMCodeEvaluationOptions,
+  'code'
+> {
   code: string; // TypeScript code
   typesOnly?: boolean; // Return type errors without execution (debugging)
 }

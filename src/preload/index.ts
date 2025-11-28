@@ -601,6 +601,17 @@ const api = {
   readPdfFile: (params: { relativePath: string }): Promise<Uint8Array> =>
     electronAPI.ipcRenderer.invoke('read-pdf-file', params),
 
+  // Image operations
+  importImage: (params: {
+    fileData: Uint8Array;
+    filename: string;
+  }): Promise<{ filename: string; path: string } | null> =>
+    electronAPI.ipcRenderer.invoke('import-image', params),
+  readImageFile: (params: { relativePath: string }): Promise<Uint8Array> =>
+    electronAPI.ipcRenderer.invoke('read-image-file', params),
+  getImageAbsolutePath: (params: { relativePath: string }): Promise<string> =>
+    electronAPI.ipcRenderer.invoke('get-image-absolute-path', params),
+
   // Event listener for note events from main process
   onNoteEvent: (callback: (event: unknown) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, noteEvent: unknown): void =>

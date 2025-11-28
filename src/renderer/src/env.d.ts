@@ -680,6 +680,14 @@ declare global {
       importPdf: () => Promise<{ filename: string; path: string; title?: string } | null>;
       readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
+      // Image operations
+      importImage: (params: {
+        fileData: Uint8Array;
+        filename: string;
+      }) => Promise<{ filename: string; path: string } | null>;
+      readImageFile: (params: { relativePath: string }) => Promise<Uint8Array>;
+      getImageAbsolutePath: (params: { relativePath: string }) => Promise<string>;
+
       // Event listener for note events from main process
       onNoteEvent: (callback: (event: unknown) => void) => () => void;
 

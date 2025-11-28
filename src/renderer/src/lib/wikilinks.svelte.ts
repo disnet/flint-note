@@ -330,9 +330,10 @@ async function renderMarkdownSnippet(content: string): Promise<string> {
       'h4',
       'h5',
       'h6',
-      'br'
+      'br',
+      'img'
     ],
-    ALLOWED_ATTR: [],
+    ALLOWED_ATTR: ['src', 'alt'],
     KEEP_CONTENT: true
   });
 
