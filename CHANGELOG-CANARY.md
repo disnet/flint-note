@@ -4,6 +4,12 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-canary.12]
+
+### Added
+
+- experimental PDF support
+
 ## [0.12.0-canary.7]
 
 ### Added
