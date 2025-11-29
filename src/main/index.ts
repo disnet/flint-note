@@ -2868,17 +2868,14 @@ app.whenReady().then(async () => {
 
       const originalHtml = await response.text();
 
-      // Parse with linkedom and Readability
-      const { parseHTML } = await import('linkedom');
-      const { Readability } = await import('@mozilla/readability');
+      // Parse with Defuddle for article extraction
+      const { JSDOM } = await import('jsdom');
+      const { Defuddle } = await import('defuddle/node');
 
-      const { document } = parseHTML(originalHtml);
-      // Set the document URL for Readability to resolve relative links
-      Object.defineProperty(document, 'baseURI', { value: url, writable: false });
-      const reader = new Readability(document as unknown as Document);
-      const article = reader.parse();
+      const dom = new JSDOM(originalHtml, { url });
+      const article = await Defuddle(dom, url);
 
-      if (!article) {
+      if (!article || !article.content) {
         throw new Error('Could not extract article content from page');
       }
 
@@ -2927,7 +2924,7 @@ app.whenReady().then(async () => {
 
       // Create a full HTML document for the reader version
       const readerHtml = `<!DOCTYPE html>
-<html lang="${article.lang || 'en'}" dir="${article.dir || 'ltr'}">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2936,7 +2933,7 @@ app.whenReady().then(async () => {
 <body>
   <article>
     <h1>${escapeHtml(article.title || 'Untitled')}</h1>
-    ${article.byline ? `<p class="byline">${escapeHtml(article.byline)}</p>` : ''}
+    ${article.author ? `<p class="byline">${escapeHtml(article.author)}</p>` : ''}
     ${article.content}
   </article>
 </body>
@@ -2945,11 +2942,12 @@ app.whenReady().then(async () => {
       const metadata = {
         url,
         title: article.title,
-        siteName: article.siteName,
-        byline: article.byline,
-        excerpt: article.excerpt,
-        lang: article.lang,
-        dir: article.dir,
+        siteName: article.site,
+        byline: article.author,
+        excerpt: article.description,
+        domain: article.domain,
+        published: article.published,
+        wordCount: article.wordCount,
         fetchedAt: new Date().toISOString()
       };
 
@@ -2970,9 +2968,9 @@ app.whenReady().then(async () => {
         path: `attachments/webpages/${finalSlug}.html`,
         originalPath: `attachments/webpages/${finalSlug}.original.html`,
         title: article.title,
-        siteName: article.siteName,
-        author: article.byline,
-        excerpt: article.excerpt
+        siteName: article.site,
+        author: article.author,
+        excerpt: article.description
       };
     } catch (error) {
       logger.error('Failed to import webpage', { error });

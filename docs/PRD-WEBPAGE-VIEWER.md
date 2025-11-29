@@ -2,7 +2,7 @@
 
 ## Overview
 
-Integrate a webpage reader into Flint Note using the custom view system, allowing users to save and read web articles in a clean, distraction-free format alongside their notes. Uses Mozilla's Readability library to extract article content, similar to Safari's Reader Mode.
+Integrate a webpage reader into Flint Note using the custom view system, allowing users to save and read web articles in a clean, distraction-free format alongside their notes. Uses Defuddle library to extract article content, providing cleaned HTML optimized for reading.
 
 ## Goals
 
@@ -52,13 +52,15 @@ Integrate a webpage reader into Flint Note using the custom view system, allowin
 
 ### Library Choices
 
-**linkedom** - Lightweight DOM parser for Node.js
-- Much smaller than jsdom, no native dependencies
-- Sufficient for Readability's parsing needs
+**jsdom** - Full DOM implementation for Node.js
+- Required by Defuddle for server-side parsing
+- Provides complete DOM API compatibility
 
-**@mozilla/readability** - Article extraction library
-- Same library used by Firefox Reader View
-- Extracts clean article content, title, author, etc.
+**defuddle** - Article extraction library
+- TypeScript library for extracting and cleaning web page content
+- Removes clutter like comments, sidebars, headers, footers
+- Provides consistent HTML output optimized for Markdown conversion
+- Returns rich metadata: title, author, site, description, published date, word count
 
 **DOMPurify** - HTML sanitization
 - Prevents XSS attacks from malicious webpage content
@@ -105,7 +107,7 @@ vault/
 ### IPC Handlers (Main Process)
 
 ```typescript
-// Import webpage - fetches URL, processes with Readability, saves files
+// Import webpage - fetches URL, processes with Defuddle, saves files
 ipcMain.handle('import-webpage', async (_event, params: { url: string }) => {
   const { url } = params;
 
@@ -113,13 +115,12 @@ ipcMain.handle('import-webpage', async (_event, params: { url: string }) => {
   const response = await fetch(url);
   const originalHtml = await response.text();
 
-  // Parse with linkedom and Readability
-  const { parseHTML } = await import('linkedom');
-  const { Readability } = await import('@mozilla/readability');
+  // Parse with Defuddle for article extraction
+  const { JSDOM } = await import('jsdom');
+  const { Defuddle } = await import('defuddle/node');
 
-  const { document } = parseHTML(originalHtml);
-  const reader = new Readability(document);
-  const article = reader.parse();
+  const dom = new JSDOM(originalHtml, { url });
+  const article = await Defuddle(dom, url);
 
   // Save cleaned HTML, original HTML, and metadata
   // Returns { slug, path, originalPath, title, siteName, author, excerpt }
@@ -328,9 +329,9 @@ Reader styles adapt to light/dark mode:
 
 ### Dependencies
 
-- `linkedom` - Added (lightweight DOM parser)
-- `@mozilla/readability` - Added (article extraction)
-- `jsdom` - Removed (replaced by linkedom)
+- `jsdom` - Added (DOM parser for Node.js, required by Defuddle)
+- `defuddle` - Added (article extraction)
+- `linkedom` - Kept (used elsewhere in the codebase)
 
 ## Migration & Compatibility
 
