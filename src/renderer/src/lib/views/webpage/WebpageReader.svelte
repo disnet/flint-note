@@ -358,7 +358,10 @@
 
       // Open the link in external browser
       window.api?.openExternal({ url: resolvedUrl }).catch((err) => {
-        logger.error('[Webpage] Failed to open external link', { error: err, href: resolvedUrl });
+        logger.error('[Webpage] Failed to open external link', {
+          error: err,
+          href: resolvedUrl
+        });
       });
     }
   }

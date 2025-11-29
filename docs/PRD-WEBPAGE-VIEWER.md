@@ -53,16 +53,19 @@ Integrate a webpage reader into Flint Note using the custom view system, allowin
 ### Library Choices
 
 **jsdom** - Full DOM implementation for Node.js
+
 - Required by Defuddle for server-side parsing
 - Provides complete DOM API compatibility
 
 **defuddle** - Article extraction library
+
 - TypeScript library for extracting and cleaning web page content
 - Removes clutter like comments, sidebars, headers, footers
 - Provides consistent HTML output optimized for Markdown conversion
 - Returns rich metadata: title, author, site, description, published date, word count
 
 **DOMPurify** - HTML sanitization
+
 - Prevents XSS attacks from malicious webpage content
 - Allows safe rendering in Shadow DOM
 
@@ -140,20 +143,20 @@ ipcMain.handle('read-webpage-file', async (_event, params: { relativePath: strin
 ```typescript
 interface WebpageNote {
   id: string;
-  type: string;           // User's organizational type (e.g., 'note', 'article')
-  kind: 'webpage';        // Content rendering type
-  title: string;          // Article title
+  type: string; // User's organizational type (e.g., 'note', 'article')
+  kind: 'webpage'; // Content rendering type
+  title: string; // Article title
   filename: string;
-  content: string;        // User's markdown notes + serialized highlights
+  content: string; // User's markdown notes + serialized highlights
   metadata: {
-    flint_webpagePath: string;         // Relative path to cleaned HTML
+    flint_webpagePath: string; // Relative path to cleaned HTML
     flint_webpageOriginalPath: string; // Relative path to original HTML
-    flint_webpageUrl: string;          // Source URL
-    flint_webpageTitle: string;        // Title from extraction
-    flint_webpageSiteName: string;     // Site name from metadata
-    flint_webpageAuthor: string;       // Author if available
-    flint_progress: number;            // Scroll position (0-100)
-    flint_lastRead: string;            // ISO timestamp
+    flint_webpageUrl: string; // Source URL
+    flint_webpageTitle: string; // Title from extraction
+    flint_webpageSiteName: string; // Site name from metadata
+    flint_webpageAuthor: string; // Author if available
+    flint_progress: number; // Scroll position (0-100)
+    flint_lastRead: string; // ISO timestamp
   };
 }
 ```
@@ -168,17 +171,20 @@ Highlights are stored in the note's markdown content using a special format:
 Some user notes here...
 
 <!-- webpage-highlights-start -->
+
 ## Highlights
 
 > "highlighted text here" [prefix...suffix](id|timestamp|startOffset-endOffset)
 
 > "another highlight" [prefix...suffix](id|timestamp|startOffset-endOffset)
+
 <!-- webpage-highlights-end -->
 ```
 
 ### Highlight Anchoring Strategy
 
 Uses text-based anchoring with fuzzy matching:
+
 1. **Primary**: prefix + text + suffix context matching
 2. **Fallback**: Exact text match anywhere in document
 3. **Last resort**: Character offsets (if text unchanged)
@@ -186,10 +192,10 @@ Uses text-based anchoring with fuzzy matching:
 ```typescript
 interface WebpageHighlight {
   id: string;
-  textContent: string;   // The highlighted text
-  prefix: string;        // ~30 chars before highlight
-  suffix: string;        // ~30 chars after highlight
-  startOffset: number;   // Character offset fallback
+  textContent: string; // The highlighted text
+  prefix: string; // ~30 chars before highlight
+  suffix: string; // ~30 chars after highlight
+  startOffset: number; // Character offset fallback
   endOffset: number;
   createdAt: string;
 }
@@ -256,6 +262,7 @@ interface WebpageHighlight {
 ### Shadow DOM Rendering
 
 The webpage content is rendered inside a Shadow DOM to:
+
 - Isolate article styles from app styles
 - Prevent CSS conflicts
 - Enable proper text selection within the content
@@ -298,6 +305,7 @@ Selection detection uses `shadowRoot.getSelection()` (Chromium) with `document.g
 ### Theme Support
 
 Reader styles adapt to light/dark mode:
+
 - Background: white/dark gray
 - Text: dark/light
 - Links: blue shades appropriate for each theme

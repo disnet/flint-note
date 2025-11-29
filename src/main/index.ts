@@ -59,6 +59,142 @@ function generateWebpageSlug(title: string, hostname: string): string {
   return `${sanitizedHost}-${sanitizedTitle || 'page'}`;
 }
 
+// Maximum image size to convert to data URI (2MB)
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+
+// Supported image MIME types
+const SUPPORTED_IMAGE_TYPES: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  ico: 'image/x-icon',
+  bmp: 'image/bmp'
+};
+
+/**
+ * Fetches an image and converts it to a base64 data URI
+ * Returns null if the image cannot be fetched or is too large
+ */
+async function fetchImageAsDataUri(
+  imageUrl: string,
+  baseUrl: string
+): Promise<string | null> {
+  try {
+    // Resolve relative URLs
+    const absoluteUrl = new URL(imageUrl, baseUrl).href;
+
+    // Skip data URIs - already in correct format
+    if (absoluteUrl.startsWith('data:')) {
+      return absoluteUrl;
+    }
+
+    // Only fetch http/https URLs
+    if (!absoluteUrl.startsWith('http://') && !absoluteUrl.startsWith('https://')) {
+      return null;
+    }
+
+    const response = await fetch(absoluteUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout per image
+    });
+
+    if (!response.ok) {
+      logger.debug(`Failed to fetch image: ${response.status} ${absoluteUrl}`);
+      return null;
+    }
+
+    // Check content length if available
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_SIZE_BYTES) {
+      logger.debug(`Image too large, skipping: ${absoluteUrl}`);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Check actual size
+    if (arrayBuffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
+      logger.debug(`Image too large after download, skipping: ${absoluteUrl}`);
+      return null;
+    }
+
+    // Determine MIME type from content-type header or URL extension
+    let mimeType = response.headers.get('content-type')?.split(';')[0].trim();
+
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      // Try to determine from URL extension
+      const extension = absoluteUrl.split('.').pop()?.toLowerCase().split('?')[0];
+      if (extension && SUPPORTED_IMAGE_TYPES[extension]) {
+        mimeType = SUPPORTED_IMAGE_TYPES[extension];
+      } else {
+        mimeType = 'image/jpeg'; // Default fallback
+      }
+    }
+
+    // Convert to base64
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    logger.debug(`Error fetching image ${imageUrl}:`, { error });
+    return null;
+  }
+}
+
+/**
+ * Processes HTML content and converts all image src attributes to data URIs
+ * Uses jsdom for parsing since it's already available
+ */
+async function convertImagesToDataUris(
+  htmlContent: string,
+  baseUrl: string
+): Promise<string> {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM(htmlContent);
+  const document = dom.window.document;
+
+  const images = document.querySelectorAll('img');
+  const imagePromises: Promise<void>[] = [];
+
+  for (const img of images) {
+    const src = img.getAttribute('src');
+    if (!src) continue;
+
+    // Skip if already a data URI
+    if (src.startsWith('data:')) continue;
+
+    const promise = (async () => {
+      const dataUri = await fetchImageAsDataUri(src, baseUrl);
+      if (dataUri) {
+        img.setAttribute('src', dataUri);
+        // Also update srcset if present
+        img.removeAttribute('srcset');
+      } else {
+        // Keep original src but add a data attribute to indicate it wasn't converted
+        img.setAttribute('data-original-src', src);
+        // Set a placeholder or remove src to avoid CSP errors
+        img.setAttribute(
+          'src',
+          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3EImage%3C/text%3E%3C/svg%3E'
+        );
+        img.setAttribute('alt', img.getAttribute('alt') || 'Image could not be loaded');
+      }
+    })();
+
+    imagePromises.push(promise);
+  }
+
+  // Process all images in parallel
+  await Promise.all(imagePromises);
+
+  return dom.serialize();
+}
+
 function createWindow(): void {
   // Create the browser window.
   // Frameless window on all platforms - custom title bar handles menu and window controls
@@ -2879,6 +3015,10 @@ app.whenReady().then(async () => {
         throw new Error('Could not extract article content from page');
       }
 
+      // Convert images in article content to data URIs for offline access
+      logger.info('Converting images to data URIs...', { url });
+      const contentWithImages = await convertImagesToDataUris(article.content, url);
+
       // Get current vault path
       if (!noteService) {
         throw new Error('Note service not available');
@@ -2934,7 +3074,7 @@ app.whenReady().then(async () => {
   <article>
     <h1>${escapeHtml(article.title || 'Untitled')}</h1>
     ${article.author ? `<p class="byline">${escapeHtml(article.author)}</p>` : ''}
-    ${article.content}
+    ${contentWithImages}
   </article>
 </body>
 </html>`;
