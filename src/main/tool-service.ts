@@ -9,6 +9,7 @@ import { publishNoteEvent } from './note-events';
 import { TodoPlanService } from './todo-plan-service';
 import { WorkflowService } from './workflow-service';
 import { ReviewTools } from './review-tools.js';
+import { DocumentTextService, type ChunkReference } from './document-text-service.js';
 import {
   createWorkflowSchema,
   updateWorkflowSchema,
@@ -25,6 +26,7 @@ export class ToolService {
   private todoPlanService: TodoPlanService | null = null;
   private workflowService: WorkflowService | null = null;
   private reviewTools: ReviewTools | null = null;
+  private documentTextService: DocumentTextService | null = null;
   private currentConversationId: string | null = null;
 
   constructor(
@@ -36,6 +38,7 @@ export class ToolService {
     this.todoPlanService = todoPlanService || null;
     this.workflowService = workflowService || null;
     this.reviewTools = noteService ? new ReviewTools(noteService) : null;
+    this.documentTextService = noteService ? new DocumentTextService(noteService) : null;
   }
 
   setCurrentConversationId(conversationId: string): void {
@@ -93,6 +96,13 @@ export class ToolService {
       tools.remove_routine_material = this.removeWorkflowMaterialTool;
     }
 
+    // Add document text tools if available (for EPUB/PDF/webpage content access)
+    if (this.documentTextService) {
+      tools.get_document_structure = this.getDocumentStructureTool;
+      tools.get_document_chunk = this.getDocumentChunkTool;
+      tools.search_document_text = this.searchDocumentTextTool;
+    }
+
     return tools;
   }
 
@@ -111,7 +121,7 @@ export class ToolService {
   // Basic CRUD Tools
   private getNoteTool = tool({
     description:
-      'Retrieve one or more notes by their IDs or identifiers. Efficient for bulk retrieval. Use this when you know the specific note IDs or identifiers (e.g., "type/title" format). For finding notes by content or criteria, use search_notes instead. Returns up to 500 lines of content by default (max 2000), with pagination support for longer notes.',
+      'Retrieve one or more notes by their IDs or identifiers. Efficient for bulk retrieval. Use this when you know the specific note IDs or identifiers (e.g., "type/title" format). For finding notes by content or criteria, use search_notes instead. Returns up to 500 lines of content by default (max 2000), with pagination support for longer notes. IMPORTANT: For notes with kind "epub", "pdf", or "webpage", the content returned is only the user\'s notes about the document. To access the actual book/PDF/article content, use get_document_structure and get_document_chunk tools.',
     inputSchema: z.object({
       ids: z
         .array(z.string())
@@ -167,10 +177,32 @@ export class ToolService {
         const results = await flintApi.getNotes(currentVault.id, ids, contentLimit);
         const successCount = results.filter((r) => r.success).length;
 
+        // Add hints for notes with document content (EPUB/PDF/webpage)
+        const documentKinds = ['epub', 'pdf', 'webpage'];
+        const enhancedResults = results.map((result) => {
+          if (result.success && result.note && documentKinds.includes(result.note.kind)) {
+            return {
+              ...result,
+              documentContentHint: {
+                kind: result.note.kind,
+                message: `This is a ${result.note.kind.toUpperCase()} note. The content above is the user's notes about the document. To access the actual ${result.note.kind === 'epub' ? 'book' : result.note.kind === 'pdf' ? 'PDF document' : 'article'} content, use get_document_structure and get_document_chunk tools with noteId "${result.note.id}".`
+              }
+            };
+          }
+          return result;
+        });
+
+        // Check if any notes have document content
+        const documentNotes = enhancedResults.filter((r) => 'documentContentHint' in r);
+        const documentHintMessage =
+          documentNotes.length > 0
+            ? ` Note: ${documentNotes.length} note(s) have attached document content (EPUB/PDF/webpage) accessible via document tools.`
+            : '';
+
         return {
           success: true,
-          data: results,
-          message: `Retrieved ${successCount} of ${ids.length} note(s)`
+          data: enhancedResults,
+          message: `Retrieved ${successCount} of ${ids.length} note(s)${documentHintMessage}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2967,6 +2999,198 @@ export class ToolService {
           success: false,
           error: 'REMOVE_MATERIAL_FAILED',
           message: `Failed to remove material: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  // ============================================
+  // Document Text Tools (EPUB/PDF/Webpage content access)
+  // ============================================
+
+  private getDocumentStructureTool = tool({
+    description:
+      'Get the structure (table of contents, outline, or page list) of a document note (EPUB, PDF, or webpage). Use this to understand the document layout and plan which chunks to request. Returns chapter/section information with estimated token counts.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe('ID of the document note (must be an epub, pdf, or webpage note)')
+    }),
+    execute: async ({ noteId }) => {
+      if (!this.documentTextService) {
+        return {
+          success: false,
+          error: 'Document text service not available',
+          message: 'Document text service not initialized'
+        };
+      }
+
+      try {
+        const result = await this.documentTextService.getDocumentStructure(noteId);
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to get document structure', { noteId, error: errorMessage });
+
+        return {
+          success: false,
+          error: 'GET_STRUCTURE_FAILED',
+          message: `Failed to get document structure: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getDocumentChunkTool = tool({
+    description:
+      'Retrieve text content from a specific chunk of a document note (EPUB chapter, PDF page(s), or webpage). Use get_document_structure first to understand the document layout. Returns text with token count and truncation info.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe('ID of the document note (must be an epub, pdf, or webpage note)'),
+      chunkRef: z
+        .object({
+          type: z
+            .enum(['chapter', 'page', 'pages', 'full', 'token_chunk'])
+            .describe('Type of chunk reference'),
+          index: z
+            .number()
+            .optional()
+            .describe('Chapter index (for EPUB TOC) or token chunk index'),
+          pageNumber: z.number().optional().describe('Page number (for PDF single page)'),
+          start: z.number().optional().describe('Start page (for PDF page range)'),
+          end: z.number().optional().describe('End page (for PDF page range)')
+        })
+        .describe(
+          'Chunk reference specifying what content to retrieve. For EPUB: use {type: "chapter", index: N} or {type: "token_chunk", index: N} for flat books. For PDF: use {type: "page", pageNumber: N} or {type: "pages", start: N, end: M}. For webpage or small docs: use {type: "full"}.'
+        ),
+      maxTokens: z
+        .number()
+        .optional()
+        .describe(
+          'Maximum tokens to return (default: 10000, max: 50000). Content will be truncated if larger.'
+        )
+    }),
+    execute: async ({ noteId, chunkRef, maxTokens }) => {
+      if (!this.documentTextService) {
+        return {
+          success: false,
+          error: 'Document text service not available',
+          message: 'Document text service not initialized'
+        };
+      }
+
+      try {
+        // Convert the input schema to the proper ChunkReference type
+        let typedChunkRef: ChunkReference;
+
+        switch (chunkRef.type) {
+          case 'chapter':
+            if (chunkRef.index === undefined) {
+              return {
+                success: false,
+                error: 'INVALID_CHUNK_REF',
+                message: 'Chapter chunk requires index parameter'
+              };
+            }
+            typedChunkRef = { type: 'chapter', index: chunkRef.index };
+            break;
+          case 'page':
+            if (chunkRef.pageNumber === undefined) {
+              return {
+                success: false,
+                error: 'INVALID_CHUNK_REF',
+                message: 'Page chunk requires pageNumber parameter'
+              };
+            }
+            typedChunkRef = { type: 'page', pageNumber: chunkRef.pageNumber };
+            break;
+          case 'pages':
+            if (chunkRef.start === undefined || chunkRef.end === undefined) {
+              return {
+                success: false,
+                error: 'INVALID_CHUNK_REF',
+                message: 'Pages chunk requires start and end parameters'
+              };
+            }
+            typedChunkRef = { type: 'pages', start: chunkRef.start, end: chunkRef.end };
+            break;
+          case 'token_chunk':
+            if (chunkRef.index === undefined) {
+              return {
+                success: false,
+                error: 'INVALID_CHUNK_REF',
+                message: 'Token chunk requires index parameter'
+              };
+            }
+            typedChunkRef = { type: 'token_chunk', index: chunkRef.index };
+            break;
+          case 'full':
+          default:
+            typedChunkRef = { type: 'full' };
+            break;
+        }
+
+        const result = await this.documentTextService.getDocumentChunk(
+          noteId,
+          typedChunkRef,
+          maxTokens
+        );
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to get document chunk', {
+          noteId,
+          chunkRef,
+          error: errorMessage
+        });
+
+        return {
+          success: false,
+          error: 'GET_CHUNK_FAILED',
+          message: `Failed to get document chunk: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private searchDocumentTextTool = tool({
+    description:
+      'Search for text within a document note (EPUB, PDF, or webpage). Returns snippets with chunk references so you can retrieve full context with get_document_chunk.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe('ID of the document note (must be an epub, pdf, or webpage note)'),
+      query: z.string().describe('Text to search for (case-insensitive)'),
+      maxResults: z
+        .number()
+        .optional()
+        .describe('Maximum number of results to return (default: 10, max: 50)')
+    }),
+    execute: async ({ noteId, query, maxResults }) => {
+      if (!this.documentTextService) {
+        return {
+          success: false,
+          error: 'Document text service not available',
+          message: 'Document text service not initialized'
+        };
+      }
+
+      try {
+        const result = await this.documentTextService.searchDocument(
+          noteId,
+          query,
+          maxResults
+        );
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to search document', { noteId, query, error: errorMessage });
+
+        return {
+          success: false,
+          error: 'SEARCH_FAILED',
+          message: `Failed to search document: ${errorMessage}`
         };
       }
     }
