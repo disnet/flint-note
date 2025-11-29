@@ -823,8 +823,13 @@ export class NoteManager {
 
     // Path system fields that should be written during creation
     // These are "write-once" fields: set at creation, immutable afterward
-    // flint_epubPath and flint_pdfPath are true system fields; others can be updated via API
-    const PATH_WRITE_ONCE_FIELDS = new Set(['flint_epubPath', 'flint_pdfPath']);
+    // These are true system fields; others can be updated via API
+    const PATH_WRITE_ONCE_FIELDS = new Set([
+      'flint_epubPath',
+      'flint_pdfPath',
+      'flint_webpagePath',
+      'flint_webpageOriginalPath'
+    ]);
 
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {

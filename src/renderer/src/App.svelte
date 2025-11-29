@@ -10,6 +10,7 @@
   import ToastNotification from './components/ToastNotification.svelte';
   import ChangelogViewer from './components/ChangelogViewer.svelte';
   import HamburgerMenu from './components/HamburgerMenu.svelte';
+  import ImportWebpageModal from './components/ImportWebpageModal.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -264,6 +265,9 @@
         case 'import-pdf':
           await handleImportPdf();
           break;
+        case 'import-webpage':
+          showImportWebpageModal = true;
+          break;
       }
     });
 
@@ -331,6 +335,9 @@
   let showChangelog = $state(false);
   let appVersion = $state('');
   let isCanary = $state(false);
+
+  // Import webpage modal state
+  let showImportWebpageModal = $state(false);
 
   // Load app version for changelog
   $effect(() => {
@@ -476,6 +483,71 @@
       );
     } catch (error) {
       console.error('Failed to import PDF:', error);
+    }
+  }
+
+  async function handleImportWebpage(url: string): Promise<void> {
+    try {
+      // Import the webpage
+      const result = await window.api?.importWebpage({ url });
+      if (!result) {
+        throw new Error('Failed to import webpage');
+      }
+
+      // Get the current vault
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for webpage import');
+        return;
+      }
+
+      // Create the webpage note with metadata
+      const identifier = result.title || result.slug;
+
+      const createdNote = await chatService.createNote({
+        type: 'note',
+        kind: 'webpage',
+        identifier,
+        content: `# Notes on ${result.title}\n\n`,
+        vaultId: currentVault.id,
+        metadata: {
+          flint_webpagePath: result.path,
+          flint_webpageOriginalPath: result.originalPath,
+          flint_webpageUrl: url,
+          flint_webpageTitle: result.title || '',
+          flint_webpageSiteName: result.siteName || '',
+          flint_webpageAuthor: result.author || '',
+          flint_progress: 0,
+          flint_lastRead: new Date().toISOString()
+        }
+      });
+
+      // Convert to NoteMetadata format and open
+      const noteMetadata: NoteMetadata = {
+        id: createdNote.id,
+        type: createdNote.type,
+        flint_kind: 'webpage',
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0
+      };
+
+      // Open the note
+      await noteNavigationService.openNote(
+        noteMetadata,
+        'navigation',
+        openNoteEditor,
+        () => {
+          activeSystemView = null;
+        }
+      );
+    } catch (error) {
+      console.error('Failed to import webpage:', error);
+      throw error;
     }
   }
 
@@ -1408,6 +1480,13 @@
     <!-- Toast Notifications -->
     <ToastNotification />
   </div>
+
+  <!-- Import Webpage Modal -->
+  <ImportWebpageModal
+    isOpen={showImportWebpageModal}
+    onClose={() => (showImportWebpageModal = false)}
+    onImport={handleImportWebpage}
+  />
 
   <!-- Changelog Modal -->
   {#if showChangelog}

@@ -14,7 +14,7 @@ export default defineConfig({
         input: {
           index: 'src/main/index.ts'
         },
-        external: ['typescript', /^typescript\//]
+        external: ['typescript', /^typescript\//, 'canvas']
       }
     }
   },

@@ -44,6 +44,15 @@
     'flint_currentCfi',
     'flint_progress',
     'flint_lastRead',
+    // PDF-specific system fields
+    'flint_pdfPath',
+    // Webpage-specific system fields (managed by the webpage reader)
+    'flint_webpagePath',
+    'flint_webpageOriginalPath',
+    'flint_webpageUrl',
+    'flint_webpageTitle',
+    'flint_webpageSiteName',
+    'flint_webpageAuthor',
     // Legacy fields
     'id',
     'type',
@@ -203,6 +212,15 @@
       'flint_currentCfi',
       'flint_progress',
       'flint_lastRead',
+      // PDF-specific system fields
+      'flint_pdfPath',
+      // Webpage-specific system fields (managed by the webpage reader)
+      'flint_webpagePath',
+      'flint_webpageOriginalPath',
+      'flint_webpageUrl',
+      'flint_webpageTitle',
+      'flint_webpageSiteName',
+      'flint_webpageAuthor',
       // Legacy fields
       'id',
       'title',

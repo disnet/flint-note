@@ -146,6 +146,12 @@ export function createApplicationMenu(): Menu {
           }
         },
         {
+          label: 'Import Webpage...',
+          click: (): void => {
+            sendToRenderer('menu-action', 'import-webpage');
+          }
+        },
+        {
           label: 'New Vault...',
           click: (): void => {
             sendToRenderer('menu-action', 'new-vault');

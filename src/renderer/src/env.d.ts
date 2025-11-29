@@ -680,6 +680,18 @@ declare global {
       importPdf: () => Promise<{ filename: string; path: string; title?: string } | null>;
       readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
+      // Webpage operations
+      importWebpage: (params: { url: string }) => Promise<{
+        slug: string;
+        path: string;
+        originalPath: string;
+        title: string;
+        siteName?: string;
+        author?: string;
+        excerpt?: string;
+      } | null>;
+      readWebpageFile: (params: { relativePath: string }) => Promise<string>;
+
       // Image operations
       importImage: (params: {
         fileData: Uint8Array;

@@ -10,6 +10,7 @@ import { ViewRegistry } from './ViewRegistry';
 import ImageNoteView from './ImageNoteView.svelte';
 import EpubNoteView from './EpubNoteView.svelte';
 import PdfNoteView from './PdfNoteView.svelte';
+import WebpageNoteView from './WebpageNoteView.svelte';
 
 // Register the ImageNoteView for 'image' content kind
 ViewRegistry.registerView('image', {
@@ -34,6 +35,15 @@ ViewRegistry.registerView('pdf', {
   component: PdfNoteView,
   modes: ['hybrid', 'view'],
   supportedKinds: ['pdf'],
+  priority: 1
+});
+
+// Register the WebpageNoteView for 'webpage' content kind
+// This view handles webpage notes for reading web articles
+ViewRegistry.registerView('webpage', {
+  component: WebpageNoteView,
+  modes: ['hybrid', 'view'],
+  supportedKinds: ['webpage'],
   priority: 1
 });
 

@@ -47,6 +47,18 @@ function getThemeBackgroundColor(): string {
   return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff';
 }
 
+function generateWebpageSlug(title: string, hostname: string): string {
+  const sanitizedTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+
+  const sanitizedHost = hostname.replace(/^www\./, '').replace(/\./g, '-');
+
+  return `${sanitizedHost}-${sanitizedTitle || 'page'}`;
+}
+
 function createWindow(): void {
   // Create the browser window.
   // Frameless window on all platforms - custom title bar handles menu and window controls
@@ -2830,6 +2842,166 @@ app.whenReady().then(async () => {
       throw error;
     }
   });
+
+  // Webpage operations
+  ipcMain.handle('import-webpage', async (_event, params: { url: string }) => {
+    try {
+      const { url } = params;
+
+      // Validate URL
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
+      }
+
+      // Fetch the webpage
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+      }
+
+      const originalHtml = await response.text();
+
+      // Parse with linkedom and Readability
+      const { parseHTML } = await import('linkedom');
+      const { Readability } = await import('@mozilla/readability');
+
+      const { document } = parseHTML(originalHtml);
+      // Set the document URL for Readability to resolve relative links
+      Object.defineProperty(document, 'baseURI', { value: url, writable: false });
+      const reader = new Readability(document as unknown as Document);
+      const article = reader.parse();
+
+      if (!article) {
+        throw new Error('Could not extract article content from page');
+      }
+
+      // Get current vault path
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      // Generate slug from title or URL
+      const slug = generateWebpageSlug(article.title || 'page', parsedUrl.hostname);
+
+      // Ensure attachments/webpages directory exists
+      const webpagesDir = join(currentVault.path, 'attachments', 'webpages');
+      await fsPromises.mkdir(webpagesDir, { recursive: true });
+
+      // Generate unique filename
+      let finalSlug = slug;
+      let counter = 1;
+      while (true) {
+        const testPath = join(webpagesDir, `${finalSlug}.html`);
+        try {
+          await fsPromises.access(testPath);
+          finalSlug = `${slug}-${counter}`;
+          counter++;
+        } catch {
+          break;
+        }
+      }
+
+      // Save files
+      const readerPath = join(webpagesDir, `${finalSlug}.html`);
+      const originalPath = join(webpagesDir, `${finalSlug}.original.html`);
+      const metaPath = join(webpagesDir, `${finalSlug}.meta.json`);
+
+      // Helper to escape HTML
+      const escapeHtml = (str: string): string =>
+        str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+
+      // Create a full HTML document for the reader version
+      const readerHtml = `<!DOCTYPE html>
+<html lang="${article.lang || 'en'}" dir="${article.dir || 'ltr'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(article.title || 'Untitled')}</title>
+</head>
+<body>
+  <article>
+    <h1>${escapeHtml(article.title || 'Untitled')}</h1>
+    ${article.byline ? `<p class="byline">${escapeHtml(article.byline)}</p>` : ''}
+    ${article.content}
+  </article>
+</body>
+</html>`;
+
+      const metadata = {
+        url,
+        title: article.title,
+        siteName: article.siteName,
+        byline: article.byline,
+        excerpt: article.excerpt,
+        lang: article.lang,
+        dir: article.dir,
+        fetchedAt: new Date().toISOString()
+      };
+
+      await Promise.all([
+        fsPromises.writeFile(readerPath, readerHtml, 'utf-8'),
+        fsPromises.writeFile(originalPath, originalHtml, 'utf-8'),
+        fsPromises.writeFile(metaPath, JSON.stringify(metadata, null, 2), 'utf-8')
+      ]);
+
+      logger.info('Webpage imported successfully', {
+        slug: finalSlug,
+        url,
+        title: article.title
+      });
+
+      return {
+        slug: finalSlug,
+        path: `attachments/webpages/${finalSlug}.html`,
+        originalPath: `attachments/webpages/${finalSlug}.original.html`,
+        title: article.title,
+        siteName: article.siteName,
+        author: article.byline,
+        excerpt: article.excerpt
+      };
+    } catch (error) {
+      logger.error('Failed to import webpage', { error });
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'read-webpage-file',
+    async (_event, params: { relativePath: string }) => {
+      try {
+        if (!noteService) {
+          throw new Error('Note service not available');
+        }
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+
+        const fullPath = join(currentVault.path, params.relativePath);
+        const content = await fsPromises.readFile(fullPath, 'utf-8');
+
+        return content;
+      } catch (error) {
+        logger.error('Failed to read webpage file', { error, path: params.relativePath });
+        throw error;
+      }
+    }
+  );
 
   // Image attachment operations
   ipcMain.handle(

@@ -601,6 +601,21 @@ const api = {
   readPdfFile: (params: { relativePath: string }): Promise<Uint8Array> =>
     electronAPI.ipcRenderer.invoke('read-pdf-file', params),
 
+  // Webpage operations
+  importWebpage: (params: {
+    url: string;
+  }): Promise<{
+    slug: string;
+    path: string;
+    originalPath: string;
+    title: string;
+    siteName?: string;
+    author?: string;
+    excerpt?: string;
+  } | null> => electronAPI.ipcRenderer.invoke('import-webpage', params),
+  readWebpageFile: (params: { relativePath: string }): Promise<string> =>
+    electronAPI.ipcRenderer.invoke('read-webpage-file', params),
+
   // Image operations
   importImage: (params: {
     fileData: Uint8Array;
