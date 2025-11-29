@@ -31,6 +31,10 @@ export interface AppSettings {
     lastSeenVersion: string;
     lastSeenCanaryVersion: string;
   };
+  reader: {
+    defaultPdfZoom: number; // Scale value (e.g., 1.5 for 150%)
+    defaultEpubTextSize: number; // Percentage (e.g., 100 for 100%)
+  };
 }
 
 // Default settings
@@ -62,6 +66,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   updates: {
     lastSeenVersion: '',
     lastSeenCanaryVersion: ''
+  },
+  reader: {
+    defaultPdfZoom: 1.5, // 150%
+    defaultEpubTextSize: 100 // 100%
   }
 };
 
@@ -100,7 +108,8 @@ async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
       appearance: settingsToSave.appearance,
       dataAndPrivacy: settingsToSave.dataAndPrivacy,
       advanced: settingsToSave.advanced,
-      updates: settingsToSave.updates
+      updates: settingsToSave.updates,
+      reader: settingsToSave.reader
     };
 
     // Merge with existing settings to preserve other fields (like sidebarState)
@@ -227,6 +236,9 @@ export const settingsStore = {
     if (newSettings.updates) {
       updatedSettings.updates = { ...settings.updates, ...newSettings.updates };
     }
+    if (newSettings.reader) {
+      updatedSettings.reader = { ...settings.reader, ...newSettings.reader };
+    }
 
     settings = updatedSettings;
     await saveStoredSettings(settings);
@@ -297,7 +309,8 @@ export const settingsStore = {
       appearance: settings.appearance,
       dataAndPrivacy: settings.dataAndPrivacy,
       advanced: settings.advanced,
-      updates: settings.updates
+      updates: settings.updates,
+      reader: settings.reader
     };
     return JSON.stringify(exportableSettings, null, 2);
   },

@@ -18,6 +18,7 @@
   import { messageBus } from '../../services/messageBus.svelte.js';
   import type { Note } from '@/server/core/notes';
   import { logger } from '../../utils/logger';
+  import { settingsStore } from '../../stores/settingsStore.svelte';
 
   let {
     activeNote,
@@ -43,10 +44,32 @@
   let highlights = $state<EpubHighlight[]>([]);
   let currentSelection = $state<SelectionInfo | null>(null);
 
+  // Text size state
+  const TEXT_SIZE_LEVELS = [75, 90, 100, 110, 125, 150, 175, 200];
+  // Initialize from saved metadata, settings default, or fallback
+  function getInitialTextSizeIndex(): number {
+    // First check for saved text size in note metadata
+    const savedSize = metadata.flint_textSize as number | undefined;
+    if (savedSize !== undefined) {
+      const index = TEXT_SIZE_LEVELS.indexOf(savedSize);
+      if (index !== -1) return index;
+    }
+    // Use settings default
+    const defaultSize = settingsStore.settings.reader.defaultEpubTextSize;
+    const defaultIndex = TEXT_SIZE_LEVELS.indexOf(defaultSize);
+    if (defaultIndex !== -1) return defaultIndex;
+    // Fallback to 100%
+    return 2;
+  }
+  let textSizeIndex = $state(getInitialTextSizeIndex());
+  let textSize = $derived(TEXT_SIZE_LEVELS[textSizeIndex]);
+
   // Debounce timer for metadata updates
   let metadataUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  let textSizeUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSavedProgress = $state(0);
   let lastSavedCfi = $state('');
+  let lastSavedTextSizeIndex = $state(getInitialTextSizeIndex());
 
   // Capture note ID on mount - activeNote can change before onDestroy runs!
   let mountedNoteId: string | null = null;
@@ -113,6 +136,7 @@
     'flint_currentCfi',
     'flint_progress',
     'flint_lastRead',
+    'flint_textSize',
     // Legacy fields
     'id',
     'title',
@@ -192,7 +216,8 @@
       ...baseMetadata,
       flint_currentCfi: cfi,
       flint_progress: Math.round(validProgress),
-      flint_lastRead: new Date().toISOString()
+      flint_lastRead: new Date().toISOString(),
+      flint_textSize: TEXT_SIZE_LEVELS[textSizeIndex]
     };
 
     lastSavedProgress = validProgress;
@@ -253,9 +278,14 @@
     if (metadataUpdateTimer) {
       clearTimeout(metadataUpdateTimer);
     }
+    if (textSizeUpdateTimer) {
+      clearTimeout(textSizeUpdateTimer);
+    }
     // Always save final position if it changed - use mounted values!
-    if (currentCfi && currentCfi !== lastSavedCfi && mountedNoteId) {
-      logger.debug('[EPUB] Saving final position on unmount for note:', mountedNoteId);
+    const positionChanged = currentCfi && currentCfi !== lastSavedCfi;
+    const textSizeChanged = textSizeIndex !== lastSavedTextSizeIndex;
+    if ((positionChanged || textSizeChanged) && mountedNoteId) {
+      logger.debug('[EPUB] Saving final state on unmount for note:', mountedNoteId);
       saveMetadata(currentCfi, progress, true);
     }
     // Disable epub menu items
@@ -363,6 +393,41 @@
     if (epubReader) {
       await epubReader.nextPage();
     }
+  }
+
+  // Text size handlers
+  function saveTextSize(): void {
+    if (textSizeUpdateTimer) {
+      clearTimeout(textSizeUpdateTimer);
+    }
+    textSizeUpdateTimer = setTimeout(() => {
+      if (textSizeIndex !== lastSavedTextSizeIndex) {
+        lastSavedTextSizeIndex = textSizeIndex;
+        saveMetadata(currentCfi, progress);
+      }
+    }, 500);
+  }
+
+  function textSizeIncrease(): void {
+    if (textSizeIndex < TEXT_SIZE_LEVELS.length - 1) {
+      textSizeIndex++;
+      saveTextSize();
+    }
+  }
+
+  function textSizeDecrease(): void {
+    if (textSizeIndex > 0) {
+      textSizeIndex--;
+      saveTextSize();
+    }
+  }
+
+  function textSizeReset(): void {
+    // Reset to settings default
+    const defaultSize = settingsStore.settings.reader.defaultEpubTextSize;
+    const defaultIndex = TEXT_SIZE_LEVELS.indexOf(defaultSize);
+    textSizeIndex = defaultIndex !== -1 ? defaultIndex : 2; // Fallback to 100%
+    saveTextSize();
   }
 
   // Initialize with saved CFI
@@ -638,6 +703,51 @@
           />
         </div>
         <div class="epub-buttons">
+          <!-- Text size controls -->
+          <div class="text-size-controls">
+            <button
+              class="text-size-button"
+              onclick={textSizeDecrease}
+              disabled={textSizeIndex === 0}
+              aria-label="Decrease text size"
+              title="Decrease text size"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M3 8H13"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="text-size-level"
+              onclick={textSizeReset}
+              title="Reset text size to 100%"
+            >
+              {textSize}%
+            </button>
+            <button
+              class="text-size-button"
+              onclick={textSizeIncrease}
+              disabled={textSizeIndex === TEXT_SIZE_LEVELS.length - 1}
+              aria-label="Increase text size"
+              title="Increase text size"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M8 3V13M3 8H13"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="button-separator"></div>
+
           <button
             class="epub-button"
             class:active={showHighlights}
@@ -735,6 +845,7 @@
               {epubPath}
               {initialCfi}
               {highlights}
+              fontSize={textSize}
               onRelocate={handleRelocate}
               onTocLoaded={handleTocLoaded}
               onMetadataLoaded={handleMetadataLoaded}
@@ -879,6 +990,68 @@
   .epub-buttons {
     display: flex;
     gap: 0.5rem;
+  }
+
+  .text-size-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    background: var(--bg-secondary, #f5f5f5);
+    border-radius: 0.25rem;
+    padding: 0.125rem;
+    flex-shrink: 0;
+  }
+
+  .text-size-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    transition: all 0.15s ease;
+  }
+
+  .text-size-button:hover:not(:disabled) {
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #333);
+  }
+
+  .text-size-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .text-size-level {
+    width: 42px;
+    padding: 0.125rem 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .text-size-level:hover {
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #333);
+  }
+
+  .button-separator {
+    width: 1px;
+    height: 16px;
+    background: var(--border-light, #e0e0e0);
+    margin: 0 0.25rem;
   }
 
   .epub-button {

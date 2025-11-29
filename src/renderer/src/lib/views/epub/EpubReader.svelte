@@ -20,6 +20,7 @@
     epubPath = '',
     initialCfi = '',
     highlights = [],
+    fontSize = 100,
     onRelocate = (_cfi: string, _progress: number, _location: EpubLocation) => {},
     onTocLoaded = (_toc: TocItem[]) => {},
     onMetadataLoaded = (_metadata: EpubMetadata) => {},
@@ -29,6 +30,7 @@
     epubPath: string;
     initialCfi?: string;
     highlights?: EpubHighlight[];
+    fontSize?: number;
     onRelocate?: (cfi: string, progress: number, location: EpubLocation) => void;
     onTocLoaded?: (toc: TocItem[]) => void;
     onMetadataLoaded?: (metadata: EpubMetadata) => void;
@@ -93,14 +95,16 @@
     }
   }
 
-  // Generate CSS for EPUB content based on theme
-  function getEpubStyles(dark: boolean): string {
+  // Generate CSS for EPUB content based on theme and font size
+  function getEpubStyles(dark: boolean, fontSizePercent: number): string {
+    const fontSizeStyle = `font-size: ${fontSizePercent}% !important;`;
     if (dark) {
       return `
         html {
           color-scheme: dark;
           background: #1a1a1a !important;
           color: #e0e0e0 !important;
+          ${fontSizeStyle}
         }
         body {
           background: #1a1a1a !important;
@@ -120,6 +124,7 @@
       return `
         html {
           color-scheme: light;
+          ${fontSizeStyle}
         }
       `;
     }
@@ -137,9 +142,21 @@
   // Apply styles to the EPUB view
   function applyThemeStyles(): void {
     if (view?.renderer?.setStyles) {
-      view.renderer.setStyles(getEpubStyles(isDarkMode));
+      view.renderer.setStyles(getEpubStyles(isDarkMode, fontSize));
     }
   }
+
+  // Re-apply styles when fontSize changes
+  $effect(() => {
+    if (view && fontSize && isMounted && !isLoading) {
+      try {
+        applyThemeStyles();
+      } catch (err) {
+        // View might be in an invalid state during unmount
+        logger.debug('[EPUB] Could not apply font size styles:', err);
+      }
+    }
+  });
 
   async function loadEpub(): Promise<void> {
     if (!epubPath || !container || !isMounted) return;

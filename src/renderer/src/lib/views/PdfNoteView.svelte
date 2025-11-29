@@ -25,6 +25,7 @@
   import { getChatService } from '../../services/chatService.js';
   import { messageBus } from '../../services/messageBus.svelte.js';
   import type { Note } from '@/server/core/notes';
+  import { settingsStore } from '../../stores/settingsStore.svelte';
 
   let {
     activeNote,
@@ -51,14 +52,30 @@
 
   // Zoom state
   const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
-  const DEFAULT_ZOOM_INDEX = 4; // 1.5 (150%)
-  let zoomIndex = $state(DEFAULT_ZOOM_INDEX);
+  // Initialize from saved metadata, settings default, or fallback
+  function getInitialZoomIndex(): number {
+    // First check for saved zoom in note metadata
+    const savedZoom = metadata.flint_zoomLevel as number | undefined;
+    if (savedZoom !== undefined) {
+      const index = ZOOM_LEVELS.indexOf(savedZoom);
+      if (index !== -1) return index;
+    }
+    // Use settings default
+    const defaultZoom = settingsStore.settings.reader.defaultPdfZoom;
+    const defaultIndex = ZOOM_LEVELS.indexOf(defaultZoom);
+    if (defaultIndex !== -1) return defaultIndex;
+    // Fallback to 150%
+    return 4;
+  }
+  let zoomIndex = $state(getInitialZoomIndex());
   let zoomScale = $derived(ZOOM_LEVELS[zoomIndex]);
 
   // Debounce timer for metadata updates
   let metadataUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  let zoomUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSavedProgress = $state(0);
   let lastSavedPage = $state(1);
+  let lastSavedZoomIndex = $state(getInitialZoomIndex());
 
   // Capture note ID on mount
   let mountedNoteId: string | null = null;
@@ -116,6 +133,7 @@
     'flint_totalPages',
     'flint_progress',
     'flint_lastRead',
+    'flint_zoomLevel',
     // Legacy fields
     'id',
     'title',
@@ -166,7 +184,8 @@
       flint_currentPage: page,
       flint_totalPages: totalPages,
       flint_progress: Math.round(validProgress),
-      flint_lastRead: new Date().toISOString()
+      flint_lastRead: new Date().toISOString(),
+      flint_zoomLevel: ZOOM_LEVELS[zoomIndex]
     };
 
     lastSavedProgress = validProgress;
@@ -211,7 +230,13 @@
     if (metadataUpdateTimer) {
       clearTimeout(metadataUpdateTimer);
     }
-    if (currentPage !== lastSavedPage && mountedNoteId) {
+    if (zoomUpdateTimer) {
+      clearTimeout(zoomUpdateTimer);
+    }
+    if (
+      (currentPage !== lastSavedPage || zoomIndex !== lastSavedZoomIndex) &&
+      mountedNoteId
+    ) {
       saveMetadata(currentPage, progress, true);
     }
     window.api?.setMenuActivePdf(false);
@@ -315,20 +340,38 @@
   }
 
   // Zoom handlers
+  function saveZoomLevel(): void {
+    if (zoomUpdateTimer) {
+      clearTimeout(zoomUpdateTimer);
+    }
+    zoomUpdateTimer = setTimeout(() => {
+      if (zoomIndex !== lastSavedZoomIndex) {
+        lastSavedZoomIndex = zoomIndex;
+        saveMetadata(currentPage, progress);
+      }
+    }, 500);
+  }
+
   function zoomIn(): void {
     if (zoomIndex < ZOOM_LEVELS.length - 1) {
       zoomIndex++;
+      saveZoomLevel();
     }
   }
 
   function zoomOut(): void {
     if (zoomIndex > 0) {
       zoomIndex--;
+      saveZoomLevel();
     }
   }
 
   function resetZoom(): void {
-    zoomIndex = DEFAULT_ZOOM_INDEX;
+    // Reset to settings default
+    const defaultZoom = settingsStore.settings.reader.defaultPdfZoom;
+    const defaultIndex = ZOOM_LEVELS.indexOf(defaultZoom);
+    zoomIndex = defaultIndex !== -1 ? defaultIndex : 4; // Fallback to 150%
+    saveZoomLevel();
   }
 
   // Initialize with saved page

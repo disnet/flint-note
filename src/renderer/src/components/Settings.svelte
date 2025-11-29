@@ -406,6 +406,86 @@
       </div>
     </section>
 
+    <!-- Reader Section -->
+    <section class="settings-section">
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+        </svg>
+        Reader
+      </h3>
+      <p class="section-description">
+        Configure default settings for reading PDFs and EPUBs. These defaults apply when
+        opening a document for the first time.
+      </p>
+
+      <div class="reader-settings">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label for="pdf-zoom">Default PDF Zoom</label>
+            <small>Initial zoom level for PDF documents</small>
+          </div>
+          <select
+            id="pdf-zoom"
+            class="setting-select"
+            value={String(settingsStore.settings.reader.defaultPdfZoom)}
+            onchange={async (e) => {
+              const value = parseFloat((e.target as HTMLSelectElement).value);
+              await settingsStore.updateSettings({
+                reader: { ...settingsStore.settings.reader, defaultPdfZoom: value }
+              });
+            }}
+          >
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="1.75">175%</option>
+            <option value="2">200%</option>
+            <option value="2.5">250%</option>
+            <option value="3">300%</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <label for="epub-text-size">Default EPUB Text Size</label>
+            <small>Initial text size for EPUB documents</small>
+          </div>
+          <select
+            id="epub-text-size"
+            class="setting-select"
+            value={String(settingsStore.settings.reader.defaultEpubTextSize)}
+            onchange={async (e) => {
+              const value = parseInt((e.target as HTMLSelectElement).value, 10);
+              await settingsStore.updateSettings({
+                reader: { ...settingsStore.settings.reader, defaultEpubTextSize: value }
+              });
+            }}
+          >
+            <option value="75">75%</option>
+            <option value="90">90%</option>
+            <option value="100">100%</option>
+            <option value="110">110%</option>
+            <option value="125">125%</option>
+            <option value="150">150%</option>
+            <option value="175">175%</option>
+            <option value="200">200%</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <!-- Auto-Updater Section -->
     <section class="settings-section">
       <h3>📦 Application Updates</h3>
@@ -1055,5 +1135,71 @@
   .theme-option-text span {
     color: var(--text-secondary);
     font-size: 0.8125rem;
+  }
+
+  /* Reader settings */
+  .reader-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.75rem;
+  }
+
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .setting-info label {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .setting-info small {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+  }
+
+  .setting-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-width: 100px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 2rem;
+  }
+
+  .setting-select option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 0.5rem;
+  }
+
+  .setting-select:hover {
+    border-color: var(--accent-primary);
+  }
+
+  .setting-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-light);
   }
 </style>
