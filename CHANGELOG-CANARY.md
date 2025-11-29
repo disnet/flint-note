@@ -4,6 +4,13 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-canary.16]
+
+### Added
+
+- Support for saving web pages
+- Agent tools for retrieving/searching documents (EPUB/PDF/Webpages)
+
 ## [0.12.0-canary.15]
 
 ## Fixed
