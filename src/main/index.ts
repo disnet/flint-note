@@ -3001,6 +3001,22 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Open URL in external browser
+  ipcMain.handle('open-external', async (_event, params: { url: string }) => {
+    try {
+      const { url } = params;
+      // Validate URL - only allow http and https
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
+      }
+      await shell.openExternal(url);
+    } catch (error) {
+      logger.error('Failed to open external URL', { error, url: params.url });
+      throw error;
+    }
+  });
+
   // Image attachment operations
   ipcMain.handle(
     'import-image',

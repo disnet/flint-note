@@ -692,6 +692,9 @@ declare global {
       } | null>;
       readWebpageFile: (params: { relativePath: string }) => Promise<string>;
 
+      // Shell operations
+      openExternal: (params: { url: string }) => Promise<void>;
+
       // Image operations
       importImage: (params: {
         fileData: Uint8Array;

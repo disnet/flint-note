@@ -33,6 +33,7 @@
   let currentSelection = $state<WebpageSelectionInfo | null>(null);
   let fullText = ''; // Plain text content for offset calculations
   let selectionCheckInterval: ReturnType<typeof setInterval> | null = null;
+  let baseUrl: string | null = null; // Original webpage URL for resolving relative links
 
   // Check if dark mode is active
   function checkDarkMode(): boolean {
@@ -279,6 +280,9 @@
         applyHighlights(highlights);
       }
 
+      // Set up link click handling to open in external browser
+      contentContainer.addEventListener('click', handleLinkClick);
+
       // Set up selection checking
       startSelectionChecking();
 
@@ -291,10 +295,13 @@
         const metaContent = await window.api?.readWebpageFile({ relativePath: metaPath });
         if (metaContent) {
           const metadata = JSON.parse(metaContent) as WebpageMetadata;
+          // Store the base URL for resolving relative links
+          baseUrl = metadata.url || null;
           onMetadataLoaded(metadata);
         }
       } catch {
         // Metadata file might not exist, that's okay
+        baseUrl = null;
         onMetadataLoaded(null);
       }
 
@@ -315,6 +322,45 @@
     const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
 
     onRelocate(Math.min(100, Math.max(0, progress)));
+  }
+
+  function handleLinkClick(event: MouseEvent): void {
+    // Find the closest anchor element
+    const target = event.target as HTMLElement;
+    const anchor = target.closest('a');
+
+    if (anchor) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Get the href - could be absolute or relative
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+
+      let resolvedUrl: string;
+
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        // Already absolute
+        resolvedUrl = href;
+      } else if (baseUrl) {
+        // Resolve relative URL against the base URL
+        try {
+          resolvedUrl = new URL(href, baseUrl).href;
+        } catch {
+          logger.error('[Webpage] Failed to resolve relative URL', { href, baseUrl });
+          return;
+        }
+      } else {
+        // No base URL available, can't resolve relative links
+        logger.warn('[Webpage] Cannot resolve relative URL without base URL', { href });
+        return;
+      }
+
+      // Open the link in external browser
+      window.api?.openExternal({ url: resolvedUrl }).catch((err) => {
+        logger.error('[Webpage] Failed to open external link', { error: err, href: resolvedUrl });
+      });
+    }
   }
 
   function startSelectionChecking(): void {
@@ -567,6 +613,7 @@
     themeObserver?.disconnect();
     mediaQueryList?.removeEventListener('change', handleThemeChange);
     container?.removeEventListener('scroll', handleScroll);
+    contentContainer?.removeEventListener('click', handleLinkClick);
   });
 </script>
 

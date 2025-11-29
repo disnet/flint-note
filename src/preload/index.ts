@@ -616,6 +616,10 @@ const api = {
   readWebpageFile: (params: { relativePath: string }): Promise<string> =>
     electronAPI.ipcRenderer.invoke('read-webpage-file', params),
 
+  // Shell operations
+  openExternal: (params: { url: string }): Promise<void> =>
+    electronAPI.ipcRenderer.invoke('open-external', params),
+
   // Image operations
   importImage: (params: {
     fileData: Uint8Array;
