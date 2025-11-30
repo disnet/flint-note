@@ -4,6 +4,14 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-canary.18]
+
+### Added
+
+- Adjusted menu items for importing
+- Add support for drag and drop importing of epub/pdf
+- Add support for importing multiple epub/pdfs simultaneously
+
 ## [0.12.0-canary.17]
 
 ### Added
