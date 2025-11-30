@@ -347,6 +347,8 @@
   let dragTimeout: ReturnType<typeof setTimeout> | null = null;
   // Track window focus - drag sensor only active when window is blurred (potential external drag)
   let windowBlurred = $state(false);
+  // Track when dragging other files (like images) - sensor should be transparent
+  let isDraggingOtherFile = $state(false);
   // Prevent double-processing of drops (both sensor and window listener can fire)
   let isProcessingDrop = false;
 
@@ -438,6 +440,17 @@
     return false;
   }
 
+  function hasAnyFiles(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer) return false;
+    if (dataTransfer.items) {
+      return Array.from(dataTransfer.items).some((item) => item.kind === 'file');
+    }
+    if (dataTransfer.files) {
+      return dataTransfer.files.length > 0;
+    }
+    return false;
+  }
+
   // Handle drag events on the sensor (only visible when window blurred)
   function handleDragSensorDragEnter(event: DragEvent): void {
     if (hasValidDropFiles(event.dataTransfer)) {
@@ -510,6 +523,10 @@
       if (event.dataTransfer && hasValidDropFiles(event.dataTransfer)) {
         event.preventDefault();
         isDraggingFile = true;
+        isDraggingOtherFile = false;
+      } else if (event.dataTransfer && hasAnyFiles(event.dataTransfer)) {
+        // Non-PDF/EPUB file drag - mark so sensor becomes transparent
+        isDraggingOtherFile = true;
       }
     };
 
@@ -518,16 +535,26 @@
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
         isDraggingFile = true;
+        isDraggingOtherFile = false;
 
         if (dragTimeout) clearTimeout(dragTimeout);
         dragTimeout = setTimeout(() => {
           isDraggingFile = false;
           dragTimeout = null;
         }, 100);
+      } else if (event.dataTransfer && hasAnyFiles(event.dataTransfer)) {
+        // Non-PDF/EPUB file drag - keep sensor transparent
+        isDraggingOtherFile = true;
+        if (dragTimeout) clearTimeout(dragTimeout);
+        dragTimeout = setTimeout(() => {
+          isDraggingOtherFile = false;
+          dragTimeout = null;
+        }, 100);
       }
     };
 
     const handleWindowDrop = (event: DragEvent): void => {
+      isDraggingOtherFile = false;
       if (!hasValidDropFiles(event.dataTransfer)) return;
       event.preventDefault();
       isDraggingFile = false;
@@ -538,14 +565,23 @@
       void processFileDrop(event);
     };
 
+    const handleWindowDragLeave = (event: DragEvent): void => {
+      // Reset when drag leaves the window
+      if (event.relatedTarget === null) {
+        isDraggingOtherFile = false;
+      }
+    };
+
     window.addEventListener('dragenter', handleWindowDragEnter, { capture: true });
     window.addEventListener('dragover', handleWindowDragOver, { capture: true });
     window.addEventListener('drop', handleWindowDrop, { capture: true });
+    window.addEventListener('dragleave', handleWindowDragLeave, { capture: true });
 
     return () => {
       window.removeEventListener('dragenter', handleWindowDragEnter, { capture: true });
       window.removeEventListener('dragover', handleWindowDragOver, { capture: true });
       window.removeEventListener('drop', handleWindowDrop, { capture: true });
+      window.removeEventListener('dragleave', handleWindowDragLeave, { capture: true });
       if (dragTimeout) {
         clearTimeout(dragTimeout);
       }
@@ -1690,9 +1726,11 @@
 
     <!-- Invisible drag sensor - only visible when window is blurred (external drag) -->
     <!-- Catches drag events that enter directly over iframes when dragging from another app -->
+    <!-- Becomes transparent (pointer-events: none) when dragging non-PDF/EPUB files like images -->
     {#if windowBlurred && !isDraggingFile}
       <div
         class="drag-sensor"
+        class:drag-sensor-transparent={isDraggingOtherFile}
         role="presentation"
         ondragenter={handleDragSensorDragEnter}
         ondragover={handleDragSensorDragOver}
@@ -1971,6 +2009,11 @@
     z-index: 9998;
     pointer-events: all;
     background: transparent;
+  }
+
+  /* Make sensor transparent for non-PDF/EPUB drags (like images) */
+  .drag-sensor-transparent {
+    pointer-events: none;
   }
 
   .drop-overlay-content {

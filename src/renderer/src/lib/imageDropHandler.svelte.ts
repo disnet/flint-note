@@ -118,13 +118,23 @@ export function createImageDropExtension(): Extension {
     },
 
     dragover: (event) => {
-      const files = event.dataTransfer?.files;
-      if (files && Array.from(files).some(isValidImageFile)) {
-        event.preventDefault();
-        if (event.dataTransfer) {
-          event.dataTransfer.dropEffect = 'copy';
+      // During dragover, files is empty - must check items for MIME types
+      const items = event.dataTransfer?.items;
+      if (items) {
+        const hasImage = Array.from(items).some(
+          (item) =>
+            item.kind === 'file' &&
+            SUPPORTED_IMAGE_FORMATS.includes(
+              item.type as (typeof SUPPORTED_IMAGE_FORMATS)[number]
+            )
+        );
+        if (hasImage) {
+          event.preventDefault();
+          if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+          }
+          return true;
         }
-        return true;
       }
       return false;
     }
