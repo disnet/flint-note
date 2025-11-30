@@ -345,6 +345,10 @@
   // Drag and drop state for PDF/EPUB files
   let isDraggingFile = $state(false);
   let dragTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Track window focus - drag sensor only active when window is blurred (potential external drag)
+  let windowBlurred = $state(false);
+  // Prevent double-processing of drops (both sensor and window listener can fire)
+  let isProcessingDrop = false;
 
   function isValidDropFile(file: File): boolean {
     const ext = file.name.toLowerCase();
@@ -368,18 +372,88 @@
     return false;
   }
 
-  // Set up window-level drag/drop listeners with capture to work over iframes (EPUB viewer)
+  // Handle drag events on the sensor (only visible when window blurred)
+  function handleDragSensorDragEnter(event: DragEvent): void {
+    if (hasValidDropFiles(event.dataTransfer)) {
+      event.preventDefault();
+      isDraggingFile = true;
+    }
+  }
+
+  function handleDragSensorDragOver(event: DragEvent): void {
+    if (hasValidDropFiles(event.dataTransfer)) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      isDraggingFile = true;
+
+      // Reset timeout on each dragover
+      if (dragTimeout) clearTimeout(dragTimeout);
+      dragTimeout = setTimeout(() => {
+        isDraggingFile = false;
+        dragTimeout = null;
+      }, 100);
+    }
+  }
+
+  function handleDragSensorDrop(event: DragEvent): void {
+    if (!hasValidDropFiles(event.dataTransfer)) return;
+    event.preventDefault();
+    isDraggingFile = false;
+    if (dragTimeout) {
+      clearTimeout(dragTimeout);
+      dragTimeout = null;
+    }
+    void processFileDrop(event);
+  }
+
+  function handleDragSensorDragLeave(event: DragEvent): void {
+    // Only hide if leaving the window entirely
+    if (event.relatedTarget === null) {
+      isDraggingFile = false;
+      if (dragTimeout) {
+        clearTimeout(dragTimeout);
+        dragTimeout = null;
+      }
+    }
+  }
+
+  // Track window focus to know when to show drag sensor
   $effect(() => {
+    const handleBlur = (): void => {
+      windowBlurred = true;
+    };
+    const handleFocus = (): void => {
+      // Small delay to allow drag events to fire first
+      setTimeout(() => {
+        windowBlurred = false;
+      }, 100);
+    };
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
+  });
+
+  // Window-level drag listeners for when mouse enters from within the app
+  $effect(() => {
+    const handleWindowDragEnter = (event: DragEvent): void => {
+      if (event.dataTransfer && hasValidDropFiles(event.dataTransfer)) {
+        event.preventDefault();
+        isDraggingFile = true;
+      }
+    };
+
     const handleWindowDragOver = (event: DragEvent): void => {
       if (event.dataTransfer && hasValidDropFiles(event.dataTransfer)) {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
         isDraggingFile = true;
 
-        // Reset timeout on each dragover - if dragover stops firing, the drag ended
-        if (dragTimeout) {
-          clearTimeout(dragTimeout);
-        }
+        if (dragTimeout) clearTimeout(dragTimeout);
         dragTimeout = setTimeout(() => {
           isDraggingFile = false;
           dragTimeout = null;
@@ -389,23 +463,21 @@
 
     const handleWindowDrop = (event: DragEvent): void => {
       if (!hasValidDropFiles(event.dataTransfer)) return;
-
       event.preventDefault();
       isDraggingFile = false;
       if (dragTimeout) {
         clearTimeout(dragTimeout);
         dragTimeout = null;
       }
-
-      // Process the drop
       void processFileDrop(event);
     };
 
-    // Use capture phase to catch events before they reach iframes
+    window.addEventListener('dragenter', handleWindowDragEnter, { capture: true });
     window.addEventListener('dragover', handleWindowDragOver, { capture: true });
     window.addEventListener('drop', handleWindowDrop, { capture: true });
 
     return () => {
+      window.removeEventListener('dragenter', handleWindowDragEnter, { capture: true });
       window.removeEventListener('dragover', handleWindowDragOver, { capture: true });
       window.removeEventListener('drop', handleWindowDrop, { capture: true });
       if (dragTimeout) {
@@ -415,11 +487,21 @@
   });
 
   async function processFileDrop(event: DragEvent): Promise<void> {
+    // Prevent double-processing (both sensor and window listener can fire)
+    if (isProcessingDrop) return;
+    isProcessingDrop = true;
+
     const files = event.dataTransfer?.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      isProcessingDrop = false;
+      return;
+    }
 
     const validFile = Array.from(files).find(isValidDropFile);
-    if (!validFile) return;
+    if (!validFile) {
+      isProcessingDrop = false;
+      return;
+    }
 
     try {
       // Read file data
@@ -447,14 +529,14 @@
 
       if (result.type === 'pdf') {
         // Create PDF note with metadata
-        const docName = result.title || result.filename.replace(/\.pdf$/i, '');
-        const identifier = docName;
+        // Use extracted title as identifier - system will handle filename deduplication
+        const displayName = result.title || result.filename.replace(/\.pdf$/i, '');
 
         const createdNote = await chatService.createNote({
           type: 'note',
           kind: 'pdf',
-          identifier,
-          content: `# Notes on ${docName}\n\n`,
+          identifier: displayName,
+          content: `# Notes on ${displayName}\n\n`,
           vaultId: currentVault.id,
           metadata: {
             flint_pdfPath: result.path,
@@ -525,6 +607,11 @@
       }
     } catch (error) {
       console.error('Error importing dropped file:', error);
+    } finally {
+      // Reset flag after a short delay to handle any duplicate events
+      setTimeout(() => {
+        isProcessingDrop = false;
+      }, 100);
     }
   }
 
@@ -694,14 +781,14 @@
 
       if (result.type === 'pdf') {
         // Create PDF note with metadata
-        const docName = result.title || result.filename.replace(/\.pdf$/i, '');
-        const identifier = docName;
+        // Use extracted title as identifier - system will handle filename deduplication
+        const displayName = result.title || result.filename.replace(/\.pdf$/i, '');
 
         const createdNote = await chatService.createNote({
           type: 'note',
           kind: 'pdf',
-          identifier,
-          content: `# Notes on ${docName}\n\n`,
+          identifier: displayName,
+          content: `# Notes on ${displayName}\n\n`,
           vaultId: currentVault.id,
           metadata: {
             flint_pdfPath: result.path,
@@ -1629,6 +1716,19 @@
       </div>
     {/if}
 
+    <!-- Invisible drag sensor - only visible when window is blurred (external drag) -->
+    <!-- Catches drag events that enter directly over iframes when dragging from another app -->
+    {#if windowBlurred && !isDraggingFile}
+      <div
+        class="drag-sensor"
+        role="presentation"
+        ondragenter={handleDragSensorDragEnter}
+        ondragover={handleDragSensorDragOver}
+        ondrop={handleDragSensorDrop}
+        ondragleave={handleDragSensorDragLeave}
+      ></div>
+    {/if}
+
     <!-- Custom title bar with drag region -->
     <div class="title-bar">
       <div class="title-bar-content">
@@ -1887,6 +1987,18 @@
     align-items: center;
     justify-content: center;
     pointer-events: all;
+  }
+
+  /* Invisible drag sensor - sits above everything to catch drag events even over iframes */
+  .drag-sensor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+    pointer-events: all;
+    background: transparent;
   }
 
   .drop-overlay-content {
