@@ -389,6 +389,7 @@
     font-size: 0.875rem;
     line-height: 1.5;
     color: var(--text-primary);
+    user-select: text;
   }
 
   .suggestion-reasoning {
@@ -413,6 +414,7 @@
     border-radius: 4px;
     color: var(--text-secondary);
     line-height: 1.4;
+    user-select: text;
   }
 
   .dismiss-button {

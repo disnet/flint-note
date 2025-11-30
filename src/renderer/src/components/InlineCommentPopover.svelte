@@ -264,6 +264,7 @@
     font-size: 14px;
     color: #111827;
     line-height: 1.5;
+    user-select: text;
   }
 
   .reasoning-toggle {
@@ -292,6 +293,7 @@
     background: white;
     border-radius: 4px;
     border: 1px solid #e5e7eb;
+    user-select: text;
   }
 
   .dismiss-button {
