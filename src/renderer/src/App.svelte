@@ -355,6 +355,72 @@
     return ext.endsWith('.pdf') || ext.endsWith('.epub');
   }
 
+  // Helper to create a note from an imported file result
+  async function createNoteFromImportResult(
+    result: { type: 'pdf' | 'epub'; filename: string; path: string; title?: string },
+    currentVault: { id: string }
+  ): Promise<NoteMetadata> {
+    const chatService = getChatService();
+
+    if (result.type === 'pdf') {
+      const displayName = result.title || result.filename.replace(/\.pdf$/i, '');
+
+      const createdNote = await chatService.createNote({
+        type: 'note',
+        kind: 'pdf',
+        identifier: displayName,
+        content: `# Notes on ${displayName}\n\n`,
+        vaultId: currentVault.id,
+        metadata: {
+          flint_pdfPath: result.path,
+          flint_pdfTitle: result.title || '',
+          flint_progress: 0,
+          flint_lastRead: new Date().toISOString()
+        }
+      });
+
+      return {
+        id: createdNote.id,
+        type: createdNote.type,
+        flint_kind: 'pdf',
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0
+      };
+    } else {
+      // EPUB
+      const bookName = result.filename.replace(/\.epub$/i, '');
+
+      const createdNote = await chatService.createNote({
+        type: 'note',
+        kind: 'epub',
+        identifier: bookName,
+        content: `# Notes on ${bookName}\n\n`,
+        vaultId: currentVault.id,
+        metadata: {
+          flint_epubPath: result.path,
+          flint_progress: 0,
+          flint_lastRead: new Date().toISOString()
+        }
+      });
+
+      return {
+        id: createdNote.id,
+        type: createdNote.type,
+        flint_kind: 'epub',
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0
+      };
+    }
+  }
+
   function hasValidDropFiles(dataTransfer: DataTransfer | null): boolean {
     if (!dataTransfer) return false;
     // Check items for file types during dragover
@@ -497,28 +563,13 @@
       return;
     }
 
-    const validFile = Array.from(files).find(isValidDropFile);
-    if (!validFile) {
+    const validFiles = Array.from(files).filter(isValidDropFile);
+    if (validFiles.length === 0) {
       isProcessingDrop = false;
       return;
     }
 
     try {
-      // Read file data
-      const buffer = await validFile.arrayBuffer();
-      const fileData = new Uint8Array(buffer);
-
-      // Import via IPC
-      const result = await window.api?.importFileFromData({
-        fileData,
-        filename: validFile.name
-      });
-
-      if (!result) {
-        console.error('Failed to import dropped file');
-        return;
-      }
-
       // Get the current vault
       const chatService = getChatService();
       const currentVault = await chatService.getCurrentVault();
@@ -527,77 +578,43 @@
         return;
       }
 
-      if (result.type === 'pdf') {
-        // Create PDF note with metadata
-        // Use extracted title as identifier - system will handle filename deduplication
-        const displayName = result.title || result.filename.replace(/\.pdf$/i, '');
+      // Process all valid dropped files
+      const createdNotes: NoteMetadata[] = [];
+      for (const file of validFiles) {
+        try {
+          // Read file data
+          const buffer = await file.arrayBuffer();
+          const fileData = new Uint8Array(buffer);
 
-        const createdNote = await chatService.createNote({
-          type: 'note',
-          kind: 'pdf',
-          identifier: displayName,
-          content: `# Notes on ${displayName}\n\n`,
-          vaultId: currentVault.id,
-          metadata: {
-            flint_pdfPath: result.path,
-            flint_pdfTitle: result.title || '',
-            flint_progress: 0,
-            flint_lastRead: new Date().toISOString()
+          // Import via IPC
+          const result = await window.api?.importFileFromData({
+            fileData,
+            filename: file.name
+          });
+
+          if (!result) {
+            console.error('Failed to import dropped file:', file.name);
+            continue;
           }
-        });
 
-        const noteMetadata: NoteMetadata = {
-          id: createdNote.id,
-          type: createdNote.type,
-          flint_kind: 'pdf',
-          title: createdNote.title,
-          filename: createdNote.filename,
-          path: createdNote.path,
-          created: createdNote.created,
-          modified: createdNote.created,
-          size: 0
-        };
+          const noteMetadata = await createNoteFromImportResult(result, currentVault);
+          createdNotes.push(noteMetadata);
+        } catch (fileError) {
+          console.error('Error importing dropped file:', file.name, fileError);
+          // Continue with other files
+        }
+      }
 
+      // Add all notes to temporary tabs, then open the first one
+      if (createdNotes.length > 0) {
+        // Add remaining notes to tabs first (the first one will be added by openNote)
+        for (let i = 1; i < createdNotes.length; i++) {
+          await workspacesStore.addTab(createdNotes[i].id, 'navigation');
+        }
+
+        // Open the first imported note (this also adds it to tabs)
         await noteNavigationService.openNote(
-          noteMetadata,
-          'navigation',
-          openNoteEditor,
-          () => {
-            activeSystemView = null;
-          }
-        );
-      } else if (result.type === 'epub') {
-        // Create EPUB note with metadata
-        const bookName = result.filename.replace(/\.epub$/i, '');
-        const identifier = bookName;
-
-        const createdNote = await chatService.createNote({
-          type: 'note',
-          kind: 'epub',
-          identifier,
-          content: `# Notes on ${bookName}\n\n`,
-          vaultId: currentVault.id,
-          metadata: {
-            flint_epubPath: result.path,
-            flint_progress: 0,
-            flint_lastRead: new Date().toISOString()
-          }
-        });
-
-        const noteMetadata: NoteMetadata = {
-          id: createdNote.id,
-          type: createdNote.type,
-          flint_kind: 'epub',
-          title: createdNote.title,
-          filename: createdNote.filename,
-          path: createdNote.path,
-          created: createdNote.created,
-          modified: createdNote.created,
-          size: 0
-        };
-
-        await noteNavigationService.openNote(
-          noteMetadata,
+          createdNotes[0],
           'navigation',
           openNoteEditor,
           () => {
@@ -606,7 +623,7 @@
         );
       }
     } catch (error) {
-      console.error('Error importing dropped file:', error);
+      console.error('Error importing dropped files:', error);
     } finally {
       // Reset flag after a short delay to handle any duplicate events
       setTimeout(() => {
@@ -764,10 +781,10 @@
 
   async function handleImportFile(): Promise<void> {
     try {
-      // Open file picker for PDF or EPUB
-      const result = await window.api?.importFile();
-      if (!result) {
-        // User cancelled the file picker
+      // Open file picker for PDF or EPUB (supports multiple selection)
+      const results = await window.api?.importFile();
+      if (!results || results.length === 0) {
+        // User cancelled the file picker or no files imported
         return;
       }
 
@@ -779,77 +796,32 @@
         return;
       }
 
-      if (result.type === 'pdf') {
-        // Create PDF note with metadata
-        // Use extracted title as identifier - system will handle filename deduplication
-        const displayName = result.title || result.filename.replace(/\.pdf$/i, '');
+      // Create notes for all imported files
+      const createdNotes: NoteMetadata[] = [];
+      for (const result of results) {
+        try {
+          const noteMetadata = await createNoteFromImportResult(result, currentVault);
+          createdNotes.push(noteMetadata);
+        } catch (noteError) {
+          console.error(
+            'Failed to create note for imported file:',
+            result.filename,
+            noteError
+          );
+          // Continue with other files
+        }
+      }
 
-        const createdNote = await chatService.createNote({
-          type: 'note',
-          kind: 'pdf',
-          identifier: displayName,
-          content: `# Notes on ${displayName}\n\n`,
-          vaultId: currentVault.id,
-          metadata: {
-            flint_pdfPath: result.path,
-            flint_pdfTitle: result.title || '',
-            flint_progress: 0,
-            flint_lastRead: new Date().toISOString()
-          }
-        });
+      // Add all notes to temporary tabs, then open the first one
+      if (createdNotes.length > 0) {
+        // Add remaining notes to tabs first (the first one will be added by openNote)
+        for (let i = 1; i < createdNotes.length; i++) {
+          await workspacesStore.addTab(createdNotes[i].id, 'navigation');
+        }
 
-        const noteMetadata: NoteMetadata = {
-          id: createdNote.id,
-          type: createdNote.type,
-          flint_kind: 'pdf',
-          title: createdNote.title,
-          filename: createdNote.filename,
-          path: createdNote.path,
-          created: createdNote.created,
-          modified: createdNote.created,
-          size: 0
-        };
-
+        // Open the first imported note (this also adds it to tabs)
         await noteNavigationService.openNote(
-          noteMetadata,
-          'navigation',
-          openNoteEditor,
-          () => {
-            activeSystemView = null;
-          }
-        );
-      } else if (result.type === 'epub') {
-        // Create EPUB note with metadata
-        const bookName = result.filename.replace(/\.epub$/i, '');
-        const identifier = bookName;
-
-        const createdNote = await chatService.createNote({
-          type: 'note',
-          kind: 'epub',
-          identifier,
-          content: `# Notes on ${bookName}\n\n`,
-          vaultId: currentVault.id,
-          metadata: {
-            flint_epubPath: result.path,
-            flint_progress: 0,
-            flint_lastRead: new Date().toISOString()
-          }
-        });
-
-        const noteMetadata: NoteMetadata = {
-          id: createdNote.id,
-          type: createdNote.type,
-          flint_kind: 'epub',
-          title: createdNote.title,
-          filename: createdNote.filename,
-          path: createdNote.path,
-          created: createdNote.created,
-          modified: createdNote.created,
-          size: 0
-        };
-
-        await noteNavigationService.openNote(
-          noteMetadata,
+          createdNotes[0],
           'navigation',
           openNoteEditor,
           () => {
@@ -858,7 +830,7 @@
         );
       }
     } catch (error) {
-      console.error('Failed to import file:', error);
+      console.error('Failed to import files:', error);
     }
   }
 

@@ -601,13 +601,13 @@ const api = {
   readPdfFile: (params: { relativePath: string }): Promise<Uint8Array> =>
     electronAPI.ipcRenderer.invoke('read-pdf-file', params),
 
-  // Combined file import (PDF/EPUB)
-  importFile: (): Promise<{
+  // Combined file import (PDF/EPUB) - supports multiple file selection
+  importFile: (): Promise<Array<{
     type: 'pdf' | 'epub';
     filename: string;
     path: string;
     title?: string;
-  } | null> => electronAPI.ipcRenderer.invoke('import-file'),
+  }> | null> => electronAPI.ipcRenderer.invoke('import-file'),
 
   // Import file from dropped data (PDF/EPUB)
   importFileFromData: (params: {

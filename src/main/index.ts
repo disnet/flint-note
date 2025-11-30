@@ -2977,7 +2977,82 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Combined file import (PDF/EPUB) - just shows dialog and copies file
+  // Helper function to import a single file from a source path
+  async function importSingleFile(
+    sourcePath: string,
+    vaultPath: string
+  ): Promise<{
+    type: 'pdf' | 'epub';
+    filename: string;
+    path: string;
+    title?: string;
+  }> {
+    const filename = basename(sourcePath);
+    const ext = filename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
+
+    // Determine destination directory
+    const subdir = ext === 'pdf' ? 'pdfs' : 'epubs';
+    const attachDir = join(vaultPath, 'attachments', subdir);
+    await fsPromises.mkdir(attachDir, { recursive: true });
+
+    // Handle filename collisions
+    let finalFilename = filename;
+    let finalPath = join(attachDir, filename);
+    let counter = 1;
+    const baseExt = ext === 'pdf' ? /\.pdf$/i : /\.epub$/i;
+    while (true) {
+      try {
+        await fsPromises.access(finalPath);
+        const baseName = filename.replace(baseExt, '');
+        finalFilename = `${baseName}-${counter}.${ext}`;
+        finalPath = join(attachDir, finalFilename);
+        counter++;
+      } catch {
+        break;
+      }
+    }
+
+    await fsPromises.copyFile(sourcePath, finalPath);
+
+    // Extract PDF title if applicable
+    let pdfTitle: string | undefined;
+    if (ext === 'pdf') {
+      try {
+        const pdfBuffer = await fsPromises.readFile(finalPath);
+        const pdfDoc = await pdfjs.getDocument({
+          data: new Uint8Array(pdfBuffer),
+          useSystemFonts: true
+        }).promise;
+        const metadata = await pdfDoc.getMetadata();
+        if (metadata.info) {
+          const info = metadata.info as Record<string, unknown>;
+          if (info.Title && typeof info.Title === 'string' && info.Title.trim()) {
+            pdfTitle = info.Title.trim();
+          }
+        }
+        await pdfDoc.destroy();
+      } catch (metaError) {
+        logger.warn('Failed to extract PDF metadata', {
+          error: metaError instanceof Error ? metaError.message : String(metaError)
+        });
+      }
+    }
+
+    logger.info('File imported', {
+      type: ext,
+      filename: finalFilename,
+      title: pdfTitle
+    });
+
+    return {
+      type: ext as 'pdf' | 'epub',
+      filename: finalFilename,
+      path: `attachments/${subdir}/${finalFilename}`,
+      title: pdfTitle
+    };
+  }
+
+  // Combined file import (PDF/EPUB) - shows dialog and copies files (supports multiple)
   ipcMain.handle('import-file', async () => {
     try {
       const result = await dialog.showOpenDialog({
@@ -2986,16 +3061,12 @@ app.whenReady().then(async () => {
           { name: 'PDF', extensions: ['pdf'] },
           { name: 'EPUB', extensions: ['epub'] }
         ],
-        properties: ['openFile']
+        properties: ['openFile', 'multiSelections']
       });
 
       if (result.canceled || result.filePaths.length === 0) {
         return null;
       }
-
-      const sourcePath = result.filePaths[0];
-      const filename = basename(sourcePath);
-      const ext = filename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
 
       if (!noteService) {
         throw new Error('Note service not available');
@@ -3005,68 +3076,31 @@ app.whenReady().then(async () => {
         throw new Error('No vault available');
       }
 
-      // Determine destination directory
-      const subdir = ext === 'pdf' ? 'pdfs' : 'epubs';
-      const attachDir = join(currentVault.path, 'attachments', subdir);
-      await fsPromises.mkdir(attachDir, { recursive: true });
+      // Process all selected files
+      const importResults: Array<{
+        type: 'pdf' | 'epub';
+        filename: string;
+        path: string;
+        title?: string;
+      }> = [];
 
-      // Handle filename collisions
-      let finalFilename = filename;
-      let finalPath = join(attachDir, filename);
-      let counter = 1;
-      const baseExt = ext === 'pdf' ? /\.pdf$/i : /\.epub$/i;
-      while (true) {
+      for (const sourcePath of result.filePaths) {
         try {
-          await fsPromises.access(finalPath);
-          const baseName = filename.replace(baseExt, '');
-          finalFilename = `${baseName}-${counter}.${ext}`;
-          finalPath = join(attachDir, finalFilename);
-          counter++;
-        } catch {
-          break;
+          const importResult = await importSingleFile(sourcePath, currentVault.path);
+          importResults.push(importResult);
+        } catch (fileError) {
+          logger.error('Failed to import file', { sourcePath, error: fileError });
+          // Continue with other files even if one fails
         }
       }
 
-      await fsPromises.copyFile(sourcePath, finalPath);
-
-      // Extract PDF title if applicable
-      let pdfTitle: string | undefined;
-      if (ext === 'pdf') {
-        try {
-          const pdfBuffer = await fsPromises.readFile(finalPath);
-          const pdfDoc = await pdfjs.getDocument({
-            data: new Uint8Array(pdfBuffer),
-            useSystemFonts: true
-          }).promise;
-          const metadata = await pdfDoc.getMetadata();
-          if (metadata.info) {
-            const info = metadata.info as Record<string, unknown>;
-            if (info.Title && typeof info.Title === 'string' && info.Title.trim()) {
-              pdfTitle = info.Title.trim();
-            }
-          }
-          await pdfDoc.destroy();
-        } catch (metaError) {
-          logger.warn('Failed to extract PDF metadata', {
-            error: metaError instanceof Error ? metaError.message : String(metaError)
-          });
-        }
+      if (importResults.length === 0) {
+        throw new Error('Failed to import any files');
       }
 
-      logger.info('File imported', {
-        type: ext,
-        filename: finalFilename,
-        title: pdfTitle
-      });
-
-      return {
-        type: ext,
-        filename: finalFilename,
-        path: `attachments/${subdir}/${finalFilename}`,
-        title: pdfTitle
-      };
+      return importResults;
     } catch (error) {
-      logger.error('Failed to import file', { error });
+      logger.error('Failed to import files', { error });
       throw error;
     }
   });
