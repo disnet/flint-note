@@ -1,6 +1,6 @@
 {
   "name": "flint",
-  "version": "0.12.0-canary.17",
+  "version": "0.12.0-canary.18",
   "description": "A note-taking app that helps you capture ideas, connect them together, and make them part of how you think",
   "main": "./out/main/index.js",
   "author": "Tim Disney",
