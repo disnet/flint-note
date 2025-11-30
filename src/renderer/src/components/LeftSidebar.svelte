@@ -24,6 +24,8 @@
       view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
     ) => void;
     onCreateNote?: (noteType?: string) => void;
+    onImportFile?: () => void;
+    onCaptureWebpage?: () => void;
   }
 
   let {
@@ -31,7 +33,9 @@
     onNoteSelect,
     onSystemViewSelect,
     activeSystemView,
-    onCreateNote
+    onCreateNote,
+    onImportFile,
+    onCaptureWebpage
   }: Props = $props();
 
   // Width state - track local width during resize
@@ -129,7 +133,7 @@
         </div>
       {/key}
     </div>
-    <WorkspaceBar {onCreateNote} {showShadow} />
+    <WorkspaceBar {onCreateNote} {showShadow} {onImportFile} {onCaptureWebpage} />
   </div>
 </div>
 

@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, Menu, dialog, nativeTheme } from 'e
 import { join, basename } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { promises as fsPromises } from 'fs';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
@@ -2920,8 +2921,6 @@ app.whenReady().then(async () => {
       // Try to extract PDF title from metadata
       let pdfTitle: string | undefined;
       try {
-        // Use legacy build for Node.js environment (no DOM APIs required)
-        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
         const pdfBuffer = await fsPromises.readFile(finalPath);
         const pdfDoc = await pdfjs.getDocument({
           data: new Uint8Array(pdfBuffer),
@@ -2934,7 +2933,6 @@ app.whenReady().then(async () => {
             pdfTitle = info.Title.trim();
           }
         }
-        // Clean up
         await pdfDoc.destroy();
       } catch (metaError) {
         logger.warn('Failed to extract PDF metadata', {
@@ -2978,6 +2976,191 @@ app.whenReady().then(async () => {
       throw error;
     }
   });
+
+  // Combined file import (PDF/EPUB) - just shows dialog and copies file
+  ipcMain.handle('import-file', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        filters: [
+          { name: 'Documents', extensions: ['pdf', 'epub'] },
+          { name: 'PDF', extensions: ['pdf'] },
+          { name: 'EPUB', extensions: ['epub'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      const sourcePath = result.filePaths[0];
+      const filename = basename(sourcePath);
+      const ext = filename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
+
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      // Determine destination directory
+      const subdir = ext === 'pdf' ? 'pdfs' : 'epubs';
+      const attachDir = join(currentVault.path, 'attachments', subdir);
+      await fsPromises.mkdir(attachDir, { recursive: true });
+
+      // Handle filename collisions
+      let finalFilename = filename;
+      let finalPath = join(attachDir, filename);
+      let counter = 1;
+      const baseExt = ext === 'pdf' ? /\.pdf$/i : /\.epub$/i;
+      while (true) {
+        try {
+          await fsPromises.access(finalPath);
+          const baseName = filename.replace(baseExt, '');
+          finalFilename = `${baseName}-${counter}.${ext}`;
+          finalPath = join(attachDir, finalFilename);
+          counter++;
+        } catch {
+          break;
+        }
+      }
+
+      await fsPromises.copyFile(sourcePath, finalPath);
+
+      // Extract PDF title if applicable
+      let pdfTitle: string | undefined;
+      if (ext === 'pdf') {
+        try {
+          const pdfBuffer = await fsPromises.readFile(finalPath);
+          const pdfDoc = await pdfjs.getDocument({
+            data: new Uint8Array(pdfBuffer),
+            useSystemFonts: true
+          }).promise;
+          const metadata = await pdfDoc.getMetadata();
+          if (metadata.info) {
+            const info = metadata.info as Record<string, unknown>;
+            if (info.Title && typeof info.Title === 'string' && info.Title.trim()) {
+              pdfTitle = info.Title.trim();
+            }
+          }
+          await pdfDoc.destroy();
+        } catch (metaError) {
+          logger.warn('Failed to extract PDF metadata', {
+            error: metaError instanceof Error ? metaError.message : String(metaError)
+          });
+        }
+      }
+
+      logger.info('File imported', {
+        type: ext,
+        filename: finalFilename,
+        title: pdfTitle
+      });
+
+      return {
+        type: ext,
+        filename: finalFilename,
+        path: `attachments/${subdir}/${finalFilename}`,
+        title: pdfTitle
+      };
+    } catch (error) {
+      logger.error('Failed to import file', { error });
+      throw error;
+    }
+  });
+
+  // Import file from dropped data (PDF/EPUB)
+  ipcMain.handle(
+    'import-file-from-data',
+    async (_event, params: { fileData: Uint8Array; filename: string }) => {
+      try {
+        const { fileData, filename } = params;
+        const ext = filename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
+
+        // Validate extension
+        if (
+          !filename.toLowerCase().endsWith('.pdf') &&
+          !filename.toLowerCase().endsWith('.epub')
+        ) {
+          throw new Error('Only PDF and EPUB files are supported');
+        }
+
+        if (!noteService) {
+          throw new Error('Note service not available');
+        }
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+
+        // Determine destination directory
+        const subdir = ext === 'pdf' ? 'pdfs' : 'epubs';
+        const attachDir = join(currentVault.path, 'attachments', subdir);
+        await fsPromises.mkdir(attachDir, { recursive: true });
+
+        // Handle filename collisions
+        let finalFilename = filename;
+        let finalPath = join(attachDir, filename);
+        let counter = 1;
+        const baseExt = ext === 'pdf' ? /\.pdf$/i : /\.epub$/i;
+        while (true) {
+          try {
+            await fsPromises.access(finalPath);
+            const baseName = filename.replace(baseExt, '');
+            finalFilename = `${baseName}-${counter}.${ext}`;
+            finalPath = join(attachDir, finalFilename);
+            counter++;
+          } catch {
+            break;
+          }
+        }
+
+        // Write the file
+        await fsPromises.writeFile(finalPath, Buffer.from(fileData));
+
+        // Extract PDF title if applicable
+        let pdfTitle: string | undefined;
+        if (ext === 'pdf') {
+          try {
+            const pdfDoc = await pdfjs.getDocument({
+              data: fileData,
+              useSystemFonts: true
+            }).promise;
+            const metadata = await pdfDoc.getMetadata();
+            if (metadata.info) {
+              const info = metadata.info as Record<string, unknown>;
+              if (info.Title && typeof info.Title === 'string' && info.Title.trim()) {
+                pdfTitle = info.Title.trim();
+              }
+            }
+            await pdfDoc.destroy();
+          } catch (metaError) {
+            logger.warn('Failed to extract PDF metadata from dropped file', {
+              error: metaError instanceof Error ? metaError.message : String(metaError)
+            });
+          }
+        }
+
+        logger.info('File imported from drop', {
+          type: ext,
+          filename: finalFilename,
+          title: pdfTitle
+        });
+
+        return {
+          type: ext,
+          filename: finalFilename,
+          path: `attachments/${subdir}/${finalFilename}`,
+          title: pdfTitle
+        };
+      } catch (error) {
+        logger.error('Failed to import dropped file', { error });
+        throw error;
+      }
+    }
+  );
 
   // Webpage operations
   ipcMain.handle('import-webpage', async (_event, params: { url: string }) => {

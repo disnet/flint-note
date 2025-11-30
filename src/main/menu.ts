@@ -1,5 +1,15 @@
 import { app, Menu, BrowserWindow, shell, nativeImage, ipcMain } from 'electron';
 
+/**
+ * IMPORTANT: Menu definitions should stay in sync with:
+ * - src/shared/menu-definitions.ts (shared source of truth for basic items)
+ * - src/renderer/src/components/HamburgerMenu.svelte (Windows/Linux custom menu)
+ *
+ * When adding/removing/modifying menu items, update all three locations.
+ * The shared definitions file contains the canonical list of menu items.
+ * This file has additional Electron-specific features (icons, dynamic states, etc.).
+ */
+
 const isMac = process.platform === 'darwin';
 
 // Track whether a note is currently active
@@ -134,19 +144,13 @@ export function createApplicationMenu(): Menu {
           }
         },
         {
-          label: 'Import EPUB...',
+          label: 'Import File... (PDF/EPUB)',
           click: (): void => {
-            sendToRenderer('menu-action', 'import-epub');
+            sendToRenderer('menu-action', 'import-file');
           }
         },
         {
-          label: 'Import PDF...',
-          click: (): void => {
-            sendToRenderer('menu-action', 'import-pdf');
-          }
-        },
-        {
-          label: 'Import Webpage...',
+          label: 'Capture Webpage...',
           click: (): void => {
             sendToRenderer('menu-action', 'import-webpage');
           }

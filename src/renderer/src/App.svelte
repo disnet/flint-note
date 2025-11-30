@@ -259,6 +259,9 @@
             await workspacesStore.switchWorkspace(args[0]);
           }
           break;
+        case 'import-file':
+          await handleImportFile();
+          break;
         case 'import-epub':
           await handleImportEpub();
           break;
@@ -338,6 +341,192 @@
 
   // Import webpage modal state
   let showImportWebpageModal = $state(false);
+
+  // Drag and drop state for PDF/EPUB files
+  let isDraggingFile = $state(false);
+  let dragTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function isValidDropFile(file: File): boolean {
+    const ext = file.name.toLowerCase();
+    return ext.endsWith('.pdf') || ext.endsWith('.epub');
+  }
+
+  function hasValidDropFiles(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer) return false;
+    // Check items for file types during dragover
+    if (dataTransfer.items) {
+      return Array.from(dataTransfer.items).some(
+        (item) =>
+          item.kind === 'file' &&
+          (item.type === 'application/pdf' || item.type === 'application/epub+zip')
+      );
+    }
+    // Fallback to files (available on drop)
+    if (dataTransfer.files) {
+      return Array.from(dataTransfer.files).some(isValidDropFile);
+    }
+    return false;
+  }
+
+  // Set up window-level drag/drop listeners with capture to work over iframes (EPUB viewer)
+  $effect(() => {
+    const handleWindowDragOver = (event: DragEvent): void => {
+      if (event.dataTransfer && hasValidDropFiles(event.dataTransfer)) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        isDraggingFile = true;
+
+        // Reset timeout on each dragover - if dragover stops firing, the drag ended
+        if (dragTimeout) {
+          clearTimeout(dragTimeout);
+        }
+        dragTimeout = setTimeout(() => {
+          isDraggingFile = false;
+          dragTimeout = null;
+        }, 100);
+      }
+    };
+
+    const handleWindowDrop = (event: DragEvent): void => {
+      if (!hasValidDropFiles(event.dataTransfer)) return;
+
+      event.preventDefault();
+      isDraggingFile = false;
+      if (dragTimeout) {
+        clearTimeout(dragTimeout);
+        dragTimeout = null;
+      }
+
+      // Process the drop
+      void processFileDrop(event);
+    };
+
+    // Use capture phase to catch events before they reach iframes
+    window.addEventListener('dragover', handleWindowDragOver, { capture: true });
+    window.addEventListener('drop', handleWindowDrop, { capture: true });
+
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver, { capture: true });
+      window.removeEventListener('drop', handleWindowDrop, { capture: true });
+      if (dragTimeout) {
+        clearTimeout(dragTimeout);
+      }
+    };
+  });
+
+  async function processFileDrop(event: DragEvent): Promise<void> {
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const validFile = Array.from(files).find(isValidDropFile);
+    if (!validFile) return;
+
+    try {
+      // Read file data
+      const buffer = await validFile.arrayBuffer();
+      const fileData = new Uint8Array(buffer);
+
+      // Import via IPC
+      const result = await window.api?.importFileFromData({
+        fileData,
+        filename: validFile.name
+      });
+
+      if (!result) {
+        console.error('Failed to import dropped file');
+        return;
+      }
+
+      // Get the current vault
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for file import');
+        return;
+      }
+
+      if (result.type === 'pdf') {
+        // Create PDF note with metadata
+        const docName = result.title || result.filename.replace(/\.pdf$/i, '');
+        const identifier = docName;
+
+        const createdNote = await chatService.createNote({
+          type: 'note',
+          kind: 'pdf',
+          identifier,
+          content: `# Notes on ${docName}\n\n`,
+          vaultId: currentVault.id,
+          metadata: {
+            flint_pdfPath: result.path,
+            flint_pdfTitle: result.title || '',
+            flint_progress: 0,
+            flint_lastRead: new Date().toISOString()
+          }
+        });
+
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          flint_kind: 'pdf',
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created,
+          size: 0
+        };
+
+        await noteNavigationService.openNote(
+          noteMetadata,
+          'navigation',
+          openNoteEditor,
+          () => {
+            activeSystemView = null;
+          }
+        );
+      } else if (result.type === 'epub') {
+        // Create EPUB note with metadata
+        const bookName = result.filename.replace(/\.epub$/i, '');
+        const identifier = bookName;
+
+        const createdNote = await chatService.createNote({
+          type: 'note',
+          kind: 'epub',
+          identifier,
+          content: `# Notes on ${bookName}\n\n`,
+          vaultId: currentVault.id,
+          metadata: {
+            flint_epubPath: result.path,
+            flint_progress: 0,
+            flint_lastRead: new Date().toISOString()
+          }
+        });
+
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          flint_kind: 'epub',
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created,
+          size: 0
+        };
+
+        await noteNavigationService.openNote(
+          noteMetadata,
+          'navigation',
+          openNoteEditor,
+          () => {
+            activeSystemView = null;
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error importing dropped file:', error);
+    }
+  }
 
   // Load app version for changelog
   $effect(() => {
@@ -484,6 +673,110 @@
     } catch (error) {
       console.error('Failed to import PDF:', error);
     }
+  }
+
+  async function handleImportFile(): Promise<void> {
+    try {
+      // Open file picker for PDF or EPUB
+      const result = await window.api?.importFile();
+      if (!result) {
+        // User cancelled the file picker
+        return;
+      }
+
+      // Get the current vault
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for file import');
+        return;
+      }
+
+      if (result.type === 'pdf') {
+        // Create PDF note with metadata
+        const docName = result.title || result.filename.replace(/\.pdf$/i, '');
+        const identifier = docName;
+
+        const createdNote = await chatService.createNote({
+          type: 'note',
+          kind: 'pdf',
+          identifier,
+          content: `# Notes on ${docName}\n\n`,
+          vaultId: currentVault.id,
+          metadata: {
+            flint_pdfPath: result.path,
+            flint_pdfTitle: result.title || '',
+            flint_progress: 0,
+            flint_lastRead: new Date().toISOString()
+          }
+        });
+
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          flint_kind: 'pdf',
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created,
+          size: 0
+        };
+
+        await noteNavigationService.openNote(
+          noteMetadata,
+          'navigation',
+          openNoteEditor,
+          () => {
+            activeSystemView = null;
+          }
+        );
+      } else if (result.type === 'epub') {
+        // Create EPUB note with metadata
+        const bookName = result.filename.replace(/\.epub$/i, '');
+        const identifier = bookName;
+
+        const createdNote = await chatService.createNote({
+          type: 'note',
+          kind: 'epub',
+          identifier,
+          content: `# Notes on ${bookName}\n\n`,
+          vaultId: currentVault.id,
+          metadata: {
+            flint_epubPath: result.path,
+            flint_progress: 0,
+            flint_lastRead: new Date().toISOString()
+          }
+        });
+
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          flint_kind: 'epub',
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created,
+          size: 0
+        };
+
+        await noteNavigationService.openNote(
+          noteMetadata,
+          'navigation',
+          openNoteEditor,
+          () => {
+            activeSystemView = null;
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Failed to import file:', error);
+    }
+  }
+
+  function handleCaptureWebpage(): void {
+    showImportWebpageModal = true;
   }
 
   async function handleImportWebpage(url: string): Promise<void> {
@@ -1282,6 +1575,60 @@
 {:else}
   <!-- Normal app interface when vaults are available -->
   <div class="app">
+    <!-- Drop overlay - captures all drag events when visible to prevent iframe interference -->
+    {#if isDraggingFile}
+      <div
+        class="drop-overlay"
+        role="region"
+        aria-label="Drop zone"
+        ondragover={(e) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+          // Reset timeout to keep overlay visible
+          if (dragTimeout) clearTimeout(dragTimeout);
+          dragTimeout = setTimeout(() => {
+            isDraggingFile = false;
+            dragTimeout = null;
+          }, 100);
+        }}
+        ondrop={(e) => {
+          e.preventDefault();
+          isDraggingFile = false;
+          if (dragTimeout) {
+            clearTimeout(dragTimeout);
+            dragTimeout = null;
+          }
+          void processFileDrop(e);
+        }}
+        ondragleave={(e) => {
+          // Only hide if leaving the window entirely
+          if (e.relatedTarget === null) {
+            isDraggingFile = false;
+            if (dragTimeout) {
+              clearTimeout(dragTimeout);
+              dragTimeout = null;
+            }
+          }
+        }}
+      >
+        <div class="drop-overlay-content">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <p>Drop PDF or EPUB to import</p>
+        </div>
+      </div>
+    {/if}
+
     <!-- Custom title bar with drag region -->
     <div class="title-bar">
       <div class="title-bar-content">
@@ -1449,6 +1796,8 @@
         onNoteSelect={handleNoteSelect}
         onSystemViewSelect={handleSystemViewSelect}
         onCreateNote={(noteType) => handleCreateNote(noteType)}
+        onImportFile={handleImportFile}
+        onCaptureWebpage={handleCaptureWebpage}
       />
 
       <MainView
@@ -1523,6 +1872,44 @@
   .app.loading-state {
     align-items: center;
     justify-content: center;
+  }
+
+  .drop-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(var(--accent-primary-rgb, 59, 130, 246), 0.15);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+  }
+
+  .drop-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem 3rem;
+    background: var(--bg-primary);
+    border: 2px dashed var(--accent-primary);
+    border-radius: 12px;
+    color: var(--accent-primary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .drop-overlay-content svg {
+    stroke: var(--accent-primary);
+  }
+
+  .drop-overlay-content p {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
   }
 
   .loading-content {

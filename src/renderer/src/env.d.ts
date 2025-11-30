@@ -680,6 +680,25 @@ declare global {
       importPdf: () => Promise<{ filename: string; path: string; title?: string } | null>;
       readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
+      // Combined file import (PDF/EPUB)
+      importFile: () => Promise<{
+        type: 'pdf' | 'epub';
+        filename: string;
+        path: string;
+        title?: string;
+      } | null>;
+
+      // Import file from dropped data (PDF/EPUB)
+      importFileFromData: (params: {
+        fileData: Uint8Array;
+        filename: string;
+      }) => Promise<{
+        type: 'pdf' | 'epub';
+        filename: string;
+        path: string;
+        title?: string;
+      }>;
+
       // Webpage operations
       importWebpage: (params: { url: string }) => Promise<{
         slug: string;

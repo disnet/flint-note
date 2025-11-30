@@ -1,5 +1,18 @@
 <script lang="ts">
-  // Discriminated union for menu items
+  import {
+    fileMenuItems,
+    editMenuItems,
+    viewMenuItems,
+    workspaceMenuItems,
+    noteMenuItems,
+    windowMenuItems,
+    helpMenuItems,
+    convertAccelerator,
+    getLabel,
+    type MenuItemDef
+  } from '../../../shared/menu-definitions';
+
+  // Local menu item type with resolved values
   type MenuItem =
     | {
         type?: undefined;
@@ -25,118 +38,56 @@
 
   let { open, onClose }: Props = $props();
 
-  // Menu definitions matching the Electron menu structure
+  // Convert shared menu definitions to local format for Windows/Linux
+  function convertMenuItems(items: MenuItemDef[]): MenuItem[] {
+    return items.map((item) => {
+      if (item.type === 'separator') {
+        return { type: 'separator' as const };
+      }
+      return {
+        label: getLabel(item, 'win'),
+        accelerator: item.accelerator
+          ? convertAccelerator(item.accelerator, 'win')
+          : undefined,
+        action: item.action,
+        role: item.role
+      };
+    });
+  }
+
+  // Build menus from shared definitions, adding platform-specific items
   const menus: MenuDefinition[] = [
     {
       label: 'File',
       items: [
-        { label: 'New Note', accelerator: 'Ctrl+Shift+N', action: 'new-note' },
-        { label: 'New Vault...', action: 'new-vault' },
-        { type: 'separator' },
-        { label: 'Switch Vault', accelerator: 'Ctrl+Shift+O', action: 'switch-vault' },
-        { type: 'separator' },
-        {
-          label: 'Show in Explorer',
-          accelerator: 'Ctrl+Shift+R',
-          action: 'show-in-finder'
-        },
+        ...convertMenuItems(fileMenuItems),
         { type: 'separator' },
         { label: 'Exit', role: 'quit' }
       ]
     },
     {
       label: 'Edit',
-      items: [
-        { label: 'Undo', accelerator: 'Ctrl+Z', role: 'undo' },
-        { label: 'Redo', accelerator: 'Ctrl+Y', role: 'redo' },
-        { type: 'separator' },
-        { label: 'Cut', accelerator: 'Ctrl+X', role: 'cut' },
-        { label: 'Copy', accelerator: 'Ctrl+C', role: 'copy' },
-        { label: 'Paste', accelerator: 'Ctrl+V', role: 'paste' },
-        { label: 'Delete', role: 'delete' },
-        { type: 'separator' },
-        { label: 'Select All', accelerator: 'Ctrl+A', role: 'selectAll' },
-        { type: 'separator' },
-        { label: 'Find', accelerator: 'Ctrl+O', action: 'find' }
-      ]
+      items: convertMenuItems(editMenuItems)
     },
     {
       label: 'View',
-      items: [
-        { label: 'Inbox', accelerator: 'Ctrl+1', action: 'navigate:inbox' },
-        { label: 'Daily', accelerator: 'Ctrl+2', action: 'navigate:daily' },
-        { label: 'Review', accelerator: 'Ctrl+3', action: 'navigate:review' },
-        { label: 'Routines', accelerator: 'Ctrl+4', action: 'navigate:routines' },
-        { label: 'Note Types', accelerator: 'Ctrl+5', action: 'navigate:note-types' },
-        { label: 'Settings', accelerator: 'Ctrl+6', action: 'navigate:settings' },
-        { type: 'separator' },
-        { label: 'Toggle Sidebar', accelerator: 'Ctrl+B', action: 'toggle-sidebar' },
-        { label: 'Focus Title', accelerator: 'Ctrl+E', action: 'focus-title' },
-        {
-          label: 'Toggle Preview/Edit',
-          accelerator: 'Ctrl+Shift+E',
-          action: 'toggle-preview'
-        },
-        { label: 'Toggle Metadata', accelerator: 'Ctrl+M', action: 'toggle-metadata' },
-        { type: 'separator' },
-        {
-          label: 'Toggle Agent Panel',
-          accelerator: 'Ctrl+Shift+A',
-          action: 'toggle-agent'
-        },
-        {
-          label: 'Toggle Notes Shelf',
-          accelerator: 'Ctrl+Shift+L',
-          action: 'toggle-shelf'
-        },
-        { type: 'separator' },
-        { label: 'Actual Size', accelerator: 'Ctrl+0', role: 'resetZoom' },
-        { label: 'Zoom In', accelerator: 'Ctrl++', role: 'zoomIn' },
-        { label: 'Zoom Out', accelerator: 'Ctrl+-', role: 'zoomOut' },
-        { type: 'separator' },
-        { label: 'Toggle Full Screen', accelerator: 'F11', role: 'togglefullscreen' }
-      ]
+      items: convertMenuItems(viewMenuItems)
     },
     {
       label: 'Workspace',
-      items: [
-        { label: 'New Workspace...', action: 'new-workspace' },
-        { label: 'Edit Current Workspace...', action: 'edit-workspace' },
-        { label: 'Delete Current Workspace', action: 'delete-workspace' }
-      ]
+      items: convertMenuItems(workspaceMenuItems)
     },
     {
       label: 'Note',
-      items: [
-        { label: 'Pin/Unpin Note', accelerator: 'Ctrl+Shift+P', action: 'toggle-pin' },
-        { label: 'Add to Shelf', action: 'add-to-shelf' },
-        { label: 'Change Type', accelerator: 'Ctrl+Shift+M', action: 'change-type' },
-        { type: 'separator' },
-        { label: 'Enable/Disable Review', action: 'toggle-review' },
-        { label: 'Generate Suggestions', action: 'generate-suggestions' },
-        { type: 'separator' },
-        { label: 'Archive', action: 'archive-note' }
-      ]
+      items: convertMenuItems(noteMenuItems)
     },
     {
       label: 'Window',
-      items: [
-        { label: 'Minimize', role: 'minimize' },
-        { label: 'Zoom', role: 'zoom' },
-        { type: 'separator' },
-        { label: 'Close', role: 'close' }
-      ]
+      items: convertMenuItems(windowMenuItems)
     },
     {
       label: 'Help',
-      items: [
-        { label: 'Documentation', action: 'open-docs' },
-        { label: "What's New", action: 'show-changelog' },
-        { type: 'separator' },
-        { label: 'Check for Updates...', action: 'check-updates' },
-        { type: 'separator' },
-        { label: 'About', action: 'show-about' }
-      ]
+      items: convertMenuItems(helpMenuItems)
     }
   ];
 

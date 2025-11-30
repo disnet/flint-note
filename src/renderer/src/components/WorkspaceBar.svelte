@@ -6,9 +6,16 @@
   interface Props {
     onCreateNote?: (noteType?: string) => void;
     showShadow?: boolean;
+    onImportFile?: () => void;
+    onCaptureWebpage?: () => void;
   }
 
-  let { onCreateNote, showShadow = false }: Props = $props();
+  let {
+    onCreateNote,
+    showShadow = false,
+    onImportFile,
+    onCaptureWebpage
+  }: Props = $props();
 
   let isPopoverOpen = $state(false);
   let editingWorkspaceId = $state<string | null>(null);
@@ -277,7 +284,13 @@
   </div>
 
   {#if isPopoverOpen}
-    <WorkspacePopover {onCreateNote} onClose={closePopover} {editingWorkspaceId} />
+    <WorkspacePopover
+      {onCreateNote}
+      onClose={closePopover}
+      {editingWorkspaceId}
+      {onImportFile}
+      {onCaptureWebpage}
+    />
   {/if}
 
   {#if contextMenuOpen}

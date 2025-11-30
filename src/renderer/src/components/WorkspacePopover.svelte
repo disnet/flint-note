@@ -7,9 +7,17 @@
     onCreateNote?: (noteType?: string) => void;
     onClose: () => void;
     editingWorkspaceId?: string | null;
+    onImportFile?: () => void;
+    onCaptureWebpage?: () => void;
   }
 
-  let { onCreateNote, onClose, editingWorkspaceId = null }: Props = $props();
+  let {
+    onCreateNote,
+    onClose,
+    editingWorkspaceId = null,
+    onImportFile,
+    onCaptureWebpage
+  }: Props = $props();
 
   // State
   let isTypeDropdownOpen = $state(false);
@@ -287,23 +295,7 @@
   {:else}
     <!-- Main popover menu -->
     <div class="popover-section">
-      <button class="action-button" onclick={(e) => startCreatingWorkspace(e)}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-          <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-        </svg>
-        New Workspace
-      </button>
-
+      <!-- New Note -->
       <div class="create-note-button-group">
         <button
           class="action-button main-button"
@@ -406,6 +398,76 @@
           {/if}
         </div>
       {/if}
+
+      <!-- New Workspace -->
+      <button class="action-button" onclick={(e) => startCreatingWorkspace(e)}>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+        </svg>
+        New Workspace
+      </button>
+
+      <!-- Separator -->
+      <div class="menu-separator"></div>
+
+      <!-- Import File (PDF/EPUB) -->
+      <button
+        class="action-button"
+        onclick={() => {
+          onImportFile?.();
+          onClose();
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        Import File
+        <span class="menu-hint">PDF, EPUB</span>
+      </button>
+
+      <!-- Capture Webpage -->
+      <button
+        class="action-button"
+        onclick={() => {
+          onCaptureWebpage?.();
+          onClose();
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path
+            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+          ></path>
+        </svg>
+        Capture Webpage
+      </button>
     </div>
   {/if}
 </div>
@@ -741,5 +803,18 @@
   .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .menu-separator {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.25rem 0;
+  }
+
+  .menu-hint {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
   }
 </style>
