@@ -59,7 +59,7 @@ export const editMenuItems: MenuItemDef[] = [
   { type: 'separator' },
   { label: 'Select All', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
   { type: 'separator' },
-  { label: 'Find', accelerator: 'CmdOrCtrl+O', action: 'find' }
+  { label: 'Find', accelerator: 'CmdOrCtrl+K', action: 'find' }
 ];
 
 /**

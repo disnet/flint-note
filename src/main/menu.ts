@@ -206,7 +206,7 @@ export function createApplicationMenu(): Menu {
         { type: 'separator' },
         {
           label: 'Find',
-          accelerator: 'CmdOrCtrl+O',
+          accelerator: 'CmdOrCtrl+K',
           click: (): void => {
             sendToRenderer('menu-action', 'find');
           }

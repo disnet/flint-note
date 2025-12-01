@@ -2,7 +2,7 @@
   import LeftSidebar from './components/LeftSidebar.svelte';
   import MainView from './components/MainView.svelte';
   import RightSidebar from './components/RightSidebar.svelte';
-  import SearchBar from './components/SearchBar.svelte';
+  import ActionBar from './components/ActionBar.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import UpdateIndicator from './components/UpdateIndicator.svelte';
@@ -143,9 +143,9 @@
           }
           break;
         case 'find': {
-          // Focus the search bar
-          const searchInput = document.getElementById('global-search');
-          searchInput?.focus();
+          // Focus the action bar
+          const actionBarInput = document.getElementById('action-bar-input');
+          actionBarInput?.focus();
           break;
         }
         case 'toggle-sidebar':
@@ -1807,9 +1807,10 @@
               </svg>
             </button>
           </div>
-          <SearchBar onNoteSelect={handleNoteSelect} />
         </div>
-        <div class="title-bar-drag-center"></div>
+        <div class="title-bar-center">
+          <ActionBar onNoteSelect={handleNoteSelect} />
+        </div>
         <div class="title-bar-controls">
           <UpdateIndicator />
           <div class="pillbox-controls">
@@ -2133,10 +2134,19 @@
     margin-left: 0.5rem;
   }
 
-  .title-bar-drag-center {
+  .title-bar-center {
     flex: 1;
     height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     -webkit-app-region: drag;
+    padding: 0 1rem;
+  }
+
+  /* Allow interaction with ActionBar */
+  .title-bar-center :global(.action-bar-container) {
+    -webkit-app-region: no-drag;
   }
 
   .navigation-controls {
