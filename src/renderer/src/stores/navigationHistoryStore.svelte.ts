@@ -70,6 +70,29 @@ class NavigationHistoryStore {
   }
 
   /**
+   * Get recently opened notes (unique, most recent first)
+   */
+  getRecentNotes(limit: number = 5): NavigationEntry[] {
+    const seen = new Set<string>();
+    const recent: NavigationEntry[] = [];
+
+    // Iterate from most recent to oldest
+    for (
+      let i = this.state.customHistory.length - 1;
+      i >= 0 && recent.length < limit;
+      i--
+    ) {
+      const entry = this.state.customHistory[i];
+      if (!seen.has(entry.noteId)) {
+        seen.add(entry.noteId);
+        recent.push(entry);
+      }
+    }
+
+    return recent;
+  }
+
+  /**
    * Add a new navigation entry
    */
   async addEntry(

@@ -2,6 +2,7 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { searchActions, type Action } from '../services/actionRegistry.svelte';
+  import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
 
   interface SearchResult {
     id: string;
@@ -10,6 +11,31 @@
     type?: string;
     filename?: string;
   }
+
+  // Mode switcher items for keyboard navigation
+  interface ModeSwitcher {
+    id: string;
+    itemType: 'mode-switcher';
+    targetMode: '/' | '@';
+    label: string;
+  }
+
+  type SelectableItem = SearchResult | Action | ModeSwitcher;
+
+  const modeSwitchers: ModeSwitcher[] = [
+    {
+      id: 'mode-actions',
+      itemType: 'mode-switcher',
+      targetMode: '/',
+      label: 'Search Actions & Commands'
+    },
+    {
+      id: 'mode-agent',
+      itemType: 'mode-switcher',
+      targetMode: '@',
+      label: 'Chat with Agent'
+    }
+  ];
 
   interface ActionBarProps {
     onNoteSelect?: (note: NoteMetadata) => void;
@@ -67,6 +93,32 @@
   const filteredActions = $derived.by(() => {
     if (mode !== 'actions') return [];
     return searchActions(query.trim());
+  });
+
+  // Recent notes for empty search state (based on recently opened, not modified)
+  const recentNotes = $derived.by(() => {
+    const allNotes = notesStore.notes;
+    if (allNotes.length === 0) return [];
+
+    // Get recently opened notes from navigation history
+    const recentEntries = navigationHistoryStore.getRecentNotes(5);
+
+    // Map to SearchResult format, looking up full metadata from notesStore
+    const results: SearchResult[] = [];
+    for (const entry of recentEntries) {
+      const note = allNotes.find((n) => n.id === entry.noteId);
+      if (note) {
+        results.push({
+          id: note.id,
+          title: note.title || 'Untitled',
+          snippet: '',
+          type: note.type,
+          filename: note.filename
+        });
+      }
+    }
+
+    return results;
   });
 
   // Quick client-side title filter (for search mode, used as fallback while FTS loads)
@@ -182,17 +234,44 @@
     }, 200);
   });
 
-  // Get current items based on mode
-  const currentItems = $derived.by(() => {
-    if (mode === 'actions') return filteredActions;
-    if (mode === 'search') return searchResults;
+  // Whether we're showing empty state (no query entered)
+  const isEmptyState = $derived(query.trim().length === 0);
+
+  // Get all selectable items based on mode (includes mode switchers in empty search state)
+  const allSelectableItems = $derived.by((): SelectableItem[] => {
+    if (mode === 'actions') {
+      // Show all actions when empty, filtered when searching
+      return isEmptyState ? searchActions('') : filteredActions;
+    }
+    if (mode === 'search') {
+      if (isEmptyState) {
+        // In empty state: mode switchers + recent notes
+        return [...modeSwitchers, ...recentNotes];
+      }
+      return searchResults;
+    }
     return []; // agent mode - no items yet
   });
 
-  // Auto-select first result when results change
+  // Helper to check if an item is a mode switcher
+  function isModeSwitcher(item: SelectableItem): item is ModeSwitcher {
+    return 'itemType' in item && item.itemType === 'mode-switcher';
+  }
+
+  // Index where recent notes start (after mode switchers)
+  const recentNotesStartIndex = $derived(
+    mode === 'search' && isEmptyState ? modeSwitchers.length : 0
+  );
+
+  // Auto-select first recent note when in empty state, otherwise first item
   $effect(() => {
-    if (currentItems.length > 0) {
-      selectedIndex = 0;
+    if (allSelectableItems.length > 0) {
+      // In empty search state, start selection at first recent note (if any)
+      if (mode === 'search' && isEmptyState && recentNotes.length > 0) {
+        selectedIndex = recentNotesStartIndex;
+      } else {
+        selectedIndex = 0;
+      }
     } else {
       selectedIndex = -1;
     }
@@ -200,6 +279,14 @@
 
   function handleInputFocus(): void {
     isInputFocused = true;
+    // Reset selection to appropriate starting position
+    if (mode === 'search' && isEmptyState && recentNotes.length > 0) {
+      selectedIndex = recentNotesStartIndex;
+    } else if (allSelectableItems.length > 0) {
+      selectedIndex = 0;
+    } else {
+      selectedIndex = -1;
+    }
   }
 
   function handleInputBlur(): void {
@@ -209,7 +296,7 @@
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
-    const items = currentItems;
+    const items = allSelectableItems;
 
     if (
       event.key === 'ArrowDown' ||
@@ -226,10 +313,14 @@
     } else if (event.key === 'Enter') {
       event.preventDefault();
       if (selectedIndex >= 0 && items[selectedIndex]) {
-        if (mode === 'actions') {
-          executeAction(items[selectedIndex] as Action);
+        const item = items[selectedIndex];
+        if (isModeSwitcher(item)) {
+          // Switch to the target mode
+          inputValue = item.targetMode;
+        } else if (mode === 'actions') {
+          executeAction(item as Action);
         } else if (mode === 'search') {
-          selectResult(items[selectedIndex] as SearchResult);
+          selectResult(item as SearchResult);
         }
       }
     } else if (event.key === 'Escape') {
@@ -239,19 +330,24 @@
     }
   }
 
+  function blurInput(): void {
+    const input = document.getElementById('action-bar-input');
+    input?.blur();
+  }
+
   function selectResult(result: SearchResult): void {
     // Find the full note metadata to pass to onNoteSelect
     const note = notesStore.notes.find((n) => n.id === result.id);
     if (note) {
       clearInput();
-      isInputFocused = false;
+      blurInput();
       onNoteSelect?.(note);
     }
   }
 
   function executeAction(action: Action): void {
     clearInput();
-    isInputFocused = false;
+    blurInput();
     // Execute the action
     action.execute();
     // Also notify parent if needed
@@ -273,7 +369,7 @@
   }
 </script>
 
-<div class="action-bar-container">
+<div class="action-bar-container" class:dropdown-open={isInputFocused}>
   <div class="action-bar-input-wrapper">
     <!-- Icon changes based on mode -->
     {#if mode === 'actions'}
@@ -330,11 +426,59 @@
     {/if}
   </div>
 
-  {#if isInputFocused && inputValue.trim().length > 0}
+  {#if isInputFocused}
     <div class="action-bar-dropdown">
       <!-- Search mode -->
       {#if mode === 'search'}
-        {#if searchResults.length > 0}
+        {#if isEmptyState}
+          <!-- Empty state: mode switchers and recent notes -->
+          <div class="mode-switchers">
+            <button
+              class="mode-switch-item"
+              class:selected={selectedIndex === 0}
+              onclick={() => {
+                inputValue = '/';
+              }}
+            >
+              <span class="mode-switch-label">Search Actions & Commands</span>
+              <span class="mode-switch-key">/</span>
+            </button>
+            <button
+              class="mode-switch-item"
+              class:selected={selectedIndex === 1}
+              onclick={() => {
+                inputValue = '@';
+              }}
+            >
+              <span class="mode-switch-label">Chat with Agent</span>
+              <span class="mode-switch-key">@</span>
+            </button>
+          </div>
+          {#if recentNotes.length > 0}
+            <div class="section-header">Recent Notes</div>
+            <div class="search-results">
+              {#each recentNotes as result, index (result.id)}
+                <button
+                  class="search-result-item"
+                  class:selected={index + recentNotesStartIndex === selectedIndex}
+                  onclick={() => selectResult(result)}
+                >
+                  <div class="result-title">
+                    {result.title || 'Untitled'}
+                  </div>
+                  <div class="result-meta">
+                    {#if result.filename}
+                      <span class="result-path">{result.filename}</span>
+                    {/if}
+                    {#if result.type}
+                      <span class="result-type">{result.type}</span>
+                    {/if}
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        {:else if searchResults.length > 0}
           <div class="search-results">
             {#each searchResults as result, index (result.id)}
               <button
@@ -374,9 +518,13 @@
 
         <!-- Actions mode -->
       {:else if mode === 'actions'}
-        {#if filteredActions.length > 0}
+        {#if isEmptyState}
+          <div class="section-header">All Actions</div>
+        {/if}
+        {#if allSelectableItems.length > 0}
           <div class="action-results">
-            {#each filteredActions as action, index (action.id)}
+            {#each allSelectableItems as item, index (item.id)}
+              {@const action = item as Action}
               <button
                 class="action-item"
                 class:selected={index === selectedIndex}
@@ -408,59 +556,6 @@
           <div class="agent-hint">Type your question and press Enter</div>
         </div>
       {/if}
-
-      <!-- Mode toggle footer -->
-      <div class="mode-toggle-footer">
-        <button
-          class="mode-toggle-btn"
-          class:active={mode === 'search'}
-          onclick={() => {
-            inputValue = '';
-          }}
-          title="Search notes"
-        >
-          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fill-rule="evenodd"
-              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span>Search</span>
-        </button>
-        <button
-          class="mode-toggle-btn"
-          class:active={mode === 'actions'}
-          onclick={() => {
-            inputValue = '/';
-          }}
-          title="Actions"
-        >
-          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fill-rule="evenodd"
-              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span>/</span>
-        </button>
-        <button
-          class="mode-toggle-btn"
-          class:active={mode === 'agent'}
-          onclick={() => {
-            inputValue = '@';
-          }}
-          title="Agent"
-        >
-          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
-            />
-          </svg>
-          <span>@</span>
-        </button>
-      </div>
     </div>
   {/if}
 </div>
@@ -471,6 +566,14 @@
     width: 100%;
     max-width: 500px;
     min-width: 200px;
+  }
+
+  /* Unified container styling when dropdown is open */
+  .action-bar-container.dropdown-open {
+    border-radius: 0.5rem;
+    box-shadow:
+      0 10px 25px rgba(0, 0, 0, 0.2),
+      0 4px 10px rgba(0, 0, 0, 0.1);
   }
 
   .action-bar-input-wrapper {
@@ -497,7 +600,6 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.875rem;
-    transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     height: 32px;
   }
@@ -505,9 +607,18 @@
   .action-bar-input:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow:
-      0 0 0 2px rgba(99, 102, 241, 0.2),
-      0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* When dropdown is open, connect input to dropdown */
+  .dropdown-open .action-bar-input {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+    box-shadow: none;
+  }
+
+  .dropdown-open .action-bar-input:focus {
+    box-shadow: none;
   }
 
   .action-bar-input::placeholder {
@@ -563,13 +674,15 @@
     left: 0;
     right: 0;
     background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    box-shadow:
-      0 10px 25px rgba(0, 0, 0, 0.2),
-      0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--accent-primary);
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    box-shadow: none;
     z-index: 1001;
-    margin-top: 0.25rem;
+    margin-top: 0;
     overflow: hidden;
   }
 
@@ -676,6 +789,60 @@
     text-align: center;
     color: var(--text-tertiary);
     font-size: 0.875rem;
+  }
+
+  /* Mode switchers for empty state */
+  .mode-switchers {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .mode-switch-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .mode-switch-item:last-child {
+    border-bottom: none;
+  }
+
+  .mode-switch-item:hover,
+  .mode-switch-item.selected {
+    background: var(--bg-secondary);
+  }
+
+  .mode-switch-label {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+  }
+
+  .mode-switch-key {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    background: var(--accent-secondary-alpha);
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    font-family: var(--font-mono, monospace);
+  }
+
+  .section-header {
+    padding: 0.5rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
   }
 
   /* Actions mode styles */
