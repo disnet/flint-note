@@ -4,6 +4,12 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.1]
+
+### Fixed
+
+- Fixed issue with long title wrapping
+
 ## [0.12.0]
 
 ### Added
