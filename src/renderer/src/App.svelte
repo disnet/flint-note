@@ -1770,6 +1770,18 @@
     }
   }
 
+  // Handle opening agent panel from ActionBar
+  async function handleOpenAgentPanel(): Promise<void> {
+    // Open the right sidebar in AI mode
+    if (!sidebarState.rightSidebar.visible) {
+      await sidebarState.toggleRightSidebar();
+    }
+    if (sidebarState.rightSidebar.mode !== 'ai') {
+      await sidebarState.setRightSidebarMode('ai');
+    }
+    // The thread is already active in unifiedChatStore, so the Agent component will display it
+  }
+
   // Window control functions
   function minimizeWindow(): void {
     window.electron?.ipcRenderer.send('window-minimize');
@@ -1986,7 +1998,10 @@
           </div>
         </div>
         <div class="title-bar-center">
-          <ActionBar onNoteSelect={handleNoteSelect} />
+          <ActionBar
+            onNoteSelect={handleNoteSelect}
+            onOpenAgentPanel={handleOpenAgentPanel}
+          />
         </div>
         <div class="title-bar-controls">
           <UpdateIndicator />

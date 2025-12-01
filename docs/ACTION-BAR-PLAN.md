@@ -73,25 +73,53 @@ The Action Bar is a unified command interface that replaces the previous search 
 | `src/shared/menu-definitions.ts`                           | Modified | Changed Find shortcut to Cmd+K            |
 | `src/main/menu.ts`                                         | Modified | Changed Find accelerator to Cmd+K         |
 
+#### Phase 5: Agent Mode Integration (Complete)
+
+| File                                           | Status   | Description                                                               |
+| ---------------------------------------------- | -------- | ------------------------------------------------------------------------- |
+| `src/renderer/src/components/ActionBar.svelte` | Modified | Inline streaming, thread reuse for follow-ups, Open in Agent panel button |
+| `src/renderer/src/App.svelte`                  | Modified | Added `handleOpenAgentPanel` to open sidebar with active thread           |
+
+**How it works:**
+
+1. User types `@` in ActionBar to enter agent mode
+2. User types their question and presses Enter
+3. User message is added to local conversation state (not synced to Agent panel yet)
+4. Message is sent via streaming API with a local conversation ID
+5. Response streams inline in the ActionBar dropdown (full scrollable history)
+6. User can type follow-up messages that continue in the same conversation
+7. When user presses `Cmd+Enter`, conversation is pushed to `unifiedChatStore` and Agent panel opens
+8. Conversation stays completely local until explicitly opened in Agent panel
+
+**Keyboard shortcuts in agent mode:**
+
+- `Enter` - Send message to agent (shows response inline, allows follow-ups)
+- `Cmd/Ctrl+Enter` - Push conversation to Agent panel and open it (closes action bar)
+- `Tab` - Same as Cmd+Enter
+- `Escape` - Close and reset conversation (discards local conversation)
+
 ## Next Steps
 
-### Phase 5: Agent Mode Implementation
+### Phase 5: Agent Mode Implementation (Completed)
 
-The agent mode currently shows a placeholder. Full implementation requires:
+Agent mode has been fully implemented with inline streaming responses and thread management.
 
-#### 5.1 Basic Agent Integration
+#### 5.1 Basic Agent Integration (Completed)
 
-- [ ] Connect to existing AI service (`src/main/ai-service.ts`)
-- [ ] Create agent conversation state management
-- [ ] Handle Enter key to submit agent queries
-- [ ] Display agent responses in the dropdown
+- [x] Connect to existing AI service (`src/main/ai-service.ts`)
+- [x] Create agent conversation state management (uses `unifiedChatStore`)
+- [x] Handle Enter key to submit agent queries
+- [x] Create and persist threads for each conversation
 
-#### 5.2 Agent UI
+#### 5.2 Agent UI (Completed)
 
-- [ ] Streaming response display
-- [ ] Message history within session
-- [ ] Loading/thinking indicator
-- [ ] Error handling and display
+- [x] Inline streaming response display in ActionBar dropdown
+- [x] User message display with "You" label
+- [x] Agent response display with streaming text
+- [x] Loading indicator with animated dots
+- [x] Error state display
+- [x] Follow-up messages in same thread (reuses existing thread)
+- [x] "Open in Agent panel" button with keyboard shortcuts (Cmd+Enter, Tab)
 
 #### 5.3 Agent Capabilities
 

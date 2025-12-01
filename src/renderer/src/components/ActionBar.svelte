@@ -3,6 +3,9 @@
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { searchActions, type Action } from '../services/actionRegistry.svelte';
   import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+  import { getChatService } from '../services/chatService';
+  import type { Message } from '../services/types';
 
   interface SearchResult {
     id: string;
@@ -40,9 +43,10 @@
   interface ActionBarProps {
     onNoteSelect?: (note: NoteMetadata) => void;
     onExecuteAction?: (actionId: string) => void;
+    onOpenAgentPanel?: () => void;
   }
 
-  let { onNoteSelect, onExecuteAction }: ActionBarProps = $props();
+  let { onNoteSelect, onExecuteAction, onOpenAgentPanel }: ActionBarProps = $props();
 
   // Mode: 'search' (default), 'actions' (/ prefix), 'agent' (@ prefix)
   type Mode = 'search' | 'actions' | 'agent';
@@ -50,6 +54,18 @@
   let inputValue = $state('');
   let isInputFocused = $state(false);
   let selectedIndex = $state(-1);
+
+  // Agent mode state - local conversation (not synced to agent panel until user opens it)
+  interface LocalMessage {
+    id: string;
+    text: string;
+    sender: 'user' | 'agent';
+  }
+  let agentMessages = $state<LocalMessage[]>([]);
+  let agentStreamingText = $state('');
+  let agentIsLoading = $state(false);
+  let agentError = $state<string | null>(null);
+  let agentConversationId = $state<string | null>(null); // For backend conversation context
 
   // Derive mode from input prefix
   const mode = $derived.by((): Mode => {
@@ -292,6 +308,10 @@
   function handleInputBlur(): void {
     setTimeout(() => {
       isInputFocused = false;
+      // Reset agent state when losing focus (unless continuing to agent panel)
+      if (!agentIsLoading) {
+        resetAgentState();
+      }
     }, 200);
   }
 
@@ -312,7 +332,21 @@
       selectedIndex = Math.max(selectedIndex - 1, 0);
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (selectedIndex >= 0 && items[selectedIndex]) {
+      // Handle agent mode - submit the query or open agent panel
+      if (mode === 'agent') {
+        // Cmd/Ctrl+Enter: open agent panel if we have messages
+        if ((event.metaKey || event.ctrlKey) && agentMessages.length > 0) {
+          handleOpenInAgentPanel();
+        } else {
+          // Regular Enter: send the query
+          const agentQuery = query.trim();
+          if (agentQuery && !agentIsLoading) {
+            // Clear the input but keep dropdown open for follow-up
+            inputValue = '@';
+            sendAgentMessage(agentQuery);
+          }
+        }
+      } else if (selectedIndex >= 0 && items[selectedIndex]) {
         const item = items[selectedIndex];
         if (isModeSwitcher(item)) {
           // Switch to the target mode
@@ -323,9 +357,14 @@
           selectResult(item as SearchResult);
         }
       }
+    } else if (event.key === 'Tab' && mode === 'agent' && agentMessages.length > 0) {
+      // Tab in agent mode: open agent panel
+      event.preventDefault();
+      handleOpenInAgentPanel();
     } else if (event.key === 'Escape') {
       event.preventDefault();
       clearInput();
+      resetAgentState();
       (event.target as HTMLInputElement).blur();
     }
   }
@@ -361,8 +400,109 @@
     ftsResultsQuery = '';
   }
 
+  function resetAgentState(): void {
+    agentMessages = [];
+    agentStreamingText = '';
+    agentIsLoading = false;
+    agentError = null;
+    agentConversationId = null;
+  }
+
+  async function sendAgentMessage(message: string): Promise<void> {
+    if (agentIsLoading) return;
+
+    // Add user message to local conversation
+    const userMsg: LocalMessage = {
+      id: `msg-${Date.now()}`,
+      text: message,
+      sender: 'user'
+    };
+    agentMessages = [...agentMessages, userMsg];
+
+    // Reset streaming state
+    agentStreamingText = '';
+    agentError = null;
+    agentIsLoading = true;
+
+    try {
+      // Create a conversation ID for backend context if we don't have one
+      if (!agentConversationId) {
+        agentConversationId = `actionbar-${Date.now()}`;
+      }
+
+      // Get the chat service and send the message with streaming
+      const chatService = getChatService();
+      if (!chatService.sendMessageStream) {
+        throw new Error('Streaming not supported');
+      }
+
+      chatService.sendMessageStream(
+        message,
+        agentConversationId,
+        (chunk: string) => {
+          // Handle streaming chunk
+          agentStreamingText += chunk;
+        },
+        (fullText: string) => {
+          // Handle stream complete - add to local messages
+          agentIsLoading = false;
+          agentStreamingText = '';
+
+          const agentMsg: LocalMessage = {
+            id: `msg-${Date.now()}`,
+            text: fullText,
+            sender: 'agent'
+          };
+          agentMessages = [...agentMessages, agentMsg];
+        },
+        (error: string) => {
+          // Handle error
+          agentIsLoading = false;
+          agentError = error;
+        }
+      );
+    } catch (error) {
+      agentIsLoading = false;
+      agentError = error instanceof Error ? error.message : 'Failed to send message';
+    }
+  }
+
+  async function handleOpenInAgentPanel(): Promise<void> {
+    if (agentMessages.length === 0) return;
+
+    try {
+      // Ensure the chat store is initialized
+      await unifiedChatStore.ensureInitialized();
+
+      // Create a new thread and add all messages
+      await unifiedChatStore.createThread();
+
+      // Add all local messages to the thread
+      for (const msg of agentMessages) {
+        const message: Message = {
+          id: msg.id,
+          text: msg.text,
+          sender: msg.sender,
+          timestamp: new Date()
+        };
+        await unifiedChatStore.addMessage(message);
+      }
+
+      // Clear local state and close action bar
+      clearInput();
+      resetAgentState();
+      blurInput();
+
+      // Notify parent to open the agent panel
+      onOpenAgentPanel?.();
+    } catch (error) {
+      console.error('Failed to open in agent panel:', error);
+    }
+  }
+
   function handleClearClick(): void {
     clearInput();
+    resetAgentState();
     // Re-focus the input after clearing
     const input = document.getElementById('action-bar-input');
     input?.focus();
@@ -549,11 +689,80 @@
           <div class="loading-placeholder">No matching actions</div>
         {/if}
 
-        <!-- Agent mode (placeholder for now) -->
+        <!-- Agent mode -->
       {:else if mode === 'agent'}
-        <div class="agent-placeholder">
-          <div class="agent-message">Agent mode coming soon...</div>
-          <div class="agent-hint">Type your question and press Enter</div>
+        <div class="agent-container">
+          {#if agentMessages.length > 0 || agentIsLoading || agentError}
+            <!-- Show conversation history -->
+            <div class="agent-conversation">
+              {#each agentMessages as msg (msg.id)}
+                {#if msg.sender === 'user'}
+                  <div class="agent-user-message">
+                    <span class="agent-user-label">You</span>
+                    <span class="agent-user-text">{msg.text}</span>
+                  </div>
+                {:else}
+                  <div class="agent-response">
+                    <span class="agent-response-label">Agent</span>
+                    <div class="agent-response-text">{msg.text}</div>
+                  </div>
+                {/if}
+              {/each}
+
+              {#if agentError}
+                <div class="agent-error">
+                  <svg class="agent-error-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>{agentError}</span>
+                </div>
+              {:else if agentIsLoading}
+                <div class="agent-streaming">
+                  {#if agentStreamingText}
+                    <span class="agent-response-label">Agent</span>
+                    <div class="agent-response-text">{agentStreamingText}</div>
+                  {:else}
+                    <div class="agent-loading">
+                      <div class="agent-loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span>Thinking...</span>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+            {#if agentMessages.length > 0 && !agentIsLoading}
+              <div class="agent-actions">
+                <div class="agent-hint">Type a follow-up or</div>
+                <button class="agent-open-btn" onclick={handleOpenInAgentPanel}>
+                  <span>Open in Agent panel</span>
+                  <span class="agent-open-shortcut">{isMacOS ? '⌘' : 'Ctrl'}+Enter</span>
+                </button>
+              </div>
+            {/if}
+          {:else if query.trim()}
+            <div class="agent-ready">
+              <svg class="agent-ready-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
+                />
+              </svg>
+              <span>Press Enter to send to Agent</span>
+            </div>
+          {:else}
+            <div class="agent-welcome">
+              <div class="agent-message">Chat with the AI Agent</div>
+              <div class="agent-hint">Type your question and press Enter</div>
+            </div>
+          {/if}
         </div>
       {/if}
     </div>
@@ -937,7 +1146,12 @@
   }
 
   /* Agent mode styles */
-  .agent-placeholder {
+  .agent-container {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .agent-welcome {
     padding: 1.5rem 1rem;
     text-align: center;
   }
@@ -953,43 +1167,179 @@
     font-size: 0.75rem;
   }
 
-  /* Mode toggle footer */
-  .mode-toggle-footer {
-    display: flex;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 0.5rem;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .mode-toggle-btn {
+  .agent-ready {
     display: flex;
     align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .agent-ready-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .agent-conversation {
+    padding: 0.75rem 1rem;
+  }
+
+  .agent-user-message {
+    display: flex;
+    flex-direction: column;
     gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: transparent;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .agent-user-label {
+    font-size: 0.65rem;
+    font-weight: 600;
     color: var(--text-tertiary);
-    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .agent-user-text {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .agent-streaming {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .agent-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .agent-loading-dots {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .agent-loading-dots span {
+    width: 6px;
+    height: 6px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    animation: agent-dot-pulse 1.4s ease-in-out infinite;
+  }
+
+  .agent-loading-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .agent-loading-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes agent-dot-pulse {
+    0%,
+    80%,
+    100% {
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    40% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .agent-response {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .agent-response-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .agent-response-text {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .agent-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--error-bg, rgba(239, 68, 68, 0.1));
+    border-radius: 0.5rem;
+    color: var(--error-text, #ef4444);
+    font-size: 0.875rem;
+  }
+
+  .agent-error-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .agent-actions {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .agent-actions .agent-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-bottom: 0;
+  }
+
+  .agent-open-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.15s ease;
+    white-space: nowrap;
   }
 
-  .mode-toggle-btn:hover {
+  .agent-open-btn:hover {
     background: var(--bg-tertiary);
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
   }
 
-  .mode-toggle-btn.active {
-    background: var(--accent-secondary-alpha);
-    color: var(--accent-primary);
-  }
-
-  .mode-toggle-icon {
-    width: 0.75rem;
-    height: 0.75rem;
+  .agent-open-shortcut {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-family: var(--font-mono, monospace);
   }
 
   @media (max-width: 768px) {
