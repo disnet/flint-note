@@ -98,6 +98,14 @@ The Action Bar is a unified command interface that replaces the previous search 
 - `Tab` - Same as Cmd+Enter
 - `Escape` - Close and reset conversation (discards local conversation)
 
+**Wikilink autocomplete in agent mode:**
+
+- Type `[[` to trigger wikilink autocomplete
+- `↑/↓` or `Ctrl+N/P` - Navigate suggestions
+- `Enter` or `Tab` - Insert selected wikilink
+- `Escape` - Cancel autocomplete (removes `[[`)
+- Wikilinks are inserted in ID format: `[[n-id|title]]`
+
 ## Next Steps
 
 ### Phase 5: Agent Mode Implementation (Completed)
@@ -120,6 +128,10 @@ Agent mode has been fully implemented with inline streaming responses and thread
 - [x] Error state display
 - [x] Follow-up messages in same thread (reuses existing thread)
 - [x] "Open in Agent panel" button with keyboard shortcuts (Cmd+Enter, Tab)
+- [x] Wikilink autocomplete (`[[` triggers note search, inserts `[[n-id|title]]`)
+- [x] Markdown rendering for agent responses (uses `MarkdownRenderer` component)
+- [x] Clickable wikilinks in responses navigate to notes
+- [x] Tool call display with `AgentActivityWidget` (shows tool name, args, results, status)
 
 #### 5.3 Agent Capabilities
 

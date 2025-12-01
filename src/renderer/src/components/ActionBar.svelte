@@ -6,6 +6,9 @@
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { getChatService } from '../services/chatService';
   import type { Message } from '../services/types';
+  import { StreamingConversationManager } from '../services/streamingConversationManager.svelte';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import AgentActivityWidget from './AgentActivityWidget.svelte';
 
   interface SearchResult {
     id: string;
@@ -23,7 +26,18 @@
     label: string;
   }
 
-  type SelectableItem = SearchResult | Action | ModeSwitcher;
+  // Conversation items for agent mode
+  interface ConversationItem {
+    id: string;
+    itemType: 'conversation';
+    threadId: string;
+    title: string;
+    lastMessage: string;
+    lastActivity: Date;
+    messageCount: number;
+  }
+
+  type SelectableItem = SearchResult | Action | ModeSwitcher | ConversationItem;
 
   const modeSwitchers: ModeSwitcher[] = [
     {
@@ -44,9 +58,11 @@
     onNoteSelect?: (note: NoteMetadata) => void;
     onExecuteAction?: (actionId: string) => void;
     onOpenAgentPanel?: () => void;
+    onNoteClick?: (noteId: string) => void;
   }
 
-  let { onNoteSelect, onExecuteAction, onOpenAgentPanel }: ActionBarProps = $props();
+  let { onNoteSelect, onExecuteAction, onOpenAgentPanel, onNoteClick }: ActionBarProps =
+    $props();
 
   // Mode: 'search' (default), 'actions' (/ prefix), 'agent' (@ prefix)
   type Mode = 'search' | 'actions' | 'agent';
@@ -56,16 +72,32 @@
   let selectedIndex = $state(-1);
 
   // Agent mode state - local conversation (not synced to agent panel until user opens it)
-  interface LocalMessage {
-    id: string;
-    text: string;
-    sender: 'user' | 'agent';
-  }
-  let agentMessages = $state<LocalMessage[]>([]);
-  let agentStreamingText = $state('');
-  let agentIsLoading = $state(false);
-  let agentError = $state<string | null>(null);
+  let agentMessages = $state<Message[]>([]);
   let agentConversationId = $state<string | null>(null); // For backend conversation context
+
+  // Streaming conversation manager - handles tool call organization and message separation
+  const streamingManager = new StreamingConversationManager({
+    addMessage: (msg) => {
+      agentMessages = [...agentMessages, msg];
+    },
+    updateMessage: (id, updates) => {
+      agentMessages = agentMessages.map((m) => (m.id === id ? { ...m, ...updates } : m));
+    },
+    getMessages: () => agentMessages,
+    setMessages: (msgs) => {
+      agentMessages = msgs;
+    }
+  });
+
+  // Derived state from streaming manager for UI
+  const agentIsLoading = $derived(streamingManager.isLoading);
+  const agentStreamingText = $derived(streamingManager.streamingText);
+  const agentError = $derived(streamingManager.error);
+  const currentToolCalls = $derived(streamingManager.currentToolCalls);
+  const currentStepIndex = $derived(streamingManager.currentStepIndex);
+
+  // Wikilink autocomplete state (for agent mode)
+  let wikilinkSelectedIndex = $state(0);
 
   // Derive mode from input prefix
   const mode = $derived.by((): Mode => {
@@ -79,6 +111,83 @@
     if (mode === 'actions') return inputValue.slice(1);
     if (mode === 'agent') return inputValue.slice(1);
     return inputValue;
+  });
+
+  // Wikilink autocomplete detection (for agent mode)
+  // Detects [[query pattern without closing ]]
+  const wikilinkContext = $derived.by(() => {
+    if (mode !== 'agent') return null;
+
+    // Find the last occurrence of [[ that isn't closed
+    const lastOpenBracket = inputValue.lastIndexOf('[[');
+    if (lastOpenBracket === -1) return null;
+
+    // Check if there's a ]] after the [[
+    const afterBracket = inputValue.slice(lastOpenBracket + 2);
+    if (afterBracket.includes(']]')) return null;
+
+    // Extract the query (text after [[)
+    const wikilinkQuery = afterBracket;
+
+    return {
+      startIndex: lastOpenBracket,
+      query: wikilinkQuery
+    };
+  });
+
+  // Filter notes for wikilink autocomplete
+  const wikilinkResults = $derived.by(() => {
+    if (!wikilinkContext) return [];
+
+    const q = wikilinkContext.query.toLowerCase();
+    const allNotes = notesStore.allNotes; // Use allNotes to include archived
+
+    if (!q) {
+      // Show recent notes when no query
+      return allNotes.slice(0, 10);
+    }
+
+    // Filter and sort by relevance
+    return allNotes
+      .filter(
+        (note) =>
+          note.title.toLowerCase().includes(q) ||
+          note.filename.toLowerCase().includes(q) ||
+          note.id.toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        const aId = a.id.toLowerCase();
+        const bId = b.id.toLowerCase();
+
+        // Exact title match first
+        if (aTitle === q && bTitle !== q) return -1;
+        if (bTitle === q && aTitle !== q) return 1;
+
+        // Exact ID match
+        if (aId === q && bId !== q) return -1;
+        if (bId === q && aId !== q) return 1;
+
+        // Title starts with query
+        if (aTitle.startsWith(q) && !bTitle.startsWith(q)) return -1;
+        if (bTitle.startsWith(q) && !aTitle.startsWith(q)) return 1;
+
+        // ID starts with query
+        if (aId.startsWith(q) && !bId.startsWith(q)) return -1;
+        if (bId.startsWith(q) && !aId.startsWith(q)) return 1;
+
+        // Alphabetical
+        return aTitle.localeCompare(bTitle);
+      })
+      .slice(0, 10);
+  });
+
+  // Reset wikilink selection when results change
+  $effect(() => {
+    if (wikilinkResults.length > 0) {
+      wikilinkSelectedIndex = 0;
+    }
   });
 
   // Search results from FTS API (for search mode)
@@ -253,6 +362,27 @@
   // Whether we're showing empty state (no query entered)
   const isEmptyState = $derived(query.trim().length === 0);
 
+  // Recent conversations for agent mode (when no active conversation and no query typed)
+  const recentConversations = $derived.by((): ConversationItem[] => {
+    if (mode !== 'agent') return [];
+    if (agentMessages.length > 0) return []; // Don't show when conversation is active
+    if (query.trim().length > 0) return []; // Don't show when user is typing a message
+
+    const threads = unifiedChatStore.sortedThreads;
+    return threads.slice(0, 8).map((thread) => {
+      const lastMsg = thread.messages[thread.messages.length - 1];
+      return {
+        id: `conv-${thread.id}`,
+        itemType: 'conversation' as const,
+        threadId: thread.id,
+        title: thread.title,
+        lastMessage: lastMsg?.text?.slice(0, 100) || '',
+        lastActivity: thread.lastActivity,
+        messageCount: thread.messages.length
+      };
+    });
+  });
+
   // Get all selectable items based on mode (includes mode switchers in empty search state)
   const allSelectableItems = $derived.by((): SelectableItem[] => {
     if (mode === 'actions') {
@@ -266,12 +396,21 @@
       }
       return searchResults;
     }
-    return []; // agent mode - no items yet
+    if (mode === 'agent') {
+      // Show recent conversations when no active conversation
+      return recentConversations;
+    }
+    return [];
   });
 
   // Helper to check if an item is a mode switcher
   function isModeSwitcher(item: SelectableItem): item is ModeSwitcher {
     return 'itemType' in item && item.itemType === 'mode-switcher';
+  }
+
+  // Helper to check if an item is a conversation
+  function isConversationItem(item: SelectableItem): item is ConversationItem {
+    return 'itemType' in item && item.itemType === 'conversation';
   }
 
   // Index where recent notes start (after mode switchers)
@@ -318,6 +457,48 @@
   function handleKeyDown(event: KeyboardEvent): void {
     const items = allSelectableItems;
 
+    // Handle wikilink autocomplete navigation in agent mode
+    if (wikilinkContext && wikilinkResults.length > 0) {
+      if (
+        event.key === 'ArrowDown' ||
+        (event.key === 'n' && (event.ctrlKey || event.metaKey))
+      ) {
+        event.preventDefault();
+        wikilinkSelectedIndex = Math.min(
+          wikilinkSelectedIndex + 1,
+          wikilinkResults.length - 1
+        );
+        return;
+      } else if (
+        event.key === 'ArrowUp' ||
+        (event.key === 'p' && (event.ctrlKey || event.metaKey))
+      ) {
+        event.preventDefault();
+        wikilinkSelectedIndex = Math.max(wikilinkSelectedIndex - 1, 0);
+        return;
+      } else if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        const selectedNote = wikilinkResults[wikilinkSelectedIndex];
+        if (selectedNote) {
+          insertWikilink(selectedNote);
+        }
+        return;
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        const selectedNote = wikilinkResults[wikilinkSelectedIndex];
+        if (selectedNote) {
+          insertWikilink(selectedNote);
+        }
+        return;
+      } else if (event.key === 'Escape') {
+        // Close wikilink autocomplete by removing the [[
+        event.preventDefault();
+        const before = inputValue.slice(0, wikilinkContext.startIndex);
+        inputValue = before;
+        return;
+      }
+    }
+
     if (
       event.key === 'ArrowDown' ||
       (event.key === 'n' && (event.ctrlKey || event.metaKey))
@@ -337,6 +518,14 @@
         // Cmd/Ctrl+Enter: open agent panel if we have messages
         if ((event.metaKey || event.ctrlKey) && agentMessages.length > 0) {
           handleOpenInAgentPanel();
+        } else if (
+          selectedIndex >= 0 &&
+          items[selectedIndex] &&
+          isConversationItem(items[selectedIndex])
+        ) {
+          // Select a recent conversation
+          const convItem = items[selectedIndex] as ConversationItem;
+          loadConversation(convItem.threadId);
         } else {
           // Regular Enter: send the query
           const agentQuery = query.trim();
@@ -400,29 +589,65 @@
     ftsResultsQuery = '';
   }
 
+  function formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  }
+
   function resetAgentState(): void {
     agentMessages = [];
-    agentStreamingText = '';
-    agentIsLoading = false;
-    agentError = null;
     agentConversationId = null;
+    streamingManager.reset();
+  }
+
+  function loadConversation(threadId: string): void {
+    const thread = unifiedChatStore.sortedThreads.find((t) => t.id === threadId);
+    if (!thread) return;
+
+    // Load the thread's messages into local state
+    agentMessages = [...thread.messages];
+    agentConversationId = threadId;
+
+    // Clear the query portion of the input but keep agent mode
+    inputValue = '@';
+  }
+
+  function insertWikilink(note: NoteMetadata): void {
+    if (!wikilinkContext) return;
+
+    // Build the wikilink in ID format: [[n-id|title]]
+    const wikilink = `[[${note.id}|${note.title}]]`;
+
+    // Replace the [[query with the complete wikilink
+    const before = inputValue.slice(0, wikilinkContext.startIndex);
+    const after = ''; // Cursor will be after the wikilink
+
+    inputValue = before + wikilink + after;
+
+    // Reset wikilink selection
+    wikilinkSelectedIndex = 0;
   }
 
   async function sendAgentMessage(message: string): Promise<void> {
     if (agentIsLoading) return;
 
     // Add user message to local conversation
-    const userMsg: LocalMessage = {
-      id: `msg-${Date.now()}`,
+    const userMsg: Message = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       text: message,
-      sender: 'user'
+      sender: 'user',
+      timestamp: new Date()
     };
     agentMessages = [...agentMessages, userMsg];
-
-    // Reset streaming state
-    agentStreamingText = '';
-    agentError = null;
-    agentIsLoading = true;
 
     try {
       // Create a conversation ID for backend context if we don't have one
@@ -436,34 +661,23 @@
         throw new Error('Streaming not supported');
       }
 
+      // Start streaming and get handlers from the manager
+      const handlers = streamingManager.startStreaming();
+
       chatService.sendMessageStream(
         message,
         agentConversationId,
-        (chunk: string) => {
-          // Handle streaming chunk
-          agentStreamingText += chunk;
-        },
-        (fullText: string) => {
-          // Handle stream complete - add to local messages
-          agentIsLoading = false;
-          agentStreamingText = '';
-
-          const agentMsg: LocalMessage = {
-            id: `msg-${Date.now()}`,
-            text: fullText,
-            sender: 'agent'
-          };
-          agentMessages = [...agentMessages, agentMsg];
-        },
-        (error: string) => {
-          // Handle error
-          agentIsLoading = false;
-          agentError = error;
-        }
+        handlers.onChunk,
+        handlers.onComplete,
+        handlers.onError,
+        undefined, // model - use default
+        handlers.onToolCall,
+        handlers.onToolResult
       );
     } catch (error) {
-      agentIsLoading = false;
-      agentError = error instanceof Error ? error.message : 'Failed to send message';
+      streamingManager.reset();
+      // Set error state manually since manager.reset() clears it
+      // We need to handle this case differently
     }
   }
 
@@ -483,7 +697,9 @@
           id: msg.id,
           text: msg.text,
           sender: msg.sender,
-          timestamp: new Date()
+          timestamp: new Date(),
+          toolCalls: msg.toolCalls,
+          currentStepIndex: msg.currentStepIndex
         };
         await unifiedChatStore.addMessage(message);
       }
@@ -692,19 +908,60 @@
         <!-- Agent mode -->
       {:else if mode === 'agent'}
         <div class="agent-container">
-          {#if agentMessages.length > 0 || agentIsLoading || agentError}
+          <!-- Wikilink autocomplete overlay -->
+          {#if wikilinkContext && wikilinkResults.length > 0}
+            <div class="wikilink-autocomplete">
+              <div class="wikilink-header">Link to note</div>
+              <div class="wikilink-results">
+                {#each wikilinkResults as note, index (note.id)}
+                  <button
+                    class="wikilink-item"
+                    class:selected={index === wikilinkSelectedIndex}
+                    onclick={() => insertWikilink(note)}
+                  >
+                    <div class="wikilink-title">{note.title || 'Untitled'}</div>
+                    <div class="wikilink-meta">
+                      {#if note.type}
+                        <span class="wikilink-type">{note.type}</span>
+                      {/if}
+                      <span class="wikilink-id">{note.id}</span>
+                    </div>
+                  </button>
+                {/each}
+              </div>
+              <div class="wikilink-hint">
+                <span>↑↓ navigate</span>
+                <span>Enter/Tab select</span>
+                <span>Esc cancel</span>
+              </div>
+            </div>
+          {:else if agentMessages.length > 0 || agentIsLoading || agentError}
             <!-- Show conversation history -->
             <div class="agent-conversation">
               {#each agentMessages as msg (msg.id)}
                 {#if msg.sender === 'user'}
                   <div class="agent-user-message">
                     <span class="agent-user-label">You</span>
-                    <span class="agent-user-text">{msg.text}</span>
+                    <div class="agent-user-text">
+                      <MarkdownRenderer text={msg.text} {onNoteClick} />
+                    </div>
                   </div>
                 {:else}
+                  <!-- Agent message - can have text, tool calls, or both -->
                   <div class="agent-response">
-                    <span class="agent-response-label">Agent</span>
-                    <div class="agent-response-text">{msg.text}</div>
+                    {#if msg.text.trim()}
+                      <div class="agent-response-text agent-markdown">
+                        <MarkdownRenderer text={msg.text} {onNoteClick} />
+                      </div>
+                    {/if}
+                    {#if msg.toolCalls && msg.toolCalls.length > 0}
+                      <div class="agent-tool-calls">
+                        <AgentActivityWidget
+                          toolCalls={msg.toolCalls}
+                          currentStepIndex={agentIsLoading ? currentStepIndex : undefined}
+                        />
+                      </div>
+                    {/if}
                   </div>
                 {/if}
               {/each}
@@ -720,21 +977,17 @@
                   </svg>
                   <span>{agentError}</span>
                 </div>
-              {:else if agentIsLoading}
+              {:else if agentIsLoading && !agentStreamingText && currentToolCalls.length === 0}
+                <!-- Show thinking indicator only when no content is streaming yet -->
                 <div class="agent-streaming">
-                  {#if agentStreamingText}
-                    <span class="agent-response-label">Agent</span>
-                    <div class="agent-response-text">{agentStreamingText}</div>
-                  {:else}
-                    <div class="agent-loading">
-                      <div class="agent-loading-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                      <span>Thinking...</span>
+                  <div class="agent-loading">
+                    <div class="agent-loading-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
                     </div>
-                  {/if}
+                    <span>Thinking...</span>
+                  </div>
                 </div>
               {/if}
             </div>
@@ -756,6 +1009,36 @@
                 />
               </svg>
               <span>Press Enter to send to Agent</span>
+            </div>
+          {:else if recentConversations.length > 0}
+            <!-- Show recent conversations -->
+            <div class="agent-conversations">
+              <div class="conversations-header">Recent Conversations</div>
+              <div class="conversations-list">
+                {#each recentConversations as conv, index (conv.id)}
+                  <button
+                    class="conversation-item"
+                    class:selected={index === selectedIndex}
+                    onclick={() => loadConversation(conv.threadId)}
+                  >
+                    <div class="conversation-title">{conv.title}</div>
+                    <div class="conversation-meta">
+                      <span class="conversation-count">{conv.messageCount} messages</span>
+                      <span class="conversation-time"
+                        >{formatRelativeTime(conv.lastActivity)}</span
+                      >
+                    </div>
+                    {#if conv.lastMessage}
+                      <div class="conversation-preview">{conv.lastMessage}</div>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+              <div class="conversations-hint">
+                <span>↑↓ navigate</span>
+                <span>Enter to open</span>
+                <span>or type to start new</span>
+              </div>
             </div>
           {:else}
             <div class="agent-welcome">
@@ -1151,6 +1434,92 @@
     overflow-y: auto;
   }
 
+  /* Recent conversations list */
+  .agent-conversations {
+    padding: 0.5rem;
+  }
+
+  .conversations-header {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.5rem 0.5rem;
+  }
+
+  .conversations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .conversation-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    text-align: left;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    width: 100%;
+  }
+
+  .conversation-item:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .conversation-item.selected {
+    background: var(--bg-tertiary);
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+  }
+
+  .conversation-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .conversation-meta {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+  }
+
+  .conversation-count {
+    color: var(--text-secondary);
+  }
+
+  .conversation-preview {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.8;
+  }
+
+  .conversations-hint {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    padding: 0.5rem;
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-light);
+    margin-top: 0.5rem;
+  }
+
   .agent-welcome {
     padding: 1.5rem 1rem;
     text-align: center;
@@ -1266,20 +1635,135 @@
     gap: 0.25rem;
   }
 
-  .agent-response-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: var(--accent-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
   .agent-response-text {
     font-size: 0.875rem;
     color: var(--text-primary);
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* Tool calls styling */
+  .agent-tool-calls {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .agent-tool-calls :global(.activity-widget) {
+    background: var(--bg-secondary);
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+  }
+
+  .agent-tool-calls :global(.activity-header) {
+    font-size: 0.75rem;
+  }
+
+  .agent-tool-calls :global(.tool-item) {
+    font-size: 0.75rem;
+    padding: 0.25rem 0;
+  }
+
+  /* Markdown styling for agent responses */
+  .agent-markdown {
+    white-space: normal;
+  }
+
+  .agent-markdown :global(p) {
+    margin: 0 0 0.5rem 0;
+  }
+
+  .agent-markdown :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .agent-markdown :global(ul),
+  .agent-markdown :global(ol) {
+    margin: 0.25rem 0;
+    padding-left: 1.25rem;
+  }
+
+  .agent-markdown :global(li) {
+    margin: 0.125rem 0;
+  }
+
+  .agent-markdown :global(code) {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.8rem;
+    background: var(--bg-tertiary);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+  }
+
+  .agent-markdown :global(pre) {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.375rem;
+    overflow-x: auto;
+  }
+
+  .agent-markdown :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+
+  .agent-markdown :global(blockquote) {
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--border-light);
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .agent-markdown :global(h1),
+  .agent-markdown :global(h2),
+  .agent-markdown :global(h3),
+  .agent-markdown :global(h4),
+  .agent-markdown :global(h5),
+  .agent-markdown :global(h6) {
+    margin: 0.5rem 0 0.25rem 0;
+    font-weight: 600;
+  }
+
+  .agent-markdown :global(h1) {
+    font-size: 1rem;
+  }
+
+  .agent-markdown :global(h2) {
+    font-size: 0.95rem;
+  }
+
+  .agent-markdown :global(h3),
+  .agent-markdown :global(h4),
+  .agent-markdown :global(h5),
+  .agent-markdown :global(h6) {
+    font-size: 0.9rem;
+  }
+
+  /* Note link styling in agent responses */
+  .agent-markdown :global(.note-link) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.4rem;
+    background: var(--accent-secondary-alpha);
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--accent-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .agent-markdown :global(.note-link:hover) {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .agent-markdown :global(.note-link-icon) {
+    font-size: 0.75rem;
   }
 
   .agent-error {
@@ -1340,6 +1824,105 @@
     font-size: 0.65rem;
     opacity: 0.7;
     font-family: var(--font-mono, monospace);
+  }
+
+  /* Wikilink autocomplete styles */
+  .wikilink-autocomplete {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .wikilink-header {
+    padding: 0.5rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .wikilink-results {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+
+  .wikilink-results::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .wikilink-results::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .wikilink-results::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 4px;
+  }
+
+  .wikilink-results::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  .wikilink-item {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .wikilink-item:last-child {
+    border-bottom: none;
+  }
+
+  .wikilink-item:hover,
+  .wikilink-item.selected {
+    background: var(--bg-secondary);
+  }
+
+  .wikilink-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .wikilink-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wikilink-type {
+    font-size: 0.625rem;
+    color: var(--accent-primary);
+    background: var(--accent-secondary-alpha);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .wikilink-id {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono, monospace);
+  }
+
+  .wikilink-hint {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 1rem;
+    font-size: 0.65rem;
+    color: var(--text-tertiary);
   }
 
   @media (max-width: 768px) {

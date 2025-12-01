@@ -14,6 +14,7 @@
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
+  import { StreamingConversationManager } from './services/streamingConversationManager.svelte';
   import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
@@ -500,8 +501,40 @@
   // Messages are now managed by unifiedChatStore
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
-  let isLoadingResponse = $state(false);
+  // Request ID for cancellation (not managed by streaming manager)
   let currentRequestId = $state<string | null>(null);
+
+  // Streaming conversation manager - handles tool call organization and message separation
+  const streamingManager = new StreamingConversationManager({
+    addMessage: async (msg) => {
+      await unifiedChatStore.addMessage(msg);
+    },
+    updateMessage: async (id, updates) => {
+      await unifiedChatStore.updateMessage(id, updates);
+    },
+    getMessages: () => {
+      return unifiedChatStore.activeThread?.messages || [];
+    },
+    setMessages: async (msgs) => {
+      const thread = unifiedChatStore.activeThread;
+      if (thread) {
+        await unifiedChatStore.updateThread(thread.id, { messages: msgs });
+      }
+    },
+    onComplete: async () => {
+      currentRequestId = null;
+      // Refresh OpenRouter credits after agent response completes
+      if (refreshCredits) {
+        await refreshCredits();
+      }
+    },
+    onError: () => {
+      currentRequestId = null;
+    }
+  });
+
+  // Derive loading state from streaming manager
+  const isLoadingResponse = $derived(streamingManager.isLoading);
   let activeSystemView = $state<
     'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
   >(null);
@@ -1480,7 +1513,8 @@
         };
         await unifiedChatStore.addMessage(cancellationMessage);
 
-        isLoadingResponse = false;
+        // Reset streaming state (sets isLoading to false)
+        streamingManager.reset();
         currentRequestId = null;
       } catch (error) {
         console.error('Failed to cancel message:', error);
@@ -1527,6 +1561,7 @@
       // Continue anyway if check fails
     }
 
+    // Add user message
     const newMessage: Message = {
       id: generateUniqueId(),
       text,
@@ -1535,172 +1570,23 @@
     };
     await unifiedChatStore.addMessage(newMessage);
 
-    isLoadingResponse = true;
-
-    // Create a placeholder message for streaming response
-    const agentResponseId = generateUniqueId();
-    const agentResponse: Message = {
-      id: agentResponseId,
-      text: '',
-      sender: 'agent',
-      timestamp: new Date()
-    };
-    await unifiedChatStore.addMessage(agentResponse);
-
-    // Track streaming state to handle tool call separation by step
-    let currentMessageId = agentResponseId;
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local tracking variable, not reactive state
-    let toolCallMessageIdsByStep: Map<number, string> = new Map();
-    let highestStepIndexSeen = 0;
-
     try {
       const chatService = getChatService();
 
       // Use streaming if available, otherwise fall back to regular sendMessage
       if (chatService.sendMessageStream) {
+        // Get handlers from streaming manager
+        const handlers = streamingManager.startStreaming();
+
         currentRequestId = chatService.sendMessageStream(
           text,
           unifiedChatStore.activeThreadId || undefined,
-          // onChunk: append text chunks to the current message
-          async (chunk: string) => {
-            const currentMessage = unifiedChatStore.activeThread?.messages?.find(
-              (m) => m.id === currentMessageId
-            );
-            if (currentMessage) {
-              await unifiedChatStore.updateMessage(currentMessageId, {
-                text: currentMessage.text + chunk
-              });
-            }
-          },
-          // onComplete: streaming finished
-          async (_fullText: string) => {
-            // Mark the final step as completed
-            if (toolCallMessageIdsByStep.size > 0) {
-              const finalStepMessageId =
-                toolCallMessageIdsByStep.get(highestStepIndexSeen);
-              if (finalStepMessageId) {
-                // Mark with a high index to indicate streaming is done
-                await unifiedChatStore.updateMessage(finalStepMessageId, {
-                  currentStepIndex: highestStepIndexSeen + 1
-                });
-              }
-            }
-
-            // Clean up any empty messages that were created
-            const thread = unifiedChatStore.activeThread;
-            if (thread) {
-              // Filter out any empty messages (no text and no tool calls)
-              const filteredMessages = thread.messages.filter((message) => {
-                // Keep messages with text content
-                if (message.text.trim() !== '') return true;
-                // Keep messages with tool calls
-                if (message.toolCalls && message.toolCalls.length > 0) return true;
-                // Remove empty messages
-                return false;
-              });
-
-              // Only update if we actually removed some messages
-              if (filteredMessages.length !== thread.messages.length) {
-                await unifiedChatStore.updateThread(thread.id, {
-                  messages: filteredMessages
-                });
-              }
-            }
-            isLoadingResponse = false;
-            currentRequestId = null;
-
-            // Refresh OpenRouter credits after agent response completes
-            if (refreshCredits) {
-              await refreshCredits();
-            }
-          },
-          // onError: handle streaming errors
-          async (error: string) => {
-            console.error('Streaming error:', error);
-            await unifiedChatStore.updateMessage(currentMessageId, {
-              text: 'Sorry, I encountered an error while processing your message.'
-            });
-            isLoadingResponse = false;
-            currentRequestId = null;
-          },
+          handlers.onChunk,
+          handlers.onComplete,
+          handlers.onError,
           modelStore.selectedModel,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async (toolCall: any) => {
-            // Group tool calls by step - each step gets its own message/widget
-            const stepIndex = toolCall.stepIndex ?? 0;
-
-            // If we've moved to a new step, mark the previous step's message as completed
-            if (stepIndex > highestStepIndexSeen) {
-              // Update the previous step's message with currentStepIndex to mark tools as completed
-              const previousStepMessageId =
-                toolCallMessageIdsByStep.get(highestStepIndexSeen);
-              if (previousStepMessageId) {
-                await unifiedChatStore.updateMessage(previousStepMessageId, {
-                  currentStepIndex: stepIndex
-                });
-              }
-              highestStepIndexSeen = stepIndex;
-            }
-
-            // Check if we already have a message for this step
-            if (!toolCallMessageIdsByStep.has(stepIndex)) {
-              // First tool call of this step - create a new message
-              const toolCallMsg: Message = {
-                id: generateUniqueId(),
-                text: '',
-                sender: 'agent',
-                timestamp: new Date(),
-                toolCalls: [toolCall],
-                currentStepIndex: stepIndex // Track which step this message is for
-              };
-              toolCallMessageIdsByStep.set(stepIndex, toolCallMsg.id);
-              await unifiedChatStore.addMessage(toolCallMsg);
-
-              // Create a new message for any text that arrives after this step
-              const postToolCallMessageId = generateUniqueId();
-              const postToolCallMessage: Message = {
-                id: postToolCallMessageId,
-                text: '',
-                sender: 'agent',
-                timestamp: new Date()
-              };
-              await unifiedChatStore.addMessage(postToolCallMessage);
-              currentMessageId = postToolCallMessageId;
-            } else {
-              // Add tool call to the existing message for this step
-              const toolCallMessageId = toolCallMessageIdsByStep.get(stepIndex)!;
-              const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
-                (m) => m.id === toolCallMessageId
-              );
-              if (toolCallMessage) {
-                const updatedToolCalls = [...(toolCallMessage.toolCalls || []), toolCall];
-                await unifiedChatStore.updateMessage(toolCallMessageId, {
-                  toolCalls: updatedToolCalls
-                });
-              }
-            }
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async (toolResult: any) => {
-            // Update the tool call with its result in the appropriate step's message
-            const stepIndex = toolResult.stepIndex ?? 0;
-            const toolCallMessageId = toolCallMessageIdsByStep.get(stepIndex);
-
-            if (toolCallMessageId) {
-              const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
-                (m) => m.id === toolCallMessageId
-              );
-              if (toolCallMessage && toolCallMessage.toolCalls) {
-                // Find the tool call by ID and update it with the result
-                const updatedToolCalls = toolCallMessage.toolCalls.map((tc) =>
-                  tc.id === toolResult.id ? { ...tc, result: toolResult.result } : tc
-                );
-                await unifiedChatStore.updateMessage(toolCallMessageId, {
-                  toolCalls: updatedToolCalls
-                });
-              }
-            }
-          },
+          handlers.onToolCall,
+          handlers.onToolResult,
           (data) => {
             // Handle tool call limit reached
             toolCallLimitReached = {
@@ -1711,6 +1597,15 @@
         );
       } else {
         // Fallback to non-streaming mode
+        const agentResponseId = generateUniqueId();
+        const agentResponse: Message = {
+          id: agentResponseId,
+          text: '',
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        await unifiedChatStore.addMessage(agentResponse);
+
         const response = await chatService.sendMessage(
           text,
           unifiedChatStore.activeThreadId || undefined,
@@ -1722,17 +1617,10 @@
           text: response.text,
           toolCalls: response.toolCalls
         });
-
-        isLoadingResponse = false;
-        currentRequestId = null;
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      await unifiedChatStore.updateMessage(agentResponseId, {
-        text: 'Sorry, I encountered an error while processing your message.'
-      });
-      isLoadingResponse = false;
-      currentRequestId = null;
+      streamingManager.reset();
     }
   }
 
@@ -2001,6 +1889,7 @@
           <ActionBar
             onNoteSelect={handleNoteSelect}
             onOpenAgentPanel={handleOpenAgentPanel}
+            onNoteClick={handleNoteClick}
           />
         </div>
         <div class="title-bar-controls">
