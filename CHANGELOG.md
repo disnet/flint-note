@@ -4,6 +4,45 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0]
+
+### Added
+
+**EPUB Reader**
+
+Flint now includes a full-featured EPUB reader. Import EPUB files directly into your vault and read them alongside your notes. Features include:
+
+- Highlight passages and create annotations that link back to your notes
+- Adjustable zoom levels for comfortable reading
+- EPUB annotations are searchable and can be referenced by the agent
+
+**PDF Viewer**
+
+View and annotate PDFs directly in Flint:
+
+- Highlight text within PDFs
+- Zoom controls with high DPI display support
+- PDF content is readable by the agent for research assistance
+
+**Webpage Saving**
+
+Save webpages as notes by pasting a URL. Flint extracts the main content and converts it to markdown, making it easy to capture articles and reference material.
+
+**Agent Document Reading**
+
+The agent can read and understand PDFs and EPUBs in your vault, allowing it to help you research and reference your imported documents.
+
+**Images in Markdown**
+
+- Drag and drop images into your notes
+- Images are added to attachements folder and display inline
+
+### Changed
+
+- Suggestion text can now be selected and copied
+- Improved handling of untitled notes
+- Links are now properly rewritten when creating new notes
+
 ## [0.11.12]
 
 ### Added
