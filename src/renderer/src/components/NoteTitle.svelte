@@ -35,6 +35,23 @@
     }
   });
 
+  // Adjust height on mount and watch for resize/reflow
+  $effect(() => {
+    if (!inputElement) return;
+
+    adjustHeight();
+
+    // Watch for container resize (e.g., window resize causing reflow)
+    const resizeObserver = new ResizeObserver(() => {
+      adjustHeight();
+    });
+    resizeObserver.observe(inputElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  });
+
   function adjustHeight(): void {
     if (!inputElement) return;
     // Reset height to auto to get the correct scrollHeight
@@ -137,6 +154,8 @@
     min-width: 200px;
     resize: none;
     overflow: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
     line-height: 1.4;
     min-height: 1.4em;
   }
