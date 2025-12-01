@@ -1,6 +1,7 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
+  import { searchActions, type Action } from '../services/actionRegistry.svelte';
 
   interface SearchResult {
     id: string;
@@ -12,25 +13,40 @@
 
   interface ActionBarProps {
     onNoteSelect?: (note: NoteMetadata) => void;
+    onExecuteAction?: (actionId: string) => void;
   }
 
-  let { onNoteSelect }: ActionBarProps = $props();
+  let { onNoteSelect, onExecuteAction }: ActionBarProps = $props();
 
-  // Mode type for future expansion: 'search' | 'actions' | 'agent'
-  // Currently only 'search' mode is implemented
+  // Mode: 'search' (default), 'actions' (/ prefix), 'agent' (@ prefix)
+  type Mode = 'search' | 'actions' | 'agent';
 
-  let searchValue = $state('');
-  let isSearchFocused = $state(false);
+  let inputValue = $state('');
+  let isInputFocused = $state(false);
   let selectedIndex = $state(-1);
 
-  // Search results from FTS API
+  // Derive mode from input prefix
+  const mode = $derived.by((): Mode => {
+    if (inputValue.startsWith('/')) return 'actions';
+    if (inputValue.startsWith('@')) return 'agent';
+    return 'search';
+  });
+
+  // Get the actual query without the mode prefix
+  const query = $derived.by(() => {
+    if (mode === 'actions') return inputValue.slice(1);
+    if (mode === 'agent') return inputValue.slice(1);
+    return inputValue;
+  });
+
+  // Search results from FTS API (for search mode)
   let ftsResults: SearchResult[] = $state([]);
   // Track which query the current FTS results are for
   let ftsResultsQuery = $state('');
 
   // Derive loading state synchronously - we're loading if query >= 3 and results don't match current query
   const isLoading = $derived(
-    searchValue.trim().length >= 3 && ftsResultsQuery !== searchValue.trim()
+    mode === 'search' && query.trim().length >= 3 && ftsResultsQuery !== query.trim()
   );
 
   // Debounce timer
@@ -39,12 +55,25 @@
   // Platform-specific keyboard shortcut display
   const isMacOS = $derived(navigator.platform.includes('Mac'));
   const shortcutKey = $derived(isMacOS ? '⌘K' : 'Ctrl+K');
-  const placeholder = $derived(`Search notes... (${shortcutKey})`);
 
-  // Quick client-side title filter (for all queries, used as fallback while FTS loads)
+  // Placeholder changes based on mode
+  const placeholder = $derived.by(() => {
+    if (mode === 'actions') return 'Search actions...';
+    if (mode === 'agent') return 'Ask the agent...';
+    return `Search notes... (${shortcutKey})`;
+  });
+
+  // Actions filtered by query (for actions mode)
+  const filteredActions = $derived.by(() => {
+    if (mode !== 'actions') return [];
+    return searchActions(query.trim());
+  });
+
+  // Quick client-side title filter (for search mode, used as fallback while FTS loads)
   const quickResults = $derived.by(() => {
-    const query = searchValue.trim().toLowerCase();
-    if (!query) {
+    if (mode !== 'search') return [];
+    const q = query.trim().toLowerCase();
+    if (!q) {
       return [];
     }
 
@@ -56,14 +85,13 @@
     return allNotes
       .filter(
         (note) =>
-          note.title.toLowerCase().includes(query) ||
-          note.filename.toLowerCase().includes(query)
+          note.title.toLowerCase().includes(q) || note.filename.toLowerCase().includes(q)
       )
       .sort((a, b) => {
         const aTitle = a.title.toLowerCase();
         const bTitle = b.title.toLowerCase();
-        if (aTitle.startsWith(query) && !bTitle.startsWith(query)) return -1;
-        if (bTitle.startsWith(query) && !aTitle.startsWith(query)) return 1;
+        if (aTitle.startsWith(q) && !bTitle.startsWith(q)) return -1;
+        if (bTitle.startsWith(q) && !aTitle.startsWith(q)) return 1;
         return aTitle.localeCompare(bTitle);
       })
       .slice(0, 10)
@@ -76,13 +104,14 @@
       }));
   });
 
-  // Combined results: merge quick title matches with FTS content matches
+  // Combined results: merge quick title matches with FTS content matches (search mode only)
   const searchResults = $derived.by(() => {
-    const query = searchValue.trim();
-    if (!query) return [];
+    if (mode !== 'search') return [];
+    const q = query.trim();
+    if (!q) return [];
 
     // For short queries, just use quick results
-    if (query.length < 3) return quickResults;
+    if (q.length < 3) return quickResults;
 
     // For longer queries, merge quick results (title matches) with FTS results (content matches)
     // FTS results take priority since they have snippets
@@ -96,9 +125,10 @@
     return [...quickResults, ...contentOnlyMatches].slice(0, 15);
   });
 
-  // Trigger FTS search when query is 3+ chars
+  // Trigger FTS search when query is 3+ chars (search mode only)
   $effect(() => {
-    const query = searchValue.trim();
+    const currentMode = mode;
+    const q = query.trim();
 
     // Cancel any pending search
     if (debounceTimer) {
@@ -106,8 +136,9 @@
       debounceTimer = null;
     }
 
-    if (query.length < 3) {
-      // Clear FTS results for short queries
+    // Only run FTS in search mode
+    if (currentMode !== 'search' || q.length < 3) {
+      // Clear FTS results
       ftsResults = [];
       ftsResultsQuery = '';
       return;
@@ -117,7 +148,7 @@
     debounceTimer = setTimeout(async () => {
       try {
         const response = await window.api?.searchNotes({
-          query,
+          query: q,
           limit: 15
         });
 
@@ -142,43 +173,50 @@
           ftsResults = [];
         }
         // Mark that results are now for this query
-        ftsResultsQuery = query;
+        ftsResultsQuery = q;
       } catch (error) {
         console.error('Search error:', error);
         ftsResults = [];
-        ftsResultsQuery = query; // Still mark as completed even on error
+        ftsResultsQuery = q; // Still mark as completed even on error
       }
     }, 200);
   });
 
+  // Get current items based on mode
+  const currentItems = $derived.by(() => {
+    if (mode === 'actions') return filteredActions;
+    if (mode === 'search') return searchResults;
+    return []; // agent mode - no items yet
+  });
+
   // Auto-select first result when results change
   $effect(() => {
-    if (searchResults.length > 0) {
+    if (currentItems.length > 0) {
       selectedIndex = 0;
     } else {
       selectedIndex = -1;
     }
   });
 
-  function handleSearchFocus(): void {
-    isSearchFocused = true;
+  function handleInputFocus(): void {
+    isInputFocused = true;
   }
 
-  function handleSearchBlur(): void {
+  function handleInputBlur(): void {
     setTimeout(() => {
-      isSearchFocused = false;
+      isInputFocused = false;
     }, 200);
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
-    const results = searchResults;
+    const items = currentItems;
 
     if (
       event.key === 'ArrowDown' ||
       (event.key === 'n' && (event.ctrlKey || event.metaKey))
     ) {
       event.preventDefault();
-      selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
     } else if (
       event.key === 'ArrowUp' ||
       (event.key === 'p' && (event.ctrlKey || event.metaKey))
@@ -187,12 +225,16 @@
       selectedIndex = Math.max(selectedIndex - 1, 0);
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (selectedIndex >= 0 && results[selectedIndex]) {
-        selectResult(results[selectedIndex]);
+      if (selectedIndex >= 0 && items[selectedIndex]) {
+        if (mode === 'actions') {
+          executeAction(items[selectedIndex] as Action);
+        } else if (mode === 'search') {
+          selectResult(items[selectedIndex] as SearchResult);
+        }
       }
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      clearSearch();
+      clearInput();
       (event.target as HTMLInputElement).blur();
     }
   }
@@ -201,21 +243,30 @@
     // Find the full note metadata to pass to onNoteSelect
     const note = notesStore.notes.find((n) => n.id === result.id);
     if (note) {
-      clearSearch();
-      isSearchFocused = false;
+      clearInput();
+      isInputFocused = false;
       onNoteSelect?.(note);
     }
   }
 
-  function clearSearch(): void {
-    searchValue = '';
+  function executeAction(action: Action): void {
+    clearInput();
+    isInputFocused = false;
+    // Execute the action
+    action.execute();
+    // Also notify parent if needed
+    onExecuteAction?.(action.id);
+  }
+
+  function clearInput(): void {
+    inputValue = '';
     selectedIndex = -1;
     ftsResults = [];
     ftsResultsQuery = '';
   }
 
   function handleClearClick(): void {
-    clearSearch();
+    clearInput();
     // Re-focus the input after clearing
     const input = document.getElementById('action-bar-input');
     input?.focus();
@@ -224,25 +275,42 @@
 
 <div class="action-bar-container">
   <div class="action-bar-input-wrapper">
-    <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
-      <path
-        fill-rule="evenodd"
-        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-        clip-rule="evenodd"
-      />
-    </svg>
+    <!-- Icon changes based on mode -->
+    {#if mode === 'actions'}
+      <svg class="mode-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path
+          fill-rule="evenodd"
+          d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    {:else if mode === 'agent'}
+      <svg class="mode-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path
+          d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
+        />
+      </svg>
+    {:else}
+      <svg class="mode-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path
+          fill-rule="evenodd"
+          d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    {/if}
     <input
       id="action-bar-input"
       type="text"
       {placeholder}
-      bind:value={searchValue}
-      onfocus={handleSearchFocus}
-      onblur={handleSearchBlur}
+      bind:value={inputValue}
+      onfocus={handleInputFocus}
+      onblur={handleInputBlur}
       onkeydown={handleKeyDown}
       class="action-bar-input"
     />
-    {#if searchValue}
-      <button class="clear-button" onclick={handleClearClick} aria-label="Clear search">
+    {#if inputValue}
+      <button class="clear-button" onclick={handleClearClick} aria-label="Clear input">
         <svg
           width="14"
           height="14"
@@ -262,45 +330,137 @@
     {/if}
   </div>
 
-  {#if isSearchFocused && searchValue.trim().length > 0}
+  {#if isInputFocused && inputValue.trim().length > 0}
     <div class="action-bar-dropdown">
-      {#if searchResults.length > 0}
-        <div class="search-results">
-          {#each searchResults as result, index (result.id)}
-            <button
-              class="search-result-item"
-              class:selected={index === selectedIndex}
-              onclick={() => selectResult(result)}
-            >
-              <div class="result-title">
-                {result.title || 'Untitled'}
-              </div>
-              {#if result.snippet}
-                <div class="result-snippet">
-                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                  {@html result.snippet}
+      <!-- Search mode -->
+      {#if mode === 'search'}
+        {#if searchResults.length > 0}
+          <div class="search-results">
+            {#each searchResults as result, index (result.id)}
+              <button
+                class="search-result-item"
+                class:selected={index === selectedIndex}
+                onclick={() => selectResult(result)}
+              >
+                <div class="result-title">
+                  {result.title || 'Untitled'}
                 </div>
-              {/if}
-              <div class="result-meta">
-                {#if result.filename}
-                  <span class="result-path">{result.filename}</span>
+                {#if result.snippet}
+                  <div class="result-snippet">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    {@html result.snippet}
+                  </div>
                 {/if}
-                {#if result.type}
-                  <span class="result-type">{result.type}</span>
+                <div class="result-meta">
+                  {#if result.filename}
+                    <span class="result-path">{result.filename}</span>
+                  {/if}
+                  {#if result.type}
+                    <span class="result-type">{result.type}</span>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+        {:else}
+          <div class="loading-placeholder">
+            {#if query.trim().length >= 3 && isLoading}
+              Searching...
+            {:else}
+              No results
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Actions mode -->
+      {:else if mode === 'actions'}
+        {#if filteredActions.length > 0}
+          <div class="action-results">
+            {#each filteredActions as action, index (action.id)}
+              <button
+                class="action-item"
+                class:selected={index === selectedIndex}
+                onclick={() => executeAction(action)}
+              >
+                <div class="action-main">
+                  <span class="action-label">{action.label}</span>
+                  {#if action.shortcut}
+                    <span class="action-shortcut">{action.shortcut}</span>
+                  {/if}
+                </div>
+                {#if action.description}
+                  <div class="action-description">{action.description}</div>
                 {/if}
-              </div>
-            </button>
-          {/each}
-        </div>
-      {:else}
-        <div class="loading-placeholder">
-          {#if searchValue.trim().length >= 3 && isLoading}
-            Searching...
-          {:else}
-            No results
-          {/if}
+                <div class="action-meta">
+                  <span class="action-category">{action.category}</span>
+                </div>
+              </button>
+            {/each}
+          </div>
+        {:else}
+          <div class="loading-placeholder">No matching actions</div>
+        {/if}
+
+        <!-- Agent mode (placeholder for now) -->
+      {:else if mode === 'agent'}
+        <div class="agent-placeholder">
+          <div class="agent-message">Agent mode coming soon...</div>
+          <div class="agent-hint">Type your question and press Enter</div>
         </div>
       {/if}
+
+      <!-- Mode toggle footer -->
+      <div class="mode-toggle-footer">
+        <button
+          class="mode-toggle-btn"
+          class:active={mode === 'search'}
+          onclick={() => {
+            inputValue = '';
+          }}
+          title="Search notes"
+        >
+          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span>Search</span>
+        </button>
+        <button
+          class="mode-toggle-btn"
+          class:active={mode === 'actions'}
+          onclick={() => {
+            inputValue = '/';
+          }}
+          title="Actions"
+        >
+          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span>/</span>
+        </button>
+        <button
+          class="mode-toggle-btn"
+          class:active={mode === 'agent'}
+          onclick={() => {
+            inputValue = '@';
+          }}
+          title="Agent"
+        >
+          <svg class="mode-toggle-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
+            />
+          </svg>
+          <span>@</span>
+        </button>
+      </div>
     </div>
   {/if}
 </div>
@@ -319,7 +479,7 @@
     align-items: center;
   }
 
-  .search-icon {
+  .mode-icon {
     position: absolute;
     left: 0.75rem;
     width: 1rem;
@@ -518,6 +678,153 @@
     font-size: 0.875rem;
   }
 
+  /* Actions mode styles */
+  .action-results {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .action-results::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .action-results::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .action-results::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 4px;
+  }
+
+  .action-results::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  .action-item {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .action-item:last-child {
+    border-bottom: none;
+  }
+
+  .action-item:hover,
+  .action-item.selected {
+    background: var(--bg-secondary);
+  }
+
+  .action-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .action-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .action-shortcut {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: var(--font-mono, monospace);
+    flex-shrink: 0;
+  }
+
+  .action-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.3;
+  }
+
+  .action-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .action-category {
+    font-size: 0.625rem;
+    color: var(--accent-primary);
+    background: var(--accent-secondary-alpha);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  /* Agent mode styles */
+  .agent-placeholder {
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+
+  .agent-message {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .agent-hint {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+  }
+
+  /* Mode toggle footer */
+  .mode-toggle-footer {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .mode-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .mode-toggle-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+
+  .mode-toggle-btn.active {
+    background: var(--accent-secondary-alpha);
+    color: var(--accent-primary);
+  }
+
+  .mode-toggle-icon {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
   @media (max-width: 768px) {
     .action-bar-container {
       max-width: 200px;
@@ -529,7 +836,7 @@
       padding: 0.4rem 2rem 0.4rem 2rem;
     }
 
-    .search-icon {
+    .mode-icon {
       left: 0.6rem;
       width: 0.9rem;
       height: 0.9rem;

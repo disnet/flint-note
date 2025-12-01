@@ -37,6 +37,14 @@
   } from './services/messageBus.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
   import { logger } from './utils/logger';
+  import { actionRegistry } from './services/actionRegistry.svelte';
+
+  // Initialize action registry with a callback to execute actions
+  // This dispatches a custom event that our menu handlers will pick up
+  actionRegistry.initializeRegistry((action) => {
+    // Dispatch custom event that mimics the menu system
+    document.dispatchEvent(new CustomEvent('execute-action', { detail: { action } }));
+  });
 
   // Forward note events from main process to message bus
   $effect(() => {
@@ -276,6 +284,175 @@
 
     return () => {
       unsubscribe?.();
+    };
+  });
+
+  // Handle action bar execute-action events
+  $effect(() => {
+    const handleExecuteAction = async (event: Event): Promise<void> => {
+      const customEvent = event as CustomEvent<{ action: string }>;
+      const action = customEvent.detail.action;
+
+      // Handle navigation actions
+      if (action.startsWith('navigate:')) {
+        const view = action.replace('navigate:', '');
+        const viewMap: Record<string, typeof activeSystemView> = {
+          inbox: 'inbox',
+          daily: 'daily',
+          review: 'review',
+          routines: 'workflows',
+          'note-types': 'notes',
+          settings: 'settings'
+        };
+        const mappedView = viewMap[view];
+        if (mappedView) {
+          handleSystemViewSelect(mappedView);
+          if (view === 'daily') {
+            setTimeout(() => {
+              document.dispatchEvent(new CustomEvent('daily-view-focus-today'));
+            }, 150);
+          }
+        }
+        return;
+      }
+
+      // Handle regular menu actions (same as onMenuAction handler)
+      switch (action) {
+        case 'new-note':
+          await handleCreateNote(undefined, true);
+          break;
+        case 'new-vault':
+          document.dispatchEvent(new CustomEvent('vault-create-modal-open'));
+          break;
+        case 'switch-vault':
+          document.dispatchEvent(new CustomEvent('vault-switcher-open'));
+          break;
+        case 'show-in-finder':
+          if (activeNoteStore.activeNote) {
+            const chatService = getChatService();
+            const note = await chatService.getNote({
+              identifier: activeNoteStore.activeNote.id
+            });
+            if (note?.path) {
+              await window.api?.showItemInFolder({ path: note.path });
+            }
+          }
+          break;
+        case 'find': {
+          const actionBarInput = document.getElementById('action-bar-input');
+          actionBarInput?.focus();
+          break;
+        }
+        case 'toggle-sidebar':
+          sidebarState.toggleLeftSidebar();
+          break;
+        case 'focus-title':
+          document.dispatchEvent(new CustomEvent('menu-focus-title'));
+          break;
+        case 'toggle-preview':
+          document.dispatchEvent(new CustomEvent('menu-toggle-preview'));
+          break;
+        case 'toggle-metadata':
+          document.dispatchEvent(new CustomEvent('menu-toggle-metadata'));
+          break;
+        case 'toggle-agent':
+          setRightSidebarMode('ai');
+          break;
+        case 'toggle-shelf':
+          setRightSidebarMode('notes');
+          break;
+        case 'toggle-pin':
+          if (activeNoteStore.activeNote) {
+            await workspacesStore.togglePin(activeNoteStore.activeNote.id);
+          }
+          break;
+        case 'add-to-shelf':
+          if (activeNoteStore.activeNote) {
+            const noteId = activeNoteStore.activeNote.id;
+            const doc = noteDocumentRegistry.get(noteId);
+            if (doc) {
+              await notesShelfStore.addNote(noteId, doc.title, doc.content);
+              if (
+                !sidebarState.rightSidebar.visible ||
+                sidebarState.rightSidebar.mode !== 'notes'
+              ) {
+                if (!sidebarState.rightSidebar.visible) {
+                  await sidebarState.toggleRightSidebar();
+                }
+                if (sidebarState.rightSidebar.mode !== 'notes') {
+                  await sidebarState.setRightSidebarMode('notes');
+                }
+              }
+            }
+          }
+          break;
+        case 'toggle-review':
+          if (activeNoteStore.activeNote) {
+            const noteId = activeNoteStore.activeNote.id;
+            const result = await window.api?.isReviewEnabled(noteId);
+            if (result?.enabled) {
+              await reviewStore.disableReview(noteId);
+            } else {
+              await reviewStore.enableReview(noteId);
+            }
+          }
+          break;
+        case 'change-type':
+          document.dispatchEvent(new CustomEvent('menu-change-type'));
+          break;
+        case 'generate-suggestions':
+          if (activeNoteStore.activeNote) {
+            await window.api?.generateNoteSuggestions({
+              noteId: activeNoteStore.activeNote.id
+            });
+          }
+          break;
+        case 'archive-note':
+          if (activeNoteStore.activeNote) {
+            const chatService = getChatService();
+            const vault = await chatService.getCurrentVault();
+            if (vault) {
+              await chatService.archiveNote({
+                vaultId: vault.id,
+                identifier: activeNoteStore.activeNote.id
+              });
+            }
+          }
+          break;
+        case 'check-updates':
+          try {
+            await window.api?.checkForUpdates();
+          } catch (error) {
+            console.error('Failed to check for updates:', error);
+          }
+          break;
+        case 'show-changelog':
+          showChangelog = true;
+          break;
+        case 'new-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-new'));
+          break;
+        case 'edit-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-edit'));
+          break;
+        case 'delete-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-delete'));
+          break;
+        case 'import-file':
+          await handleImportFile();
+          break;
+        case 'import-webpage':
+          showImportWebpageModal = true;
+          break;
+        case 'open-docs':
+          window.open('https://flint.so/docs', '_blank');
+          break;
+      }
+    };
+
+    document.addEventListener('execute-action', handleExecuteAction);
+    return () => {
+      document.removeEventListener('execute-action', handleExecuteAction);
     };
   });
 
