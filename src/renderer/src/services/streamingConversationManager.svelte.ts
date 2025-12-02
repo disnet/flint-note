@@ -66,6 +66,7 @@ export class StreamingConversationManager {
 
   // Internal tracking (non-reactive)
   private currentMessageId: string | null = null;
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   private toolCallMessageIdsByStep: Map<number, string> = new Map();
   private highestStepIndexSeen = 0;
 
@@ -124,6 +125,7 @@ export class StreamingConversationManager {
     this._currentStepIndex = 0;
     this._error = null;
     this.currentMessageId = null;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     this.toolCallMessageIdsByStep = new Map();
     this.highestStepIndexSeen = 0;
   }
@@ -139,6 +141,7 @@ export class StreamingConversationManager {
     this._isLoading = true;
     this._currentToolCalls = [];
     this._currentStepIndex = 0;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     this.toolCallMessageIdsByStep = new Map();
     this.highestStepIndexSeen = 0;
 
@@ -149,6 +152,7 @@ export class StreamingConversationManager {
       id: initialMsgId,
       text: '',
       sender: 'agent',
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       timestamp: new Date()
     };
     this.config.addMessage(initialMsg);
@@ -218,6 +222,7 @@ export class StreamingConversationManager {
     this._currentToolCalls = [];
     this._currentStepIndex = 0;
     this.currentMessageId = null;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     this.toolCallMessageIdsByStep = new Map();
     this.highestStepIndexSeen = 0;
 
@@ -270,6 +275,7 @@ export class StreamingConversationManager {
         id: toolCallMsgId,
         text: '',
         sender: 'agent',
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         timestamp: new Date(),
         toolCalls: [toolCall],
         currentStepIndex: stepIndex
@@ -282,6 +288,7 @@ export class StreamingConversationManager {
         id: postToolMsgId,
         text: '',
         sender: 'agent',
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         timestamp: new Date()
       };
       this.config.addMessage(postToolMsg);

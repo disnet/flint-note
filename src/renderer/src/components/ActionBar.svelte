@@ -674,7 +674,7 @@
         handlers.onToolCall,
         handlers.onToolResult
       );
-    } catch (error) {
+    } catch {
       streamingManager.reset();
       // Set error state manually since manager.reset() clears it
       // We need to handle this case differently
@@ -1235,6 +1235,7 @@
     /* Truncate long snippets */
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

@@ -73,6 +73,7 @@ class NavigationHistoryStore {
    * Get recently opened notes (unique, most recent first)
    */
   getRecentNotes(limit: number = 5): NavigationEntry[] {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const seen = new Set<string>();
     const recent: NavigationEntry[] = [];
 
