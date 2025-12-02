@@ -42,6 +42,7 @@
     expandedSuggestions?: Set<string>;
     onDismissSuggestion?: (suggestionId: string) => void;
     noBottomMargin?: boolean;
+    onDataviewNewNote?: (type: string | null) => void;
   }
 
   let {
@@ -61,7 +62,8 @@
     suggestions = [],
     expandedSuggestions = new Set(),
     onDismissSuggestion,
-    noBottomMargin = false
+    noBottomMargin = false,
+    onDataviewNewNote
   }: Props = $props();
 
   let editorContainer: Element;
@@ -116,7 +118,8 @@
     onWikilinkEdit: handleActionPopoverEdit,
     onHoverPopoverEnter: handleHoverPopoverEnter,
     onHoverPopoverAltEnter: handleHoverPopoverAltEnter,
-    onImagePathClick: handleImagePathClick
+    onImagePathClick: handleImagePathClick,
+    onDataviewNewNote
   });
 
   async function handleImagePathClick(relativePath: string): Promise<void> {
@@ -177,6 +180,9 @@
       state: startState,
       parent: editorContainer
     });
+
+    // Set the editor view reference for dataview config changes
+    editorConfig.setEditorView(editorView);
 
     measureAndUpdateMarkerWidths();
   }

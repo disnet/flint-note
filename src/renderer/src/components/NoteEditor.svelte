@@ -587,6 +587,37 @@
       await wikilinkService.handleWikilinkClick(noteId, noteId, true);
     }
   }
+
+  async function handleDataviewNewNote(type: string | null): Promise<void> {
+    // Create a new note with the specified type (or prompt if null)
+    try {
+      const noteService = getChatService();
+      const vault = await noteService.getCurrentVault();
+      if (!vault?.id) {
+        console.error('No vault available');
+        return;
+      }
+
+      const noteType = type || note.type;
+      const result = await noteService.createNote({
+        vaultId: vault.id,
+        type: noteType,
+        identifier: '',
+        content: ''
+      });
+
+      if (result?.id) {
+        // Navigate to the new note (navigation will handle closing/switching)
+        await wikilinkService.handleWikilinkClick(
+          result.id,
+          result.title || '',
+          false
+        );
+      }
+    } catch (err) {
+      console.error('Error creating note from dataview:', err);
+    }
+  }
 </script>
 
 {#if doc}
@@ -663,6 +694,7 @@
         {suggestions}
         {expandedSuggestions}
         onDismissSuggestion={dismissSuggestion}
+        onDataviewNewNote={handleDataviewNewNote}
       />
     {/if}
 

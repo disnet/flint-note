@@ -24,6 +24,7 @@ import {
   type ImagePathClickHandler
 } from '../lib/inlineImages.svelte';
 import { createImageDropExtension } from '../lib/imageDropHandler.svelte';
+import { dataviewExtension, updateDataviewBlock } from '../lib/dataview';
 
 export interface EditorConfigOptions {
   onWikilinkClick?: (
@@ -43,14 +44,26 @@ export interface EditorConfigOptions {
   onHoverPopoverAltEnter?: () => boolean;
   placeholder?: string;
   variant?: 'default' | 'daily-note' | 'backlink-context' | 'shelf-note';
+  // Dataview options
+  onDataviewNewNote?: (type: string | null) => void;
+  enableDataview?: boolean;
 }
 
 export class EditorConfig {
   isDarkMode = $state(false);
 
   private mediaQuery: MediaQueryList | null = null;
+  private editorView: EditorView | null = null;
 
   constructor(private options: EditorConfigOptions = {}) {}
+
+  /**
+   * Set the editor view reference (called after editor is created)
+   * Required for dataview config changes to update the document
+   */
+  setEditorView(view: EditorView): void {
+    this.editorView = view;
+  }
 
   // Base theme shared by all variants
   private getBaseTheme(): Extension {
@@ -371,6 +384,25 @@ export class EditorConfig {
       inlineImagesExtension(this.options.onImagePathClick),
       // Image drop handler (enabled by default unless explicitly disabled)
       ...(this.options.enableImageDrop !== false ? [createImageDropExtension()] : []),
+      // Dataview extension (enabled by default unless explicitly disabled)
+      ...(this.options.enableDataview !== false
+        ? [
+            dataviewExtension({
+              onConfigChange: (from, to, newConfig) => {
+                if (this.editorView) {
+                  updateDataviewBlock(this.editorView, from, to, newConfig);
+                }
+              },
+              onNewNote: (type) => {
+                this.options.onDataviewNewNote?.(type);
+              },
+              onNoteClick: (noteId, shiftKey) => {
+                // Reuse wikilink click handler for note navigation
+                this.options.onWikilinkClick?.(noteId, '', false, shiftKey);
+              }
+            })
+          ]
+        : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true),
       updateListener,
