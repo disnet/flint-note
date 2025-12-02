@@ -4,6 +4,15 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-canary.1]
+
+## Changed
+
+- Search bar is now the action bar (Cmd-K instead of Cmd-O)
+- adds full text search
+- add commands/actions search
+- add agent search/messages
+
 ## [0.12.0-canary.19]
 
 ### Fixed
