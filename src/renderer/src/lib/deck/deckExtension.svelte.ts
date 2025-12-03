@@ -70,10 +70,13 @@ function findDeckBlocks(state: EditorState): DeckBlock[] {
 
 /**
  * Check if cursor/selection overlaps with a range
+ * Uses strict inequalities so cursor at block boundaries (start/end) is not considered "inside"
+ * This prevents the widget from showing raw YAML when cursor lands at boundary after config updates
  */
 function isCursorInRange(state: EditorState, from: number, to: number): boolean {
   for (const range of state.selection.ranges) {
-    if (range.from <= to && range.to >= from) {
+    // Use strict inequalities: cursor at exactly from or to is not "inside"
+    if (range.from < to && range.to > from) {
       return true;
     }
   }
@@ -99,9 +102,17 @@ class DeckWidgetType extends WidgetType {
     const container = document.createElement('div');
     container.className = 'deck-widget-container';
 
-    // Note: We rely on ignoreEvent() returning true to tell CodeMirror to not
-    // interfere with events inside the widget. We avoid stopPropagation() here
-    // because it breaks Svelte 5's event delegation.
+    // Prevent mousedown from reaching CodeMirror and causing selection changes
+    // This is critical to prevent the widget from being replaced with raw YAML
+    container.addEventListener('mousedown', (e) => {
+      // Don't prevent default for interactive elements
+      const target = e.target as HTMLElement;
+      const tag = target.tagName;
+      if (!['INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'BUTTON'].includes(tag)) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
+    });
 
     // Mount Svelte component
     this.component = mount(DeckWidget, {

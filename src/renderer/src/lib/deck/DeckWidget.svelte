@@ -1,12 +1,18 @@
 <script lang="ts">
-  import type { DeckConfig, DeckResultNote, DeckFilter, ColumnConfig } from './types';
-  import { normalizeColumn } from './types';
+  import type {
+    DeckConfig,
+    DeckResultNote,
+    DeckFilter,
+    ColumnConfig,
+    FilterFieldInfo
+  } from './types';
+  import { normalizeColumn, fieldDefToFilterInfo, SYSTEM_FIELDS } from './types';
   import { runDeckQuery } from './queryService.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
-  import FilterBuilder from './FilterBuilder.svelte';
-  import ColumnBuilder from './ColumnBuilder.svelte';
-  import ColumnCell from './ColumnCell.svelte';
-  import EditableCell from './EditableCell.svelte';
+  import DeckToolbar from './DeckToolbar.svelte';
+  import NoteListItem from './NoteListItem.svelte';
+  import PropPickerDialog from './PropPickerDialog.svelte';
+  import PropFilterPopup from './PropFilterPopup.svelte';
   import type {
     MetadataFieldType,
     MetadataFieldDefinition
@@ -38,62 +44,60 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
-  let isConfiguringFilters = $state(false);
-  let isConfiguringColumns = $state(false);
-  let pendingFilters = $state<DeckFilter[] | null>(null); // Filters being edited, not yet saved to YAML
-  let pendingColumns = $state<ColumnConfig[] | null>(null); // Columns being edited
   let isEditingName = $state(false);
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
   let isExpanded = $state(config.expanded ?? false);
   let contentRef = $state<HTMLDivElement | null>(null);
-  let needsExpand = $state(false); // True if content overflows and can be expanded
+  let needsExpand = $state(false);
 
   // Inline editing state
   let editingNoteId = $state<string | null>(null);
   let editingValues = $state<EditingValues | null>(null);
   let editingVaultId = $state<string | null>(null);
-  let isCreatingNewNote = $state(false); // True if editing a not-yet-created note
+  let isCreatingNewNote = $state(false);
   let isSavingNote = $state(false);
 
-  // Schema fields for inline editing (loaded when type is filtered)
+  // Schema fields for inline editing
   let schemaFields = $state<Map<string, SchemaFieldInfo>>(new Map());
   let schemaLoadedForType = $state<string | null>(null);
+  let availableSchemaFields = $state<FilterFieldInfo[]>([]);
 
-  // Derived: active filters (pending edits or saved config)
-  const activeFilters = $derived(pendingFilters ?? config.filters);
+  // Note types for type selector
+  let noteTypes = $state<string[]>([]);
 
-  // Derived: active columns (pending edits or saved config)
+  // Prop picker dialog state
+  let isPropPickerOpen = $state(false);
+  let propPickerPosition = $state({ top: 0, left: 0 });
+
+  // Prop filter popup state
+  let isFilterPopupOpen = $state(false);
+  let filterPopupPosition = $state({ top: 0, left: 0 });
+  let filterPopupField = $state<string | null>(null);
+  // Pending filter edits (not yet saved to config)
+  let pendingFilterEdit = $state<DeckFilter | null>(null);
+
+  // Derived: active columns
   const activeColumns = $derived.by(() => {
-    if (pendingColumns !== null) return pendingColumns;
     if (config.columns && config.columns.length > 0) {
       return config.columns.map(normalizeColumn);
     }
     return [] as ColumnConfig[];
   });
 
-  // Derived: columns to display (always include title first)
-  const displayColumns = $derived.by(() => {
-    const titleColumn: ColumnConfig = { field: 'title', label: 'Title' };
-    const otherColumns = activeColumns.filter((c) => c.field !== 'title');
-    return [titleColumn, ...otherColumns];
-  });
-
-  // Derived: get single type if filtered by flint_type (use active filters)
+  // Derived: get single type if filtered by flint_type
   const filteredType = $derived.by(() => {
-    const typeFilter = activeFilters.find((f) => f.field === 'flint_type');
+    const typeFilter = config.filters.find((f) => f.field === 'flint_type');
     return typeof typeFilter?.value === 'string' ? typeFilter.value : null;
   });
 
   // Track previous type to detect changes
   let previousFilteredType = $state<string | null>(null);
 
-  // Clear columns when note type changes (metadata fields are type-specific)
+  // Clear columns when note type changes
   $effect(() => {
     const currentType = filteredType;
     if (previousFilteredType !== null && currentType !== previousFilteredType) {
-      // Type changed - clear columns
-      pendingColumns = null;
       if (config.columns && config.columns.length > 0) {
         setTimeout(() => {
           onConfigChange({
@@ -106,34 +110,51 @@
     previousFilteredType = currentType;
   });
 
-  // Load schema fields when filtered type changes (for inline editing)
+  // Load schema fields when filtered type changes
   $effect(() => {
     if (filteredType && filteredType !== schemaLoadedForType) {
       loadSchemaFields(filteredType);
     } else if (!filteredType) {
       schemaFields = new Map();
+      availableSchemaFields = [];
       schemaLoadedForType = null;
     }
   });
 
-  // Check if content overflows (needs expand button)
+  // Load note types on mount
   $effect(() => {
-    // Track dependencies
+    loadNoteTypes();
+  });
+
+  // Check if content overflows
+  $effect(() => {
     void results;
     void loading;
     void isExpanded;
 
-    // Check after DOM updates
     requestAnimationFrame(() => {
       if (contentRef && !isExpanded) {
         needsExpand = contentRef.scrollHeight > contentRef.clientHeight;
       } else if (isExpanded) {
-        // When expanded, check if it would overflow at default height
-        // We can't easily check this, so just keep the button enabled
         needsExpand = true;
       }
     });
   });
+
+  /**
+   * Load available note types
+   */
+  async function loadNoteTypes(): Promise<void> {
+    try {
+      const types = await window.api?.listNoteTypes();
+      if (types) {
+        noteTypes = types.map((t: { name: string }) => t.name);
+      }
+    } catch (e) {
+      console.error('Failed to load note types:', e);
+      noteTypes = ['note'];
+    }
+  }
 
   /**
    * Load schema fields for a note type
@@ -143,6 +164,7 @@
       const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
       if (typeInfo?.metadata_schema?.fields) {
         const newMap = new Map<string, SchemaFieldInfo>();
+        const fieldInfos: FilterFieldInfo[] = [];
         for (const field of typeInfo.metadata_schema
           .fields as MetadataFieldDefinition[]) {
           newMap.set(field.name, {
@@ -150,34 +172,43 @@
             type: field.type,
             options: field.constraints?.options
           });
+          fieldInfos.push(fieldDefToFilterInfo(field));
         }
         schemaFields = newMap;
+        availableSchemaFields = fieldInfos;
         schemaLoadedForType = typeName;
       }
     } catch (e) {
       console.error('Failed to load schema fields:', e);
       schemaFields = new Map();
+      availableSchemaFields = [];
     }
   }
 
-  /**
-   * Get schema field info for a field name
-   */
-  function getSchemaField(fieldName: string): SchemaFieldInfo | undefined {
-    return schemaFields.get(fieldName);
-  }
+  // Effective config that includes pending filter edits (for live query updates)
+  const effectiveConfig = $derived.by(() => {
+    const pending = pendingFilterEdit;
+    if (!pending) return config;
+    // Merge pending filter into config
+    const existingIndex = config.filters.findIndex((f) => f.field === pending.field);
+    let newFilters: DeckFilter[];
+    if (existingIndex >= 0) {
+      newFilters = [...config.filters];
+      newFilters[existingIndex] = pending;
+    } else {
+      newFilters = [...config.filters, pending];
+    }
+    return { ...config, filters: newFilters };
+  });
 
-  // Execute query when active filters change
+  // Execute query when config or pending filter changes
   $effect(() => {
-    // Track activeFilters to re-run when they change (either config or pending)
-    void activeFilters;
-    void config;
+    void effectiveConfig;
     executeQuery();
   });
 
   // Subscribe to note events for real-time updates
   $effect(() => {
-    // Note event types that should trigger a refresh
     const relevantEvents = [
       'note.created',
       'note.updated',
@@ -192,14 +223,12 @@
 
     const unsubscribers = relevantEvents.map((eventType) =>
       messageBus.subscribe(eventType as NoteEvent['type'], (event) => {
-        // Check if the event is relevant to our query
         if (isRelevantEvent(event)) {
           debouncedRefresh();
         }
       })
     );
 
-    // Cleanup subscriptions on unmount
     return () => {
       unsubscribers.forEach((unsub) => unsub());
       if (refreshTimeout) {
@@ -208,30 +237,22 @@
     };
   });
 
-  /**
-   * Check if a note event is relevant to the current query
-   */
   function isRelevantEvent(event: NoteEvent): boolean {
-    // Don't refresh while editing - we manage the editing row locally
     if (editingNoteId) {
       return false;
     }
 
-    // Always refresh for bulk operations
     if (event.type === 'notes.bulkRefresh' || event.type === 'file.sync-completed') {
       return true;
     }
 
-    // For type-filtered queries, check if the note type matches
     if (filteredType) {
       if (event.type === 'note.created' && event.note.type === filteredType) {
         return true;
       }
       if (event.type === 'note.moved') {
-        // Refresh if either old or new type matches
         return event.oldType === filteredType || event.newType === filteredType;
       }
-      // For other events, check if the note is in our current results
       if ('noteId' in event) {
         return results.some((r) => r.id === event.noteId);
       }
@@ -240,13 +261,9 @@
       }
     }
 
-    // For non-type-filtered queries, refresh on any note change
     return true;
   }
 
-  /**
-   * Debounced refresh to prevent excessive re-queries
-   */
   function debouncedRefresh(): void {
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
@@ -254,7 +271,7 @@
     refreshTimeout = setTimeout(() => {
       executeQuery();
       refreshTimeout = null;
-    }, 300); // 300ms debounce
+    }, 300);
   }
 
   async function executeQuery(): Promise<void> {
@@ -262,9 +279,8 @@
     error = null;
 
     try {
-      // Use activeFilters (which may include pending edits)
-      const queryConfig = { ...config, filters: activeFilters };
-      results = await runDeckQuery(queryConfig);
+      // Use effectiveConfig to include pending filter changes
+      results = await runDeckQuery(effectiveConfig);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Query failed';
       results = [];
@@ -273,44 +289,25 @@
     }
   }
 
-  function handleSortClick(field: string): void {
-    // Toggle sort order if already sorting by this field
-    const currentOrder = config.sort?.field === field ? config.sort.order : null;
-    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-
-    onConfigChange({
-      ...config,
-      sort: { field, order: newOrder }
-    });
-  }
-
-  function handleRowClick(result: DeckResultNote, event: MouseEvent): void {
+  function handleNoteClick(result: DeckResultNote, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
     onNoteClick(result.id, event.shiftKey);
   }
 
-  async function handleNewNoteClick(event: MouseEvent): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Cancel any pending refresh to prevent overwriting our editing state
+  async function handleNewNoteClick(): Promise<void> {
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
       refreshTimeout = null;
     }
 
-    // Get current vault
     const vault = await window.api?.getCurrentVault();
     if (!vault?.id) {
-      console.error('No vault available');
       error = 'No vault available';
       return;
     }
 
     const noteType = filteredType || 'note';
-
-    // Create a placeholder entry for the new note (not yet saved to disk)
     const placeholderId = `__new__${Date.now()}`;
     const newNote: DeckResultNote = {
       id: placeholderId,
@@ -323,7 +320,6 @@
 
     results = [newNote, ...results];
 
-    // Enter edit mode for the new note
     editingNoteId = placeholderId;
     editingVaultId = vault.id;
     isCreatingNewNote = true;
@@ -340,14 +336,11 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Get current vault
     const vault = await window.api?.getCurrentVault();
     if (!vault?.id) {
-      console.error('No vault available');
       return;
     }
 
-    // Enter edit mode for this existing note
     editingNoteId = result.id;
     editingVaultId = vault.id;
     isCreatingNewNote = false;
@@ -377,15 +370,11 @@
 
     try {
       const newTitle = editingValues.title.trim();
-      // Use $state.snapshot() to serialize reactive objects for IPC
       const metadataSnapshot = $state.snapshot(editingValues.metadata);
 
       if (isCreatingNewNote) {
-        // Create new note
         const noteType = filteredType || 'note';
 
-        // The identifier param is used as the title by the API,
-        // so pass the actual title (empty string allowed)
         await window.api?.createNote({
           type: noteType,
           identifier: newTitle,
@@ -394,10 +383,8 @@
           vaultId: editingVaultId ?? undefined
         });
 
-        // Remove the placeholder and let refresh add the real note
         results = results.filter((r) => r.id !== editingNoteId);
       } else {
-        // Update existing note - fetch current content first to avoid overwriting
         const existingNote = await window.api?.getNote({
           identifier: editingNoteId,
           vaultId: editingVaultId ?? undefined
@@ -413,7 +400,6 @@
           vaultId: editingVaultId ?? undefined
         });
 
-        // Update the result in the list
         const noteIndex = results.findIndex((r) => r.id === editingNoteId);
         if (noteIndex !== -1) {
           results[noteIndex] = {
@@ -425,13 +411,11 @@
         }
       }
 
-      // Exit edit mode
       editingNoteId = null;
       editingVaultId = null;
       editingValues = null;
       isCreatingNewNote = false;
 
-      // Refresh query to get accurate data
       debouncedRefresh();
     } catch (e) {
       console.error('Failed to save note:', e);
@@ -445,7 +429,6 @@
     if (!editingNoteId) return;
 
     if (isCreatingNewNote) {
-      // Just remove the placeholder from results - no API call needed
       results = results.filter((r) => r.id !== editingNoteId);
     }
 
@@ -471,116 +454,140 @@
     executeQuery();
   }
 
-  function getColumnLabel(column: ColumnConfig): string {
-    if (column.label) return column.label;
-    // Capitalize first letter
-    return (
-      column.field.charAt(0).toUpperCase() + column.field.slice(1).replace(/_/g, ' ')
+  function handleTypeChange(newType: string): void {
+    // Update or add the type filter
+    const existingFilters = config.filters.filter((f) => f.field !== 'flint_type');
+    const newFilters: DeckFilter[] = [
+      { field: 'flint_type', value: newType },
+      ...existingFilters
+    ];
+
+    setTimeout(() => {
+      onConfigChange({
+        ...config,
+        filters: newFilters,
+        columns: [] // Clear columns when type changes
+      });
+    }, 0);
+  }
+
+  // Get filter for the popup field (use pending edit if available)
+  const filterPopupFilter = $derived.by(() => {
+    if (!filterPopupField) return null;
+    // Use pending edit if available
+    if (pendingFilterEdit && pendingFilterEdit.field === filterPopupField) {
+      return pendingFilterEdit;
+    }
+    const existing = config.filters.find((f) => f.field === filterPopupField);
+    if (existing) return existing;
+    // Create a default filter for new props
+    return { field: filterPopupField, operator: '=' as const, value: '' };
+  });
+
+  // Get field info for the popup field
+  const filterPopupFieldInfo = $derived.by(() => {
+    if (!filterPopupField) return null;
+    // Check schema fields first
+    const schemaField = availableSchemaFields.find((f) => f.name === filterPopupField);
+    if (schemaField) return schemaField;
+    // Check system fields
+    const systemField = SYSTEM_FIELDS.find(
+      (f) =>
+        f.name === filterPopupField ||
+        f.name === `flint_${filterPopupField}` ||
+        filterPopupField === f.name.replace('flint_', '')
     );
+    if (systemField) return systemField;
+    // Fallback
+    return {
+      name: filterPopupField,
+      label:
+        filterPopupField.charAt(0).toUpperCase() +
+        filterPopupField.slice(1).replace(/_/g, ' '),
+      type: 'string' as const,
+      isSystem: false
+    };
+  });
+
+  function handlePropClick(field: string, position: { top: number; left: number }): void {
+    filterPopupField = field;
+    filterPopupPosition = position;
+    isFilterPopupOpen = true;
   }
 
-  function toggleConfigureFilters(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
+  function handleFilterUpdate(filter: DeckFilter): void {
+    // Store as pending edit - don't save to config yet (would destroy widget)
+    pendingFilterEdit = filter;
+  }
 
-    if (isConfiguringFilters && pendingFilters !== null) {
-      // Closing the filter builder - save pending filters to YAML
-      // Defer to avoid "update during update" error in CodeMirror
-      const filtersToSave = pendingFilters;
-      pendingFilters = null;
-      setTimeout(() => {
-        onConfigChange({
-          ...config,
-          filters: filtersToSave
-        });
-      }, 0);
+  function commitPendingFilter(): void {
+    const pending = pendingFilterEdit;
+    if (!pending) return;
+    pendingFilterEdit = null;
+    // Update or add the filter
+    const existingIndex = config.filters.findIndex((f) => f.field === pending.field);
+    let newFilters: DeckFilter[];
+    if (existingIndex >= 0) {
+      newFilters = [...config.filters];
+      newFilters[existingIndex] = pending;
+    } else {
+      newFilters = [...config.filters, pending];
     }
-
-    isConfiguringFilters = !isConfiguringFilters;
-    // Close columns panel when opening filters
-    if (isConfiguringFilters) {
-      isConfiguringColumns = false;
-    }
+    setTimeout(() => {
+      onConfigChange({
+        ...config,
+        filters: newFilters
+      });
+    }, 0);
   }
 
-  function toggleConfigureColumns(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (isConfiguringColumns && pendingColumns !== null) {
-      // Closing the column builder - save pending columns to YAML
-      const columnsToSave = pendingColumns;
-      pendingColumns = null;
-      setTimeout(() => {
-        onConfigChange({
-          ...config,
-          columns: columnsToSave
-        });
-      }, 0);
-    }
-
-    isConfiguringColumns = !isConfiguringColumns;
-    // Close filters panel when opening columns
-    if (isConfiguringColumns) {
-      isConfiguringFilters = false;
-    }
+  function handleFilterRemove(): void {
+    if (!filterPopupField) return;
+    // Clear pending edit since we're removing this field
+    pendingFilterEdit = null;
+    // Remove both the column and any filter for this field
+    const newColumns = activeColumns.filter((c) => c.field !== filterPopupField);
+    const newFilters = config.filters.filter((f) => f.field !== filterPopupField);
+    isFilterPopupOpen = false;
+    filterPopupField = null;
+    setTimeout(() => {
+      onConfigChange({
+        ...config,
+        columns: newColumns,
+        filters: newFilters
+      });
+    }, 0);
   }
 
-  function handleFiltersChange(newFilters: DeckFilter[]): void {
-    // Store filters locally while editing - don't update YAML until filter builder is closed
-    pendingFilters = newFilters;
+  function handleAddPropClick(event: MouseEvent): void {
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+    propPickerPosition = {
+      top: rect.bottom + 4,
+      left: rect.left
+    };
+    isPropPickerOpen = true;
   }
 
-  function handleColumnsChange(newColumns: ColumnConfig[]): void {
-    // Store columns locally while editing
-    pendingColumns = newColumns;
+  function handlePropSelect(fieldName: string): void {
+    const newColumn: ColumnConfig = { field: fieldName };
+    const newColumns = [...activeColumns, newColumn];
+    setTimeout(() => {
+      onConfigChange({
+        ...config,
+        columns: newColumns
+      });
+    }, 0);
   }
 
-  // Get field type for a column
-  function getFieldType(field: string): MetadataFieldType | 'system' | 'unknown' {
-    if (
-      field === 'title' ||
-      field === 'type' ||
-      field === 'flint_title' ||
-      field === 'flint_type'
-    )
-      return 'system';
-    if (
-      field === 'created' ||
-      field === 'updated' ||
-      field === 'flint_created' ||
-      field === 'flint_updated'
-    )
-      return 'date';
-    // Look up type from loaded schema
-    const schemaField = getSchemaField(field);
-    if (schemaField) {
-      return schemaField.type;
-    }
-    return 'unknown';
-  }
-
-  // Get field options for select fields
-  function getFieldOptions(field: string): string[] {
-    const schemaField = getSchemaField(field);
-    return schemaField?.options ?? [];
-  }
-
-  // Get cell value for a column
-  function getCellValue(result: DeckResultNote, field: string): unknown {
-    if (field === 'title' || field === 'flint_title') return result.title || '';
-    if (field === 'type' || field === 'flint_type') return result.type;
-    if (field === 'created' || field === 'flint_created') return result.created;
-    if (field === 'updated' || field === 'flint_updated') return result.updated;
-    return result.metadata[field];
-  }
+  // Get fields already used as columns (for exclusion)
+  const usedFields = $derived(activeColumns.map((c) => c.field));
 
   function startEditingName(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
     editingName = config.name || '';
     isEditingName = true;
-    // Focus the input after it's rendered
     setTimeout(() => {
       nameInputRef?.focus();
       nameInputRef?.select();
@@ -591,12 +598,11 @@
     if (!isEditingName) return;
     const newName = editingName.trim();
     isEditingName = false;
-    // Only update if the name actually changed
     if (newName !== (config.name || '')) {
       setTimeout(() => {
         onConfigChange({
           ...config,
-          name: newName || undefined // Remove name if empty
+          name: newName || undefined
         });
       }, 0);
     }
@@ -625,13 +631,14 @@
     setTimeout(() => {
       onConfigChange({
         ...config,
-        expanded: newExpanded || undefined // Remove if false (default)
+        expanded: newExpanded || undefined
       });
     }, 0);
   }
 </script>
 
-<div class="deck-widget">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="deck-widget" onmousedown={(e) => e.stopPropagation()}>
   <!-- Header -->
   <div class="deck-header">
     {#if isEditingName}
@@ -642,7 +649,7 @@
         bind:value={editingName}
         onblur={saveNameEdit}
         onkeydown={handleNameKeydown}
-        placeholder="Query Results"
+        placeholder="Deck Name"
       />
     {:else}
       <button
@@ -651,7 +658,7 @@
         type="button"
         title="Click to edit name"
       >
-        {config.name || 'Query Results'}
+        {config.name || 'Deck'}
       </button>
     {/if}
     <div class="deck-meta">
@@ -660,18 +667,17 @@
           >{results.length} note{results.length === 1 ? '' : 's'}</span
         >
       {/if}
-      <!-- Expand/collapse button -->
       <button
-        class="configure-btn"
-        class:active={isExpanded}
+        class="expand-btn"
+        class:expanded={isExpanded}
         onclick={toggleExpanded}
         type="button"
         title={isExpanded ? 'Collapse' : 'Expand'}
         disabled={!needsExpand}
       >
         <svg
-          width="14"
-          height="14"
+          width="12"
+          height="12"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -680,258 +686,208 @@
           stroke-linejoin="round"
         >
           {#if isExpanded}
-            <!-- Collapse icon (arrows pointing inward) -->
-            <polyline points="4 14 10 14 10 20" />
-            <polyline points="20 10 14 10 14 4" />
-            <line x1="14" y1="10" x2="21" y2="3" />
-            <line x1="3" y1="21" x2="10" y2="14" />
+            <polyline points="18 15 12 9 6 15" />
           {:else}
-            <!-- Expand icon (arrows pointing outward) -->
-            <polyline points="15 3 21 3 21 9" />
-            <polyline points="9 21 3 21 3 15" />
-            <line x1="21" y1="3" x2="14" y2="10" />
-            <line x1="3" y1="21" x2="10" y2="14" />
-          {/if}
-        </svg>
-      </button>
-      <!-- Columns configuration button -->
-      <button
-        class="configure-btn"
-        class:active={isConfiguringColumns}
-        onclick={toggleConfigureColumns}
-        type="button"
-        title={isConfiguringColumns ? 'Close column editor' : 'Configure columns'}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          {#if isConfiguringColumns}
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          {:else}
-            <!-- Grid/columns icon -->
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-          {/if}
-        </svg>
-      </button>
-      <!-- Filters configuration button -->
-      <button
-        class="configure-btn"
-        class:active={isConfiguringFilters}
-        onclick={toggleConfigureFilters}
-        type="button"
-        title={isConfiguringFilters ? 'Close filter editor' : 'Configure filters'}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          {#if isConfiguringFilters}
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          {:else}
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            <polyline points="6 9 12 15 18 9" />
           {/if}
         </svg>
       </button>
     </div>
   </div>
 
-  <!-- Column Builder (when configuring columns) -->
-  {#if isConfiguringColumns}
-    <div
-      class="deck-configure"
-      role="presentation"
-      onmousedown={(e) => e.stopPropagation()}
-      onclick={(e) => e.stopPropagation()}
-      onfocusin={(e) => e.stopPropagation()}
-    >
-      <ColumnBuilder
-        columns={activeColumns}
-        typeName={filteredType ?? undefined}
-        onColumnsChange={handleColumnsChange}
-      />
-    </div>
-  {/if}
+  <!-- Toolbar -->
+  <DeckToolbar
+    typeName={filteredType}
+    {noteTypes}
+    columns={activeColumns}
+    availableFields={availableSchemaFields}
+    sort={config.sort}
+    onNewNote={handleNewNoteClick}
+    onTypeChange={handleTypeChange}
+    onPropClick={handlePropClick}
+    onAddProp={handleAddPropClick}
+  />
 
-  <!-- Filter Builder (when configuring filters) -->
-  {#if isConfiguringFilters}
-    <div
-      class="deck-configure"
-      role="presentation"
-      onmousedown={(e) => e.stopPropagation()}
-      onclick={(e) => e.stopPropagation()}
-      onfocusin={(e) => e.stopPropagation()}
-    >
-      <FilterBuilder
-        filters={activeFilters}
-        typeName={filteredType ?? undefined}
-        onFiltersChange={handleFiltersChange}
-      />
-    </div>
-  {/if}
+  <!-- Prop Picker Dialog -->
+  <PropPickerDialog
+    isOpen={isPropPickerOpen}
+    fields={availableSchemaFields}
+    excludeFields={usedFields}
+    position={propPickerPosition}
+    onSelect={handlePropSelect}
+    onClose={() => (isPropPickerOpen = false)}
+  />
 
-  <!-- Results -->
+  <!-- Prop Filter Popup -->
+  <PropFilterPopup
+    isOpen={isFilterPopupOpen}
+    filter={filterPopupFilter}
+    fieldInfo={filterPopupFieldInfo}
+    position={filterPopupPosition}
+    onUpdate={handleFilterUpdate}
+    onRemove={handleFilterRemove}
+    onClose={() => {
+      // Commit any pending filter changes when popup closes
+      commitPendingFilter();
+      isFilterPopupOpen = false;
+      filterPopupField = null;
+    }}
+  />
+
+  <!-- Content -->
   <div bind:this={contentRef} class="deck-content" class:expanded={isExpanded}>
     {#if loading}
-      <div class="deck-loading">
-        <span>Loading...</span>
-      </div>
+      <div class="deck-loading">Loading...</div>
     {:else if error}
       <div class="deck-error">
         <span>{error}</span>
         <button onclick={handleRetryClick}>Retry</button>
       </div>
     {:else if results.length === 0}
-      <div class="deck-empty">
-        <span>No notes match this query</span>
-      </div>
+      <div class="deck-empty">No notes match this query</div>
     {:else}
-      <table class="deck-table">
-        <thead>
-          <tr>
-            {#each displayColumns as column (column.field)}
-              <th
-                onclick={() => handleSortClick(column.field)}
-                class:sorted={config.sort?.field === column.field}
-              >
-                {getColumnLabel(column)}
-                {#if config.sort?.field === column.field}
-                  <span class="sort-indicator">
-                    {config.sort.order === 'asc' ? '↑' : '↓'}
-                  </span>
-                {/if}
-              </th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each results as result (result.id)}
-            {#if editingNoteId === result.id && editingValues}
-              <!-- Editing row -->
-              <tr
-                class="editing-row"
-                onmousedown={(e) => e.stopPropagation()}
-                onclick={(e) => e.stopPropagation()}
-                onfocusin={(e) => e.stopPropagation()}
-              >
-                {#each displayColumns as column, colIndex (column.field)}
-                  <td class:deck-title-cell={column.field === 'title'}>
-                    {#if column.field === 'title' || column.field === 'flint_title'}
-                      <EditableCell
-                        value={editingValues.title}
-                        fieldType="system"
-                        field={column.field}
-                        onChange={(v) => updateEditingValue(column.field, v)}
-                        onKeyDown={handleEditingKeyDown}
-                        autoFocus={colIndex === 0}
-                      />
-                    {:else if column.field === 'type' || column.field === 'flint_type' || column.field === 'created' || column.field === 'updated' || column.field === 'flint_created' || column.field === 'flint_updated'}
-                      <!-- Non-editable system fields -->
-                      <ColumnCell
-                        value={getCellValue(result, column.field)}
-                        fieldType={getFieldType(column.field)}
-                        format={column.format}
-                        isTitle={false}
-                      />
-                    {:else}
-                      <!-- Editable metadata field -->
-                      <EditableCell
-                        value={editingValues.metadata[column.field] ?? ''}
-                        fieldType={getFieldType(column.field)}
-                        field={column.field}
-                        onChange={(v) => updateEditingValue(column.field, v)}
-                        onKeyDown={handleEditingKeyDown}
-                        options={getFieldOptions(column.field)}
-                      />
-                    {/if}
-                  </td>
-                {/each}
-                <td class="editing-actions">
-                  <button
-                    class="save-btn"
-                    onclick={saveEditingNote}
-                    onmousedown={(e) => e.stopPropagation()}
-                    disabled={isSavingNote}
-                    type="button"
-                    title="Save (Enter)"
-                  >
-                    {#if isSavingNote}
-                      ...
-                    {:else}
-                      ✓
-                    {/if}
-                  </button>
-                  <button
-                    class="cancel-btn"
-                    onclick={cancelEditing}
-                    onmousedown={(e) => e.stopPropagation()}
-                    disabled={isSavingNote}
-                    type="button"
-                    title="Cancel (Escape)"
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            {:else}
-              <!-- Regular row -->
-              <tr class="data-row">
-                {#each displayColumns as column (column.field)}
-                  <td class:deck-title-cell={column.field === 'title'}>
-                    <ColumnCell
-                      value={getCellValue(result, column.field)}
-                      fieldType={getFieldType(column.field)}
-                      format={column.format}
-                      isTitle={column.field === 'title'}
-                      onTitleClick={column.field === 'title'
-                        ? (e) => handleRowClick(result, e)
-                        : undefined}
-                    />
-                  </td>
-                {/each}
-                <td class="row-actions">
-                  <button
-                    class="edit-row-btn"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      startEditingNote(result, e);
-                    }}
-                    onmousedown={(e) => e.stopPropagation()}
-                    type="button"
-                    title="Edit"
-                  >
-                    ✎
-                  </button>
-                </td>
-              </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
+      <div class="note-list" role="list">
+        {#each results as result (result.id)}
+          <NoteListItem
+            note={result}
+            columns={activeColumns}
+            isEditing={editingNoteId === result.id}
+            editingValues={editingNoteId === result.id
+              ? (editingValues ?? undefined)
+              : undefined}
+            {schemaFields}
+            isSaving={isSavingNote}
+            onTitleClick={(e) => handleNoteClick(result, e)}
+            onEditClick={(e) => startEditingNote(result, e)}
+            onValueChange={updateEditingValue}
+            onKeyDown={handleEditingKeyDown}
+            onSave={saveEditingNote}
+            onCancel={cancelEditing}
+          />
+        {/each}
+      </div>
     {/if}
   </div>
-
-  <!-- Footer with new note button -->
-  <div class="deck-footer">
-    <button class="deck-new-note-btn" onclick={handleNewNoteClick}>
-      + New {filteredType || 'Note'}
-    </button>
-  </div>
 </div>
+
+<style>
+  .deck-widget {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .deck-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .deck-name {
+    padding: 0.125rem 0.25rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .deck-name:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .deck-name-input {
+    padding: 0.125rem 0.25rem;
+    border: 1px solid var(--accent-primary);
+    border-radius: 0.25rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    outline: none;
+  }
+
+  .deck-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .deck-count {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+  }
+
+  .expand-btn {
+    padding: 0.25rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .expand-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .expand-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .deck-content {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem 0.75rem;
+    scrollbar-gutter: stable;
+  }
+
+  .deck-content.expanded {
+    max-height: none;
+  }
+
+  .deck-loading,
+  .deck-error,
+  .deck-empty {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+  }
+
+  .deck-error {
+    color: var(--accent-error, #ef4444);
+  }
+
+  .deck-error button {
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-medium);
+    border-radius: 0.25rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .deck-error button:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .note-list {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

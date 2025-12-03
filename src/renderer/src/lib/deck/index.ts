@@ -83,5 +83,12 @@ export { default as ColumnBuilder } from './ColumnBuilder.svelte';
 export { default as ColumnRow } from './ColumnRow.svelte';
 export { default as ColumnCell } from './ColumnCell.svelte';
 
+// New minimal deck components
+export { default as DeckToolbar } from './DeckToolbar.svelte';
+export { default as PropChip } from './PropChip.svelte';
+export { default as NoteListItem } from './NoteListItem.svelte';
+export { default as PropPickerDialog } from './PropPickerDialog.svelte';
+export { default as PropFilterPopup } from './PropFilterPopup.svelte';
+
 // Query service
 export { runDeckQuery, getMetadataFieldsForType } from './queryService.svelte';
