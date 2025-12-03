@@ -85,6 +85,25 @@ class WikilinkService {
           });
           document.dispatchEvent(event);
         }
+      } else {
+        // Note not found in cache (may happen with dataview queries)
+        // Create minimal note info and dispatch event anyway - App will fetch full details
+        logger.debug('Note not found in cache, navigating with ID:', noteId);
+        const minimalNote: NoteMetadata = {
+          id: noteId,
+          type: 'note',
+          title: title || noteId,
+          filename: '',
+          path: '',
+          created: '',
+          modified: '',
+          size: 0
+        };
+        const event = new CustomEvent('wikilink-navigate', {
+          detail: { note: minimalNote },
+          bubbles: true
+        });
+        document.dispatchEvent(event);
       }
     }
   }

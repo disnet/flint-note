@@ -99,26 +99,9 @@ class DataviewWidgetType extends WidgetType {
     const container = document.createElement('div');
     container.className = 'dataview-widget-container';
 
-    // Prevent editor from handling events inside the widget
-    container.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-    });
-
-    container.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-
-    container.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-    });
-
-    container.addEventListener('focusin', (e) => {
-      e.stopPropagation();
-    });
-
-    container.addEventListener('keydown', (e) => {
-      e.stopPropagation();
-    });
+    // Note: We rely on ignoreEvent() returning true to tell CodeMirror to not
+    // interfere with events inside the widget. We avoid stopPropagation() here
+    // because it breaks Svelte 5's event delegation.
 
     // Mount Svelte component
     this.component = mount(DataviewWidget, {
