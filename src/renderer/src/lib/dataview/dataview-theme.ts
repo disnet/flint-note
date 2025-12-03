@@ -33,7 +33,38 @@ export const dataviewTheme = EditorView.theme({
   '.dataview-name': {
     fontWeight: '600',
     fontSize: '0.9rem',
-    color: 'var(--text-primary, #333)'
+    color: 'var(--text-primary, #333)',
+    background: 'transparent',
+    border: 'none',
+    padding: '0.125rem 0.25rem',
+    margin: '-0.125rem -0.25rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    textAlign: 'left',
+    transition: 'background-color 0.15s ease'
+  },
+
+  '.dataview-name:hover': {
+    backgroundColor: 'var(--bg-hover, rgba(0,0,0,0.05))'
+  },
+
+  '.dataview-name-input': {
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    color: 'var(--text-primary, #333)',
+    background: 'var(--bg-primary, #fff)',
+    border: '1px solid var(--accent-primary, #2196f3)',
+    padding: '0.125rem 0.25rem',
+    margin: '-0.125rem -0.25rem',
+    borderRadius: '4px',
+    outline: 'none',
+    minWidth: '120px',
+    maxWidth: '300px'
+  },
+
+  '.dataview-name-input::placeholder': {
+    color: 'var(--text-tertiary, #999)',
+    fontWeight: '400'
   },
 
   '.dataview-meta': {
@@ -83,6 +114,18 @@ export const dataviewTheme = EditorView.theme({
     borderBottom: '1px solid var(--border-light, #e0e0e0)',
     backgroundColor: 'var(--bg-primary, #fff)',
     overflow: 'visible'
+  },
+
+  // Content container with height cap
+  '.dataview-content': {
+    maxHeight: '300px',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    transition: 'max-height 0.2s ease'
+  },
+
+  '.dataview-content.expanded': {
+    maxHeight: 'none'
   },
 
   // States
@@ -176,13 +219,9 @@ export const dataviewTheme = EditorView.theme({
     borderBottom: 'none'
   },
 
+  // Title cell - styled like wikilinks (detailed styles in ColumnCell.svelte)
   '.dataview-title-cell': {
-    fontWeight: '500',
-    color: 'var(--accent-primary, #2196f3)'
-  },
-
-  '.dataview-title-cell:hover': {
-    textDecoration: 'underline'
+    fontWeight: '600'
   },
 
   // Footer

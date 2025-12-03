@@ -110,15 +110,16 @@ src/main/index.ts
 └── 'query-notes-for-dataview'  # IPC handler
 ```
 
-### Known Limitations (v3)
+### Known Limitations (v4)
 
 1. ~~**Client-side metadata filtering**: Metadata filters are applied after fetching notes~~ ✅ Fixed in v2
 2. ~~**N+1 query problem**: Each note requires a separate `getNote` call~~ ✅ Fixed in v2
 3. ~~**No filter builder UI**: Users must manually write YAML~~ ✅ Fixed in v3
-4. **No column configuration UI**: Column selection requires YAML editing
+4. ~~**No column configuration UI**: Column selection requires YAML editing~~ ✅ Fixed in v4
 5. ~~**No real-time updates**: Widget doesn't automatically refresh when notes change~~ ✅ Fixed in v2
 6. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
 7. **Metadata field sorting**: Sorting by metadata fields falls back to updated date (server-side metadata sort not yet implemented)
+8. **Column width configuration**: Not yet implemented (planned)
 
 ---
 
@@ -212,26 +213,49 @@ Implemented in v3.
 - `OperatorSelector.svelte` - Operator selection dropdown with fixed positioning
 - `ValueInput.svelte` - Smart input based on field type (text, number, date, boolean, select, tags) with real-time suggestion filtering
 
+### Phase 4: Column Configuration UI ✅
+
+Implemented in v4.
+
+#### 4.1 Visual Column Editor ✅
+
+- ColumnBuilder component for adding/removing/reordering columns
+- Drag-and-drop reordering with visual feedback
+- Field selector dropdown (reuses FieldSelector from filter builder)
+- Optional custom label input for column headers
+- Format selector for applicable field types
+
+#### 4.2 Type-Aware Column Rendering ✅
+
+- ColumnCell component with smart formatting based on field type:
+  - Date: relative ("2 days ago"), absolute ("Dec 15, 2024"), or ISO format
+  - Number: thousands separators
+  - Boolean: checkbox or Yes/No text
+  - Array: pill badges or comma-separated
+  - Wikilink: clickable links parsed from `[[note]]` syntax
+- Format can be configured per-column in YAML
+
+#### 4.3 Enhanced YAML Schema ✅
+
+Backward-compatible enhanced column format:
+
+```yaml
+columns:
+  - status # Simple string (still works)
+  - field: priority # Enhanced format with options
+    label: Priority Level
+    format: pills
+```
+
+#### 4.4 New Components ✅
+
+- `ColumnBuilder.svelte` - Main column configuration panel with drag-and-drop
+- `ColumnRow.svelte` - Individual column row with field/label/format controls
+- `ColumnCell.svelte` - Type-aware cell renderer with multiple format options
+
 ---
 
 ## Next Steps
-
-### Phase 4: Column Configuration UI
-
-#### 4.1 Column Picker
-
-- Checkbox list of available columns
-- Drag-and-drop reordering
-- Column width configuration
-
-#### 4.2 Column Types
-
-- Support different renderers per column type:
-  - Date: formatted dates with relative time option
-  - Number: numeric formatting
-  - Boolean: checkboxes
-  - List: comma-separated or pill display
-  - Link: clickable wikilinks
 
 ### Phase 5: Advanced Features
 

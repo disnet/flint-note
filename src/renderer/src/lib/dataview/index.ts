@@ -41,7 +41,11 @@ export type {
   QueryResultNote,
   FlintQueryBlock,
   DataviewHandlers,
-  FilterFieldInfo
+  FilterFieldInfo,
+  // Column types
+  ColumnConfig,
+  ColumnDefinition,
+  ColumnFormat
 } from './types';
 
 // Type utilities
@@ -50,7 +54,13 @@ export {
   OPERATORS_BY_TYPE,
   fieldDefToFilterInfo,
   getOperatorsForType,
-  getOperatorLabel
+  getOperatorLabel,
+  // Column utilities
+  SYSTEM_COLUMNS,
+  normalizeColumn,
+  columnHasCustomSettings,
+  getFormatsForType,
+  getFormatLabel
 } from './types';
 
 // Utilities
@@ -67,6 +77,11 @@ export { default as FilterRow } from './FilterRow.svelte';
 export { default as FieldSelector } from './FieldSelector.svelte';
 export { default as OperatorSelector } from './OperatorSelector.svelte';
 export { default as ValueInput } from './ValueInput.svelte';
+
+// Column Builder components
+export { default as ColumnBuilder } from './ColumnBuilder.svelte';
+export { default as ColumnRow } from './ColumnRow.svelte';
+export { default as ColumnCell } from './ColumnCell.svelte';
 
 // Query service
 export { runDataviewQuery, getMetadataFieldsForType } from './queryService.svelte';

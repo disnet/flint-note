@@ -3,7 +3,16 @@
  */
 
 import yaml from 'js-yaml';
-import type { FlintQueryConfig, QueryFilter, QuerySort, FilterOperator } from './types';
+import type {
+  FlintQueryConfig,
+  QueryFilter,
+  QuerySort,
+  FilterOperator,
+  ColumnDefinition,
+  ColumnConfig,
+  ColumnFormat
+} from './types';
+import { columnHasCustomSettings } from './types';
 
 const VALID_OPERATORS: FilterOperator[] = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'];
 const VALID_SORT_ORDERS = ['asc', 'desc'] as const;
@@ -64,11 +73,29 @@ export function serializeQueryConfig(config: FlintQueryConfig): string {
   }
 
   if (config.columns && config.columns.length > 0) {
-    cleanConfig.columns = config.columns;
+    // Serialize columns - use simple string format when possible
+    cleanConfig.columns = config.columns.map((col) => {
+      if (typeof col === 'string') {
+        return col;
+      }
+      // Only use object format if there are custom settings
+      if (columnHasCustomSettings(col)) {
+        const colObj: Record<string, unknown> = { field: col.field };
+        if (col.label) colObj.label = col.label;
+        if (col.format && col.format !== 'default') colObj.format = col.format;
+        return colObj;
+      }
+      // Otherwise just use the field name
+      return col.field;
+    });
   }
 
   if (config.limit && config.limit !== DEFAULT_LIMIT) {
     cleanConfig.limit = config.limit;
+  }
+
+  if (config.expanded) {
+    cleanConfig.expanded = true;
   }
 
   return yaml.dump(cleanConfig, {
@@ -122,11 +149,15 @@ function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
     }
   }
 
-  // Optional columns
+  // Optional columns - can be strings or objects
   if (Array.isArray(config.columns)) {
-    const validColumns = config.columns.filter(
-      (col): col is string => typeof col === 'string' && col.trim().length > 0
-    );
+    const validColumns: ColumnDefinition[] = [];
+    for (const col of config.columns) {
+      const validatedCol = validateColumn(col);
+      if (validatedCol) {
+        validColumns.push(validatedCol);
+      }
+    }
     if (validColumns.length > 0) {
       result.columns = validColumns;
     }
@@ -137,6 +168,11 @@ function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
     result.limit = Math.min(config.limit, MAX_LIMIT);
   } else {
     result.limit = DEFAULT_LIMIT;
+  }
+
+  // Optional expanded
+  if (config.expanded === true) {
+    result.expanded = true;
   }
 
   return result;
@@ -206,6 +242,63 @@ function validateSort(sort: unknown): QuerySort | null {
     field: s.field.trim(),
     order: s.order as 'asc' | 'desc'
   };
+}
+
+const VALID_COLUMN_FORMATS: ColumnFormat[] = [
+  'default',
+  'relative',
+  'absolute',
+  'iso',
+  'pills',
+  'comma',
+  'check',
+  'yesno'
+];
+
+/**
+ * Validate a single column definition (string or object)
+ */
+function validateColumn(col: unknown): ColumnDefinition | null {
+  // Simple string format
+  if (typeof col === 'string' && col.trim().length > 0) {
+    return col.trim();
+  }
+
+  // Object format
+  if (col && typeof col === 'object') {
+    const c = col as Record<string, unknown>;
+
+    // field is required
+    if (typeof c.field !== 'string' || !c.field.trim()) {
+      return null;
+    }
+
+    const result: ColumnConfig = {
+      field: c.field.trim()
+    };
+
+    // Optional label
+    if (typeof c.label === 'string' && c.label.trim()) {
+      result.label = c.label.trim();
+    }
+
+    // Optional format
+    if (c.format !== undefined) {
+      if (
+        typeof c.format !== 'string' ||
+        !VALID_COLUMN_FORMATS.includes(c.format as ColumnFormat)
+      ) {
+        // Invalid format - ignore it, use default
+        result.format = 'default';
+      } else {
+        result.format = c.format as ColumnFormat;
+      }
+    }
+
+    return result;
+  }
+
+  return null;
 }
 
 /**

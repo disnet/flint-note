@@ -7,13 +7,15 @@
     selectedField: string | null;
     onSelect: (fieldName: string) => void;
     placeholder?: string;
+    excludeFields?: string[];
   }
 
   let {
     fields,
     selectedField,
     onSelect,
-    placeholder = 'Select field...'
+    placeholder = 'Select field...',
+    excludeFields = []
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -24,10 +26,14 @@
   let highlightedIndex = $state(0);
   let dropdownPosition = $state({ top: 0, left: 0, minWidth: 0 });
 
-  // Combine system fields and custom fields
+  // Combine system fields and custom fields, excluding specified fields
   const allFields = $derived.by(() => {
     const customFields = fields.filter((f) => !f.isSystem);
-    return [...SYSTEM_FIELDS, ...customFields];
+    const combined = [...SYSTEM_FIELDS, ...customFields];
+    // Filter out excluded fields (used to prevent duplicate column selection)
+    if (excludeFields.length === 0) return combined;
+    const excludeSet = new Set(excludeFields);
+    return combined.filter((f) => !excludeSet.has(f.name));
   });
 
   const filteredFields = $derived.by(() => {
