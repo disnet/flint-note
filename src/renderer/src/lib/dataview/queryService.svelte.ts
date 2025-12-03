@@ -1,12 +1,46 @@
 /**
  * Query execution service for Dataview widgets
  * Executes queries against the note API and returns formatted results
+ *
+ * Phase 2 Implementation:
+ * - Uses server-side queryNotesForDataview API for efficient batch fetching
+ * - Metadata filtering is performed server-side
+ * - No more N+1 queries - notes and metadata fetched in single request
  */
 
 import type { FlintQueryConfig, QueryResultNote, FilterOperator } from './types';
 
+// System fields to exclude from user metadata display
+const SYSTEM_FIELDS = new Set([
+  'id',
+  'type',
+  'kind',
+  'title',
+  'filename',
+  'path',
+  'content',
+  'content_hash',
+  'created',
+  'modified',
+  'updated',
+  'size',
+  'flint_id',
+  'flint_type',
+  'flint_kind',
+  'flint_title',
+  'flint_filename',
+  'flint_path',
+  'flint_content',
+  'flint_content_hash',
+  'flint_created',
+  'flint_updated',
+  'flint_size',
+  'flint_archived'
+]);
+
 /**
  * Execute a dataview query and return matching notes
+ * Uses the optimized server-side queryNotesForDataview API
  */
 export async function runDataviewQuery(
   config: FlintQueryConfig
@@ -16,12 +50,83 @@ export async function runDataviewQuery(
   const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
 
   // Get metadata filters (everything except flint_type)
+  const metadataFilters = config.filters
+    .filter((f) => f.field !== 'flint_type')
+    .map((f) => ({
+      key: f.field,
+      value: Array.isArray(f.value) ? f.value.join(',') : String(f.value),
+      operator: f.operator || ('=' as const)
+    }));
+
+  // Build sort configuration
+  const sort = config.sort
+    ? [
+        {
+          field: config.sort.field,
+          order: config.sort.order
+        }
+      ]
+    : undefined;
+
+  try {
+    // Use the optimized server-side API
+    const response = await window.api?.queryNotesForDataview({
+      type: typeName,
+      metadata_filters: metadataFilters.length > 0 ? metadataFilters : undefined,
+      sort,
+      limit: config.limit || 50
+    });
+
+    if (!response || !response.results) {
+      return [];
+    }
+
+    // Transform response to QueryResultNote format
+    // Filter out system fields from metadata for display
+    return response.results.map((note) => ({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      created: note.created,
+      updated: note.updated,
+      metadata: extractUserMetadata(note.metadata)
+    }));
+  } catch (error) {
+    console.error('Dataview query failed:', error);
+    // Fall back to legacy query method if new API fails
+    return runLegacyDataviewQuery(config);
+  }
+}
+
+/**
+ * Extract user-defined metadata (excluding system fields)
+ */
+function extractUserMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const userMetadata: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!SYSTEM_FIELDS.has(key)) {
+      userMetadata[key] = value;
+    }
+  }
+
+  return userMetadata;
+}
+
+/**
+ * Legacy query method - used as fallback if new API is not available
+ * This maintains backward compatibility during transition
+ */
+async function runLegacyDataviewQuery(
+  config: FlintQueryConfig
+): Promise<QueryResultNote[]> {
+  const typeFilter = config.filters.find((f) => f.field === 'flint_type');
+  const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
   const metadataFilters = config.filters.filter((f) => f.field !== 'flint_type');
 
   let notes: QueryResultNote[] = [];
 
   if (typeName) {
-    // Use listNotesByType for type-based queries
     const noteList = await window.api?.listNotesByType({
       type: typeName,
       limit: config.limit || 50,
@@ -29,13 +134,9 @@ export async function runDataviewQuery(
     });
 
     if (noteList && Array.isArray(noteList)) {
-      // Fetch full notes to get metadata
-      // TODO: This is N+1 queries - optimize by adding batch getNotes IPC
       notes = await fetchNotesWithMetadata(noteList.map((n) => n.id));
     }
   } else {
-    // No type filter - use search with empty query
-    // This returns all notes (up to limit)
     const searchResults = await window.api?.searchNotes({
       query: '',
       limit: config.limit || 50
@@ -47,7 +148,6 @@ export async function runDataviewQuery(
   }
 
   // Apply metadata filters client-side
-  // TODO: Extend IPC to support server-side metadata filtering
   if (metadataFilters.length > 0) {
     notes = notes.filter((note) => matchesMetadataFilters(note, metadataFilters));
   }
@@ -57,7 +157,7 @@ export async function runDataviewQuery(
     notes = sortNotes(notes, config.sort.field, config.sort.order);
   }
 
-  // Apply limit (in case client-side filtering reduced results)
+  // Apply limit
   const limit = config.limit || 50;
   if (notes.length > limit) {
     notes = notes.slice(0, limit);
@@ -67,12 +167,11 @@ export async function runDataviewQuery(
 }
 
 /**
- * Fetch full notes with metadata for a list of note IDs
+ * Fetch full notes with metadata for a list of note IDs (legacy method)
  */
 async function fetchNotesWithMetadata(noteIds: string[]): Promise<QueryResultNote[]> {
   const notes: QueryResultNote[] = [];
 
-  // Fetch notes in parallel (with reasonable batch size)
   const batchSize = 10;
   for (let i = 0; i < noteIds.length; i += batchSize) {
     const batch = noteIds.slice(i, i + batchSize);
@@ -104,49 +203,7 @@ async function fetchNotesWithMetadata(noteIds: string[]): Promise<QueryResultNot
 }
 
 /**
- * Extract user-defined metadata (excluding system fields)
- */
-function extractUserMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
-  const systemFields = new Set([
-    'id',
-    'type',
-    'kind',
-    'title',
-    'filename',
-    'path',
-    'content',
-    'content_hash',
-    'created',
-    'modified',
-    'updated',
-    'size',
-    'flint_id',
-    'flint_type',
-    'flint_kind',
-    'flint_title',
-    'flint_filename',
-    'flint_path',
-    'flint_content',
-    'flint_content_hash',
-    'flint_created',
-    'flint_updated',
-    'flint_size',
-    'flint_archived'
-  ]);
-
-  const userMetadata: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(metadata)) {
-    if (!systemFields.has(key)) {
-      userMetadata[key] = value;
-    }
-  }
-
-  return userMetadata;
-}
-
-/**
- * Check if a note matches all metadata filters
+ * Check if a note matches all metadata filters (legacy client-side filtering)
  */
 function matchesMetadataFilters(
   note: QueryResultNote,
@@ -157,13 +214,10 @@ function matchesMetadataFilters(
     const operator = filter.operator || '=';
     const filterValue = filter.value;
 
-    // Handle undefined/null metadata values
     if (noteValue === undefined || noteValue === null) {
-      // Only match if filter is checking for empty/null
       return operator === '!=' && filterValue !== '';
     }
 
-    // Convert note value to string for comparison
     const noteStr = Array.isArray(noteValue) ? noteValue.join(',') : String(noteValue);
 
     switch (operator) {
@@ -180,7 +234,6 @@ function matchesMetadataFilters(
       case '<=':
         return noteStr <= String(filterValue);
       case 'LIKE': {
-        // Simple LIKE implementation (% as wildcard)
         const pattern = String(filterValue).replace(/%/g, '.*').replace(/_/g, '.');
         return new RegExp(`^${pattern}$`, 'i').test(noteStr);
       }
@@ -197,7 +250,7 @@ function matchesMetadataFilters(
 }
 
 /**
- * Sort notes by a field
+ * Sort notes by a field (legacy client-side sorting)
  */
 function sortNotes(
   notes: QueryResultNote[],
@@ -208,7 +261,6 @@ function sortNotes(
     let aVal: string | number;
     let bVal: string | number;
 
-    // Handle built-in fields
     if (field === 'title') {
       aVal = a.title.toLowerCase();
       bVal = b.title.toLowerCase();
@@ -222,7 +274,6 @@ function sortNotes(
       aVal = a.updated;
       bVal = b.updated;
     } else {
-      // Metadata field
       const aMetaVal = a.metadata[field];
       const bMetaVal = b.metadata[field];
 

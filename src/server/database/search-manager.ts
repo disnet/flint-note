@@ -134,6 +134,38 @@ export interface SearchResponse {
   query_time_ms?: number;
 }
 
+// Dataview query types
+export interface DataviewQueryOptions {
+  type?: string;
+  metadata_filters?: Array<{
+    key: string;
+    value: string;
+    operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+  }>;
+  sort?: Array<{
+    field: string;
+    order: 'asc' | 'desc';
+  }>;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DataviewNote {
+  id: string;
+  title: string;
+  type: string;
+  created: string;
+  updated: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface DataviewQueryResponse {
+  results: DataviewNote[];
+  total: number;
+  has_more: boolean;
+  query_time_ms: number;
+}
+
 export class HybridSearchManager {
   private dbManager: DatabaseManager;
   private workspacePath: string;
@@ -569,6 +601,169 @@ export class HybridSearchManager {
         `Advanced search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
+  }
+
+  /**
+   * Query notes for dataview widgets with full metadata
+   * Optimized to fetch notes and their metadata in batch
+   */
+  async queryNotesForDataview(
+    options: DataviewQueryOptions
+  ): Promise<DataviewQueryResponse> {
+    const startTime = Date.now();
+    const connection = await this.getReadOnlyConnection();
+
+    try {
+      const limit = options.limit ?? 50;
+      const offset = options.offset ?? 0;
+
+      const sql = 'SELECT DISTINCT n.id, n.title, n.type, n.created, n.updated';
+      const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
+      let fromClause = ' FROM notes n';
+      const whereConditions: string[] = [];
+      const params: (string | number)[] = [];
+      const joins: string[] = [];
+
+      // Exclude archived notes
+      whereConditions.push('(n.archived IS NULL OR n.archived = 0)');
+
+      // Type filter
+      if (options.type) {
+        whereConditions.push('n.type = ?');
+        params.push(options.type);
+      }
+
+      // Metadata filters
+      if (options.metadata_filters && options.metadata_filters.length > 0) {
+        options.metadata_filters.forEach((filter, index) => {
+          const alias = `m${index}`;
+          joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+
+          whereConditions.push(`${alias}.key = ?`);
+          params.push(filter.key);
+
+          const operator = filter.operator || '=';
+          if (operator === 'IN') {
+            const values = filter.value.split(',').map((v) => v.trim());
+            const placeholders = values.map(() => '?').join(',');
+            whereConditions.push(`${alias}.value IN (${placeholders})`);
+            params.push(...values);
+          } else {
+            whereConditions.push(`${alias}.value ${operator} ?`);
+            params.push(filter.value);
+          }
+        });
+      }
+
+      // Build complete query
+      fromClause += ' ' + joins.join(' ');
+
+      if (whereConditions.length > 0) {
+        fromClause += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      // Add sorting - handle metadata field sorting
+      let orderClause = '';
+      if (options.sort && options.sort.length > 0) {
+        const sortTerms = options.sort.map((sort) => {
+          const field = sort.field;
+          // Built-in fields sort directly on notes table
+          if (['title', 'type', 'created', 'updated'].includes(field)) {
+            return `n.${field} ${sort.order.toUpperCase()}`;
+          }
+          // For metadata fields, we need to join and sort
+          return `n.updated ${sort.order.toUpperCase()}`; // Fallback for now
+        });
+        orderClause = ' ORDER BY ' + sortTerms.join(', ');
+      } else {
+        orderClause = ' ORDER BY n.updated DESC';
+      }
+
+      // Execute count query
+      const countResult = await connection.get<{ total: number }>(
+        countSql + fromClause,
+        params
+      );
+      const total = countResult?.total || 0;
+
+      // Execute main query
+      const mainSql = sql + fromClause + orderClause + ' LIMIT ? OFFSET ?';
+      const rows = await connection.all<{
+        id: string;
+        title: string;
+        type: string;
+        created: string;
+        updated: string;
+      }>(mainSql, [...params, limit, offset]);
+
+      // Batch fetch metadata for all notes
+      const noteIds = rows.map((r) => r.id);
+      const metadataMap = await this.batchFetchMetadata(connection, noteIds);
+
+      // Build results
+      const results: DataviewNote[] = rows.map((row) => ({
+        id: row.id,
+        title: row.title || '(untitled)',
+        type: row.type,
+        created: row.created,
+        updated: row.updated,
+        metadata: metadataMap.get(row.id) || {}
+      }));
+
+      const queryTime = Date.now() - startTime;
+
+      return {
+        results,
+        total,
+        has_more: offset + results.length < total,
+        query_time_ms: queryTime
+      };
+    } catch (error) {
+      throw new Error(
+        `Dataview query failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Batch fetch metadata for multiple notes in a single query
+   */
+  private async batchFetchMetadata(
+    connection: DatabaseConnection,
+    noteIds: string[]
+  ): Promise<Map<string, Record<string, unknown>>> {
+    if (noteIds.length === 0) {
+      return new Map();
+    }
+
+    const placeholders = noteIds.map(() => '?').join(',');
+    const metadataRows = await connection.all<{
+      note_id: string;
+      key: string;
+      value: string;
+      value_type: 'string' | 'number' | 'date' | 'boolean' | 'array';
+    }>(
+      `SELECT note_id, key, value, value_type FROM note_metadata WHERE note_id IN (${placeholders})`,
+      noteIds
+    );
+
+    // Group metadata by note_id
+    const metadataMap = new Map<string, Record<string, unknown>>();
+
+    // Initialize empty objects for all note IDs
+    for (const id of noteIds) {
+      metadataMap.set(id, {});
+    }
+
+    // Populate metadata
+    for (const row of metadataRows) {
+      const metadata = metadataMap.get(row.note_id);
+      if (metadata) {
+        metadata[row.key] = this.deserializeMetadataValue(row.value, row.value_type);
+      }
+    }
+
+    return metadataMap;
   }
 
   // SQL search with safety measures

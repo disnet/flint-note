@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { FlintQueryConfig, QueryResultNote } from './types';
   import { runDataviewQuery } from './queryService.svelte';
+  import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
 
   interface Props {
     config: FlintQueryConfig;
@@ -15,6 +16,7 @@
   let results = $state<QueryResultNote[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Derived: columns to display (always include title first)
   const displayColumns = $derived.by(() => {
@@ -35,6 +37,83 @@
     void config;
     executeQuery();
   });
+
+  // Subscribe to note events for real-time updates
+  $effect(() => {
+    // Note event types that should trigger a refresh
+    const relevantEvents = [
+      'note.created',
+      'note.updated',
+      'note.deleted',
+      'note.renamed',
+      'note.moved',
+      'note.archived',
+      'note.unarchived',
+      'notes.bulkRefresh',
+      'file.sync-completed'
+    ];
+
+    const unsubscribers = relevantEvents.map((eventType) =>
+      messageBus.subscribe(eventType as NoteEvent['type'], (event) => {
+        // Check if the event is relevant to our query
+        if (isRelevantEvent(event)) {
+          debouncedRefresh();
+        }
+      })
+    );
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+    };
+  });
+
+  /**
+   * Check if a note event is relevant to the current query
+   */
+  function isRelevantEvent(event: NoteEvent): boolean {
+    // Always refresh for bulk operations
+    if (event.type === 'notes.bulkRefresh' || event.type === 'file.sync-completed') {
+      return true;
+    }
+
+    // For type-filtered queries, check if the note type matches
+    if (filteredType) {
+      if (event.type === 'note.created' && event.note.type === filteredType) {
+        return true;
+      }
+      if (event.type === 'note.moved') {
+        // Refresh if either old or new type matches
+        return event.oldType === filteredType || event.newType === filteredType;
+      }
+      // For other events, check if the note is in our current results
+      if ('noteId' in event) {
+        return results.some((r) => r.id === event.noteId);
+      }
+      if ('oldId' in event) {
+        return results.some((r) => r.id === event.oldId);
+      }
+    }
+
+    // For non-type-filtered queries, refresh on any note change
+    return true;
+  }
+
+  /**
+   * Debounced refresh to prevent excessive re-queries
+   */
+  function debouncedRefresh(): void {
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+    }
+    refreshTimeout = setTimeout(() => {
+      executeQuery();
+      refreshTimeout = null;
+    }, 300); // 300ms debounce
+  }
 
   async function executeQuery(): Promise<void> {
     loading = true;

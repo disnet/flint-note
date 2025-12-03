@@ -1082,6 +1082,47 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Dataview query for notes with metadata
+  ipcMain.handle(
+    'query-notes-for-dataview',
+    async (
+      _event,
+      params: {
+        type?: string;
+        metadata_filters?: Array<{
+          key: string;
+          value: string;
+          operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+        }>;
+        sort?: Array<{
+          field: string;
+          order: 'asc' | 'desc';
+        }>;
+        limit?: number;
+        offset?: number;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = noteService.getFlintNoteApi();
+      return await api.queryNotesForDataview({
+        ...params,
+        vault_id: vaultId
+      });
+    }
+  );
+
   // Note suggestions operations
   ipcMain.handle(
     'note:getSuggestions',

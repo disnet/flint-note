@@ -312,6 +312,33 @@ declare global {
         limit?: number;
         vaultId?: string;
       }) => Promise<any>;
+      queryNotesForDataview: (params: {
+        type?: string;
+        metadata_filters?: Array<{
+          key: string;
+          value: string;
+          operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+        }>;
+        sort?: Array<{
+          field: string;
+          order: 'asc' | 'desc';
+        }>;
+        limit?: number;
+        offset?: number;
+        vaultId?: string;
+      }) => Promise<{
+        results: Array<{
+          id: string;
+          title: string;
+          type: string;
+          created: string;
+          updated: string;
+          metadata: Record<string, unknown>;
+        }>;
+        total: number;
+        has_more: boolean;
+        query_time_ms: number;
+      }>;
 
       // Note type operations
       listNoteTypes: () => Promise<any>;

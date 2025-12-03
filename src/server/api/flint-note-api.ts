@@ -53,7 +53,11 @@ import type {
   NoteTypeDescription
 } from '../core/note-types.js';
 import type { NoteMetadata, NoteTypeDeleteResult } from '../types/index.js';
-import type { SearchResult } from '../database/search-manager.js';
+import type {
+  SearchResult,
+  DataviewQueryOptions,
+  DataviewQueryResponse
+} from '../database/search-manager.js';
 import type { VaultInfo } from '../utils/global-config.js';
 import { resolvePath, isPathSafe } from '../utils/path.js';
 import { LinkExtractor } from '../core/link-extractor.js';
@@ -399,6 +403,18 @@ export class FlintNoteApi {
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const response = await hybridSearchManager.searchNotesSQL(args);
     return response.results;
+  }
+
+  /**
+   * Query notes for dataview widgets with full metadata
+   * Returns notes with their metadata, optimized for batch fetching
+   */
+  async queryNotesForDataview(
+    options: DataviewQueryOptions & { vault_id: string }
+  ): Promise<DataviewQueryResponse> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(options.vault_id);
+    return await hybridSearchManager.queryNotesForDataview(options);
   }
 
   /**

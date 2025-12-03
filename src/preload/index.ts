@@ -325,6 +325,21 @@ const api = {
     limit?: number;
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('search-notes-advanced', params),
+  queryNotesForDataview: (params: {
+    type?: string;
+    metadata_filters?: Array<{
+      key: string;
+      value: string;
+      operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+    }>;
+    sort?: Array<{
+      field: string;
+      order: 'asc' | 'desc';
+    }>;
+    limit?: number;
+    offset?: number;
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('query-notes-for-dataview', params),
 
   // Note type operations
   listNoteTypes: () => electronAPI.ipcRenderer.invoke('list-note-types'),

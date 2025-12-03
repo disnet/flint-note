@@ -608,11 +608,7 @@
 
       if (result?.id) {
         // Navigate to the new note (navigation will handle closing/switching)
-        await wikilinkService.handleWikilinkClick(
-          result.id,
-          result.title || '',
-          false
-        );
+        await wikilinkService.handleWikilinkClick(result.id, result.title || '', false);
       }
     } catch (err) {
       console.error('Error creating note from dataview:', err);
