@@ -51,6 +51,8 @@
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
   let isExpanded = $state(config.expanded ?? false);
+  let contentRef = $state<HTMLDivElement | null>(null);
+  let needsExpand = $state(false); // True if content overflows and can be expanded
 
   // Inline editing state
   let editingNoteId = $state<string | null>(null);
@@ -117,6 +119,25 @@
       schemaFields = new Map();
       schemaLoadedForType = null;
     }
+  });
+
+  // Check if content overflows (needs expand button)
+  $effect(() => {
+    // Track dependencies
+    void results;
+    void loading;
+    void isExpanded;
+
+    // Check after DOM updates
+    requestAnimationFrame(() => {
+      if (contentRef && !isExpanded) {
+        needsExpand = contentRef.scrollHeight > contentRef.clientHeight;
+      } else if (isExpanded) {
+        // When expanded, check if it would overflow at default height
+        // We can't easily check this, so just keep the button enabled
+        needsExpand = true;
+      }
+    });
   });
 
   /**
@@ -651,6 +672,7 @@
         onclick={toggleExpanded}
         type="button"
         title={isExpanded ? 'Collapse' : 'Expand'}
+        disabled={!needsExpand}
       >
         <svg
           width="14"
@@ -771,7 +793,7 @@
   {/if}
 
   <!-- Results -->
-  <div class="dataview-content" class:expanded={isExpanded}>
+  <div bind:this={contentRef} class="dataview-content" class:expanded={isExpanded}>
     {#if loading}
       <div class="dataview-loading">
         <span>Loading...</span>

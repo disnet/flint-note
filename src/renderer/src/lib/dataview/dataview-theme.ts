@@ -108,6 +108,12 @@ export const dataviewTheme = EditorView.theme({
     stroke: 'currentColor'
   },
 
+  '.configure-btn:disabled': {
+    opacity: '0.3',
+    cursor: 'default',
+    pointerEvents: 'none'
+  },
+
   // Configure panel
   '.dataview-configure': {
     padding: '0.75rem',
@@ -121,7 +127,8 @@ export const dataviewTheme = EditorView.theme({
     maxHeight: '300px',
     overflowY: 'auto',
     overflowX: 'hidden',
-    transition: 'max-height 0.2s ease'
+    transition: 'max-height 0.2s ease',
+    scrollbarGutter: 'stable' // Reserve space for scrollbar to prevent layout shift
   },
 
   '.dataview-content.expanded': {
