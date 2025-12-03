@@ -1,6 +1,6 @@
 /**
- * Type definitions for the Dataview feature
- * Defines query configuration stored as YAML in flint-query fenced code blocks
+ * Type definitions for the Deck feature
+ * Defines configuration stored as YAML in flint-deck fenced code blocks
  */
 
 import type {
@@ -187,9 +187,9 @@ export function getOperatorLabel(operator: FilterOperator): string {
 }
 
 /**
- * A single filter condition in a query
+ * A single filter condition in a deck
  */
-export interface QueryFilter {
+export interface DeckFilter {
   /** Field name: 'type' for note type, or a metadata field name */
   field: string;
   /** Comparison operator (default: '=') */
@@ -199,9 +199,9 @@ export interface QueryFilter {
 }
 
 /**
- * Sort configuration for query results
+ * Sort configuration for deck results
  */
-export interface QuerySort {
+export interface DeckSort {
   /** Field to sort by */
   field: 'title' | 'type' | 'created' | 'updated' | string;
   /** Sort direction */
@@ -209,15 +209,15 @@ export interface QuerySort {
 }
 
 /**
- * Complete query configuration stored in YAML
+ * Complete deck configuration stored in YAML
  */
-export interface FlintQueryConfig {
-  /** Optional display name for the query */
+export interface DeckConfig {
+  /** Optional display name for the deck */
   name?: string;
   /** Filter conditions to apply */
-  filters: QueryFilter[];
+  filters: DeckFilter[];
   /** Optional sort configuration */
-  sort?: QuerySort;
+  sort?: DeckSort;
   /** Columns to display - can be simple field names or enhanced configs */
   columns?: ColumnDefinition[];
   /** Maximum results to return (default: 50) */
@@ -227,9 +227,9 @@ export interface FlintQueryConfig {
 }
 
 /**
- * A note returned from a query, flattened for display
+ * A note returned from a deck query, flattened for display
  */
-export interface QueryResultNote {
+export interface DeckResultNote {
   id: string;
   title: string;
   type: string;
@@ -240,9 +240,9 @@ export interface QueryResultNote {
 }
 
 /**
- * Information about a parsed flint-query code block
+ * Information about a parsed flint-deck code block
  */
-export interface FlintQueryBlock {
+export interface DeckBlock {
   /** Start position of the opening ``` */
   from: number;
   /** End position of the closing ``` */
@@ -256,11 +256,11 @@ export interface FlintQueryBlock {
 }
 
 /**
- * Handlers for dataview widget interactions
+ * Handlers for deck widget interactions
  */
-export interface DataviewHandlers {
-  /** Called when query config changes (e.g., sort order) */
-  onConfigChange: (from: number, to: number, newConfig: FlintQueryConfig) => void;
+export interface DeckHandlers {
+  /** Called when deck config changes (e.g., sort order) */
+  onConfigChange: (from: number, to: number, newConfig: DeckConfig) => void;
   /** Called when user clicks a note title */
   onNoteClick: (noteId: string, shiftKey?: boolean) => void;
 }

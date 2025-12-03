@@ -1,12 +1,7 @@
 <script lang="ts">
-  import type {
-    FlintQueryConfig,
-    QueryResultNote,
-    QueryFilter,
-    ColumnConfig
-  } from './types';
+  import type { DeckConfig, DeckResultNote, DeckFilter, ColumnConfig } from './types';
   import { normalizeColumn } from './types';
-  import { runDataviewQuery } from './queryService.svelte';
+  import { runDeckQuery } from './queryService.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
   import FilterBuilder from './FilterBuilder.svelte';
   import ColumnBuilder from './ColumnBuilder.svelte';
@@ -31,21 +26,21 @@
   }
 
   interface Props {
-    config: FlintQueryConfig;
-    onConfigChange: (config: FlintQueryConfig) => void;
+    config: DeckConfig;
+    onConfigChange: (config: DeckConfig) => void;
     onNoteClick: (noteId: string, shiftKey?: boolean) => void;
   }
 
   let { config, onConfigChange, onNoteClick }: Props = $props();
 
   // State
-  let results = $state<QueryResultNote[]>([]);
+  let results = $state<DeckResultNote[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
   let isConfiguringFilters = $state(false);
   let isConfiguringColumns = $state(false);
-  let pendingFilters = $state<QueryFilter[] | null>(null); // Filters being edited, not yet saved to YAML
+  let pendingFilters = $state<DeckFilter[] | null>(null); // Filters being edited, not yet saved to YAML
   let pendingColumns = $state<ColumnConfig[] | null>(null); // Columns being edited
   let isEditingName = $state(false);
   let editingName = $state('');
@@ -269,7 +264,7 @@
     try {
       // Use activeFilters (which may include pending edits)
       const queryConfig = { ...config, filters: activeFilters };
-      results = await runDataviewQuery(queryConfig);
+      results = await runDeckQuery(queryConfig);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Query failed';
       results = [];
@@ -289,7 +284,7 @@
     });
   }
 
-  function handleRowClick(result: QueryResultNote, event: MouseEvent): void {
+  function handleRowClick(result: DeckResultNote, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
     onNoteClick(result.id, event.shiftKey);
@@ -317,7 +312,7 @@
 
     // Create a placeholder entry for the new note (not yet saved to disk)
     const placeholderId = `__new__${Date.now()}`;
-    const newNote: QueryResultNote = {
+    const newNote: DeckResultNote = {
       id: placeholderId,
       title: '',
       type: noteType,
@@ -339,7 +334,7 @@
   }
 
   async function startEditingNote(
-    result: QueryResultNote,
+    result: DeckResultNote,
     event: MouseEvent
   ): Promise<void> {
     event.preventDefault();
@@ -531,7 +526,7 @@
     }
   }
 
-  function handleFiltersChange(newFilters: QueryFilter[]): void {
+  function handleFiltersChange(newFilters: DeckFilter[]): void {
     // Store filters locally while editing - don't update YAML until filter builder is closed
     pendingFilters = newFilters;
   }
@@ -572,7 +567,7 @@
   }
 
   // Get cell value for a column
-  function getCellValue(result: QueryResultNote, field: string): unknown {
+  function getCellValue(result: DeckResultNote, field: string): unknown {
     if (field === 'title' || field === 'flint_title') return result.title || '';
     if (field === 'type' || field === 'flint_type') return result.type;
     if (field === 'created' || field === 'flint_created') return result.created;
@@ -636,14 +631,14 @@
   }
 </script>
 
-<div class="dataview-widget">
+<div class="deck-widget">
   <!-- Header -->
-  <div class="dataview-header">
+  <div class="deck-header">
     {#if isEditingName}
       <input
         bind:this={nameInputRef}
         type="text"
-        class="dataview-name-input"
+        class="deck-name-input"
         bind:value={editingName}
         onblur={saveNameEdit}
         onkeydown={handleNameKeydown}
@@ -651,7 +646,7 @@
       />
     {:else}
       <button
-        class="dataview-name"
+        class="deck-name"
         onclick={startEditingName}
         type="button"
         title="Click to edit name"
@@ -659,9 +654,9 @@
         {config.name || 'Query Results'}
       </button>
     {/if}
-    <div class="dataview-meta">
+    <div class="deck-meta">
       {#if !loading}
-        <span class="dataview-count"
+        <span class="deck-count"
           >{results.length} note{results.length === 1 ? '' : 's'}</span
         >
       {/if}
@@ -761,7 +756,7 @@
   <!-- Column Builder (when configuring columns) -->
   {#if isConfiguringColumns}
     <div
-      class="dataview-configure"
+      class="deck-configure"
       role="presentation"
       onmousedown={(e) => e.stopPropagation()}
       onclick={(e) => e.stopPropagation()}
@@ -778,7 +773,7 @@
   <!-- Filter Builder (when configuring filters) -->
   {#if isConfiguringFilters}
     <div
-      class="dataview-configure"
+      class="deck-configure"
       role="presentation"
       onmousedown={(e) => e.stopPropagation()}
       onclick={(e) => e.stopPropagation()}
@@ -793,22 +788,22 @@
   {/if}
 
   <!-- Results -->
-  <div bind:this={contentRef} class="dataview-content" class:expanded={isExpanded}>
+  <div bind:this={contentRef} class="deck-content" class:expanded={isExpanded}>
     {#if loading}
-      <div class="dataview-loading">
+      <div class="deck-loading">
         <span>Loading...</span>
       </div>
     {:else if error}
-      <div class="dataview-error">
+      <div class="deck-error">
         <span>{error}</span>
         <button onclick={handleRetryClick}>Retry</button>
       </div>
     {:else if results.length === 0}
-      <div class="dataview-empty">
+      <div class="deck-empty">
         <span>No notes match this query</span>
       </div>
     {:else}
-      <table class="dataview-table">
+      <table class="deck-table">
         <thead>
           <tr>
             {#each displayColumns as column (column.field)}
@@ -837,7 +832,7 @@
                 onfocusin={(e) => e.stopPropagation()}
               >
                 {#each displayColumns as column, colIndex (column.field)}
-                  <td class:dataview-title-cell={column.field === 'title'}>
+                  <td class:deck-title-cell={column.field === 'title'}>
                     {#if column.field === 'title' || column.field === 'flint_title'}
                       <EditableCell
                         value={editingValues.title}
@@ -899,7 +894,7 @@
               <!-- Regular row -->
               <tr class="data-row">
                 {#each displayColumns as column (column.field)}
-                  <td class:dataview-title-cell={column.field === 'title'}>
+                  <td class:deck-title-cell={column.field === 'title'}>
                     <ColumnCell
                       value={getCellValue(result, column.field)}
                       fieldType={getFieldType(column.field)}
@@ -934,8 +929,8 @@
   </div>
 
   <!-- Footer with new note button -->
-  <div class="dataview-footer">
-    <button class="dataview-new-note-btn" onclick={handleNewNoteClick}>
+  <div class="deck-footer">
+    <button class="deck-new-note-btn" onclick={handleNewNoteClick}>
       + New {filteredType || 'Note'}
     </button>
   </div>

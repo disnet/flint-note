@@ -1,19 +1,19 @@
-# PRD: Dataview Feature
+# PRD: Deck Feature
 
 ## Overview
 
-The Dataview feature enables users to embed dynamic, queryable note lists directly within their notes. Similar to Obsidian's Dataview plugin, this feature allows users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
+The Deck feature enables users to embed dynamic, queryable note lists directly within their notes. Similar to Obsidian's Dataview plugin, this feature allows users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
 ## Current Implementation (v6)
 
 ### Features Implemented
 
-#### 1. Query Block Syntax
+#### 1. Deck Block Syntax
 
-Users can create dataview widgets using fenced code blocks with the `flint-query` language identifier:
+Users can create deck widgets using fenced code blocks with the `flint-deck` language identifier:
 
 ````markdown
-```flint-query
+```flint-deck
 name: My Projects
 filters:
   - field: flint_type
@@ -32,7 +32,7 @@ limit: 50
 
 | Field                | Type         | Required | Description                                              |
 | -------------------- | ------------ | -------- | -------------------------------------------------------- |
-| `name`               | string       | No       | Display name for the query (shown in header)             |
+| `name`               | string       | No       | Display name for the deck (shown in header)              |
 | `filters`            | array        | No       | Array of filter conditions                               |
 | `filters[].field`    | string       | Yes      | Field to filter on (e.g., `flint_type`, metadata fields) |
 | `filters[].operator` | string       | No       | Comparison operator (default: `=`)                       |
@@ -56,7 +56,7 @@ limit: 50
 
 - **Live Preview**: Widget renders as an interactive table when cursor is outside the code block
 - **Edit Mode**: Shows raw YAML when cursor is inside the block for editing
-- **Header**: Displays query name (click to edit) and result count
+- **Header**: Displays deck name (click to edit) and result count
 - **Table**: Shows title column (always first) plus configured metadata columns
 - **Clickable Titles**: Click title to navigate to note, Shift+click for split view
 - **Sortable Headers**: Click column headers to toggle sort order
@@ -77,12 +77,12 @@ limit: 50
 
 - **Event subscription**: Widget subscribes to note events via `messageBus`
 - **Monitored events**: `note.created`, `note.updated`, `note.deleted`, `note.renamed`, `note.moved`, `note.archived`, `note.unarchived`, `notes.bulkRefresh`, `file.sync-completed`
-- **Smart refresh**: Only refreshes when events are relevant to the current query
+- **Smart refresh**: Only refreshes when events are relevant to the current deck
 - **Debouncing**: 300ms debounce prevents excessive re-renders during rapid changes
 
 #### 6. Integration Points
 
-- **EditorConfig**: Extension integrated with dataview handlers
+- **EditorConfig**: Extension integrated with deck handlers
 - **NoteEditor**: Handles new note creation from widget
 - **CodeMirror**: Uses `Decoration.replace` with custom `WidgetType` for rendering
 - **MessageBus**: Real-time event subscription for live updates
@@ -90,13 +90,13 @@ limit: 50
 ### Technical Architecture
 
 ```
-src/renderer/src/lib/dataview/
+src/renderer/src/lib/deck/
 ├── types.ts                    # Type definitions + filter utilities
 ├── yaml-utils.ts               # YAML parsing/serialization
-├── dataview-theme.ts           # CodeMirror styling
-├── dataviewExtension.svelte.ts # CodeMirror extension
+├── deck-theme.ts               # CodeMirror styling
+├── deckExtension.svelte.ts     # CodeMirror extension
 ├── queryService.svelte.ts      # Query execution (uses queryNotesForDataview API)
-├── DataviewWidget.svelte       # UI component with real-time updates
+├── DeckWidget.svelte           # UI component with real-time updates
 ├── FilterBuilder.svelte        # Visual filter editor (v3)
 ├── FilterRow.svelte            # Single filter row component (v3)
 ├── FieldSelector.svelte        # Field dropdown with search (v3)
@@ -153,7 +153,7 @@ Implemented in v2.
 #### 2.3 Real-time Updates ✅
 
 - Widget subscribes to note change events via `messageBus`
-- Smart relevance checking - only refreshes when events affect current query
+- Smart relevance checking - only refreshes when events affect current deck
 - 300ms debouncing prevents excessive re-renders
 - Handles: create, update, delete, rename, move, archive, unarchive, bulk refresh, file sync
 
@@ -184,12 +184,12 @@ Implemented in v3.
 
 - FilterBuilder maintains local `editingFilters` state separate from parent config
 - Incomplete filters (missing field or value) are kept locally but not synced to YAML
-- Only complete filters are serialized to the query block
+- Only complete filters are serialized to the deck block
 - Prevents widget disappearing while building filters
 
 **Pending Filters (Deferred YAML Updates):**
 
-- DataviewWidget maintains `pendingFilters` state while filter builder is open
+- DeckWidget maintains `pendingFilters` state while filter builder is open
 - Filter changes update `pendingFilters` locally and re-run queries in real-time
 - YAML is only updated when filter builder is closed (prevents widget recreation during editing)
 - Uses `setTimeout` to defer YAML update and avoid CodeMirror "update during update" errors
@@ -265,9 +265,9 @@ columns:
 
 Implemented in v5.
 
-#### 5.1 Editable Query Name ✅
+#### 5.1 Editable Deck Name ✅
 
-- Click query name in header to edit inline
+- Click deck name in header to edit inline
 - Saves to YAML on blur or Enter key
 - Escape cancels edit
 
@@ -339,17 +339,17 @@ Implemented in v5.
 - Card/gallery view
 - Calendar view (for date-based queries)
 
-#### 6.4 Saved Queries
+#### 6.4 Saved Decks
 
-- Save query configurations as reusable templates
-- Insert saved query via autocomplete
-- Share queries across notes
+- Save deck configurations as reusable templates
+- Insert saved deck via autocomplete
+- Share decks across notes
 
-#### 6.5 Query Chaining
+#### 6.5 Deck Chaining
 
-- Reference other dataview results
+- Reference other deck results
 - Filter based on linked notes
-- Intersection/union of multiple queries
+- Intersection/union of multiple decks
 
 ### Phase 7: Performance Optimizations
 
@@ -361,7 +361,7 @@ Implemented in v5.
 #### 7.2 Query Caching
 
 - Cache query results with invalidation
-- Share cache across identical queries
+- Share cache across identical decks
 
 #### 7.3 Incremental Updates
 
@@ -377,8 +377,8 @@ Implemented in v5.
 
 ## Success Metrics
 
-1. **Adoption**: % of users with at least one dataview block
-2. **Usage**: Average dataview blocks per active user
+1. **Adoption**: % of users with at least one deck block
+2. **Usage**: Average deck blocks per active user
 3. **Performance**: Query execution time p50/p95
 4. **Satisfaction**: User feedback on feature usefulness
 

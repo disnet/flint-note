@@ -42,7 +42,7 @@
     expandedSuggestions?: Set<string>;
     onDismissSuggestion?: (suggestionId: string) => void;
     noBottomMargin?: boolean;
-    onDataviewNewNote?: (type: string | null) => void;
+    onDeckNewNote?: (type: string | null) => void;
   }
 
   let {
@@ -63,7 +63,7 @@
     expandedSuggestions = new Set(),
     onDismissSuggestion,
     noBottomMargin = false,
-    onDataviewNewNote
+    onDeckNewNote
   }: Props = $props();
 
   let editorContainer: Element;
@@ -119,7 +119,7 @@
     onHoverPopoverEnter: handleHoverPopoverEnter,
     onHoverPopoverAltEnter: handleHoverPopoverAltEnter,
     onImagePathClick: handleImagePathClick,
-    onDataviewNewNote
+    onDeckNewNote
   });
 
   async function handleImagePathClick(relativePath: string): Promise<void> {

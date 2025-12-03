@@ -1,5 +1,5 @@
 /**
- * CodeMirror extension for rendering flint-query blocks as interactive widgets
+ * CodeMirror extension for rendering flint-deck blocks as interactive widgets
  */
 
 import { EditorView, Decoration, WidgetType } from '@codemirror/view';
@@ -13,20 +13,20 @@ import {
 } from '@codemirror/state';
 import { mount, unmount } from 'svelte';
 
-import { dataviewTheme } from './dataview-theme';
-import { parseQueryYaml, serializeQueryConfig } from './yaml-utils';
-import type { FlintQueryConfig, FlintQueryBlock, DataviewHandlers } from './types';
-import DataviewWidget from './DataviewWidget.svelte';
+import { deckTheme } from './deck-theme';
+import { parseDeckYaml, serializeDeckConfig } from './yaml-utils';
+import type { DeckConfig, DeckBlock, DeckHandlers } from './types';
+import DeckWidget from './DeckWidget.svelte';
 
-// Regex to match ```flint-query ... ``` blocks
+// Regex to match ```flint-deck ... ``` blocks
 // Matches opening fence, captures YAML content, and closing fence
-const FLINT_QUERY_REGEX = /```flint-query\s*\n([\s\S]*?)```/g;
+const FLINT_DECK_REGEX = /```flint-deck\s*\n([\s\S]*?)```/g;
 
-// StateEffect for forcing dataview re-render
-const forceDataviewUpdate = StateEffect.define<boolean>();
+// StateEffect for forcing deck re-render
+const forceDeckUpdate = StateEffect.define<boolean>();
 
 // StateField for storing handlers
-const dataviewHandlersField = StateField.define<DataviewHandlers | null>({
+const deckHandlersField = StateField.define<DeckHandlers | null>({
   create() {
     return null;
   },
@@ -36,17 +36,17 @@ const dataviewHandlersField = StateField.define<DataviewHandlers | null>({
 });
 
 /**
- * Find all flint-query fenced code blocks in the document using regex
+ * Find all flint-deck fenced code blocks in the document using regex
  */
-function findFlintQueryBlocks(state: EditorState): FlintQueryBlock[] {
-  const blocks: FlintQueryBlock[] = [];
+function findDeckBlocks(state: EditorState): DeckBlock[] {
+  const blocks: DeckBlock[] = [];
   const text = state.doc.toString();
 
   // Reset regex state
-  FLINT_QUERY_REGEX.lastIndex = 0;
+  FLINT_DECK_REGEX.lastIndex = 0;
 
   let match: RegExpExecArray | null;
-  while ((match = FLINT_QUERY_REGEX.exec(text)) !== null) {
+  while ((match = FLINT_DECK_REGEX.exec(text)) !== null) {
     const fullMatch = match[0];
     const yamlContent = match[1];
     const from = match.index;
@@ -81,34 +81,34 @@ function isCursorInRange(state: EditorState, from: number, to: number): boolean 
 }
 
 /**
- * Widget class for rendering dataview
+ * Widget class for rendering deck
  */
-class DataviewWidgetType extends WidgetType {
+class DeckWidgetType extends WidgetType {
   private component: ReturnType<typeof mount> | null = null;
 
   constructor(
-    private config: FlintQueryConfig,
+    private config: DeckConfig,
     private blockFrom: number,
     private blockTo: number,
-    private handlers: DataviewHandlers
+    private handlers: DeckHandlers
   ) {
     super();
   }
 
   toDOM(_view: EditorView): HTMLElement {
     const container = document.createElement('div');
-    container.className = 'dataview-widget-container';
+    container.className = 'deck-widget-container';
 
     // Note: We rely on ignoreEvent() returning true to tell CodeMirror to not
     // interfere with events inside the widget. We avoid stopPropagation() here
     // because it breaks Svelte 5's event delegation.
 
     // Mount Svelte component
-    this.component = mount(DataviewWidget, {
+    this.component = mount(DeckWidget, {
       target: container,
       props: {
         config: this.config,
-        onConfigChange: (newConfig: FlintQueryConfig) => {
+        onConfigChange: (newConfig: DeckConfig) => {
           this.handlers.onConfigChange(this.blockFrom, this.blockTo, newConfig);
         },
         onNoteClick: (noteId: string, shiftKey?: boolean) => {
@@ -127,7 +127,7 @@ class DataviewWidgetType extends WidgetType {
     }
   }
 
-  eq(other: DataviewWidgetType): boolean {
+  eq(other: DeckWidgetType): boolean {
     return (
       JSON.stringify(this.config) === JSON.stringify(other.config) &&
       this.blockFrom === other.blockFrom &&
@@ -146,17 +146,17 @@ class DataviewWidgetType extends WidgetType {
 }
 
 /**
- * Create decorations for dataview blocks
+ * Create decorations for deck blocks
  */
-function decorateDataviewBlocks(state: EditorState): DecorationSet {
+function decorateDeckBlocks(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = [];
-  const handlers = state.field(dataviewHandlersField, false);
+  const handlers = state.field(deckHandlersField, false);
 
   if (!handlers) {
     return Decoration.set([]);
   }
 
-  const blocks = findFlintQueryBlocks(state);
+  const blocks = findDeckBlocks(state);
 
   for (const block of blocks) {
     // Skip if cursor is inside the block - show raw YAML for editing
@@ -165,13 +165,13 @@ function decorateDataviewBlocks(state: EditorState): DecorationSet {
     }
 
     // Parse the YAML config
-    const config = parseQueryYaml(block.yamlContent);
+    const config = parseDeckYaml(block.yamlContent);
     if (!config) {
       // Invalid YAML - skip rendering widget, show raw
       continue;
     }
 
-    const widget = new DataviewWidgetType(config, block.from, block.to, handlers);
+    const widget = new DeckWidgetType(config, block.from, block.to, handlers);
 
     decorations.push(
       Decoration.replace({
@@ -186,22 +186,22 @@ function decorateDataviewBlocks(state: EditorState): DecorationSet {
 }
 
 /**
- * State field for managing dataview decorations
+ * State field for managing deck decorations
  */
-const dataviewField = StateField.define<DecorationSet>({
+const deckField = StateField.define<DecorationSet>({
   create(state) {
-    return decorateDataviewBlocks(state);
+    return decorateDeckBlocks(state);
   },
   update(decorations, tr) {
     // Recalculate when document changes or selection changes
     if (tr.docChanged || tr.selection) {
-      return decorateDataviewBlocks(tr.state);
+      return decorateDeckBlocks(tr.state);
     }
 
     // Check for force update effect
     for (const effect of tr.effects) {
-      if (effect.is(forceDataviewUpdate)) {
-        return decorateDataviewBlocks(tr.state);
+      if (effect.is(forceDeckUpdate)) {
+        return decorateDeckBlocks(tr.state);
       }
     }
 
@@ -211,16 +211,16 @@ const dataviewField = StateField.define<DecorationSet>({
 });
 
 /**
- * Update a dataview block's YAML content
+ * Update a deck block's YAML content
  */
-export function updateDataviewBlock(
+export function updateDeckBlock(
   view: EditorView,
   from: number,
   to: number,
-  newConfig: FlintQueryConfig
+  newConfig: DeckConfig
 ): void {
-  const newYaml = serializeQueryConfig(newConfig);
-  const newBlock = '```flint-query\n' + newYaml + '```';
+  const newYaml = serializeDeckConfig(newConfig);
+  const newBlock = '```flint-deck\n' + newYaml + '```';
 
   view.dispatch({
     changes: { from, to, insert: newBlock }
@@ -228,38 +228,35 @@ export function updateDataviewBlock(
 }
 
 /**
- * Force refresh of all dataview widgets
+ * Force refresh of all deck widgets
  */
-export function forceDataviewRefresh(view: EditorView): void {
+export function forceDeckRefresh(view: EditorView): void {
   view.dispatch({
-    effects: forceDataviewUpdate.of(true)
+    effects: forceDeckUpdate.of(true)
   });
 }
 
 /**
- * Create the dataview extension
+ * Create the deck extension
  */
-export function dataviewExtension(handlers: DataviewHandlers): Extension {
-  return [dataviewTheme, dataviewHandlersField.init(() => handlers), dataviewField];
+export function deckExtension(handlers: DeckHandlers): Extension {
+  return [deckTheme, deckHandlersField.init(() => handlers), deckField];
 }
 
 /**
- * Insert a new dataview block at the current cursor position
+ * Insert a new deck block at the current cursor position
  */
-export function insertDataviewBlock(
-  view: EditorView,
-  config?: Partial<FlintQueryConfig>
-): void {
-  const defaultConfig: FlintQueryConfig = {
-    name: 'New Query',
+export function insertDeckBlock(view: EditorView, config?: Partial<DeckConfig>): void {
+  const defaultConfig: DeckConfig = {
+    name: 'New Deck',
     filters: [],
     sort: { field: 'updated', order: 'desc' },
     limit: 50,
     ...config
   };
 
-  const yaml = serializeQueryConfig(defaultConfig);
-  const block = '\n```flint-query\n' + yaml + '```\n';
+  const yaml = serializeDeckConfig(defaultConfig);
+  const block = '\n```flint-deck\n' + yaml + '```\n';
 
   const pos = view.state.selection.main.head;
   view.dispatch({

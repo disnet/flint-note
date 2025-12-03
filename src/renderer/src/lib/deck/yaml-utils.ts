@@ -1,12 +1,12 @@
 /**
- * YAML parsing and serialization utilities for flint-query blocks
+ * YAML parsing and serialization utilities for flint-deck blocks
  */
 
 import yaml from 'js-yaml';
 import type {
-  FlintQueryConfig,
-  QueryFilter,
-  QuerySort,
+  DeckConfig,
+  DeckFilter,
+  DeckSort,
   FilterOperator,
   ColumnDefinition,
   ColumnConfig,
@@ -20,23 +20,23 @@ const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
 
 /**
- * Parse YAML content into a validated FlintQueryConfig
+ * Parse YAML content into a validated DeckConfig
  * Returns null if parsing fails or content is invalid
  */
-export function parseQueryYaml(yamlContent: string): FlintQueryConfig | null {
+export function parseDeckYaml(yamlContent: string): DeckConfig | null {
   try {
     const parsed = yaml.load(yamlContent);
-    return validateQueryConfig(parsed);
+    return validateDeckConfig(parsed);
   } catch (e) {
-    console.error('Failed to parse flint-query YAML:', e);
+    console.error('Failed to parse flint-deck YAML:', e);
     return null;
   }
 }
 
 /**
- * Serialize a FlintQueryConfig back to YAML string
+ * Serialize a DeckConfig back to YAML string
  */
-export function serializeQueryConfig(config: FlintQueryConfig): string {
+export function serializeDeckConfig(config: DeckConfig): string {
   // Clean up the config before serialization
   const cleanConfig: Record<string, unknown> = {};
 
@@ -107,9 +107,9 @@ export function serializeQueryConfig(config: FlintQueryConfig): string {
 }
 
 /**
- * Validate parsed YAML as a FlintQueryConfig
+ * Validate parsed YAML as a DeckConfig
  */
-function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
+function validateDeckConfig(parsed: unknown): DeckConfig | null {
   if (!parsed || typeof parsed !== 'object') {
     return null;
   }
@@ -122,7 +122,7 @@ function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
   }
 
   // Validate and normalize each filter
-  const validatedFilters: QueryFilter[] = [];
+  const validatedFilters: DeckFilter[] = [];
   for (const filter of config.filters) {
     const validatedFilter = validateFilter(filter);
     if (!validatedFilter) {
@@ -132,7 +132,7 @@ function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
   }
 
   // Build the validated config
-  const result: FlintQueryConfig = {
+  const result: DeckConfig = {
     filters: validatedFilters
   };
 
@@ -181,7 +181,7 @@ function validateQueryConfig(parsed: unknown): FlintQueryConfig | null {
 /**
  * Validate a single filter object
  */
-function validateFilter(filter: unknown): QueryFilter | null {
+function validateFilter(filter: unknown): DeckFilter | null {
   if (!filter || typeof filter !== 'object') {
     return null;
   }
@@ -198,7 +198,7 @@ function validateFilter(filter: unknown): QueryFilter | null {
     return null;
   }
 
-  const result: QueryFilter = {
+  const result: DeckFilter = {
     field: f.field.trim(),
     value: normalizeValue(f.value)
   };
@@ -220,7 +220,7 @@ function validateFilter(filter: unknown): QueryFilter | null {
 /**
  * Validate sort configuration
  */
-function validateSort(sort: unknown): QuerySort | null {
+function validateSort(sort: unknown): DeckSort | null {
   if (!sort || typeof sort !== 'object') {
     return null;
   }
@@ -312,9 +312,9 @@ function normalizeValue(value: unknown): string | string[] {
 }
 
 /**
- * Create an empty query config with sensible defaults
+ * Create an empty deck config with sensible defaults
  */
-export function createEmptyQueryConfig(): FlintQueryConfig {
+export function createEmptyDeckConfig(): DeckConfig {
   return {
     filters: [],
     limit: DEFAULT_LIMIT
@@ -322,9 +322,9 @@ export function createEmptyQueryConfig(): FlintQueryConfig {
 }
 
 /**
- * Create a simple type filter query
+ * Create a simple type filter deck
  */
-export function createTypeFilterQuery(typeName: string, name?: string): FlintQueryConfig {
+export function createTypeFilterDeck(typeName: string, name?: string): DeckConfig {
   return {
     name,
     filters: [{ field: 'type', value: typeName }],

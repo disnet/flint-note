@@ -1,19 +1,19 @@
 <script lang="ts">
-  import type { QueryFilter, FilterFieldInfo } from './types';
+  import type { DeckFilter, FilterFieldInfo } from './types';
   import { fieldDefToFilterInfo } from './types';
   import FilterRow from './FilterRow.svelte';
   import type { MetadataFieldDefinition } from '../../../../server/core/metadata-schema';
 
   interface Props {
-    filters: QueryFilter[];
+    filters: DeckFilter[];
     typeName?: string;
-    onFiltersChange: (filters: QueryFilter[]) => void;
+    onFiltersChange: (filters: DeckFilter[]) => void;
   }
 
   let { filters, typeName, onFiltersChange }: Props = $props();
 
   // Local editing state - includes incomplete filters
-  let editingFilters = $state<QueryFilter[]>([...filters]);
+  let editingFilters = $state<DeckFilter[]>([...filters]);
 
   // Track previous props to detect external changes
   let prevFiltersJson = $state(JSON.stringify(filters));
@@ -35,7 +35,7 @@
   let isLoadingFields = $state(false);
 
   // Check if a filter is complete (has field and value)
-  function isFilterComplete(filter: QueryFilter): boolean {
+  function isFilterComplete(filter: DeckFilter): boolean {
     if (!filter.field || !filter.field.trim()) return false;
     if (filter.value === undefined || filter.value === null) return false;
     if (typeof filter.value === 'string' && !filter.value.trim()) return false;
@@ -44,7 +44,7 @@
   }
 
   // Get only complete filters
-  function getCompleteFilters(allFilters: QueryFilter[]): QueryFilter[] {
+  function getCompleteFilters(allFilters: DeckFilter[]): DeckFilter[] {
     return allFilters.filter(isFilterComplete);
   }
 
@@ -109,7 +109,7 @@
     }
   }
 
-  function handleFilterChange(index: number, newFilter: QueryFilter): void {
+  function handleFilterChange(index: number, newFilter: DeckFilter): void {
     editingFilters[index] = newFilter;
     editingFilters = [...editingFilters]; // Trigger reactivity
     syncToParent();
@@ -121,7 +121,7 @@
   }
 
   function handleAddFilter(): void {
-    const newFilter: QueryFilter = {
+    const newFilter: DeckFilter = {
       field: '',
       operator: '=',
       value: ''

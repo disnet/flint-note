@@ -1,14 +1,14 @@
 /**
- * Query execution service for Dataview widgets
+ * Query execution service for Deck widgets
  * Executes queries against the note API and returns formatted results
  *
  * Phase 2 Implementation:
- * - Uses server-side queryNotesForDataview API for efficient batch fetching
+ * - Uses server-side queryNotesForDeck API for efficient batch fetching
  * - Metadata filtering is performed server-side
  * - No more N+1 queries - notes and metadata fetched in single request
  */
 
-import type { FlintQueryConfig, QueryResultNote, FilterOperator } from './types';
+import type { DeckConfig, DeckResultNote, FilterOperator } from './types';
 
 // System fields to exclude from user metadata display
 const SYSTEM_FIELDS = new Set([
@@ -39,12 +39,10 @@ const SYSTEM_FIELDS = new Set([
 ]);
 
 /**
- * Execute a dataview query and return matching notes
- * Uses the optimized server-side queryNotesForDataview API
+ * Execute a deck query and return matching notes
+ * Uses the optimized server-side queryNotesForDeck API
  */
-export async function runDataviewQuery(
-  config: FlintQueryConfig
-): Promise<QueryResultNote[]> {
+export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
   // Extract type filter if present (use flint_type)
   const typeFilter = config.filters.find((f) => f.field === 'flint_type');
   const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
@@ -81,7 +79,7 @@ export async function runDataviewQuery(
       return [];
     }
 
-    // Transform response to QueryResultNote format
+    // Transform response to DeckResultNote format
     // Filter out system fields from metadata for display
     return response.results.map((note) => ({
       id: note.id,
@@ -92,9 +90,9 @@ export async function runDataviewQuery(
       metadata: extractUserMetadata(note.metadata)
     }));
   } catch (error) {
-    console.error('Dataview query failed:', error);
+    console.error('Deck query failed:', error);
     // Fall back to legacy query method if new API fails
-    return runLegacyDataviewQuery(config);
+    return runLegacyDeckQuery(config);
   }
 }
 
@@ -117,14 +115,12 @@ function extractUserMetadata(metadata: Record<string, unknown>): Record<string, 
  * Legacy query method - used as fallback if new API is not available
  * This maintains backward compatibility during transition
  */
-async function runLegacyDataviewQuery(
-  config: FlintQueryConfig
-): Promise<QueryResultNote[]> {
+async function runLegacyDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
   const typeFilter = config.filters.find((f) => f.field === 'flint_type');
   const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
   const metadataFilters = config.filters.filter((f) => f.field !== 'flint_type');
 
-  let notes: QueryResultNote[] = [];
+  let notes: DeckResultNote[] = [];
 
   if (typeName) {
     const noteList = await window.api?.listNotesByType({
@@ -169,8 +165,8 @@ async function runLegacyDataviewQuery(
 /**
  * Fetch full notes with metadata for a list of note IDs (legacy method)
  */
-async function fetchNotesWithMetadata(noteIds: string[]): Promise<QueryResultNote[]> {
-  const notes: QueryResultNote[] = [];
+async function fetchNotesWithMetadata(noteIds: string[]): Promise<DeckResultNote[]> {
+  const notes: DeckResultNote[] = [];
 
   const batchSize = 10;
   for (let i = 0; i < noteIds.length; i += batchSize) {
@@ -196,7 +192,7 @@ async function fetchNotesWithMetadata(noteIds: string[]): Promise<QueryResultNot
       })
     );
 
-    notes.push(...batchResults.filter((n): n is QueryResultNote => n !== null));
+    notes.push(...batchResults.filter((n): n is DeckResultNote => n !== null));
   }
 
   return notes;
@@ -206,7 +202,7 @@ async function fetchNotesWithMetadata(noteIds: string[]): Promise<QueryResultNot
  * Check if a note matches all metadata filters (legacy client-side filtering)
  */
 function matchesMetadataFilters(
-  note: QueryResultNote,
+  note: DeckResultNote,
   filters: Array<{ field: string; operator?: FilterOperator; value: string | string[] }>
 ): boolean {
   return filters.every((filter) => {
@@ -253,10 +249,10 @@ function matchesMetadataFilters(
  * Sort notes by a field (legacy client-side sorting)
  */
 function sortNotes(
-  notes: QueryResultNote[],
+  notes: DeckResultNote[],
   field: string,
   order: 'asc' | 'desc'
-): QueryResultNote[] {
+): DeckResultNote[] {
   return [...notes].sort((a, b) => {
     let aVal: string | number;
     let bVal: string | number;

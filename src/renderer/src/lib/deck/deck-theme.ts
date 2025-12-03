@@ -1,11 +1,11 @@
 /**
- * CodeMirror theme for dataview widgets
+ * CodeMirror theme for deck widgets
  */
 
 import { EditorView } from '@codemirror/view';
 
-export const dataviewTheme = EditorView.theme({
-  '.dataview-widget-container': {
+export const deckTheme = EditorView.theme({
+  '.deck-widget-container': {
     display: 'block',
     margin: '1rem 0',
     border: '1px solid var(--border-light, #e0e0e0)',
@@ -15,13 +15,13 @@ export const dataviewTheme = EditorView.theme({
     fontFamily: 'inherit'
   },
 
-  '.dataview-widget': {
+  '.deck-widget': {
     display: 'flex',
     flexDirection: 'column'
   },
 
   // Header
-  '.dataview-header': {
+  '.deck-header': {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -30,7 +30,7 @@ export const dataviewTheme = EditorView.theme({
     backgroundColor: 'var(--bg-secondary, #f5f5f5)'
   },
 
-  '.dataview-name': {
+  '.deck-name': {
     fontWeight: '600',
     fontSize: '0.9rem',
     color: 'var(--text-primary, #333)',
@@ -44,11 +44,11 @@ export const dataviewTheme = EditorView.theme({
     transition: 'background-color 0.15s ease'
   },
 
-  '.dataview-name:hover': {
+  '.deck-name:hover': {
     backgroundColor: 'var(--bg-hover, rgba(0,0,0,0.05))'
   },
 
-  '.dataview-name-input': {
+  '.deck-name-input': {
     fontWeight: '600',
     fontSize: '0.9rem',
     color: 'var(--text-primary, #333)',
@@ -62,18 +62,18 @@ export const dataviewTheme = EditorView.theme({
     maxWidth: '300px'
   },
 
-  '.dataview-name-input::placeholder': {
+  '.deck-name-input::placeholder': {
     color: 'var(--text-tertiary, #999)',
     fontWeight: '400'
   },
 
-  '.dataview-meta': {
+  '.deck-meta': {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem'
   },
 
-  '.dataview-count': {
+  '.deck-count': {
     fontSize: '0.8rem',
     color: 'var(--text-secondary, #666)'
   },
@@ -115,7 +115,7 @@ export const dataviewTheme = EditorView.theme({
   },
 
   // Configure panel
-  '.dataview-configure': {
+  '.deck-configure': {
     padding: '0.75rem',
     borderBottom: '1px solid var(--border-light, #e0e0e0)',
     backgroundColor: 'var(--bg-primary, #fff)',
@@ -123,7 +123,7 @@ export const dataviewTheme = EditorView.theme({
   },
 
   // Content container with height cap
-  '.dataview-content': {
+  '.deck-content': {
     maxHeight: '300px',
     overflowY: 'auto',
     overflowX: 'hidden',
@@ -131,19 +131,19 @@ export const dataviewTheme = EditorView.theme({
     scrollbarGutter: 'stable' // Reserve space for scrollbar to prevent layout shift
   },
 
-  '.dataview-content.expanded': {
+  '.deck-content.expanded': {
     maxHeight: 'none'
   },
 
   // States
-  '.dataview-loading': {
+  '.deck-loading': {
     padding: '2rem',
     textAlign: 'center',
     color: 'var(--text-secondary, #666)',
     fontSize: '0.875rem'
   },
 
-  '.dataview-error': {
+  '.deck-error': {
     padding: '1.5rem',
     textAlign: 'center',
     color: 'var(--text-error, #d32f2f)',
@@ -151,7 +151,7 @@ export const dataviewTheme = EditorView.theme({
     backgroundColor: 'var(--bg-error, rgba(211, 47, 47, 0.05))'
   },
 
-  '.dataview-error button': {
+  '.deck-error button': {
     marginTop: '0.5rem',
     padding: '0.25rem 0.75rem',
     border: '1px solid var(--border-light, #e0e0e0)',
@@ -161,11 +161,11 @@ export const dataviewTheme = EditorView.theme({
     fontSize: '0.8125rem'
   },
 
-  '.dataview-error button:hover': {
+  '.deck-error button:hover': {
     backgroundColor: 'var(--bg-secondary, #f5f5f5)'
   },
 
-  '.dataview-empty': {
+  '.deck-empty': {
     padding: '2rem',
     textAlign: 'center',
     color: 'var(--text-secondary, #666)',
@@ -173,13 +173,13 @@ export const dataviewTheme = EditorView.theme({
   },
 
   // Table
-  '.dataview-table': {
+  '.deck-table': {
     width: '100%',
     borderCollapse: 'collapse',
     fontSize: '0.875rem'
   },
 
-  '.dataview-table th': {
+  '.deck-table th': {
     textAlign: 'left',
     padding: '0.5rem 1rem',
     borderBottom: '1px solid var(--border-light, #e0e0e0)',
@@ -190,11 +190,11 @@ export const dataviewTheme = EditorView.theme({
     whiteSpace: 'nowrap'
   },
 
-  '.dataview-table th:hover': {
+  '.deck-table th:hover': {
     backgroundColor: 'var(--bg-hover, rgba(0,0,0,0.03))'
   },
 
-  '.dataview-table th.sorted': {
+  '.deck-table th.sorted': {
     color: 'var(--accent-primary, #2196f3)'
   },
 
@@ -203,7 +203,7 @@ export const dataviewTheme = EditorView.theme({
     fontSize: '0.75rem'
   },
 
-  '.dataview-table td': {
+  '.deck-table td': {
     padding: '0.5rem 1rem',
     borderBottom: '1px solid var(--border-light, #e0e0e0)',
     color: 'var(--text-primary, #333)',
@@ -213,15 +213,15 @@ export const dataviewTheme = EditorView.theme({
     whiteSpace: 'nowrap'
   },
 
-  '.dataview-table tbody tr': {
+  '.deck-table tbody tr': {
     transition: 'background-color 0.1s ease'
   },
 
-  '.dataview-table tbody tr:hover': {
+  '.deck-table tbody tr:hover': {
     backgroundColor: 'var(--bg-hover, rgba(0,0,0,0.03))'
   },
 
-  '.dataview-table tbody tr:last-child td': {
+  '.deck-table tbody tr:last-child td': {
     borderBottom: 'none'
   },
 
@@ -260,7 +260,7 @@ export const dataviewTheme = EditorView.theme({
   },
 
   // Title cell - styled like wikilinks (detailed styles in ColumnCell.svelte)
-  '.dataview-title-cell': {
+  '.deck-title-cell': {
     fontWeight: '600'
   },
 
@@ -332,12 +332,12 @@ export const dataviewTheme = EditorView.theme({
   },
 
   // Footer
-  '.dataview-footer': {
+  '.deck-footer': {
     padding: '0.75rem 1rem',
     borderTop: '1px solid var(--border-light, #e0e0e0)'
   },
 
-  '.dataview-new-note-btn': {
+  '.deck-new-note-btn': {
     width: '100%',
     padding: '0.5rem 1rem',
     border: '1px dashed var(--border-light, #ccc)',
@@ -349,7 +349,7 @@ export const dataviewTheme = EditorView.theme({
     transition: 'all 0.15s ease'
   },
 
-  '.dataview-new-note-btn:hover': {
+  '.deck-new-note-btn:hover': {
     borderColor: 'var(--accent-primary, #2196f3)',
     color: 'var(--accent-primary, #2196f3)',
     backgroundColor: 'var(--bg-hover, rgba(33, 150, 243, 0.05))'

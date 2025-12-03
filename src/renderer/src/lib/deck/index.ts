@@ -1,13 +1,13 @@
 /**
- * Dataview feature - Display filtered note lists inline within notes
+ * Deck feature - Display filtered note lists inline within notes
  *
  * Usage:
  * 1. Import the extension in editorConfig.svelte.ts
  * 2. Add to extensions array with handlers
- * 3. Use ```flint-query code blocks in notes
+ * 3. Use ```flint-deck code blocks in notes
  *
- * Example query block:
- * ```flint-query
+ * Example deck block:
+ * ```flint-deck
  * name: My Tasks
  * filters:
  *   - field: type
@@ -26,21 +26,21 @@
 
 // Extension
 export {
-  dataviewExtension,
-  updateDataviewBlock,
-  forceDataviewRefresh,
-  insertDataviewBlock
-} from './dataviewExtension.svelte';
+  deckExtension,
+  updateDeckBlock,
+  forceDeckRefresh,
+  insertDeckBlock
+} from './deckExtension.svelte';
 
 // Types
 export type {
-  FlintQueryConfig,
-  QueryFilter,
-  QuerySort,
+  DeckConfig,
+  DeckFilter,
+  DeckSort,
   FilterOperator,
-  QueryResultNote,
-  FlintQueryBlock,
-  DataviewHandlers,
+  DeckResultNote,
+  DeckBlock,
+  DeckHandlers,
   FilterFieldInfo,
   // Column types
   ColumnConfig,
@@ -65,10 +65,10 @@ export {
 
 // Utilities
 export {
-  parseQueryYaml,
-  serializeQueryConfig,
-  createEmptyQueryConfig,
-  createTypeFilterQuery
+  parseDeckYaml,
+  serializeDeckConfig,
+  createEmptyDeckConfig,
+  createTypeFilterDeck
 } from './yaml-utils';
 
 // Filter Builder components
@@ -84,4 +84,4 @@ export { default as ColumnRow } from './ColumnRow.svelte';
 export { default as ColumnCell } from './ColumnCell.svelte';
 
 // Query service
-export { runDataviewQuery, getMetadataFieldsForType } from './queryService.svelte';
+export { runDeckQuery, getMetadataFieldsForType } from './queryService.svelte';

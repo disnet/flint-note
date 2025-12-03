@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { QueryFilter, FilterFieldInfo, FilterOperator } from './types';
+  import type { DeckFilter, FilterFieldInfo, FilterOperator } from './types';
   import { getOperatorsForType, SYSTEM_FIELDS } from './types';
   import FieldSelector from './FieldSelector.svelte';
   import OperatorSelector from './OperatorSelector.svelte';
   import ValueInput from './ValueInput.svelte';
 
   interface Props {
-    filter: QueryFilter;
+    filter: DeckFilter;
     fields: FilterFieldInfo[];
     valueSuggestions?: string[];
-    onChange: (filter: QueryFilter) => void;
+    onChange: (filter: DeckFilter) => void;
     onRemove: () => void;
   }
 

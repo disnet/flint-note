@@ -24,7 +24,7 @@ import {
   type ImagePathClickHandler
 } from '../lib/inlineImages.svelte';
 import { createImageDropExtension } from '../lib/imageDropHandler.svelte';
-import { dataviewExtension, updateDataviewBlock } from '../lib/dataview';
+import { deckExtension, updateDeckBlock } from '../lib/deck';
 
 export interface EditorConfigOptions {
   onWikilinkClick?: (
@@ -44,9 +44,9 @@ export interface EditorConfigOptions {
   onHoverPopoverAltEnter?: () => boolean;
   placeholder?: string;
   variant?: 'default' | 'daily-note' | 'backlink-context' | 'shelf-note';
-  // Dataview options
-  onDataviewNewNote?: (type: string | null) => void;
-  enableDataview?: boolean;
+  // Deck options
+  onDeckNewNote?: (type: string | null) => void;
+  enableDeck?: boolean;
 }
 
 export class EditorConfig {
@@ -384,13 +384,13 @@ export class EditorConfig {
       inlineImagesExtension(this.options.onImagePathClick),
       // Image drop handler (enabled by default unless explicitly disabled)
       ...(this.options.enableImageDrop !== false ? [createImageDropExtension()] : []),
-      // Dataview extension (enabled by default unless explicitly disabled)
-      ...(this.options.enableDataview !== false
+      // Deck extension (enabled by default unless explicitly disabled)
+      ...(this.options.enableDeck !== false
         ? [
-            dataviewExtension({
+            deckExtension({
               onConfigChange: (from, to, newConfig) => {
                 if (this.editorView) {
-                  updateDataviewBlock(this.editorView, from, to, newConfig);
+                  updateDeckBlock(this.editorView, from, to, newConfig);
                 }
               },
               onNoteClick: (noteId, shiftKey) => {

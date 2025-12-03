@@ -588,7 +588,7 @@
     }
   }
 
-  async function handleDataviewNewNote(type: string | null): Promise<void> {
+  async function handleDeckNewNote(type: string | null): Promise<void> {
     // Create a new note with the specified type (or prompt if null)
     try {
       const noteService = getChatService();
@@ -690,7 +690,7 @@
         {suggestions}
         {expandedSuggestions}
         onDismissSuggestion={dismissSuggestion}
-        onDataviewNewNote={handleDataviewNewNote}
+        onDeckNewNote={handleDeckNewNote}
       />
     {/if}
 
