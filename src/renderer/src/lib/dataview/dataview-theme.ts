@@ -207,7 +207,6 @@ export const dataviewTheme = EditorView.theme({
   },
 
   '.dataview-table tbody tr': {
-    cursor: 'pointer',
     transition: 'background-color 0.1s ease'
   },
 
@@ -219,9 +218,110 @@ export const dataviewTheme = EditorView.theme({
     borderBottom: 'none'
   },
 
+  // Row actions (edit button)
+  '.row-actions': {
+    width: '2rem',
+    padding: '0.25rem !important',
+    textAlign: 'center',
+    opacity: '0',
+    transition: 'opacity 0.15s ease'
+  },
+
+  '.data-row:hover .row-actions': {
+    opacity: '1'
+  },
+
+  '.edit-row-btn': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.75rem',
+    height: '1.75rem',
+    padding: '0',
+    border: 'none',
+    borderRadius: '0.25rem',
+    backgroundColor: 'transparent',
+    color: 'var(--text-tertiary, #999)',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+
+  '.edit-row-btn:hover': {
+    backgroundColor: 'var(--bg-tertiary, #e5e5e5)',
+    color: 'var(--text-primary, #333)'
+  },
+
   // Title cell - styled like wikilinks (detailed styles in ColumnCell.svelte)
   '.dataview-title-cell': {
     fontWeight: '600'
+  },
+
+  // Editing row
+  '.editing-row': {
+    backgroundColor: 'var(--bg-secondary, #f8f9fa)'
+  },
+
+  '.editing-row td': {
+    padding: '0.375rem 0.75rem'
+  },
+
+  '.editing-actions': {
+    display: 'flex',
+    gap: '0.25rem',
+    padding: '0.375rem 0.5rem !important',
+    whiteSpace: 'nowrap'
+  },
+
+  '.save-btn': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.5rem',
+    height: '1.5rem',
+    padding: '0',
+    border: 'none',
+    borderRadius: '0.25rem',
+    backgroundColor: 'var(--accent-success, #22c55e)',
+    color: 'white',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    transition: 'background-color 0.15s ease'
+  },
+
+  '.save-btn:hover': {
+    backgroundColor: 'var(--accent-success-hover, #16a34a)'
+  },
+
+  '.save-btn:disabled': {
+    opacity: '0.5',
+    cursor: 'not-allowed'
+  },
+
+  '.cancel-btn': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.5rem',
+    height: '1.5rem',
+    padding: '0',
+    border: 'none',
+    borderRadius: '0.25rem',
+    backgroundColor: 'var(--bg-tertiary, #e5e7eb)',
+    color: 'var(--text-secondary, #666)',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+
+  '.cancel-btn:hover': {
+    backgroundColor: 'var(--bg-error, rgba(239, 68, 68, 0.1))',
+    color: 'var(--text-error, #ef4444)'
+  },
+
+  '.cancel-btn:disabled': {
+    opacity: '0.5',
+    cursor: 'not-allowed'
   },
 
   // Footer

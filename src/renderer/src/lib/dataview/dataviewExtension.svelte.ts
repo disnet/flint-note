@@ -104,6 +104,18 @@ class DataviewWidgetType extends WidgetType {
       e.stopPropagation();
     });
 
+    container.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    container.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+    });
+
+    container.addEventListener('focusin', (e) => {
+      e.stopPropagation();
+    });
+
     container.addEventListener('keydown', (e) => {
       e.stopPropagation();
     });
@@ -115,11 +127,6 @@ class DataviewWidgetType extends WidgetType {
         config: this.config,
         onConfigChange: (newConfig: FlintQueryConfig) => {
           this.handlers.onConfigChange(this.blockFrom, this.blockTo, newConfig);
-        },
-        onNewNote: () => {
-          const typeFilter = this.config.filters.find((f) => f.field === 'flint_type');
-          const type = typeof typeFilter?.value === 'string' ? typeFilter.value : null;
-          this.handlers.onNewNote(type);
         },
         onNoteClick: (noteId: string, shiftKey?: boolean) => {
           this.handlers.onNoteClick(noteId, shiftKey);

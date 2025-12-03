@@ -8,6 +8,7 @@
     format?: ColumnFormat;
     isTitle?: boolean;
     onLinkClick?: (noteTitle: string) => void;
+    onTitleClick?: (event: MouseEvent) => void;
   }
 
   let {
@@ -15,7 +16,8 @@
     fieldType,
     format = 'default',
     isTitle = false,
-    onLinkClick
+    onLinkClick,
+    onTitleClick
   }: Props = $props();
 
   // Determine effective format based on field type and explicit format
@@ -219,7 +221,21 @@
     </span>
   {:else if isTitle}
     <!-- Title styled like wikilink -->
-    <span class="title-link"><span class="title-text">{displayValue}</span></span>
+    {#if !value || (typeof value === 'string' && !value.trim())}
+      {#if onTitleClick}
+        <button class="title-link untitled" onclick={onTitleClick} type="button">
+          <span class="title-text">Untitled</span>
+        </button>
+      {:else}
+        <span class="title-link untitled"><span class="title-text">Untitled</span></span>
+      {/if}
+    {:else if onTitleClick}
+      <button class="title-link" onclick={onTitleClick} type="button">
+        <span class="title-text">{displayValue}</span>
+      </button>
+    {:else}
+      <span class="title-link"><span class="title-text">{displayValue}</span></span>
+    {/if}
   {:else}
     <!-- Default text display -->
     {displayValue}
@@ -245,10 +261,14 @@
     display: inline-flex;
     align-items: center;
     padding: 0 0.175rem;
+    border: none;
     border-radius: 0.25rem;
     background: rgba(0, 0, 0, 0.03);
     color: #1a1a1a;
     text-decoration: none;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
     transition: all 0.2s ease;
   }
 
@@ -257,8 +277,23 @@
     color: #0066cc;
   }
 
+  span.title-link {
+    cursor: default;
+  }
+
   .title-text {
     text-decoration: underline;
+  }
+
+  .title-link.untitled {
+    background: transparent;
+    color: var(--text-placeholder, #999);
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  .title-link.untitled .title-text {
+    text-decoration: none;
   }
 
   @media (prefers-color-scheme: dark) {

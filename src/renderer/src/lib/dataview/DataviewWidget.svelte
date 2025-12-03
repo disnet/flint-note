@@ -11,16 +11,32 @@
   import FilterBuilder from './FilterBuilder.svelte';
   import ColumnBuilder from './ColumnBuilder.svelte';
   import ColumnCell from './ColumnCell.svelte';
-  import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
+  import EditableCell from './EditableCell.svelte';
+  import type {
+    MetadataFieldType,
+    MetadataFieldDefinition
+  } from '../../../../server/core/metadata-schema';
+
+  // Schema field info for inline editing
+  interface SchemaFieldInfo {
+    name: string;
+    type: MetadataFieldType;
+    options?: string[];
+  }
+
+  // Type for editing values
+  interface EditingValues {
+    title: string;
+    metadata: Record<string, unknown>;
+  }
 
   interface Props {
     config: FlintQueryConfig;
     onConfigChange: (config: FlintQueryConfig) => void;
-    onNewNote: () => void;
     onNoteClick: (noteId: string, shiftKey?: boolean) => void;
   }
 
-  let { config, onConfigChange, onNewNote, onNoteClick }: Props = $props();
+  let { config, onConfigChange, onNoteClick }: Props = $props();
 
   // State
   let results = $state<QueryResultNote[]>([]);
@@ -35,6 +51,17 @@
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
   let isExpanded = $state(config.expanded ?? false);
+
+  // Inline editing state
+  let editingNoteId = $state<string | null>(null);
+  let editingValues = $state<EditingValues | null>(null);
+  let editingVaultId = $state<string | null>(null);
+  let isCreatingNewNote = $state(false); // True if editing a not-yet-created note
+  let isSavingNote = $state(false);
+
+  // Schema fields for inline editing (loaded when type is filtered)
+  let schemaFields = $state<Map<string, SchemaFieldInfo>>(new Map());
+  let schemaLoadedForType = $state<string | null>(null);
 
   // Derived: active filters (pending edits or saved config)
   const activeFilters = $derived(pendingFilters ?? config.filters);
@@ -82,6 +109,48 @@
     previousFilteredType = currentType;
   });
 
+  // Load schema fields when filtered type changes (for inline editing)
+  $effect(() => {
+    if (filteredType && filteredType !== schemaLoadedForType) {
+      loadSchemaFields(filteredType);
+    } else if (!filteredType) {
+      schemaFields = new Map();
+      schemaLoadedForType = null;
+    }
+  });
+
+  /**
+   * Load schema fields for a note type
+   */
+  async function loadSchemaFields(typeName: string): Promise<void> {
+    try {
+      const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
+      if (typeInfo?.metadata_schema?.fields) {
+        const newMap = new Map<string, SchemaFieldInfo>();
+        for (const field of typeInfo.metadata_schema
+          .fields as MetadataFieldDefinition[]) {
+          newMap.set(field.name, {
+            name: field.name,
+            type: field.type,
+            options: field.constraints?.options
+          });
+        }
+        schemaFields = newMap;
+        schemaLoadedForType = typeName;
+      }
+    } catch (e) {
+      console.error('Failed to load schema fields:', e);
+      schemaFields = new Map();
+    }
+  }
+
+  /**
+   * Get schema field info for a field name
+   */
+  function getSchemaField(fieldName: string): SchemaFieldInfo | undefined {
+    return schemaFields.get(fieldName);
+  }
+
   // Execute query when active filters change
   $effect(() => {
     // Track activeFilters to re-run when they change (either config or pending)
@@ -127,6 +196,11 @@
    * Check if a note event is relevant to the current query
    */
   function isRelevantEvent(event: NoteEvent): boolean {
+    // Don't refresh while editing - we manage the editing row locally
+    if (editingNoteId) {
+      return false;
+    }
+
     // Always refresh for bulk operations
     if (event.type === 'notes.bulkRefresh' || event.type === 'file.sync-completed') {
       return true;
@@ -200,10 +274,179 @@
     onNoteClick(result.id, event.shiftKey);
   }
 
-  function handleNewNoteClick(event: MouseEvent): void {
+  async function handleNewNoteClick(event: MouseEvent): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    onNewNote();
+
+    // Cancel any pending refresh to prevent overwriting our editing state
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+      refreshTimeout = null;
+    }
+
+    // Get current vault
+    const vault = await window.api?.getCurrentVault();
+    if (!vault?.id) {
+      console.error('No vault available');
+      error = 'No vault available';
+      return;
+    }
+
+    const noteType = filteredType || 'note';
+
+    // Create a placeholder entry for the new note (not yet saved to disk)
+    const placeholderId = `__new__${Date.now()}`;
+    const newNote: QueryResultNote = {
+      id: placeholderId,
+      title: '',
+      type: noteType,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      metadata: {}
+    };
+
+    results = [newNote, ...results];
+
+    // Enter edit mode for the new note
+    editingNoteId = placeholderId;
+    editingVaultId = vault.id;
+    isCreatingNewNote = true;
+    editingValues = {
+      title: '',
+      metadata: {}
+    };
+  }
+
+  async function startEditingNote(
+    result: QueryResultNote,
+    event: MouseEvent
+  ): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Get current vault
+    const vault = await window.api?.getCurrentVault();
+    if (!vault?.id) {
+      console.error('No vault available');
+      return;
+    }
+
+    // Enter edit mode for this existing note
+    editingNoteId = result.id;
+    editingVaultId = vault.id;
+    isCreatingNewNote = false;
+    editingValues = {
+      title: result.title || '',
+      metadata: { ...result.metadata }
+    };
+  }
+
+  function updateEditingValue(field: string, value: unknown): void {
+    if (!editingValues) return;
+
+    if (field === 'title' || field === 'flint_title') {
+      editingValues = { ...editingValues, title: String(value) };
+    } else {
+      editingValues = {
+        ...editingValues,
+        metadata: { ...editingValues.metadata, [field]: value }
+      };
+    }
+  }
+
+  async function saveEditingNote(): Promise<void> {
+    if (!editingNoteId || !editingValues || isSavingNote) return;
+
+    isSavingNote = true;
+
+    try {
+      const newTitle = editingValues.title.trim();
+      // Use $state.snapshot() to serialize reactive objects for IPC
+      const metadataSnapshot = $state.snapshot(editingValues.metadata);
+
+      if (isCreatingNewNote) {
+        // Create new note
+        const noteType = filteredType || 'note';
+
+        // The identifier param is used as the title by the API,
+        // so pass the actual title (empty string allowed)
+        await window.api?.createNote({
+          type: noteType,
+          identifier: newTitle,
+          content: '',
+          metadata: metadataSnapshot,
+          vaultId: editingVaultId ?? undefined
+        });
+
+        // Remove the placeholder and let refresh add the real note
+        results = results.filter((r) => r.id !== editingNoteId);
+      } else {
+        // Update existing note - fetch current content first to avoid overwriting
+        const existingNote = await window.api?.getNote({
+          identifier: editingNoteId,
+          vaultId: editingVaultId ?? undefined
+        });
+
+        await window.api?.updateNote({
+          identifier: editingNoteId,
+          content: existingNote?.content ?? '',
+          metadata: {
+            ...metadataSnapshot,
+            flint_title: newTitle || undefined
+          },
+          vaultId: editingVaultId ?? undefined
+        });
+
+        // Update the result in the list
+        const noteIndex = results.findIndex((r) => r.id === editingNoteId);
+        if (noteIndex !== -1) {
+          results[noteIndex] = {
+            ...results[noteIndex],
+            title: newTitle || '(untitled)',
+            metadata: { ...results[noteIndex].metadata, ...editingValues.metadata }
+          };
+          results = [...results];
+        }
+      }
+
+      // Exit edit mode
+      editingNoteId = null;
+      editingVaultId = null;
+      editingValues = null;
+      isCreatingNewNote = false;
+
+      // Refresh query to get accurate data
+      debouncedRefresh();
+    } catch (e) {
+      console.error('Failed to save note:', e);
+      error = e instanceof Error ? e.message : 'Failed to save note';
+    } finally {
+      isSavingNote = false;
+    }
+  }
+
+  function cancelEditing(): void {
+    if (!editingNoteId) return;
+
+    if (isCreatingNewNote) {
+      // Just remove the placeholder from results - no API call needed
+      results = results.filter((r) => r.id !== editingNoteId);
+    }
+
+    editingNoteId = null;
+    editingVaultId = null;
+    editingValues = null;
+    isCreatingNewNote = false;
+  }
+
+  function handleEditingKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      saveEditingNote();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditing();
+    }
   }
 
   function handleRetryClick(event: MouseEvent): void {
@@ -279,7 +522,12 @@
 
   // Get field type for a column
   function getFieldType(field: string): MetadataFieldType | 'system' | 'unknown' {
-    if (field === 'title' || field === 'type' || field === 'flint_title' || field === 'flint_type')
+    if (
+      field === 'title' ||
+      field === 'type' ||
+      field === 'flint_title' ||
+      field === 'flint_type'
+    )
       return 'system';
     if (
       field === 'created' ||
@@ -288,14 +536,23 @@
       field === 'flint_updated'
     )
       return 'date';
-    // For metadata fields, we'd ideally look up the type from the schema
-    // For now, return 'unknown' and let ColumnCell infer from value
+    // Look up type from loaded schema
+    const schemaField = getSchemaField(field);
+    if (schemaField) {
+      return schemaField.type;
+    }
     return 'unknown';
+  }
+
+  // Get field options for select fields
+  function getFieldOptions(field: string): string[] {
+    const schemaField = getSchemaField(field);
+    return schemaField?.options ?? [];
   }
 
   // Get cell value for a column
   function getCellValue(result: QueryResultNote, field: string): unknown {
-    if (field === 'title' || field === 'flint_title') return result.title || '(untitled)';
+    if (field === 'title' || field === 'flint_title') return result.title || '';
     if (field === 'type' || field === 'flint_type') return result.type;
     if (field === 'created' || field === 'flint_created') return result.created;
     if (field === 'updated' || field === 'flint_updated') return result.updated;
@@ -549,18 +806,105 @@
         </thead>
         <tbody>
           {#each results as result (result.id)}
-            <tr onclick={(e) => handleRowClick(result, e)}>
-              {#each displayColumns as column (column.field)}
-                <td class:dataview-title-cell={column.field === 'title'}>
-                  <ColumnCell
-                    value={getCellValue(result, column.field)}
-                    fieldType={getFieldType(column.field)}
-                    format={column.format}
-                    isTitle={column.field === 'title'}
-                  />
+            {#if editingNoteId === result.id && editingValues}
+              <!-- Editing row -->
+              <tr
+                class="editing-row"
+                onmousedown={(e) => e.stopPropagation()}
+                onclick={(e) => e.stopPropagation()}
+                onfocusin={(e) => e.stopPropagation()}
+              >
+                {#each displayColumns as column, colIndex (column.field)}
+                  <td class:dataview-title-cell={column.field === 'title'}>
+                    {#if column.field === 'title' || column.field === 'flint_title'}
+                      <EditableCell
+                        value={editingValues.title}
+                        fieldType="system"
+                        field={column.field}
+                        onChange={(v) => updateEditingValue(column.field, v)}
+                        onKeyDown={handleEditingKeyDown}
+                        autoFocus={colIndex === 0}
+                      />
+                    {:else if column.field === 'type' || column.field === 'flint_type' || column.field === 'created' || column.field === 'updated' || column.field === 'flint_created' || column.field === 'flint_updated'}
+                      <!-- Non-editable system fields -->
+                      <ColumnCell
+                        value={getCellValue(result, column.field)}
+                        fieldType={getFieldType(column.field)}
+                        format={column.format}
+                        isTitle={false}
+                      />
+                    {:else}
+                      <!-- Editable metadata field -->
+                      <EditableCell
+                        value={editingValues.metadata[column.field] ?? ''}
+                        fieldType={getFieldType(column.field)}
+                        field={column.field}
+                        onChange={(v) => updateEditingValue(column.field, v)}
+                        onKeyDown={handleEditingKeyDown}
+                        options={getFieldOptions(column.field)}
+                      />
+                    {/if}
+                  </td>
+                {/each}
+                <td class="editing-actions">
+                  <button
+                    class="save-btn"
+                    onclick={saveEditingNote}
+                    onmousedown={(e) => e.stopPropagation()}
+                    disabled={isSavingNote}
+                    type="button"
+                    title="Save (Enter)"
+                  >
+                    {#if isSavingNote}
+                      ...
+                    {:else}
+                      ✓
+                    {/if}
+                  </button>
+                  <button
+                    class="cancel-btn"
+                    onclick={cancelEditing}
+                    onmousedown={(e) => e.stopPropagation()}
+                    disabled={isSavingNote}
+                    type="button"
+                    title="Cancel (Escape)"
+                  >
+                    ✕
+                  </button>
                 </td>
-              {/each}
-            </tr>
+              </tr>
+            {:else}
+              <!-- Regular row -->
+              <tr class="data-row">
+                {#each displayColumns as column (column.field)}
+                  <td class:dataview-title-cell={column.field === 'title'}>
+                    <ColumnCell
+                      value={getCellValue(result, column.field)}
+                      fieldType={getFieldType(column.field)}
+                      format={column.format}
+                      isTitle={column.field === 'title'}
+                      onTitleClick={column.field === 'title'
+                        ? (e) => handleRowClick(result, e)
+                        : undefined}
+                    />
+                  </td>
+                {/each}
+                <td class="row-actions">
+                  <button
+                    class="edit-row-btn"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      startEditingNote(result, e);
+                    }}
+                    onmousedown={(e) => e.stopPropagation()}
+                    type="button"
+                    title="Edit"
+                  >
+                    ✎
+                  </button>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>

@@ -4,7 +4,7 @@
 
 The Dataview feature enables users to embed dynamic, queryable note lists directly within their notes. Similar to Obsidian's Dataview plugin, this feature allows users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v2)
+## Current Implementation (v6)
 
 ### Features Implemented
 
@@ -42,6 +42,7 @@ limit: 50
 | `sort.order`         | string       | No       | `asc` or `desc` (default: `desc`)                        |
 | `columns`            | array        | No       | Metadata fields to display as columns                    |
 | `limit`              | number       | No       | Maximum results (default: 50)                            |
+| `expanded`           | boolean      | No       | Whether widget is fully expanded (default: false)        |
 
 **Supported Filter Operators:**
 
@@ -55,11 +56,15 @@ limit: 50
 
 - **Live Preview**: Widget renders as an interactive table when cursor is outside the code block
 - **Edit Mode**: Shows raw YAML when cursor is inside the block for editing
-- **Header**: Displays query name and result count
+- **Header**: Displays query name (click to edit) and result count
 - **Table**: Shows title column (always first) plus configured metadata columns
-- **Clickable Rows**: Click to navigate to note, Shift+click for split view
+- **Clickable Titles**: Click title to navigate to note, Shift+click for split view
 - **Sortable Headers**: Click column headers to toggle sort order
-- **New Note Button**: Creates a new note with the filtered type
+- **Expand/Collapse**: Height-capped by default with toggle button; state persisted in YAML
+- **Inline Note Creation**: New Note button adds editable row for inline editing (title + metadata fields)
+- **Inline Row Editing**: Edit button (✎) appears on row hover; click to edit existing note inline
+- **Schema-Aware Editing**: Select fields show dropdown with valid options from note type schema
+- **Untitled Note Styling**: Notes without titles display as muted, italic "Untitled" (matching wikilink style)
 
 #### 4. Query Execution (v2 - Optimized)
 
@@ -110,16 +115,19 @@ src/main/index.ts
 └── 'query-notes-for-dataview'  # IPC handler
 ```
 
-### Known Limitations (v4)
+### Known Limitations (v6)
 
 1. ~~**Client-side metadata filtering**: Metadata filters are applied after fetching notes~~ ✅ Fixed in v2
 2. ~~**N+1 query problem**: Each note requires a separate `getNote` call~~ ✅ Fixed in v2
 3. ~~**No filter builder UI**: Users must manually write YAML~~ ✅ Fixed in v3
 4. ~~**No column configuration UI**: Column selection requires YAML editing~~ ✅ Fixed in v4
 5. ~~**No real-time updates**: Widget doesn't automatically refresh when notes change~~ ✅ Fixed in v2
-6. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
-7. **Metadata field sorting**: Sorting by metadata fields falls back to updated date (server-side metadata sort not yet implemented)
-8. **Column width configuration**: Not yet implemented (planned)
+6. ~~**No inline note creation**: New note button opens editor instead of inline editing~~ ✅ Fixed in v5
+7. ~~**No inline row editing**: Cannot edit existing notes inline~~ ✅ Fixed in v6
+8. ~~**No schema-aware inputs**: Select fields rendered as text instead of dropdown~~ ✅ Fixed in v6
+9. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
+10. **Metadata field sorting**: Sorting by metadata fields falls back to updated date (server-side metadata sort not yet implemented)
+11. **Column width configuration**: Not yet implemented (planned)
 
 ---
 
@@ -253,60 +261,114 @@ columns:
 - `ColumnRow.svelte` - Individual column row with field/label/format controls
 - `ColumnCell.svelte` - Type-aware cell renderer with multiple format options
 
+### Phase 5: UI Enhancements ✅
+
+Implemented in v5.
+
+#### 5.1 Editable Query Name ✅
+
+- Click query name in header to edit inline
+- Saves to YAML on blur or Enter key
+- Escape cancels edit
+
+#### 5.2 Expand/Collapse Widget ✅
+
+- Widget has max-height by default with internal scrolling
+- Toggle button in header to expand/collapse
+- `expanded` state persisted in YAML config
+
+#### 5.3 Inline Note Creation ✅
+
+- "New Note" button creates editable row at top of table
+- Title and metadata fields editable inline
+- Enter saves note, Escape cancels
+- Note created on save (not on click) - uses placeholder until saved
+- Empty titles allowed (creates untitled note)
+
+#### 5.4 Inline Row Editing ✅
+
+- Edit button (✎) appears on far right of row on hover
+- Clicking edit button enters inline edit mode for that row
+- Same editing interface as new note creation
+- Confirm (✓) saves changes, Cancel (✕) discards
+
+#### 5.5 Schema-Aware Editing ✅
+
+- Loads note type schema when type filter is present
+- Select fields render as dropdown with valid options from schema
+- Prevents invalid values for constrained fields
+- Field types detected from schema (not inferred from values)
+
+#### 5.6 Untitled Note Styling ✅
+
+- Notes without titles display "Untitled" text
+- Styled with muted color and italic (matching wikilink style in editor)
+- Server returns empty string for untitled notes (UI handles display)
+
+#### 5.7 Title-Only Navigation ✅
+
+- Only clicking on title text navigates to note (not entire row)
+- Allows interaction with other cells without accidental navigation
+- Title styled as clickable link with hover effect
+
+#### 5.8 New Components ✅
+
+- `EditableCell.svelte` - Inline cell editor with schema-aware inputs (text, number, date, boolean, select dropdown)
+
 ---
 
 ## Next Steps
 
-### Phase 5: Advanced Features
+### Phase 6: Advanced Features
 
-#### 5.1 Grouping
+#### 6.1 Grouping
 
 - Group results by field value
 - Collapsible groups
 - Group counts
 
-#### 5.2 Aggregations
+#### 6.2 Aggregations
 
 - Count, sum, average for numeric fields
 - Display in footer row
 
-#### 5.3 Multiple Views
+#### 6.3 Multiple Views
 
 - Table view (current)
 - List view (compact)
 - Card/gallery view
 - Calendar view (for date-based queries)
 
-#### 5.4 Saved Queries
+#### 6.4 Saved Queries
 
 - Save query configurations as reusable templates
 - Insert saved query via autocomplete
 - Share queries across notes
 
-#### 5.5 Query Chaining
+#### 6.5 Query Chaining
 
 - Reference other dataview results
 - Filter based on linked notes
 - Intersection/union of multiple queries
 
-### Phase 6: Performance Optimizations
+### Phase 7: Performance Optimizations
 
-#### 6.1 Virtual Scrolling
+#### 7.1 Virtual Scrolling
 
 - Only render visible rows
 - Handle large result sets efficiently
 
-#### 6.2 Query Caching
+#### 7.2 Query Caching
 
 - Cache query results with invalidation
 - Share cache across identical queries
 
-#### 6.3 Incremental Updates
+#### 7.3 Incremental Updates
 
 - Track which notes changed
 - Update only affected rows instead of full re-query
 
-#### 6.4 Metadata Field Sorting
+#### 7.4 Metadata Field Sorting
 
 - Implement server-side sorting by metadata fields
 - Add LEFT JOIN for sort field to enable proper ordering

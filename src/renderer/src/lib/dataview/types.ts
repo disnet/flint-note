@@ -261,8 +261,6 @@ export interface FlintQueryBlock {
 export interface DataviewHandlers {
   /** Called when query config changes (e.g., sort order) */
   onConfigChange: (from: number, to: number, newConfig: FlintQueryConfig) => void;
-  /** Called when user clicks "+ New Note" */
-  onNewNote: (type: string | null) => void;
   /** Called when user clicks a note title */
   onNoteClick: (noteId: string, shiftKey?: boolean) => void;
 }

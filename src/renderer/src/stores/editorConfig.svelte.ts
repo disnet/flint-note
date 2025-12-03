@@ -393,9 +393,6 @@ export class EditorConfig {
                   updateDataviewBlock(this.editorView, from, to, newConfig);
                 }
               },
-              onNewNote: (type) => {
-                this.options.onDataviewNewNote?.(type);
-              },
               onNoteClick: (noteId, shiftKey) => {
                 // Reuse wikilink click handler for note navigation
                 this.options.onWikilinkClick?.(noteId, '', false, shiftKey);

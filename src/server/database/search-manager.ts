@@ -717,7 +717,7 @@ export class HybridSearchManager {
       // Build results
       const results: DataviewNote[] = rows.map((row) => ({
         id: row.id,
-        title: row.title || '(untitled)',
+        title: row.title || '',
         type: row.type,
         created: row.created,
         updated: row.updated,
