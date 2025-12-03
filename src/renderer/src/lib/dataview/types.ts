@@ -3,10 +3,96 @@
  * Defines query configuration stored as YAML in flint-query fenced code blocks
  */
 
+import type {
+  MetadataFieldDefinition,
+  MetadataFieldType
+} from '../../../../server/core/metadata-schema';
+
 /**
  * Filter operators supported by the searchNotesAdvanced API
  */
 export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+
+/**
+ * Field information for the filter builder UI
+ */
+export interface FilterFieldInfo {
+  /** Field name */
+  name: string;
+  /** Display label */
+  label: string;
+  /** Field type (determines available operators and input) */
+  type: MetadataFieldType | 'system';
+  /** Optional description */
+  description?: string;
+  /** Available options for select fields */
+  options?: string[];
+  /** Whether this is a system field */
+  isSystem?: boolean;
+}
+
+/**
+ * Operators grouped by field type for UI
+ */
+export const OPERATORS_BY_TYPE: Record<MetadataFieldType | 'system', FilterOperator[]> = {
+  string: ['=', '!=', 'LIKE'],
+  number: ['=', '!=', '>', '<', '>=', '<='],
+  boolean: ['=', '!='],
+  date: ['=', '!=', '>', '<', '>=', '<='],
+  array: ['IN', '=', '!='],
+  select: ['=', '!=', 'IN'],
+  system: ['=', '!=', 'LIKE']
+};
+
+/**
+ * System fields available for filtering
+ */
+export const SYSTEM_FIELDS: FilterFieldInfo[] = [
+  { name: 'flint_type', label: 'Type', type: 'system', isSystem: true },
+  { name: 'flint_title', label: 'Title', type: 'system', isSystem: true },
+  { name: 'flint_created', label: 'Created', type: 'date', isSystem: true },
+  { name: 'flint_updated', label: 'Updated', type: 'date', isSystem: true },
+  { name: 'flint_archived', label: 'Archived', type: 'boolean', isSystem: true }
+];
+
+/**
+ * Convert a MetadataFieldDefinition to FilterFieldInfo
+ */
+export function fieldDefToFilterInfo(field: MetadataFieldDefinition): FilterFieldInfo {
+  return {
+    name: field.name,
+    label: field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/_/g, ' '),
+    type: field.type,
+    description: field.description,
+    options: field.constraints?.options
+  };
+}
+
+/**
+ * Get available operators for a field type
+ */
+export function getOperatorsForType(
+  type: MetadataFieldType | 'system'
+): FilterOperator[] {
+  return OPERATORS_BY_TYPE[type] || OPERATORS_BY_TYPE.string;
+}
+
+/**
+ * Get display label for an operator
+ */
+export function getOperatorLabel(operator: FilterOperator): string {
+  const labels: Record<FilterOperator, string> = {
+    '=': 'equals',
+    '!=': 'not equals',
+    '>': 'greater than',
+    '<': 'less than',
+    '>=': 'at least',
+    '<=': 'at most',
+    LIKE: 'contains',
+    IN: 'in list'
+  };
+  return labels[operator] || operator;
+}
 
 /**
  * A single filter condition in a query

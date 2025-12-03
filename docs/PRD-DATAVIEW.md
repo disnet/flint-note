@@ -48,7 +48,7 @@ limit: 50
 - `=` (equals, default)
 - `!=` (not equals)
 - `>`, `<`, `>=`, `<=` (comparison)
-- `LIKE` (pattern matching with `%` wildcard)
+- `LIKE` (pattern matching, automatically wraps value with `%` for "contains" matching unless user includes their own wildcards)
 - `IN` (matches any value in list)
 
 #### 3. Widget Rendering
@@ -86,12 +86,17 @@ limit: 50
 
 ```
 src/renderer/src/lib/dataview/
-├── types.ts                    # Type definitions
+├── types.ts                    # Type definitions + filter utilities
 ├── yaml-utils.ts               # YAML parsing/serialization
 ├── dataview-theme.ts           # CodeMirror styling
 ├── dataviewExtension.svelte.ts # CodeMirror extension
 ├── queryService.svelte.ts      # Query execution (uses queryNotesForDataview API)
 ├── DataviewWidget.svelte       # UI component with real-time updates
+├── FilterBuilder.svelte        # Visual filter editor (v3)
+├── FilterRow.svelte            # Single filter row component (v3)
+├── FieldSelector.svelte        # Field dropdown with search (v3)
+├── OperatorSelector.svelte     # Operator selection dropdown (v3)
+├── ValueInput.svelte           # Smart value input by type (v3)
 └── index.ts                    # Public exports
 
 src/server/database/search-manager.ts
@@ -105,11 +110,11 @@ src/main/index.ts
 └── 'query-notes-for-dataview'  # IPC handler
 ```
 
-### Known Limitations (v2)
+### Known Limitations (v3)
 
 1. ~~**Client-side metadata filtering**: Metadata filters are applied after fetching notes~~ ✅ Fixed in v2
 2. ~~**N+1 query problem**: Each note requires a separate `getNote` call~~ ✅ Fixed in v2
-3. **No filter builder UI**: Users must manually write YAML
+3. ~~**No filter builder UI**: Users must manually write YAML~~ ✅ Fixed in v3
 4. **No column configuration UI**: Column selection requires YAML editing
 5. ~~**No real-time updates**: Widget doesn't automatically refresh when notes change~~ ✅ Fixed in v2
 6. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
@@ -143,24 +148,73 @@ Implemented in v2.
 - 300ms debouncing prevents excessive re-renders
 - Handles: create, update, delete, rename, move, archive, unarchive, bulk refresh, file sync
 
+### Phase 3: Filter Builder UI ✅
+
+Implemented in v3.
+
+#### 3.1 Visual Filter Editor ✅
+
+- FieldSelector dropdown for field selection (shows system fields + metadata fields from type schema)
+- OperatorSelector dropdown with context-aware operators based on field type
+- ValueInput component with smart input types (text, number, date, boolean toggle, select dropdown)
+- Multi-value tag input for IN operator
+- Add/remove filter buttons
+- Configure button (filter icon) in widget header to toggle filter builder
+
+#### 3.2 Filter Suggestions ✅
+
+- Loads note type schemas to populate available fields
+- System fields always available (flint_type, flint_title, flint_created, flint_updated, flint_archived)
+- Field type indicators (T=text, #=number, ?=boolean, D=date, []=array, S=select, \*=system)
+- Select field options shown as suggestions
+- Note type list used for flint_type autocomplete
+
+#### 3.3 Implementation Details
+
+**Local Editing State:**
+
+- FilterBuilder maintains local `editingFilters` state separate from parent config
+- Incomplete filters (missing field or value) are kept locally but not synced to YAML
+- Only complete filters are serialized to the query block
+- Prevents widget disappearing while building filters
+
+**Pending Filters (Deferred YAML Updates):**
+
+- DataviewWidget maintains `pendingFilters` state while filter builder is open
+- Filter changes update `pendingFilters` locally and re-run queries in real-time
+- YAML is only updated when filter builder is closed (prevents widget recreation during editing)
+- Uses `setTimeout` to defer YAML update and avoid CodeMirror "update during update" errors
+
+**Event Handling:**
+
+- Value inputs use `oninput` for real-time suggestion filtering as user types
+- Enter key always triggers onChange (selects first highlighted suggestion if available)
+- Event propagation stopped on filter builder container to prevent cursor jumps
+- Click-outside detection uses capture phase to work with stopPropagation in parent elements
+
+**Dropdown Positioning:**
+
+- FieldSelector and OperatorSelector use `position: fixed` with calculated coordinates
+- Position calculated from button's bounding rect when dropdown opens
+- Escapes parent container's `overflow: hidden` constraints
+- High z-index (10000) ensures dropdowns appear above other elements
+
+**YAML Serialization:**
+
+- Incomplete filters filtered out during serialization
+- Widget remains visible even with in-progress filter edits
+
+**New Components:**
+
+- `FilterBuilder.svelte` - Main filter management with local editing state
+- `FilterRow.svelte` - Individual filter row with field/operator/value
+- `FieldSelector.svelte` - Searchable field dropdown with keyboard navigation, fixed positioning
+- `OperatorSelector.svelte` - Operator selection dropdown with fixed positioning
+- `ValueInput.svelte` - Smart input based on field type (text, number, date, boolean, select, tags) with real-time suggestion filtering
+
 ---
 
 ## Next Steps
-
-### Phase 3: Filter Builder UI
-
-#### 3.1 Visual Filter Editor
-
-- Dropdown for field selection (shows available metadata fields from type schema)
-- Operator selector
-- Value input with autocomplete for known values
-- Add/remove filter buttons
-
-#### 3.2 Filter Suggestions
-
-- Analyze note type schemas to suggest filterable fields
-- Show field types to guide value input
-- Validate filter values against field types
 
 ### Phase 4: Column Configuration UI
 
@@ -251,9 +305,9 @@ Implemented in v2.
 
 ## Risks & Mitigations
 
-| Risk                          | Impact | Mitigation                                                     |
-| ----------------------------- | ------ | -------------------------------------------------------------- |
+| Risk                          | Impact | Mitigation                                                                  |
+| ----------------------------- | ------ | --------------------------------------------------------------------------- |
 | Performance with large vaults | High   | ✅ Server-side filtering implemented; pagination, virtual scrolling planned |
-| YAML syntax errors            | Medium | Add validation feedback, consider GUI-only mode                |
-| Widget conflicts with editor  | Medium | Thorough testing of cursor detection and edit mode             |
-| Stale data display            | Low    | ✅ Real-time updates with debouncing implemented               |
+| YAML syntax errors            | Medium | Add validation feedback, consider GUI-only mode                             |
+| Widget conflicts with editor  | Medium | Thorough testing of cursor detection and edit mode                          |
+| Stale data display            | Low    | ✅ Real-time updates with debouncing implemented                            |

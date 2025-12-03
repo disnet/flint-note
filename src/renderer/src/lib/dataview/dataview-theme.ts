@@ -47,6 +47,44 @@ export const dataviewTheme = EditorView.theme({
     color: 'var(--text-secondary, #666)'
   },
 
+  // Configure button
+  '.configure-btn': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.75rem',
+    height: '1.75rem',
+    padding: '0',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    color: 'var(--text-tertiary, #999)',
+    transition: 'all 0.2s ease'
+  },
+
+  '.configure-btn:hover': {
+    backgroundColor: 'var(--bg-hover, rgba(0,0,0,0.05))',
+    color: 'var(--text-primary, #333)'
+  },
+
+  '.configure-btn.active': {
+    backgroundColor: 'var(--accent-primary-alpha, rgba(33, 150, 243, 0.1))',
+    color: 'var(--accent-primary, #2196f3)'
+  },
+
+  '.configure-btn svg': {
+    stroke: 'currentColor'
+  },
+
+  // Configure panel
+  '.dataview-configure': {
+    padding: '0.75rem',
+    borderBottom: '1px solid var(--border-light, #e0e0e0)',
+    backgroundColor: 'var(--bg-primary, #fff)',
+    overflow: 'visible'
+  },
+
   // States
   '.dataview-loading': {
     padding: '2rem',

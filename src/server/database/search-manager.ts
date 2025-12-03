@@ -445,6 +445,13 @@ export class HybridSearchManager {
             const placeholders = values.map(() => '?').join(',');
             whereConditions.push(`${alias}.value IN (${placeholders})`);
             params.push(...values);
+          } else if (operator === 'LIKE') {
+            // Wrap value with % for "contains" matching unless user provided their own wildcards
+            whereConditions.push(`${alias}.value LIKE ?`);
+            const likeValue = filter.value.includes('%')
+              ? filter.value
+              : `%${filter.value}%`;
+            params.push(likeValue);
           } else {
             whereConditions.push(`${alias}.value ${operator} ?`);
             params.push(filter.value);
@@ -648,6 +655,13 @@ export class HybridSearchManager {
             const placeholders = values.map(() => '?').join(',');
             whereConditions.push(`${alias}.value IN (${placeholders})`);
             params.push(...values);
+          } else if (operator === 'LIKE') {
+            // Wrap value with % for "contains" matching unless user provided their own wildcards
+            whereConditions.push(`${alias}.value LIKE ?`);
+            const likeValue = filter.value.includes('%')
+              ? filter.value
+              : `%${filter.value}%`;
+            params.push(likeValue);
           } else {
             whereConditions.push(`${alias}.value ${operator} ?`);
             params.push(filter.value);

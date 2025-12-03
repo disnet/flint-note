@@ -40,7 +40,17 @@ export type {
   FilterOperator,
   QueryResultNote,
   FlintQueryBlock,
-  DataviewHandlers
+  DataviewHandlers,
+  FilterFieldInfo
+} from './types';
+
+// Type utilities
+export {
+  SYSTEM_FIELDS,
+  OPERATORS_BY_TYPE,
+  fieldDefToFilterInfo,
+  getOperatorsForType,
+  getOperatorLabel
 } from './types';
 
 // Utilities
@@ -50,6 +60,13 @@ export {
   createEmptyQueryConfig,
   createTypeFilterQuery
 } from './yaml-utils';
+
+// Filter Builder components
+export { default as FilterBuilder } from './FilterBuilder.svelte';
+export { default as FilterRow } from './FilterRow.svelte';
+export { default as FieldSelector } from './FieldSelector.svelte';
+export { default as OperatorSelector } from './OperatorSelector.svelte';
+export { default as ValueInput } from './ValueInput.svelte';
 
 // Query service
 export { runDataviewQuery, getMetadataFieldsForType } from './queryService.svelte';

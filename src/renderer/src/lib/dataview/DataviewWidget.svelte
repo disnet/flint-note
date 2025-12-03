@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { FlintQueryConfig, QueryResultNote } from './types';
+  import type { FlintQueryConfig, QueryResultNote, QueryFilter } from './types';
   import { runDataviewQuery } from './queryService.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
+  import FilterBuilder from './FilterBuilder.svelte';
 
   interface Props {
     config: FlintQueryConfig;
@@ -17,6 +18,11 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isConfiguring = $state(false);
+  let pendingFilters = $state<QueryFilter[] | null>(null); // Filters being edited, not yet saved to YAML
+
+  // Derived: active filters (pending edits or saved config)
+  const activeFilters = $derived(pendingFilters ?? config.filters);
 
   // Derived: columns to display (always include title first)
   const displayColumns = $derived.by(() => {
@@ -25,15 +31,16 @@
     return ['title', ...cols.filter((c) => c !== 'title')];
   });
 
-  // Derived: get single type if filtered by flint_type
+  // Derived: get single type if filtered by flint_type (use active filters)
   const filteredType = $derived.by(() => {
-    const typeFilter = config.filters.find((f) => f.field === 'flint_type');
+    const typeFilter = activeFilters.find((f) => f.field === 'flint_type');
     return typeof typeFilter?.value === 'string' ? typeFilter.value : null;
   });
 
-  // Execute query when config changes
+  // Execute query when active filters change
   $effect(() => {
-    // Track config to re-run when it changes
+    // Track activeFilters to re-run when they change (either config or pending)
+    void activeFilters;
     void config;
     executeQuery();
   });
@@ -120,7 +127,9 @@
     error = null;
 
     try {
-      results = await runDataviewQuery(config);
+      // Use activeFilters (which may include pending edits)
+      const queryConfig = { ...config, filters: activeFilters };
+      results = await runDataviewQuery(queryConfig);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Query failed';
       results = [];
@@ -189,6 +198,31 @@
     // Capitalize first letter
     return column.charAt(0).toUpperCase() + column.slice(1).replace(/_/g, ' ');
   }
+
+  function toggleConfigure(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isConfiguring && pendingFilters !== null) {
+      // Closing the filter builder - save pending filters to YAML
+      // Defer to avoid "update during update" error in CodeMirror
+      const filtersToSave = pendingFilters;
+      pendingFilters = null;
+      setTimeout(() => {
+        onConfigChange({
+          ...config,
+          filters: filtersToSave
+        });
+      }, 0);
+    }
+
+    isConfiguring = !isConfiguring;
+  }
+
+  function handleFiltersChange(newFilters: QueryFilter[]): void {
+    // Store filters locally while editing - don't update YAML until filter builder is closed
+    pendingFilters = newFilters;
+  }
 </script>
 
 <div class="dataview-widget">
@@ -201,8 +235,50 @@
           >{results.length} note{results.length === 1 ? '' : 's'}</span
         >
       {/if}
+      <button
+        class="configure-btn"
+        class:active={isConfiguring}
+        onclick={toggleConfigure}
+        type="button"
+        title={isConfiguring ? 'Close filter editor' : 'Configure filters'}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          {#if isConfiguring}
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          {:else}
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          {/if}
+        </svg>
+      </button>
     </div>
   </div>
+
+  <!-- Filter Builder (when configuring) -->
+  {#if isConfiguring}
+    <div
+      class="dataview-configure"
+      role="presentation"
+      onmousedown={(e) => e.stopPropagation()}
+      onclick={(e) => e.stopPropagation()}
+      onfocusin={(e) => e.stopPropagation()}
+    >
+      <FilterBuilder
+        filters={activeFilters}
+        typeName={filteredType ?? undefined}
+        onFiltersChange={handleFiltersChange}
+      />
+    </div>
+  {/if}
 
   <!-- Results -->
   {#if loading}

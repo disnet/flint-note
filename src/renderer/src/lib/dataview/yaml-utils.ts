@@ -35,7 +35,16 @@ export function serializeQueryConfig(config: FlintQueryConfig): string {
     cleanConfig.name = config.name;
   }
 
-  cleanConfig.filters = config.filters.map((filter) => {
+  // Filter out incomplete filters (missing field or empty value)
+  const completeFilters = config.filters.filter((filter) => {
+    if (!filter.field || !filter.field.trim()) return false;
+    if (filter.value === undefined || filter.value === null) return false;
+    if (typeof filter.value === 'string' && !filter.value.trim()) return false;
+    if (Array.isArray(filter.value) && filter.value.length === 0) return false;
+    return true;
+  });
+
+  cleanConfig.filters = completeFilters.map((filter) => {
     const f: Record<string, unknown> = {
       field: filter.field,
       value: filter.value
