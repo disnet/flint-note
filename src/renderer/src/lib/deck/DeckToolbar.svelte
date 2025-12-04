@@ -231,6 +231,7 @@
 
   .type-selector {
     position: relative;
+    display: inline-flex;
   }
 
   .toolbar-chip {

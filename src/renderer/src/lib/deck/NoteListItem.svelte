@@ -2,6 +2,7 @@
   import type { DeckResultNote, ColumnConfig } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
   import EditableCell from './EditableCell.svelte';
+  import { notesStore } from '../../services/noteStore.svelte';
 
   interface SchemaFieldInfo {
     name: string;
@@ -132,6 +133,12 @@
     if (field === 'flint_created' || field === 'flint_updated') return false;
     return true;
   }
+
+  // Get note type icon
+  function getTypeIcon(typeName: string): string | undefined {
+    const noteType = notesStore.noteTypes.find((t) => t.name === typeName);
+    return noteType?.icon;
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -208,10 +215,13 @@
           onclick={onTitleClick}
           type="button"
         >
-          {note.title || 'Untitled'}
+          {#if getTypeIcon(note.type)}
+            <span class="type-icon">{getTypeIcon(note.type)}</span>
+          {/if}
+          <span class="title-text">{note.title || 'Untitled'}</span>
         </button>
-        <button class="edit-btn" onclick={onEditClick} type="button" title="Edit">
-          ✎
+        <button class="edit-btn" onclick={onEditClick} type="button">
+          Edit
         </button>
       </div>
       {#if columns.length > 0}
@@ -258,6 +268,9 @@
   }
 
   .note-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     padding: 0.125rem 0.25rem;
     border: none;
     border-radius: 0.25rem;
@@ -272,16 +285,25 @@
 
   .note-title:hover {
     background: var(--bg-secondary);
+  }
+
+  .note-title:hover .title-text {
     text-decoration: underline;
   }
 
-  .note-title.untitled {
+  .type-icon {
+    font-size: 0.875rem;
+    line-height: 1;
+  }
+
+  .note-title.untitled .title-text {
     color: var(--text-tertiary);
     font-style: italic;
     font-weight: 400;
   }
 
   .edit-btn {
+    margin-left: auto;
     padding: 0.25rem 0.375rem;
     border: none;
     border-radius: 0.25rem;
@@ -316,16 +338,17 @@
   }
 
   .editing-props {
-    gap: 0.5rem;
+    gap: 0.375rem;
   }
 
   .prop-edit-chip {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.5rem;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
     background: var(--bg-tertiary);
+    font-size: 0.75rem;
   }
 
   .prop-edit-label {
@@ -333,6 +356,7 @@
     color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    white-space: nowrap;
   }
 
   .prop-value {

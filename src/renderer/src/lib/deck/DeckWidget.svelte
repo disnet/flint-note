@@ -649,16 +649,17 @@
         bind:value={editingName}
         onblur={saveNameEdit}
         onkeydown={handleNameKeydown}
-        placeholder="Deck Name"
+        placeholder="New Deck"
       />
     {:else}
       <button
         class="deck-name"
+        class:placeholder={!config.name}
         onclick={startEditingName}
         type="button"
         title="Click to edit name"
       >
-        {config.name || 'Deck'}
+        {config.name || 'New Deck'}
       </button>
     {/if}
     <div class="deck-meta">
@@ -774,9 +775,6 @@
   .deck-widget {
     display: flex;
     flex-direction: column;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
     overflow: hidden;
   }
 
@@ -784,9 +782,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
+    padding: 0.5rem 0;
   }
 
   .deck-name {
@@ -795,7 +791,7 @@
     border-radius: 0.25rem;
     background: transparent;
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 1.25rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s ease;
@@ -805,13 +801,17 @@
     background: var(--bg-tertiary);
   }
 
+  .deck-name.placeholder {
+    color: var(--text-muted);
+  }
+
   .deck-name-input {
     padding: 0.125rem 0.25rem;
     border: 1px solid var(--accent-primary);
     border-radius: 0.25rem;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 1.25rem;
     font-weight: 600;
     outline: none;
   }
@@ -850,7 +850,7 @@
   .deck-content {
     max-height: 300px;
     overflow-y: auto;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0;
     scrollbar-gutter: stable;
   }
 
