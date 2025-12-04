@@ -9,6 +9,23 @@
     onTypeChange: (newType: string) => Promise<void>;
     onTabToContent?: () => void;
     disabled?: boolean;
+    // Action menu props
+    isPinned?: boolean;
+    isOnShelf?: boolean;
+    metadataExpanded?: boolean;
+    previewMode?: boolean;
+    reviewEnabled?: boolean;
+    isLoadingReview?: boolean;
+    suggestionsEnabled?: boolean;
+    hasSuggestions?: boolean;
+    isGeneratingSuggestions?: boolean;
+    onPinToggle?: () => Promise<void>;
+    onAddToShelf?: () => Promise<void>;
+    onMetadataToggle?: () => void;
+    onPreviewToggle?: () => void;
+    onReviewToggle?: () => Promise<void>;
+    onGenerateSuggestions?: () => Promise<void>;
+    onArchiveNote?: () => Promise<void>;
   }
 
   let {
@@ -17,19 +34,319 @@
     onTitleChange,
     onTypeChange,
     onTabToContent,
-    disabled = false
+    disabled = false,
+    isPinned = false,
+    isOnShelf = false,
+    metadataExpanded = false,
+    previewMode = false,
+    reviewEnabled = false,
+    isLoadingReview = false,
+    suggestionsEnabled = false,
+    hasSuggestions = false,
+    isGeneratingSuggestions = false,
+    onPinToggle,
+    onAddToShelf,
+    onMetadataToggle,
+    onPreviewToggle,
+    onReviewToggle,
+    onGenerateSuggestions,
+    onArchiveNote
   }: Props = $props();
 
   let titleComponent: { focus?: () => void } | null = null;
+  let showMenu = $state(false);
+  let menuButtonRef = $state<HTMLButtonElement | null>(null);
+  let menuPosition = $state({ top: 0, left: 0 });
 
   export function focusTitle(): void {
     if (titleComponent && titleComponent.focus) {
       titleComponent.focus();
     }
   }
+
+  function updateMenuPosition(): void {
+    if (menuButtonRef) {
+      const rect = menuButtonRef.getBoundingClientRect();
+      menuPosition = {
+        top: rect.bottom + 4,
+        left: rect.left
+      };
+    }
+  }
+
+  function toggleMenu(): void {
+    if (!showMenu) {
+      updateMenuPosition();
+    }
+    showMenu = !showMenu;
+  }
+
+  function closeMenu(): void {
+    showMenu = false;
+  }
 </script>
 
 <div class="editor-header" role="group" aria-label="Note title">
+  <div class="gutter-menu-container">
+    <button
+      bind:this={menuButtonRef}
+      class="gutter-menu-button"
+      class:active={showMenu}
+      onclick={toggleMenu}
+      type="button"
+      title="Note actions"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="2" />
+        <circle cx="12" cy="12" r="2" />
+        <circle cx="12" cy="19" r="2" />
+      </svg>
+    </button>
+
+    {#if showMenu}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div class="menu-backdrop" onclick={closeMenu}></div>
+      <div
+        class="action-menu"
+        style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
+      >
+        {#if onPinToggle}
+          <button
+            class="menu-item"
+            class:active={isPinned}
+            onclick={() => {
+              onPinToggle?.();
+              closeMenu();
+            }}
+            type="button"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 17v5"></path>
+              <path
+                d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+              ></path>
+            </svg>
+            {isPinned ? 'Unpin Note' : 'Pin Note'}
+          </button>
+        {/if}
+
+        {#if onAddToShelf}
+          <button
+            class="menu-item"
+            class:active={isOnShelf}
+            onclick={() => {
+              onAddToShelf?.();
+              closeMenu();
+            }}
+            type="button"
+            disabled={isOnShelf}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            {isOnShelf ? 'On Shelf' : 'Add to Shelf'}
+          </button>
+        {/if}
+
+        {#if onMetadataToggle}
+          <button
+            class="menu-item"
+            class:active={metadataExpanded}
+            onclick={() => {
+              onMetadataToggle?.();
+              closeMenu();
+            }}
+            type="button"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+              ></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            {metadataExpanded ? 'Hide Metadata' : 'Show Metadata'}
+          </button>
+        {/if}
+
+        {#if onPreviewToggle}
+          <button
+            class="menu-item"
+            class:active={previewMode}
+            onclick={() => {
+              onPreviewToggle?.();
+              closeMenu();
+            }}
+            type="button"
+          >
+            {#if previewMode}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                <path d="m15 5 4 4"></path>
+              </svg>
+              Edit Mode
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Preview Mode
+            {/if}
+          </button>
+        {/if}
+
+        {#if onReviewToggle}
+          <button
+            class="menu-item"
+            class:active={reviewEnabled}
+            onclick={() => {
+              onReviewToggle?.();
+              closeMenu();
+            }}
+            type="button"
+            disabled={isLoadingReview}
+          >
+            {#if isLoadingReview}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="spinner"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              Loading...
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              {reviewEnabled ? 'Disable Review' : 'Enable Review'}
+            {/if}
+          </button>
+        {/if}
+
+        {#if suggestionsEnabled && onGenerateSuggestions}
+          <button
+            class="menu-item"
+            onclick={() => {
+              onGenerateSuggestions?.();
+              closeMenu();
+            }}
+            type="button"
+            disabled={isGeneratingSuggestions}
+          >
+            {#if isGeneratingSuggestions}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="spinner"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              Generating...
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"
+                ></path>
+                <path d="M9 18h6"></path>
+                <path d="M10 22h4"></path>
+              </svg>
+              {hasSuggestions ? 'Regenerate Suggestions' : 'Generate Suggestions'}
+            {/if}
+          </button>
+        {/if}
+
+        {#if onArchiveNote}
+          <button
+            class="menu-item archive"
+            onclick={() => {
+              onArchiveNote?.();
+              closeMenu();
+            }}
+            type="button"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="21 8 21 21 3 21 3 8"></polyline>
+              <rect x="1" y="3" width="22" height="5"></rect>
+              <line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+            Archive Note
+          </button>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
   <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} compact={true} />
   <NoteTitle
     bind:this={titleComponent}
@@ -47,6 +364,137 @@
     gap: 0.25rem;
     width: 100%;
     min-width: 0;
+  }
+
+  /* Gutter menu button - extends into the left margin */
+  .gutter-menu-container {
+    position: relative;
+    margin-left: -2rem;
+    width: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .gutter-menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: all 0.15s ease;
+  }
+
+  .editor-header:hover .gutter-menu-button,
+  .gutter-menu-button:focus,
+  .gutter-menu-button.active {
+    opacity: 1;
+  }
+
+  .gutter-menu-button:hover {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+  }
+
+  .gutter-menu-button.active {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  /* Menu backdrop */
+  .menu-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+  }
+
+  /* Dropdown menu */
+  .action-menu {
+    position: fixed;
+    min-width: 180px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 1000;
+    overflow: hidden;
+    animation: menuSlideDown 0.15s ease-out;
+  }
+
+  @keyframes menuSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .menu-item {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    transition: background-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .menu-item.active {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+  }
+
+  .menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .menu-item:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .menu-item.archive {
+    color: var(--text-secondary);
+  }
+
+  .menu-item svg {
+    flex-shrink: 0;
+  }
+
+  /* Spinner animation */
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Make compact type dropdown match title size */

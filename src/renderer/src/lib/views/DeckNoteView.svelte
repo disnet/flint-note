@@ -9,7 +9,6 @@
     createEmptyDeckConfig
   } from '../deck/yaml-utils';
   import EditorHeader from '../../components/EditorHeader.svelte';
-  import NoteActionBar from '../../components/NoteActionBar.svelte';
   import { workspacesStore } from '../../stores/workspacesStore.svelte.js';
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte.js';
   import { reviewStore } from '../../stores/reviewStore.svelte.js';
@@ -196,30 +195,25 @@
   })}
     <div class="deck-note-view">
       <!-- Standard note header -->
-      <div class="header-container">
-        <EditorHeader
-          title={noteTitle}
-          noteType={activeNote.type as string}
-          onTitleChange={handleTitleChange}
-          onTypeChange={handleTypeChange}
-        />
-
-        <NoteActionBar
-          isPinned={workspacesStore.isPinned(activeNote.id as string)}
-          isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
-          metadataExpanded={false}
-          previewMode={false}
-          {reviewEnabled}
-          {isLoadingReview}
-          suggestionsEnabled={false}
-          onPinToggle={handlePinToggle}
-          onAddToShelf={handleAddToShelf}
-          onMetadataToggle={() => {}}
-          onPreviewToggle={() => {}}
-          onReviewToggle={handleReviewToggle}
-          onArchiveNote={handleArchiveNote}
-        />
-      </div>
+      <EditorHeader
+        title={noteTitle}
+        noteType={activeNote.type as string}
+        onTitleChange={handleTitleChange}
+        onTypeChange={handleTypeChange}
+        isPinned={workspacesStore.isPinned(activeNote.id as string)}
+        isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
+        metadataExpanded={false}
+        previewMode={false}
+        {reviewEnabled}
+        {isLoadingReview}
+        suggestionsEnabled={false}
+        onPinToggle={handlePinToggle}
+        onAddToShelf={handleAddToShelf}
+        onMetadataToggle={() => {}}
+        onPreviewToggle={() => {}}
+        onReviewToggle={handleReviewToggle}
+        onArchiveNote={handleArchiveNote}
+      />
 
       <!-- Deck content -->
       <div class="deck-content">
@@ -239,14 +233,6 @@
     flex-direction: column;
     height: 100%;
     background: var(--bg-primary, #fff);
-  }
-
-  /* Header container */
-  .header-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0 0.5rem;
   }
 
   /* Deck content */

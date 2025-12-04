@@ -23,7 +23,6 @@
   import ErrorBanner from './ErrorBanner.svelte';
   import MetadataView from './MetadataView.svelte';
   import Backlinks from './Backlinks.svelte';
-  import NoteActionBar from './NoteActionBar.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import ConfirmationModal from './ConfirmationModal.svelte';
   import type { NoteSuggestion } from '@/server/types';
@@ -623,35 +622,30 @@
     aria-labelledby="note-editor-title"
     tabindex="-1"
   >
-    <div class="header-container">
-      <EditorHeader
-        bind:this={headerRef}
-        title={doc.title}
-        noteType={note.type}
-        onTitleChange={handleTitleChange}
-        onTypeChange={handleTypeChange}
-        onTabToContent={() => editorRef?.focus()}
-      />
-
-      <NoteActionBar
-        isPinned={workspacesStore.isPinned(note.id)}
-        isOnShelf={notesShelfStore.isOnShelf(note.id)}
-        {metadataExpanded}
-        {previewMode}
-        {reviewEnabled}
-        {isLoadingReview}
-        {suggestionsEnabled}
-        hasSuggestions={suggestions.length > 0}
-        {isGeneratingSuggestions}
-        onPinToggle={handlePinToggle}
-        onAddToShelf={handleAddToShelf}
-        onMetadataToggle={toggleMetadata}
-        onPreviewToggle={togglePreview}
-        onReviewToggle={handleReviewToggle}
-        onGenerateSuggestions={generateSuggestions}
-        onArchiveNote={handleArchiveNote}
-      />
-    </div>
+    <EditorHeader
+      bind:this={headerRef}
+      title={doc.title}
+      noteType={note.type}
+      onTitleChange={handleTitleChange}
+      onTypeChange={handleTypeChange}
+      onTabToContent={() => editorRef?.focus()}
+      isPinned={workspacesStore.isPinned(note.id)}
+      isOnShelf={notesShelfStore.isOnShelf(note.id)}
+      {metadataExpanded}
+      {previewMode}
+      {reviewEnabled}
+      {isLoadingReview}
+      {suggestionsEnabled}
+      hasSuggestions={suggestions.length > 0}
+      {isGeneratingSuggestions}
+      onPinToggle={handlePinToggle}
+      onAddToShelf={handleAddToShelf}
+      onMetadataToggle={toggleMetadata}
+      onPreviewToggle={togglePreview}
+      onReviewToggle={handleReviewToggle}
+      onGenerateSuggestions={generateSuggestions}
+      onArchiveNote={handleArchiveNote}
+    />
 
     <ErrorBanner error={doc.error} />
 
@@ -718,12 +712,6 @@
     max-width: 75ch;
     width: 100%;
     padding: 0;
-  }
-
-  .header-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
   }
 
   .metadata-section-container {

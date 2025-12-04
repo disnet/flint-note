@@ -14,7 +14,6 @@
   } from './webpage/types';
   import WebpageHighlights from './webpage/WebpageHighlights.svelte';
   import EditorHeader from '../../components/EditorHeader.svelte';
-  import NoteActionBar from '../../components/NoteActionBar.svelte';
   import MetadataView from '../../components/MetadataView.svelte';
   import { workspacesStore } from '../../stores/workspacesStore.svelte.js';
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte.js';
@@ -482,30 +481,25 @@
   })}
     <div class="webpage-note-view">
       <!-- Standard note header -->
-      <div class="header-container">
-        <EditorHeader
-          title={noteTitle}
-          noteType={activeNote.type as string}
-          onTitleChange={handleTitleChange}
-          onTypeChange={handleTypeChange}
-        />
-
-        <NoteActionBar
-          isPinned={workspacesStore.isPinned(activeNote.id as string)}
-          isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
-          {metadataExpanded}
-          previewMode={false}
-          {reviewEnabled}
-          {isLoadingReview}
-          suggestionsEnabled={false}
-          onPinToggle={handlePinToggle}
-          onAddToShelf={handleAddToShelf}
-          onMetadataToggle={toggleMetadata}
-          onPreviewToggle={() => {}}
-          onReviewToggle={handleReviewToggle}
-          onArchiveNote={handleArchiveNote}
-        />
-      </div>
+      <EditorHeader
+        title={noteTitle}
+        noteType={activeNote.type as string}
+        onTitleChange={handleTitleChange}
+        onTypeChange={handleTypeChange}
+        isPinned={workspacesStore.isPinned(activeNote.id as string)}
+        isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
+        {metadataExpanded}
+        previewMode={false}
+        {reviewEnabled}
+        {isLoadingReview}
+        suggestionsEnabled={false}
+        onPinToggle={handlePinToggle}
+        onAddToShelf={handleAddToShelf}
+        onMetadataToggle={toggleMetadata}
+        onPreviewToggle={() => {}}
+        onReviewToggle={handleReviewToggle}
+        onArchiveNote={handleArchiveNote}
+      />
 
       <!-- Metadata section -->
       <div class="metadata-section-container">
@@ -657,13 +651,6 @@
     flex-direction: column;
     height: 100%;
     background: var(--bg-primary, #fff);
-  }
-
-  .header-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0 0.5rem;
   }
 
   .metadata-section-container {
