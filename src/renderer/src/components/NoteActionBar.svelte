@@ -1,7 +1,6 @@
 <script lang="ts">
   interface Props {
     isPinned: boolean;
-    metadataExpanded: boolean;
     isOnShelf: boolean;
     previewMode: boolean;
     reviewEnabled?: boolean;
@@ -10,7 +9,6 @@
     hasSuggestions?: boolean;
     isGeneratingSuggestions?: boolean;
     onPinToggle: () => Promise<void>;
-    onMetadataToggle: () => void;
     onAddToShelf: () => Promise<void>;
     onPreviewToggle: () => void;
     onReviewToggle?: () => Promise<void>;
@@ -20,7 +18,6 @@
 
   let {
     isPinned,
-    metadataExpanded,
     isOnShelf,
     previewMode,
     reviewEnabled = false,
@@ -29,7 +26,6 @@
     hasSuggestions = false,
     isGeneratingSuggestions = false,
     onPinToggle,
-    onMetadataToggle,
     onAddToShelf,
     onPreviewToggle,
     onReviewToggle,
@@ -70,27 +66,6 @@
       ></path>
     </svg>
     {isPinned ? 'Pinned' : 'Pin'}
-  </button>
-  <button
-    class="action-button"
-    class:active={metadataExpanded}
-    onclick={onMetadataToggle}
-    type="button"
-    title={metadataExpanded ? 'Hide metadata' : 'Show metadata'}
-  >
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      class="chevron"
-      class:expanded={metadataExpanded}
-    >
-      <polyline points="9 18 15 12 9 6"></polyline>
-    </svg>
-    Metadata
   </button>
   <button
     class="action-button"
@@ -391,15 +366,6 @@
 
   .popover-item:not(:last-child) {
     border-bottom: 1px solid var(--border-light);
-  }
-
-  /* Chevron rotation for metadata toggle */
-  .chevron {
-    transition: transform 0.2s ease;
-  }
-
-  .chevron.expanded {
-    transform: rotate(90deg);
   }
 
   /* Spinner animation for loading states */

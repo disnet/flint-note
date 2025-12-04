@@ -81,7 +81,6 @@ export const viewMenuItems: MenuItemDef[] = [
     accelerator: 'CmdOrCtrl+Shift+E',
     action: 'toggle-preview'
   },
-  { label: 'Toggle Metadata', accelerator: 'CmdOrCtrl+M', action: 'toggle-metadata' },
   { type: 'separator' },
   {
     label: 'Toggle Agent Panel',

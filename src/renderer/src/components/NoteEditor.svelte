@@ -21,7 +21,6 @@
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import EditorHeader from './EditorHeader.svelte';
   import ErrorBanner from './ErrorBanner.svelte';
-  import MetadataView from './MetadataView.svelte';
   import Backlinks from './Backlinks.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import ConfirmationModal from './ConfirmationModal.svelte';
@@ -38,7 +37,6 @@
   let doc = $state<NoteDocument | null>(null);
 
   let noteData = $state<Note | null>(null);
-  let metadataExpanded = $state(false);
   let previewMode = $state(false);
 
   // Check if note is archived - reactively look up from store to ensure immediate updates
@@ -351,10 +349,6 @@
     }
   }
 
-  function toggleMetadata(): void {
-    metadataExpanded = !metadataExpanded;
-  }
-
   function togglePreview(): void {
     previewMode = !previewMode;
   }
@@ -581,18 +575,12 @@
       togglePreview();
     }
 
-    function handleMenuToggleMetadata(): void {
-      toggleMetadata();
-    }
-
     document.addEventListener('menu-focus-title', handleMenuFocusTitle);
     document.addEventListener('menu-toggle-preview', handleMenuTogglePreview);
-    document.addEventListener('menu-toggle-metadata', handleMenuToggleMetadata);
 
     return () => {
       document.removeEventListener('menu-focus-title', handleMenuFocusTitle);
       document.removeEventListener('menu-toggle-preview', handleMenuTogglePreview);
-      document.removeEventListener('menu-toggle-metadata', handleMenuToggleMetadata);
     };
   });
 
@@ -709,7 +697,6 @@
       onMetadataChange={handleChipMetadataChange}
       isPinned={workspacesStore.isPinned(note.id)}
       isOnShelf={notesShelfStore.isOnShelf(note.id)}
-      {metadataExpanded}
       {previewMode}
       {reviewEnabled}
       {isLoadingReview}
@@ -718,7 +705,6 @@
       {isGeneratingSuggestions}
       onPinToggle={handlePinToggle}
       onAddToShelf={handleAddToShelf}
-      onMetadataToggle={toggleMetadata}
       onPreviewToggle={togglePreview}
       onReviewToggle={handleReviewToggle}
       onGenerateSuggestions={generateSuggestions}
@@ -736,14 +722,6 @@
         </button>
       </div>
     {/if}
-
-    <div class="metadata-section-container">
-      <MetadataView
-        note={noteData}
-        expanded={metadataExpanded}
-        onMetadataUpdate={handleMetadataUpdate}
-      />
-    </div>
 
     {#if previewMode}
       <div class="preview-content">
@@ -788,13 +766,6 @@
     gap: 0.25rem;
     min-width: 30ch;
     max-width: 75ch;
-    width: 100%;
-    padding: 0;
-  }
-
-  .metadata-section-container {
-    display: flex;
-    justify-content: flex-start;
     width: 100%;
     padding: 0;
   }

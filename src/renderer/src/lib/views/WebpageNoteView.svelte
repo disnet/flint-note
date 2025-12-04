@@ -14,13 +14,11 @@
   } from './webpage/types';
   import WebpageHighlights from './webpage/WebpageHighlights.svelte';
   import EditorHeader from '../../components/EditorHeader.svelte';
-  import MetadataView from '../../components/MetadataView.svelte';
   import { workspacesStore } from '../../stores/workspacesStore.svelte.js';
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte.js';
   import { reviewStore } from '../../stores/reviewStore.svelte.js';
   import { getChatService } from '../../services/chatService.js';
   import { messageBus } from '../../services/messageBus.svelte.js';
-  import type { Note } from '@/server/core/notes';
   import { logger } from '../../utils/logger';
 
   let {
@@ -293,12 +291,10 @@
   let noteTitle = $derived((metadata.flint_title as string) || 'Untitled');
 
   // Action bar state
-  let metadataExpanded = $state(false);
   let reviewEnabled = $state(false);
   let isLoadingReview = $state(false);
-  let noteData = $state<Note | null>(null);
 
-  // Load note data and review status when note changes
+  // Load review status when note changes
   $effect(() => {
     (async () => {
       const noteId = activeNote?.id as string;
@@ -306,15 +302,11 @@
         try {
           const noteService = getChatService();
           if (await noteService.isReady()) {
-            const [noteResult, isReviewEnabled] = await Promise.all([
-              noteService.getNote({ identifier: noteId }),
-              reviewStore.isReviewEnabled(noteId)
-            ]);
-            noteData = noteResult;
+            const isReviewEnabled = await reviewStore.isReviewEnabled(noteId);
             reviewEnabled = isReviewEnabled;
           }
         } catch (err) {
-          console.error('Failed to load note data:', err);
+          console.error('Failed to load review status:', err);
           reviewEnabled = false;
         }
       }
@@ -377,10 +369,6 @@
     }
   }
 
-  function toggleMetadata(): void {
-    metadataExpanded = !metadataExpanded;
-  }
-
   async function handleReviewToggle(): Promise<void> {
     const noteId = activeNote?.id as string;
     if (!noteId) return;
@@ -436,30 +424,6 @@
     }
   }
 
-  async function handleMetadataUpdate(
-    updatedMetadata: Record<string, unknown>
-  ): Promise<void> {
-    const noteId = activeNote?.id as string;
-    if (!noteId || !noteData) return;
-
-    try {
-      const noteService = getChatService();
-      await noteService.updateNote({
-        identifier: noteId,
-        content: noteContent || '',
-        metadata: $state.snapshot(
-          updatedMetadata
-        ) as import('@/server/types').NoteMetadata
-      });
-
-      const result = await noteService.getNote({ identifier: noteId });
-      noteData = result;
-    } catch (err) {
-      console.error('Error updating metadata:', err);
-      throw err;
-    }
-  }
-
   function openSourceUrl(): void {
     if (sourceUrl) {
       window.open(sourceUrl, '_blank');
@@ -488,27 +452,16 @@
         onTypeChange={handleTypeChange}
         isPinned={workspacesStore.isPinned(activeNote.id as string)}
         isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
-        {metadataExpanded}
         previewMode={false}
         {reviewEnabled}
         {isLoadingReview}
         suggestionsEnabled={false}
         onPinToggle={handlePinToggle}
         onAddToShelf={handleAddToShelf}
-        onMetadataToggle={toggleMetadata}
         onPreviewToggle={() => {}}
         onReviewToggle={handleReviewToggle}
         onArchiveNote={handleArchiveNote}
       />
-
-      <!-- Metadata section -->
-      <div class="metadata-section-container">
-        <MetadataView
-          note={noteData}
-          expanded={metadataExpanded}
-          onMetadataUpdate={handleMetadataUpdate}
-        />
-      </div>
 
       <!-- Webpage-specific actions bar -->
       <div class="webpage-actions">
@@ -651,13 +604,6 @@
     flex-direction: column;
     height: 100%;
     background: var(--bg-primary, #fff);
-  }
-
-  .metadata-section-container {
-    display: flex;
-    justify-content: flex-start;
-    width: 100%;
-    padding: 0 0.5rem;
   }
 
   .webpage-actions {

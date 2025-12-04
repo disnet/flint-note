@@ -289,13 +289,6 @@ export function createApplicationMenu(): Menu {
             sendToRenderer('menu-action', 'toggle-preview');
           }
         },
-        {
-          label: 'Toggle Metadata',
-          accelerator: 'CmdOrCtrl+M',
-          click: (): void => {
-            sendToRenderer('menu-action', 'toggle-metadata');
-          }
-        },
         { type: 'separator' },
         {
           label: 'Toggle Agent Panel',

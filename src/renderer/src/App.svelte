@@ -172,10 +172,6 @@
           // Dispatch event for NoteEditor to handle
           document.dispatchEvent(new CustomEvent('menu-toggle-preview'));
           break;
-        case 'toggle-metadata':
-          // Dispatch event for NoteEditor to handle
-          document.dispatchEvent(new CustomEvent('menu-toggle-metadata'));
-          break;
         case 'toggle-agent':
           setRightSidebarMode('ai');
           break;
@@ -359,9 +355,6 @@
           break;
         case 'toggle-preview':
           document.dispatchEvent(new CustomEvent('menu-toggle-preview'));
-          break;
-        case 'toggle-metadata':
-          document.dispatchEvent(new CustomEvent('menu-toggle-metadata'));
           break;
         case 'toggle-agent':
           setRightSidebarMode('ai');

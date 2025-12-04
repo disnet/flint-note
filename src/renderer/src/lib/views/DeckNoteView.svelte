@@ -202,14 +202,12 @@
         onTypeChange={handleTypeChange}
         isPinned={workspacesStore.isPinned(activeNote.id as string)}
         isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
-        metadataExpanded={false}
         previewMode={false}
         {reviewEnabled}
         {isLoadingReview}
         suggestionsEnabled={false}
         onPinToggle={handlePinToggle}
         onAddToShelf={handleAddToShelf}
-        onMetadataToggle={() => {}}
         onPreviewToggle={() => {}}
         onReviewToggle={handleReviewToggle}
         onArchiveNote={handleArchiveNote}
