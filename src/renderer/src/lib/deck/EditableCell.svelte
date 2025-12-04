@@ -288,7 +288,15 @@
   }
 
   .cell-input.title-input {
-    font-weight: 600;
+    padding: 0.125rem 0.25rem;
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .cell-input.title-input:focus {
+    box-shadow: none;
   }
 
   .cell-input::placeholder {
