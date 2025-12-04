@@ -16,6 +16,8 @@
     columns: ColumnConfig[];
     /** Schema fields for type-aware editing */
     schemaFields: Map<string, SchemaFieldInfo>;
+    /** Map of type name -> set of field names in that type's schema */
+    fieldsByType?: Map<string, Set<string>>;
     /** Whether to auto-focus the title input on mount */
     autoFocus?: boolean;
     /** Called when title is renamed inline */
@@ -32,12 +34,31 @@
     note,
     columns,
     schemaFields,
+    fieldsByType,
     autoFocus = false,
     onTitleSave,
     onTypeChange,
     onFieldSave,
     onOpen
   }: Props = $props();
+
+  // Check if a field is in the note's type schema
+  function isFieldInTypeSchema(field: string): boolean {
+    // System fields are always "in schema"
+    if (
+      field === 'title' ||
+      field === 'type' ||
+      field === 'created' ||
+      field === 'updated' ||
+      field.startsWith('flint_')
+    ) {
+      return true;
+    }
+    if (!fieldsByType) return true; // If no type info, assume in schema
+    const typeFields = fieldsByType.get(note.type);
+    if (!typeFields) return true; // If type not found, assume in schema
+    return typeFields.has(field);
+  }
 
   // Local state for title editing (needs $state + $effect for editable prop sync)
   // eslint-disable-next-line svelte/prefer-writable-derived
@@ -209,9 +230,11 @@
           {@const rawValue = getRawValue(column.field)}
           {@const options = getFieldOptions(column.field)}
           {@const editable = isEditable(column.field)}
+          {@const inSchema = isFieldInTypeSchema(column.field)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="prop-chip-inline"
+            class:muted={!inSchema}
             onmousedown={(e) => e.stopPropagation()}
             onclick={(e) => e.stopPropagation()}
           >
@@ -390,6 +413,11 @@
     font-size: 0.7rem;
     white-space: nowrap;
     overflow: hidden;
+  }
+
+  .prop-chip-inline.muted {
+    opacity: 0.5;
+    border-style: dashed;
   }
 
   .prop-name {

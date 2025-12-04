@@ -4,7 +4,7 @@
 
 The Deck feature enables users to create dynamic, queryable note lists. Decks can exist as **standalone deck notes** (opened full-screen like PDFs/EPUBs) or be **embedded within other notes**. Similar to Obsidian's Dataview plugin, decks allow users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v7)
+## Current Implementation (v8)
 
 ### Features Implemented
 
@@ -85,7 +85,7 @@ This now displays an error widget prompting users to create a standalone deck no
 **Supported Filter Operators:**
 
 - `=` (equals, default)
-- `!=` (not equals)
+- `!=` (not equals - includes notes where the field doesn't exist)
 - `>`, `<`, `>=`, `<=` (comparison)
 - `LIKE` (pattern matching, automatically wraps value with `%` for "contains" matching unless user includes their own wildcards)
 - `IN` (matches any value in list)
@@ -103,6 +103,8 @@ This now displays an error widget prompting users to create a standalone deck no
 - **Inline Note Creation**: New Note button adds editable row for inline editing
 - **Inline Row Editing**: Edit button (✎) appears on row hover
 - **Schema-Aware Editing**: Select fields show dropdown with valid options from note type schema
+- **Union-Based Field Selection**: Available fields are the union of all filtered types' schemas (or all types if no filter)
+- **Out-of-Schema Prop Styling**: Prop chips for fields not in the note's type schema appear muted (50% opacity, dashed border)
 - **Untitled Note Styling**: Notes without titles display as muted, italic "Untitled"
 
 #### 5. Query Execution
@@ -110,6 +112,7 @@ This now displays an error widget prompting users to create a standalone deck no
 - **Server-side filtering**: All filtering performed server-side via `queryNotesForDataview` API
 - **Batch metadata fetching**: Notes and metadata fetched in a single optimized query
 - **Efficient SQL**: Uses JOINs with `note_metadata` table for metadata filtering
+- **Smart != handling**: Uses LEFT JOIN for `!=` operator to include notes missing the field
 - **Fallback support**: Gracefully falls back to legacy client-side approach if new API unavailable
 
 #### 6. Real-time Updates
@@ -178,7 +181,7 @@ src/server/api/flint-note-api.ts
 └── queryNotesForDataview()     # API wrapper
 ```
 
-### Known Limitations (v7)
+### Known Limitations (v8)
 
 1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
 2. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
@@ -188,6 +191,14 @@ src/server/api/flint-note-api.ts
 ---
 
 ## Version History
+
+### v8: Multi-Type Field Support
+
+- **Union-based field selection**: Available props are now the union of all types' fields (not intersection)
+- **All-types fallback**: When no type filter, fields from ALL note types are available
+- **Improved != operator**: `!=` filters now include notes where the field doesn't exist (uses LEFT JOIN)
+- **Out-of-schema styling**: Prop chips appear muted when field isn't in the note's type schema
+- **Type-to-fields tracking**: DeckWidget tracks which fields belong to which types
 
 ### v7: Standalone Deck Notes
 
@@ -318,10 +329,10 @@ src/server/api/flint-note-api.ts
 
 ## Risks & Mitigations
 
-| Risk                          | Impact | Mitigation                                                                  |
-| ----------------------------- | ------ | --------------------------------------------------------------------------- |
-| Performance with large vaults | High   | ✅ Server-side filtering; pagination, virtual scrolling planned             |
-| YAML syntax errors            | Medium | GUI-based editing; validation feedback                                      |
-| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML                      |
-| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config                      |
-| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks            |
+| Risk                          | Impact | Mitigation                                                       |
+| ----------------------------- | ------ | ---------------------------------------------------------------- |
+| Performance with large vaults | High   | ✅ Server-side filtering; pagination, virtual scrolling planned  |
+| YAML syntax errors            | Medium | GUI-based editing; validation feedback                           |
+| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML           |
+| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config           |
+| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks |

@@ -58,8 +58,11 @@
   // Schema fields for inline editing (need $state for reassignment reactivity)
   // eslint-disable-next-line svelte/no-unnecessary-state-wrap
   let schemaFields = $state(new SvelteMap<string, SchemaFieldInfo>());
-  let schemaLoadedForType = $state<string | null>(null);
+  let schemaLoadedForTypes = $state<string | null>(null); // Serialized array of types we've loaded
   let availableSchemaFields = $state<FilterFieldInfo[]>([]);
+  // Track which fields belong to which types (for muted styling on out-of-schema fields)
+  // eslint-disable-next-line svelte/no-unnecessary-state-wrap
+  let fieldsByType = $state(new SvelteMap<string, Set<string>>());
 
   // Note types (used for determining default type for new notes)
   let noteTypes = $state<string[]>([]);
@@ -96,17 +99,23 @@
     return [];
   });
 
-  // First filtered type (for schema loading and new note creation)
+  // First filtered type (for new note creation)
   const firstFilteredType = $derived(filteredTypes.length > 0 ? filteredTypes[0] : null);
 
-  // Load schema fields when first filtered type changes
+  // Load schema fields when filtered types change (union of all types' fields)
+  // If no type filter, load fields from ALL note types
   $effect(() => {
-    if (firstFilteredType && firstFilteredType !== schemaLoadedForType) {
-      loadSchemaFields(firstFilteredType);
-    } else if (!firstFilteredType) {
+    const typesToLoad = filteredTypes.length > 0 ? filteredTypes : noteTypes;
+    const typesKey = JSON.stringify([...typesToLoad].sort());
+
+    if (typesToLoad.length > 0 && typesKey !== schemaLoadedForTypes) {
+      loadSchemaFieldsForTypes(typesToLoad);
+    } else if (typesToLoad.length === 0 && schemaLoadedForTypes !== null) {
+      // No types available yet - clear fields
       schemaFields = new SvelteMap();
       availableSchemaFields = [];
-      schemaLoadedForType = null;
+      fieldsByType = new SvelteMap();
+      schemaLoadedForTypes = null;
     }
   });
 
@@ -131,31 +140,47 @@
   }
 
   /**
-   * Load schema fields for a note type
+   * Load schema fields for multiple note types (union of all fields)
    */
-  async function loadSchemaFields(typeName: string): Promise<void> {
+  async function loadSchemaFieldsForTypes(typeNames: string[]): Promise<void> {
     try {
-      const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
-      if (typeInfo?.metadata_schema?.fields) {
-        const newMap = new SvelteMap<string, SchemaFieldInfo>();
-        const fieldInfos: FilterFieldInfo[] = [];
-        for (const field of typeInfo.metadata_schema
-          .fields as MetadataFieldDefinition[]) {
-          newMap.set(field.name, {
-            name: field.name,
-            type: field.type,
-            options: field.constraints?.options
-          });
-          fieldInfos.push(fieldDefToFilterInfo(field));
-        }
-        schemaFields = newMap;
-        availableSchemaFields = fieldInfos;
-        schemaLoadedForType = typeName;
-      }
+      const newMap = new SvelteMap<string, SchemaFieldInfo>();
+      const fieldInfoMap = new Map<string, FilterFieldInfo>();
+      const newFieldsByType = new SvelteMap<string, Set<string>>();
+
+      // Load schema for each type and merge fields (union)
+      await Promise.all(
+        typeNames.map(async (typeName) => {
+          const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
+          if (typeInfo?.metadata_schema?.fields) {
+            const typeFields = new Set<string>();
+            for (const field of typeInfo.metadata_schema
+              .fields as MetadataFieldDefinition[]) {
+              typeFields.add(field.name);
+              // Only add if not already present (first type wins for duplicate field names)
+              if (!newMap.has(field.name)) {
+                newMap.set(field.name, {
+                  name: field.name,
+                  type: field.type,
+                  options: field.constraints?.options
+                });
+                fieldInfoMap.set(field.name, fieldDefToFilterInfo(field));
+              }
+            }
+            newFieldsByType.set(typeName, typeFields);
+          }
+        })
+      );
+
+      schemaFields = newMap;
+      availableSchemaFields = Array.from(fieldInfoMap.values());
+      fieldsByType = newFieldsByType;
+      schemaLoadedForTypes = JSON.stringify([...typeNames].sort());
     } catch (e) {
       console.error('Failed to load schema fields:', e);
       schemaFields = new SvelteMap();
       availableSchemaFields = [];
+      fieldsByType = new SvelteMap();
     }
   }
 
@@ -771,6 +796,7 @@
             note={result}
             columns={activeColumns}
             {schemaFields}
+            {fieldsByType}
             autoFocus={result.id === newlyCreatedNoteId}
             onTitleSave={(newTitle) => {
               saveTitleValue(result.id, newTitle);

@@ -247,7 +247,8 @@ function matchesMetadataFilters(
     const filterValue = filter.value;
 
     if (noteValue === undefined || noteValue === null) {
-      return operator === '!=' && filterValue !== '';
+      // For !=, notes without the field should match (they don't equal any value)
+      return operator === '!=';
     }
 
     const noteStr = Array.isArray(noteValue) ? noteValue.join(',') : String(noteValue);

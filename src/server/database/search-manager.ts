@@ -435,27 +435,41 @@ export class HybridSearchManager {
       if (options.metadata_filters && options.metadata_filters.length > 0) {
         options.metadata_filters.forEach((filter, index) => {
           const alias = `m${index}`;
-          joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
-
-          whereConditions.push(`${alias}.key = ?`);
-          params.push(filter.key);
-
           const operator = filter.operator || '=';
-          if (operator === 'IN') {
-            const values = filter.value.split(',').map((v) => v.trim());
-            const placeholders = values.map(() => '?').join(',');
-            whereConditions.push(`${alias}.value IN (${placeholders})`);
-            params.push(...values);
-          } else if (operator === 'LIKE') {
-            // Wrap value with % for "contains" matching unless user provided their own wildcards
-            whereConditions.push(`${alias}.value LIKE ?`);
-            const likeValue = filter.value.includes('%')
-              ? filter.value
-              : `%${filter.value}%`;
-            params.push(likeValue);
-          } else {
-            whereConditions.push(`${alias}.value ${operator} ?`);
+
+          if (operator === '!=') {
+            // For != we need LEFT JOIN to include notes without the field
+            // Move key condition to ON clause so unmatched notes still appear
+            joins.push(
+              `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+            );
+            params.push(filter.key);
+
+            // Match notes where field doesn't exist (NULL) OR value doesn't match
+            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
             params.push(filter.value);
+          } else {
+            // For other operators, use regular JOIN (requires field to exist)
+            joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+            whereConditions.push(`${alias}.key = ?`);
+            params.push(filter.key);
+
+            if (operator === 'IN') {
+              const values = filter.value.split(',').map((v) => v.trim());
+              const placeholders = values.map(() => '?').join(',');
+              whereConditions.push(`${alias}.value IN (${placeholders})`);
+              params.push(...values);
+            } else if (operator === 'LIKE') {
+              // Wrap value with % for "contains" matching unless user provided their own wildcards
+              whereConditions.push(`${alias}.value LIKE ?`);
+              const likeValue = filter.value.includes('%')
+                ? filter.value
+                : `%${filter.value}%`;
+              params.push(likeValue);
+            } else {
+              whereConditions.push(`${alias}.value ${operator} ?`);
+              params.push(filter.value);
+            }
           }
         });
       }
@@ -662,27 +676,41 @@ export class HybridSearchManager {
       if (options.metadata_filters && options.metadata_filters.length > 0) {
         options.metadata_filters.forEach((filter, index) => {
           const alias = `m${index}`;
-          joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
-
-          whereConditions.push(`${alias}.key = ?`);
-          params.push(filter.key);
-
           const operator = filter.operator || '=';
-          if (operator === 'IN') {
-            const values = filter.value.split(',').map((v) => v.trim());
-            const placeholders = values.map(() => '?').join(',');
-            whereConditions.push(`${alias}.value IN (${placeholders})`);
-            params.push(...values);
-          } else if (operator === 'LIKE') {
-            // Wrap value with % for "contains" matching unless user provided their own wildcards
-            whereConditions.push(`${alias}.value LIKE ?`);
-            const likeValue = filter.value.includes('%')
-              ? filter.value
-              : `%${filter.value}%`;
-            params.push(likeValue);
-          } else {
-            whereConditions.push(`${alias}.value ${operator} ?`);
+
+          if (operator === '!=') {
+            // For != we need LEFT JOIN to include notes without the field
+            // Move key condition to ON clause so unmatched notes still appear
+            joins.push(
+              `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+            );
+            params.push(filter.key);
+
+            // Match notes where field doesn't exist (NULL) OR value doesn't match
+            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
             params.push(filter.value);
+          } else {
+            // For other operators, use regular JOIN (requires field to exist)
+            joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+            whereConditions.push(`${alias}.key = ?`);
+            params.push(filter.key);
+
+            if (operator === 'IN') {
+              const values = filter.value.split(',').map((v) => v.trim());
+              const placeholders = values.map(() => '?').join(',');
+              whereConditions.push(`${alias}.value IN (${placeholders})`);
+              params.push(...values);
+            } else if (operator === 'LIKE') {
+              // Wrap value with % for "contains" matching unless user provided their own wildcards
+              whereConditions.push(`${alias}.value LIKE ?`);
+              const likeValue = filter.value.includes('%')
+                ? filter.value
+                : `%${filter.value}%`;
+              params.push(likeValue);
+            } else {
+              whereConditions.push(`${alias}.value ${operator} ?`);
+              params.push(filter.value);
+            }
           }
         });
       }
