@@ -55,6 +55,7 @@
   let editingNoteId = $state<string | null>(null);
   let editingValues = $state<EditingValues | null>(null);
   let editingVaultId = $state<string | null>(null);
+  let editingOriginalTitle = $state<string>('');
   let isCreatingNewNote = $state(false);
   let isSavingNote = $state(false);
 
@@ -344,6 +345,7 @@
     editingNoteId = result.id;
     editingVaultId = vault.id;
     isCreatingNewNote = false;
+    editingOriginalTitle = result.title || '';
     editingValues = {
       title: result.title || '',
       metadata: { ...result.metadata }
@@ -390,33 +392,49 @@
           vaultId: editingVaultId ?? undefined
         });
 
-        await window.api?.updateNote({
-          identifier: editingNoteId,
-          content: existingNote?.content ?? '',
-          metadata: {
-            ...metadataSnapshot,
-            flint_title: newTitle || undefined
-          },
-          vaultId: editingVaultId ?? undefined
-        });
+        // Update metadata (excluding system fields)
+        if (Object.keys(metadataSnapshot).length > 0) {
+          await window.api?.updateNote({
+            identifier: editingNoteId,
+            content: existingNote?.content ?? '',
+            metadata: metadataSnapshot,
+            vaultId: editingVaultId ?? undefined
+          });
+        }
+
+        // Update title via renameNote if it changed
+        if (newTitle !== editingOriginalTitle) {
+          await window.api?.renameNote({
+            identifier: editingNoteId,
+            newIdentifier: newTitle,
+            vaultId: editingVaultId ?? undefined
+          });
+        }
 
         const noteIndex = results.findIndex((r) => r.id === editingNoteId);
         if (noteIndex !== -1) {
           results[noteIndex] = {
             ...results[noteIndex],
-            title: newTitle || '(untitled)',
+            title: newTitle || '',
             metadata: { ...results[noteIndex].metadata, ...editingValues.metadata }
           };
           results = [...results];
         }
       }
 
+      // Only refresh for new notes (to get the real note with proper ID)
+      // For edits, the optimistic update is sufficient
+      const shouldRefresh = isCreatingNewNote;
+
       editingNoteId = null;
       editingVaultId = null;
       editingValues = null;
+      editingOriginalTitle = '';
       isCreatingNewNote = false;
 
-      debouncedRefresh();
+      if (shouldRefresh) {
+        debouncedRefresh();
+      }
     } catch (e) {
       console.error('Failed to save note:', e);
       error = e instanceof Error ? e.message : 'Failed to save note';
@@ -435,6 +453,7 @@
     editingNoteId = null;
     editingVaultId = null;
     editingValues = null;
+    editingOriginalTitle = '';
     isCreatingNewNote = false;
   }
 
