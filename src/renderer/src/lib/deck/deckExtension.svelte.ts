@@ -593,9 +593,14 @@ export function insertDeckEmbed(view: EditorView, noteId: string): void {
  */
 export function insertDeckBlock(view: EditorView, config?: Partial<DeckConfig>): void {
   const defaultConfig: DeckConfig = {
-    name: 'New Deck',
-    filters: [],
-    sort: { field: 'updated', order: 'desc' },
+    views: [
+      {
+        name: 'Default',
+        filters: [],
+        sort: { field: 'updated', order: 'desc' }
+      }
+    ],
+    activeView: 0,
     limit: 50,
     ...config
   };

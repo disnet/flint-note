@@ -2,18 +2,26 @@
   import { SvelteMap } from 'svelte/reactivity';
   import type {
     DeckConfig,
+    DeckView,
     DeckResultNote,
     DeckFilter,
     ColumnConfig,
     FilterFieldInfo
   } from './types';
-  import { normalizeColumn, fieldDefToFilterInfo, SYSTEM_FIELDS } from './types';
+  import {
+    normalizeColumn,
+    fieldDefToFilterInfo,
+    SYSTEM_FIELDS,
+    getActiveView,
+    createDefaultView
+  } from './types';
   import { runDeckQuery } from './queryService.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
   import DeckToolbar from './DeckToolbar.svelte';
   import NoteListItem from './NoteListItem.svelte';
   import PropPickerDialog from './PropPickerDialog.svelte';
   import PropFilterPopup from './PropFilterPopup.svelte';
+  import ViewSwitcher from './ViewSwitcher.svelte';
   import type {
     MetadataFieldType,
     MetadataFieldDefinition
@@ -49,9 +57,6 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
-  let isEditingName = $state(false);
-  let editingName = $state('');
-  let nameInputRef = $state<HTMLInputElement | null>(null);
   let newlyCreatedNoteId = $state<string | null>(null);
   let suppressRefresh = $state(false);
 
@@ -78,17 +83,20 @@
   // Pending filter edits (not yet saved to config)
   let pendingFilterEdit = $state<DeckFilter | null>(null);
 
-  // Derived: active columns
+  // Derived: get the current active view
+  const activeView = $derived.by(() => getActiveView(config));
+
+  // Derived: active columns from the current view
   const activeColumns = $derived.by(() => {
-    if (config.columns && config.columns.length > 0) {
-      return config.columns.map(normalizeColumn);
+    if (activeView.columns && activeView.columns.length > 0) {
+      return activeView.columns.map(normalizeColumn);
     }
     return [] as ColumnConfig[];
   });
 
-  // Derived: get types from flint_type filter (supports single value or array via IN operator)
+  // Derived: get types from flint_type filter in active view (supports single value or array via IN operator)
   const filteredTypes = $derived.by(() => {
-    const typeFilter = config.filters.find((f) => f.field === 'flint_type');
+    const typeFilter = activeView.filters.find((f) => f.field === 'flint_type');
     if (!typeFilter) return [];
     if (Array.isArray(typeFilter.value)) {
       return typeFilter.value;
@@ -185,19 +193,32 @@
   }
 
   // Effective config that includes pending filter edits (for live query updates)
+  // Uses the active view's filters merged with pending edits
   const effectiveConfig = $derived.by(() => {
     const pending = pendingFilterEdit;
-    if (!pending) return config;
-    // Merge pending filter into config
-    const existingIndex = config.filters.findIndex((f) => f.field === pending.field);
-    let newFilters: DeckFilter[];
-    if (existingIndex >= 0) {
-      newFilters = [...config.filters];
-      newFilters[existingIndex] = pending;
+    const viewFilters = activeView.filters;
+
+    let finalFilters: DeckFilter[];
+    if (pending) {
+      // Merge pending filter into view filters
+      const existingIndex = viewFilters.findIndex((f) => f.field === pending.field);
+      if (existingIndex >= 0) {
+        finalFilters = [...viewFilters];
+        finalFilters[existingIndex] = pending;
+      } else {
+        finalFilters = [...viewFilters, pending];
+      }
     } else {
-      newFilters = [...config.filters, pending];
+      finalFilters = viewFilters;
     }
-    return { ...config, filters: newFilters };
+
+    // Return a config-like object for the query service
+    return {
+      filters: finalFilters,
+      sort: activeView.sort,
+      columns: activeView.columns,
+      limit: config.limit
+    };
   });
 
   // Track last query config to avoid redundant queries
@@ -342,7 +363,7 @@
 
       // Pre-fill metadata from equality filters (so note matches the deck's constraints)
       const prefillMetadata: Record<string, unknown> = {};
-      for (const filter of config.filters) {
+      for (const filter of activeView.filters) {
         // Only use simple equality filters with single string values
         const isEquality = !filter.operator || filter.operator === '=';
         const isSimpleValue = typeof filter.value === 'string';
@@ -546,7 +567,7 @@
     if (pendingFilterEdit && pendingFilterEdit.field === filterPopupField) {
       return pendingFilterEdit;
     }
-    const existing = config.filters.find((f) => f.field === filterPopupField);
+    const existing = activeView.filters.find((f) => f.field === filterPopupField);
     if (existing) return existing;
     // Create a default filter for new props
     return { field: filterPopupField, operator: '=' as const, value: '' };
@@ -596,30 +617,23 @@
     const pending = pendingFilterEdit;
     if (!pending) return;
 
-    // Update or add the filter
-    const existingIndex = config.filters.findIndex((f) => f.field === pending.field);
+    // Update or add the filter in the active view
+    const viewFilters = activeView.filters;
+    const existingIndex = viewFilters.findIndex((f) => f.field === pending.field);
     let newFilters: DeckFilter[];
     if (existingIndex >= 0) {
-      newFilters = [...config.filters];
+      newFilters = [...viewFilters];
       newFilters[existingIndex] = pending;
     } else {
-      newFilters = [...config.filters, pending];
+      newFilters = [...viewFilters, pending];
     }
 
-    // Build the new config
-    const newConfig = {
-      ...config,
-      filters: newFilters
-    };
-
-    // Update both state values synchronously - Svelte should batch these
-    config = newConfig;
+    // Clear pending edit
     pendingFilterEdit = null;
 
-    // Defer the CodeMirror update to next tick to ensure Svelte effects have settled
-    // This prevents the dispatch() from causing Svelte to flush in the middle
+    // Defer the update to next tick to ensure Svelte effects have settled
     setTimeout(() => {
-      onConfigChange(newConfig);
+      updateActiveView({ filters: newFilters });
     }, 0);
   }
 
@@ -627,14 +641,13 @@
     if (!filterPopupField) return;
     // Clear pending edit since we're removing this field
     pendingFilterEdit = null;
-    // Remove both the column and any filter for this field
+    // Remove both the column and any filter for this field from the active view
     const newColumns = activeColumns.filter((c) => c.field !== filterPopupField);
-    const newFilters = config.filters.filter((f) => f.field !== filterPopupField);
+    const newFilters = activeView.filters.filter((f) => f.field !== filterPopupField);
     isFilterPopupOpen = false;
     filterPopupField = null;
     setTimeout(() => {
-      updateConfig({
-        ...config,
+      updateActiveView({
         columns: newColumns,
         filters: newFilters
       });
@@ -655,54 +668,114 @@
     const newColumn: ColumnConfig = { field: fieldName };
     const newColumns = [...activeColumns, newColumn];
     setTimeout(() => {
-      updateConfig({
-        ...config,
-        columns: newColumns
-      });
+      updateActiveView({ columns: newColumns });
     }, 0);
   }
 
   // Get fields already used as columns (for exclusion)
   const usedFields = $derived(activeColumns.map((c) => c.field));
 
-  function startEditingName(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    editingName = config.name || '';
-    isEditingName = true;
-    setTimeout(() => {
-      nameInputRef?.focus();
-      nameInputRef?.select();
-    }, 0);
-  }
+  // ========================================
+  // View Management
+  // ========================================
 
-  function saveNameEdit(): void {
-    if (!isEditingName) return;
-    const newName = editingName.trim();
-    isEditingName = false;
-    if (newName !== (config.name || '')) {
-      setTimeout(() => {
-        updateConfig({
-          ...config,
-          name: newName || undefined
-        });
-      }, 0);
+  /**
+   * Update the active view with partial changes
+   */
+  function updateActiveView(viewUpdate: Partial<DeckView>): void {
+    const views = [...(config.views || [])];
+    const activeIndex = config.activeView || 0;
+
+    if (views[activeIndex]) {
+      views[activeIndex] = { ...views[activeIndex], ...viewUpdate };
+      updateConfig({ ...config, views });
     }
   }
 
-  function cancelNameEdit(): void {
-    isEditingName = false;
-    editingName = '';
+  function handleViewChange(index: number): void {
+    // Clear pending filter when switching views
+    pendingFilterEdit = null;
+    updateConfig({
+      ...config,
+      activeView: index
+    });
   }
 
-  function handleNameKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      saveNameEdit();
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      cancelNameEdit();
+  function handleViewCreate(name: string): void {
+    const newView: DeckView = createDefaultView(name);
+    const newViews = [...(config.views || []), newView];
+    updateConfig({
+      ...config,
+      views: newViews,
+      activeView: newViews.length - 1 // Switch to new view
+    });
+  }
+
+  function handleViewRename(index: number, newName: string): void {
+    const views = [...(config.views || [])];
+    if (views[index]) {
+      views[index] = { ...views[index], name: newName };
+      updateConfig({ ...config, views });
     }
+  }
+
+  function handleViewDelete(index: number): void {
+    const views = config.views || [];
+    if (views.length <= 1) return; // Can't delete last view
+
+    const newViews = views.filter((_, i) => i !== index);
+    const currentActive = config.activeView || 0;
+    const newActiveView = Math.min(currentActive, newViews.length - 1);
+
+    // Clear pending filter since we may be deleting the active view
+    if (index === currentActive) {
+      pendingFilterEdit = null;
+    }
+
+    updateConfig({
+      ...config,
+      views: newViews,
+      activeView: newActiveView
+    });
+  }
+
+  function handleViewReorder(fromIndex: number, toIndex: number): void {
+    const views = [...(config.views || [])];
+    const [moved] = views.splice(fromIndex, 1);
+    views.splice(toIndex, 0, moved);
+
+    // Adjust activeView if needed
+    let newActiveView = config.activeView || 0;
+    if (newActiveView === fromIndex) {
+      newActiveView = toIndex;
+    } else if (fromIndex < newActiveView && toIndex >= newActiveView) {
+      newActiveView--;
+    } else if (fromIndex > newActiveView && toIndex <= newActiveView) {
+      newActiveView++;
+    }
+
+    updateConfig({ ...config, views, activeView: newActiveView });
+  }
+
+  function handleViewDuplicate(index: number): void {
+    const views = config.views || [];
+    const viewToDuplicate = views[index];
+    if (!viewToDuplicate) return;
+
+    const newView: DeckView = {
+      ...viewToDuplicate,
+      name: `${viewToDuplicate.name} (Copy)`,
+      filters: [...viewToDuplicate.filters],
+      columns: viewToDuplicate.columns ? [...viewToDuplicate.columns] : undefined,
+      sort: viewToDuplicate.sort ? { ...viewToDuplicate.sort } : undefined
+    };
+
+    const newViews = [...views, newView];
+    updateConfig({
+      ...config,
+      views: newViews,
+      activeView: newViews.length - 1
+    });
   }
 </script>
 
@@ -714,27 +787,16 @@
 >
   <!-- Header -->
   <div class="deck-header">
-    {#if isEditingName}
-      <input
-        bind:this={nameInputRef}
-        type="text"
-        class="deck-name-input"
-        bind:value={editingName}
-        onblur={saveNameEdit}
-        onkeydown={handleNameKeydown}
-        placeholder="New Deck"
-      />
-    {:else}
-      <button
-        class="deck-name"
-        class:placeholder={!config.name}
-        onclick={startEditingName}
-        type="button"
-        title="Click to edit name"
-      >
-        {config.name || 'New Deck'}
-      </button>
-    {/if}
+    <ViewSwitcher
+      views={config.views || []}
+      activeViewIndex={config.activeView || 0}
+      onViewChange={handleViewChange}
+      onViewRename={handleViewRename}
+      onViewCreate={handleViewCreate}
+      onViewDelete={handleViewDelete}
+      onViewReorder={handleViewReorder}
+      onViewDuplicate={handleViewDuplicate}
+    />
     {#if !loading}
       <span class="deck-count"
         >{results.length} note{results.length === 1 ? '' : 's'}</span
@@ -746,7 +808,7 @@
   <DeckToolbar
     columns={activeColumns}
     availableFields={availableSchemaFields}
-    sort={config.sort}
+    sort={activeView.sort}
     onNewNote={handleNewNoteClick}
     onPropClick={handlePropClick}
     onAddProp={handleAddPropClick}
@@ -829,37 +891,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 0;
-  }
-
-  .deck-name {
-    padding: 0.125rem 0.25rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .deck-name:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .deck-name.placeholder {
-    color: var(--text-muted);
-  }
-
-  .deck-name-input {
-    padding: 0.125rem 0.25rem;
-    border: 1px solid var(--accent-primary);
-    border-radius: 0.25rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 600;
-    outline: none;
+    gap: 0.5rem;
   }
 
   .deck-count {

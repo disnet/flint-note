@@ -4,7 +4,7 @@
 
 The Deck feature enables users to create dynamic, queryable note lists. Decks can exist as **standalone deck notes** (opened full-screen like PDFs/EPUBs) or be **embedded within other notes**. Similar to Obsidian's Dataview plugin, decks allow users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v8)
+## Current Implementation (v9)
 
 ### Features Implemented
 
@@ -20,16 +20,30 @@ When opened, deck notes display the DeckWidget as the main content area (no mark
 **Deck Note Content (YAML Configuration):**
 
 ```yaml
-name: My Projects
-filters:
-  - field: flint_type
-    value: project
-sort:
-  field: flint_updated
-  order: desc
-columns:
-  - status
-  - priority
+views:
+  - name: All Projects
+    filters:
+      - field: flint_type
+        value: project
+    sort:
+      field: flint_updated
+      order: desc
+    columns:
+      - status
+      - priority
+  - name: Active Only
+    filters:
+      - field: flint_type
+        value: project
+      - field: status
+        value: active
+    sort:
+      field: priority
+      order: asc
+    columns:
+      - priority
+      - due_date
+activeView: 0
 limit: 50
 ```
 
@@ -68,19 +82,28 @@ This now displays an error widget prompting users to create a standalone deck no
 
 #### 3. YAML Configuration Schema
 
+**Deck-level fields:**
+
+| Field        | Type    | Required | Description                                       |
+| ------------ | ------- | -------- | ------------------------------------------------- |
+| `views`      | array   | Yes      | Array of view configurations                      |
+| `activeView` | number  | No       | Index of currently active view (default: 0)       |
+| `limit`      | number  | No       | Maximum results (default: 50)                     |
+| `expanded`   | boolean | No       | Whether widget is fully expanded (default: false) |
+
+**View fields (`views[]`):**
+
 | Field                | Type         | Required | Description                                              |
 | -------------------- | ------------ | -------- | -------------------------------------------------------- |
-| `name`               | string       | No       | Display name for the deck (shown in header)              |
-| `filters`            | array        | No       | Array of filter conditions                               |
+| `name`               | string       | Yes      | Display name for the view (shown in dropdown)            |
+| `filters`            | array        | Yes      | Array of filter conditions (can be empty)                |
 | `filters[].field`    | string       | Yes      | Field to filter on (e.g., `flint_type`, metadata fields) |
 | `filters[].operator` | string       | No       | Comparison operator (default: `=`)                       |
 | `filters[].value`    | string/array | Yes      | Value(s) to match                                        |
-| `sort`               | object       | No       | Sort configuration                                       |
+| `sort`               | object       | No       | Sort configuration for this view                         |
 | `sort.field`         | string       | Yes      | Field to sort by                                         |
 | `sort.order`         | string       | No       | `asc` or `desc` (default: `desc`)                        |
 | `columns`            | array        | No       | Metadata fields to display as columns                    |
-| `limit`              | number       | No       | Maximum results (default: 50)                            |
-| `expanded`           | boolean      | No       | Whether widget is fully expanded (default: false)        |
 
 **Supported Filter Operators:**
 
@@ -95,7 +118,8 @@ This now displays an error widget prompting users to create a standalone deck no
 - **Standalone View**: Full-height DeckWidget with standard note header (title, action bar)
 - **Embedded View**: Widget renders inline when cursor is outside the code block
 - **Edit Mode**: Shows raw embed syntax (`n-<id>`) when cursor is inside the block
-- **Header**: Displays deck name (click to edit) and result count
+- **Header**: View switcher dropdown and result count
+- **View Switcher**: Dropdown to switch between views, with options to rename, duplicate, reorder, and delete views
 - **Table**: Shows title column (always first) plus configured metadata columns
 - **Clickable Titles**: Click title to navigate to note
 - **Sortable Headers**: Click column headers to toggle sort order
@@ -134,13 +158,14 @@ This now displays an error widget prompting users to create a standalone deck no
 
 ```
 src/renderer/src/lib/deck/
-├── types.ts                    # Type definitions + filter utilities
-├── yaml-utils.ts               # YAML parsing/serialization
+├── types.ts                    # Type definitions (DeckConfig, DeckView, etc.) + utilities
+├── yaml-utils.ts               # YAML parsing/serialization with auto-migration
 ├── deck-theme.ts               # CodeMirror styling (incl. embed & error styles)
 ├── deckExtension.svelte.ts     # CodeMirror extension (embed + deprecated error)
 ├── queryService.svelte.ts      # Query execution
 ├── DeckWidget.svelte           # Main UI component
 ├── DeckToolbar.svelte          # Toolbar with filters/columns/sort
+├── ViewSwitcher.svelte         # View dropdown with management (rename, duplicate, delete, reorder)
 ├── NoteListItem.svelte         # Individual note row
 ├── FilterBuilder.svelte        # Visual filter editor
 ├── FilterRow.svelte            # Single filter row
@@ -181,16 +206,25 @@ src/server/api/flint-note-api.ts
 └── queryNotesForDataview()     # API wrapper
 ```
 
-### Known Limitations (v8)
+### Known Limitations (v9)
 
 1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
 2. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
 3. **Column width configuration**: Not yet implemented
 4. **No deck templates**: Cannot save/reuse deck configurations across notes
+5. **Single layout type**: All views use table layout; card/list/calendar views not yet implemented
 
 ---
 
 ## Version History
+
+### v9: Multi-View Support
+
+- **Multiple views per deck**: Each deck can have multiple named views with different filters, columns, and sort
+- **View switcher dropdown**: Header displays view name with dropdown to switch, create, rename, duplicate, reorder, and delete views
+- **Per-view configuration**: Each view has its own filters, columns, and sort settings
+- **Auto-migration**: Legacy single-view decks automatically migrate to multi-view format with a "Default" view
+- **Removed deck name**: Decks no longer have a top-level name; views provide the naming
 
 ### v8: Multi-Type Field Support
 
@@ -218,7 +252,6 @@ src/server/api/flint-note-api.ts
 
 ### v5: UI Enhancements
 
-- Editable deck name in header
 - Expand/collapse toggle with YAML persistence
 - Inline note creation with placeholder rows
 - Untitled note styling (muted, italic)
@@ -255,56 +288,57 @@ src/server/api/flint-note-api.ts
 
 ## Next Steps
 
-### Phase 8: Advanced Features
+### Phase 10: Advanced Features
 
-#### 8.1 Grouping
+#### 10.1 Grouping
 
 - Group results by field value
 - Collapsible groups
 - Group counts
 
-#### 8.2 Aggregations
+#### 10.2 Aggregations
 
 - Count, sum, average for numeric fields
 - Display in footer row
 
-#### 8.3 Multiple Views
+#### 10.3 Layout Types
 
-- Table view (current)
+- Table view (current default)
 - List view (compact)
 - Card/gallery view
 - Calendar view (for date-based queries)
+- Layout type stored per-view
 
-#### 8.4 Deck Templates
+#### 10.4 Deck Templates
 
 - Save deck configurations as reusable templates
 - Quick-insert via command palette
 - Template library management
 
-#### 8.5 Deck Chaining
+#### 10.5 Deck Chaining
 
 - Reference other deck results
 - Filter based on linked notes
 - Intersection/union of multiple decks
 
-### Phase 9: Performance Optimizations
+### Phase 11: Performance Optimizations
 
-#### 9.1 Virtual Scrolling
+#### 11.1 Virtual Scrolling
 
 - Only render visible rows
 - Handle large result sets efficiently
 
-#### 9.2 Query Caching
+#### 11.2 Query Caching
 
 - Cache query results with invalidation
 - Share cache across identical decks
 
-#### 9.3 Incremental Updates
+#### 11.3 Incremental Updates
 
 - Track which notes changed
 - Update only affected rows instead of full re-query
 
-#### 9.4 Metadata Field Sorting
+#### 11.4 Metadata Field Sorting
 
 - Implement server-side sorting by metadata fields
 - Add LEFT JOIN for sort field to enable proper ordering

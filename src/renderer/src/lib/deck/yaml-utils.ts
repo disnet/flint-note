@@ -5,6 +5,7 @@
 import yaml from 'js-yaml';
 import type {
   DeckConfig,
+  DeckView,
   DeckFilter,
   DeckSort,
   FilterOperator,
@@ -34,18 +35,10 @@ export function parseDeckYaml(yamlContent: string): DeckConfig | null {
 }
 
 /**
- * Serialize a DeckConfig back to YAML string
+ * Serialize filters, cleaning out incomplete ones
  */
-export function serializeDeckConfig(config: DeckConfig): string {
-  // Clean up the config before serialization
-  const cleanConfig: Record<string, unknown> = {};
-
-  if (config.name) {
-    cleanConfig.name = config.name;
-  }
-
-  // Filter out incomplete filters (missing field or empty value)
-  const completeFilters = config.filters.filter((filter) => {
+function serializeFilters(filters: DeckFilter[]): Record<string, unknown>[] {
+  const completeFilters = filters.filter((filter) => {
     if (!filter.field || !filter.field.trim()) return false;
     if (filter.value === undefined || filter.value === null) return false;
     if (typeof filter.value === 'string' && !filter.value.trim()) return false;
@@ -53,7 +46,7 @@ export function serializeDeckConfig(config: DeckConfig): string {
     return true;
   });
 
-  cleanConfig.filters = completeFilters.map((filter) => {
+  return completeFilters.map((filter) => {
     const f: Record<string, unknown> = {
       field: filter.field,
       value: filter.value
@@ -64,30 +57,77 @@ export function serializeDeckConfig(config: DeckConfig): string {
     }
     return f;
   });
+}
 
-  if (config.sort) {
-    cleanConfig.sort = {
-      field: config.sort.field,
-      order: config.sort.order
+/**
+ * Serialize columns, using simple string format when possible
+ */
+function serializeColumns(
+  columns: ColumnDefinition[]
+): (string | Record<string, unknown>)[] {
+  return columns.map((col) => {
+    if (typeof col === 'string') {
+      return col;
+    }
+    // Only use object format if there are custom settings
+    if (columnHasCustomSettings(col)) {
+      const colObj: Record<string, unknown> = { field: col.field };
+      if (col.label) colObj.label = col.label;
+      if (col.format && col.format !== 'default') colObj.format = col.format;
+      return colObj;
+    }
+    // Otherwise just use the field name
+    return col.field;
+  });
+}
+
+/**
+ * Serialize a single view
+ */
+function serializeView(view: DeckView): Record<string, unknown> {
+  const viewObj: Record<string, unknown> = {
+    name: view.name,
+    filters: serializeFilters(view.filters)
+  };
+
+  if (view.columns && view.columns.length > 0) {
+    viewObj.columns = serializeColumns(view.columns);
+  }
+
+  if (view.sort) {
+    viewObj.sort = {
+      field: view.sort.field,
+      order: view.sort.order
     };
   }
 
-  if (config.columns && config.columns.length > 0) {
-    // Serialize columns - use simple string format when possible
-    cleanConfig.columns = config.columns.map((col) => {
-      if (typeof col === 'string') {
-        return col;
-      }
-      // Only use object format if there are custom settings
-      if (columnHasCustomSettings(col)) {
-        const colObj: Record<string, unknown> = { field: col.field };
-        if (col.label) colObj.label = col.label;
-        if (col.format && col.format !== 'default') colObj.format = col.format;
-        return colObj;
-      }
-      // Otherwise just use the field name
-      return col.field;
-    });
+  return viewObj;
+}
+
+/**
+ * Serialize a DeckConfig back to YAML string.
+ * Always writes the multi-view format.
+ */
+export function serializeDeckConfig(config: DeckConfig): string {
+  const cleanConfig: Record<string, unknown> = {};
+
+  // Serialize views (always use views format)
+  if (config.views && config.views.length > 0) {
+    cleanConfig.views = config.views.map(serializeView);
+
+    // Only include activeView if not 0
+    if (config.activeView !== undefined && config.activeView !== 0) {
+      cleanConfig.activeView = config.activeView;
+    }
+  } else {
+    // Legacy format fallback - convert to single view
+    const legacyView: DeckView = {
+      name: 'Default',
+      filters: config.filters ?? [],
+      columns: config.columns,
+      sort: config.sort
+    };
+    cleanConfig.views = [serializeView(legacyView)];
   }
 
   if (config.limit && config.limit !== DEFAULT_LIMIT) {
@@ -107,52 +147,51 @@ export function serializeDeckConfig(config: DeckConfig): string {
 }
 
 /**
- * Validate parsed YAML as a DeckConfig
+ * Validate a single view object
  */
-function validateDeckConfig(parsed: unknown): DeckConfig | null {
-  if (!parsed || typeof parsed !== 'object') {
+function validateView(view: unknown): DeckView | null {
+  if (!view || typeof view !== 'object') {
     return null;
   }
 
-  const config = parsed as Record<string, unknown>;
+  const v = view as Record<string, unknown>;
 
-  // filters is required and must be an array
-  if (!Array.isArray(config.filters)) {
+  // name is required
+  if (typeof v.name !== 'string' || !v.name.trim()) {
     return null;
   }
 
-  // Validate and normalize each filter
+  // filters must be an array (can be empty)
+  if (!Array.isArray(v.filters)) {
+    return null;
+  }
+
   const validatedFilters: DeckFilter[] = [];
-  for (const filter of config.filters) {
+  for (const filter of v.filters) {
     const validatedFilter = validateFilter(filter);
-    if (!validatedFilter) {
-      return null;
+    if (validatedFilter) {
+      validatedFilters.push(validatedFilter);
     }
-    validatedFilters.push(validatedFilter);
+    // Skip invalid filters instead of failing entire view
   }
 
-  // Build the validated config
-  const result: DeckConfig = {
+  const result: DeckView = {
+    name: v.name.trim(),
     filters: validatedFilters
   };
 
-  // Optional name
-  if (typeof config.name === 'string' && config.name.trim()) {
-    result.name = config.name.trim();
-  }
-
   // Optional sort
-  if (config.sort) {
-    const validatedSort = validateSort(config.sort);
+  if (v.sort) {
+    const validatedSort = validateSort(v.sort);
     if (validatedSort) {
       result.sort = validatedSort;
     }
   }
 
-  // Optional columns - can be strings or objects
-  if (Array.isArray(config.columns)) {
+  // Optional columns
+  if (Array.isArray(v.columns)) {
     const validColumns: ColumnDefinition[] = [];
-    for (const col of config.columns) {
+    for (const col of v.columns) {
       const validatedCol = validateColumn(col);
       if (validatedCol) {
         validColumns.push(validatedCol);
@@ -163,14 +202,95 @@ function validateDeckConfig(parsed: unknown): DeckConfig | null {
     }
   }
 
-  // Optional limit
+  return result;
+}
+
+/**
+ * Validate parsed YAML as a DeckConfig.
+ * Handles both multi-view format (views array) and legacy single-view format.
+ * Legacy format is auto-migrated to views format.
+ */
+function validateDeckConfig(parsed: unknown): DeckConfig | null {
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const config = parsed as Record<string, unknown>;
+
+  const result: DeckConfig = {};
+
+  // Check for views array (new multi-view format)
+  if (Array.isArray(config.views) && config.views.length > 0) {
+    const validatedViews: DeckView[] = [];
+    for (const view of config.views) {
+      const validatedView = validateView(view);
+      if (validatedView) {
+        validatedViews.push(validatedView);
+      }
+    }
+
+    if (validatedViews.length > 0) {
+      result.views = validatedViews;
+      result.activeView =
+        typeof config.activeView === 'number'
+          ? Math.max(0, Math.min(config.activeView, validatedViews.length - 1))
+          : 0;
+    }
+  }
+
+  // Legacy format - filters at top level (auto-migrate to views)
+  if (!result.views && Array.isArray(config.filters)) {
+    const validatedFilters: DeckFilter[] = [];
+    for (const filter of config.filters) {
+      const validatedFilter = validateFilter(filter);
+      if (validatedFilter) {
+        validatedFilters.push(validatedFilter);
+      }
+    }
+
+    const legacyView: DeckView = {
+      name: 'Default',
+      filters: validatedFilters
+    };
+
+    // Optional sort (legacy)
+    if (config.sort) {
+      const validatedSort = validateSort(config.sort);
+      if (validatedSort) {
+        legacyView.sort = validatedSort;
+      }
+    }
+
+    // Optional columns (legacy)
+    if (Array.isArray(config.columns)) {
+      const validColumns: ColumnDefinition[] = [];
+      for (const col of config.columns) {
+        const validatedCol = validateColumn(col);
+        if (validatedCol) {
+          validColumns.push(validatedCol);
+        }
+      }
+      if (validColumns.length > 0) {
+        legacyView.columns = validColumns;
+      }
+    }
+
+    result.views = [legacyView];
+    result.activeView = 0;
+  }
+
+  // Must have at least one view
+  if (!result.views || result.views.length === 0) {
+    return null;
+  }
+
+  // Deck-level settings
   if (typeof config.limit === 'number' && config.limit > 0) {
     result.limit = Math.min(config.limit, MAX_LIMIT);
   } else {
     result.limit = DEFAULT_LIMIT;
   }
 
-  // Optional expanded
   if (config.expanded === true) {
     result.expanded = true;
   }
@@ -316,7 +436,14 @@ function normalizeValue(value: unknown): string | string[] {
  */
 export function createEmptyDeckConfig(): DeckConfig {
   return {
-    filters: [],
+    views: [
+      {
+        name: 'Default',
+        filters: [],
+        sort: { field: 'updated', order: 'desc' }
+      }
+    ],
+    activeView: 0,
     limit: DEFAULT_LIMIT
   };
 }
@@ -324,11 +451,16 @@ export function createEmptyDeckConfig(): DeckConfig {
 /**
  * Create a simple type filter deck
  */
-export function createTypeFilterDeck(typeName: string, name?: string): DeckConfig {
+export function createTypeFilterDeck(typeName: string, viewName?: string): DeckConfig {
   return {
-    name,
-    filters: [{ field: 'type', value: typeName }],
-    sort: { field: 'updated', order: 'desc' },
+    views: [
+      {
+        name: viewName || 'Default',
+        filters: [{ field: 'type', value: typeName }],
+        sort: { field: 'updated', order: 'desc' }
+      }
+    ],
+    activeView: 0,
     limit: DEFAULT_LIMIT
   };
 }

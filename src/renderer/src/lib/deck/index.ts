@@ -35,6 +35,7 @@ export {
 // Types
 export type {
   DeckConfig,
+  DeckView,
   DeckFilter,
   DeckSort,
   FilterOperator,
@@ -60,7 +61,11 @@ export {
   normalizeColumn,
   columnHasCustomSettings,
   getFormatsForType,
-  getFormatLabel
+  getFormatLabel,
+  // View utilities
+  getActiveView,
+  isMultiViewConfig,
+  createDefaultView
 } from './types';
 
 // Utilities
@@ -89,6 +94,7 @@ export { default as PropChip } from './PropChip.svelte';
 export { default as NoteListItem } from './NoteListItem.svelte';
 export { default as PropPickerDialog } from './PropPickerDialog.svelte';
 export { default as PropFilterPopup } from './PropFilterPopup.svelte';
+export { default as ViewSwitcher } from './ViewSwitcher.svelte';
 
 // Query service
 export { runDeckQuery, getMetadataFieldsForType } from './queryService.svelte';

@@ -209,21 +209,76 @@ export interface DeckSort {
 }
 
 /**
- * Complete deck configuration stored in YAML
+ * A single view configuration within a deck.
+ * Each view has its own filters, columns, and sort settings.
+ */
+export interface DeckView {
+  /** Display name for the view */
+  name: string;
+  /** Filter conditions for this view */
+  filters: DeckFilter[];
+  /** Columns to display in this view */
+  columns?: ColumnDefinition[];
+  /** Sort configuration for this view */
+  sort?: DeckSort;
+}
+
+/**
+ * Complete deck configuration stored in YAML.
+ * Supports multi-view format (views array) and legacy single-view format.
  */
 export interface DeckConfig {
-  /** Optional display name for the deck */
-  name?: string;
-  /** Filter conditions to apply */
-  filters: DeckFilter[];
-  /** Optional sort configuration */
-  sort?: DeckSort;
-  /** Columns to display - can be simple field names or enhanced configs */
-  columns?: ColumnDefinition[];
-  /** Maximum results to return (default: 50) */
+  /** Views within this deck */
+  views?: DeckView[];
+  /** Index of the currently active view (default: 0) */
+  activeView?: number;
+  /** Maximum results to return (default: 50) - deck-level setting */
   limit?: number;
-  /** Whether the widget is expanded (default: false) */
+  /** Whether the widget is expanded (default: false) - deck-level setting */
   expanded?: boolean;
+  // Legacy fields (for backward compatibility during parsing)
+  /** @deprecated Use views[].filters instead */
+  filters?: DeckFilter[];
+  /** @deprecated Use views[].sort instead */
+  sort?: DeckSort;
+  /** @deprecated Use views[].columns instead */
+  columns?: ColumnDefinition[];
+}
+
+/**
+ * Get the effective view configuration from a DeckConfig.
+ * Handles both legacy (single view) and new (multi-view) formats.
+ */
+export function getActiveView(config: DeckConfig): DeckView {
+  if (config.views && config.views.length > 0) {
+    const index = config.activeView ?? 0;
+    return config.views[Math.min(index, config.views.length - 1)];
+  }
+  // Legacy format - construct view from top-level fields
+  return {
+    name: 'Default',
+    filters: config.filters ?? [],
+    columns: config.columns,
+    sort: config.sort
+  };
+}
+
+/**
+ * Check if a config uses multi-view format
+ */
+export function isMultiViewConfig(config: DeckConfig): boolean {
+  return Array.isArray(config.views) && config.views.length > 0;
+}
+
+/**
+ * Create a default view with empty filters
+ */
+export function createDefaultView(name: string = 'Default'): DeckView {
+  return {
+    name,
+    filters: [],
+    sort: { field: 'updated', order: 'desc' }
+  };
 }
 
 /**

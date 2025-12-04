@@ -45,9 +45,7 @@
   }
 
   // Note title (editable) - use flint_title from metadata as canonical source
-  let noteTitle = $derived(
-    (metadata.flint_title as string) || config.name || 'Untitled Deck'
-  );
+  let noteTitle = $derived((metadata.flint_title as string) || 'Untitled Deck');
 
   // Action bar state
   let reviewEnabled = $state(false);

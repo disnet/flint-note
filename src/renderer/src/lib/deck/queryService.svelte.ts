@@ -43,8 +43,9 @@ const SYSTEM_FIELDS = new Set([
  * Uses the optimized server-side queryNotesForDeck API
  */
 export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
+  const filters = config.filters ?? [];
   // Extract type filter if present (supports single value or array via IN operator)
-  const typeFilter = config.filters.find((f) => f.field === 'flint_type');
+  const typeFilter = filters.find((f) => f.field === 'flint_type');
   let types: string | string[] | undefined;
   let typeOperator: '=' | '!=' | 'IN' | undefined;
 
@@ -66,7 +67,7 @@ export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]
   }
 
   // Get metadata filters (everything except flint_type)
-  const metadataFilters = config.filters
+  const metadataFilters = filters
     .filter((f) => f.field !== 'flint_type')
     .map((f) => ({
       key: f.field,
@@ -135,7 +136,8 @@ function extractUserMetadata(metadata: Record<string, unknown>): Record<string, 
  * This maintains backward compatibility during transition
  */
 async function runLegacyDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
-  const typeFilter = config.filters.find((f) => f.field === 'flint_type');
+  const filters = config.filters ?? [];
+  const typeFilter = filters.find((f) => f.field === 'flint_type');
   // Extract types from filter (supports single value or array)
   let typeNames: string[] = [];
   if (typeFilter) {
@@ -149,7 +151,7 @@ async function runLegacyDeckQuery(config: DeckConfig): Promise<DeckResultNote[]>
       }
     }
   }
-  const metadataFilters = config.filters.filter((f) => f.field !== 'flint_type');
+  const metadataFilters = filters.filter((f) => f.field !== 'flint_type');
 
   let notes: DeckResultNote[] = [];
 
