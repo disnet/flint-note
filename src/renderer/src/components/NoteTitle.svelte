@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+
   interface Props {
     value: string;
     onSave: (newTitle: string) => Promise<void>;
@@ -28,10 +30,12 @@
     // Only sync external changes when NOT actively editing or processing
     if (!isEditing && !isProcessing && value !== titleValue) {
       titleValue = value;
-      // Adjust height after value changes
-      if (inputElement) {
-        adjustHeight();
-      }
+      // Adjust height after DOM updates with new value
+      tick().then(() => {
+        if (inputElement) {
+          adjustHeight();
+        }
+      });
     }
   });
 

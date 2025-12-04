@@ -334,19 +334,26 @@
       {/if}
     </div>
 
-    <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} compact={true} />
-    <NoteTitle
-      bind:this={titleComponent}
-      value={title}
-      onSave={onTitleChange}
-      {onTabToContent}
-      {disabled}
-    />
+    <div class="title-area">
+      <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} compact={true} />
+      <NoteTitle
+        bind:this={titleComponent}
+        value={title}
+        onSave={onTitleChange}
+        {onTabToContent}
+        {disabled}
+      />
+      {#if note && metadataSchema}
+        <EditorChips
+          {note}
+          {metadataSchema}
+          {editorChips}
+          {onMetadataChange}
+          {disabled}
+        />
+      {/if}
+    </div>
   </div>
-
-  {#if note && metadataSchema}
-    <EditorChips {note} {metadataSchema} {editorChips} {onMetadataChange} {disabled} />
-  {/if}
 </div>
 
 <style>
@@ -359,9 +366,15 @@
 
   .editor-header-title-row {
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    align-items: flex-start;
     width: 100%;
+    min-width: 0;
+  }
+
+  /* Container for type dropdown, title, and chips - all aligned */
+  .title-area {
+    position: relative;
+    flex: 1;
     min-width: 0;
   }
 
@@ -371,6 +384,8 @@
     margin-left: -2rem;
     width: 1.5rem;
     flex-shrink: 0;
+    /* Align with first line of title (title has 0.1em top padding + line-height adjustment) */
+    margin-top: 0.5rem;
   }
 
   .gutter-menu-button {
@@ -496,12 +511,24 @@
     }
   }
 
-  /* Make compact type dropdown match title size */
-  .editor-header-title-row :global(.note-type-dropdown.compact .type-button) {
+  /* Position type dropdown absolutely in the first line indent space */
+  .title-area :global(.note-type-dropdown.compact) {
+    position: absolute;
+    top: 0.4em; /* Match title's top padding */
+    left: 0;
+    z-index: 1;
+  }
+
+  .title-area :global(.note-type-dropdown.compact .type-button) {
     padding: 0.1em 0.25rem;
   }
 
-  .editor-header-title-row :global(.note-type-dropdown.compact .type-icon) {
+  .title-area :global(.note-type-dropdown.compact .type-icon) {
     font-size: 1.5rem;
+  }
+
+  /* Indent first line of title to make room for type dropdown */
+  .title-area :global(.note-title-input) {
+    text-indent: 2.3rem; /* Space for the type icon */
   }
 </style>

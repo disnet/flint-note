@@ -16,6 +16,7 @@
   import { messageBus } from '../../services/messageBus.svelte.js';
   import { logger } from '../../utils/logger';
   import { settingsStore } from '../../stores/settingsStore.svelte';
+  import type { MetadataSchema } from '../../../../server/core/metadata-schema';
 
   let {
     activeNote,
@@ -466,6 +467,12 @@
   let reviewEnabled = $state(false);
   let isLoadingReview = $state(false);
 
+  // Note type info for chips
+  let noteTypeInfo = $state<{
+    metadata_schema: MetadataSchema;
+    editor_chips?: string[];
+  } | null>(null);
+
   // Load review status when note changes
   $effect(() => {
     (async () => {
@@ -484,6 +491,39 @@
       }
     })();
   });
+
+  // Load note type info for chips
+  $effect(() => {
+    (async () => {
+      const noteType = activeNote?.type as string;
+      if (noteType) {
+        try {
+          const result = await window.api?.getNoteTypeInfo({ typeName: noteType });
+          if (result) {
+            noteTypeInfo = {
+              metadata_schema: result.metadata_schema,
+              editor_chips: result.editor_chips
+            };
+          } else {
+            noteTypeInfo = null;
+          }
+        } catch (err) {
+          console.error('Failed to load note type info:', err);
+          noteTypeInfo = null;
+        }
+      }
+    })();
+  });
+
+  // Handler for individual field changes from EditorChips
+  function handleChipMetadataChange(field: string, value: unknown): void {
+    const baseMetadata = filterSystemFields($state.snapshot(metadata));
+    const updatedMetadata = {
+      ...baseMetadata,
+      [field]: value
+    };
+    onMetadataChange(updatedMetadata);
+  }
 
   // Title change handler - uses renameNote since title is a system field
   async function handleTitleChange(newTitle: string): Promise<void> {
@@ -619,6 +659,16 @@
         noteType={activeNote.type as string}
         onTitleChange={handleTitleChange}
         onTypeChange={handleTypeChange}
+        note={{
+          id: activeNote.id as string,
+          type: activeNote.type as string,
+          created: activeNote.created as string,
+          updated: activeNote.updated as string,
+          metadata: metadata
+        }}
+        metadataSchema={noteTypeInfo?.metadata_schema}
+        editorChips={noteTypeInfo?.editor_chips}
+        onMetadataChange={handleChipMetadataChange}
         isPinned={workspacesStore.isPinned(activeNote.id as string)}
         isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
         previewMode={false}
