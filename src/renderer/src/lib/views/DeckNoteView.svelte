@@ -197,11 +197,14 @@
     <div class="deck-note-view">
       <!-- Standard note header -->
       <div class="header-container">
-        <EditorHeader title={noteTitle} onTitleChange={handleTitleChange} />
+        <EditorHeader
+          title={noteTitle}
+          noteType={activeNote.type as string}
+          onTitleChange={handleTitleChange}
+          onTypeChange={handleTypeChange}
+        />
 
         <NoteActionBar
-          noteType={activeNote.type as string}
-          onTypeChange={handleTypeChange}
           isPinned={workspacesStore.isPinned(activeNote.id as string)}
           isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
           metadataExpanded={false}

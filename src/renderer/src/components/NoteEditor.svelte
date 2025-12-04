@@ -627,13 +627,13 @@
       <EditorHeader
         bind:this={headerRef}
         title={doc.title}
+        noteType={note.type}
         onTitleChange={handleTitleChange}
+        onTypeChange={handleTypeChange}
         onTabToContent={() => editorRef?.focus()}
       />
 
       <NoteActionBar
-        noteType={note.type}
-        onTypeChange={handleTypeChange}
         isPinned={workspacesStore.isPinned(note.id)}
         isOnShelf={notesShelfStore.isOnShelf(note.id)}
         {metadataExpanded}
