@@ -9,6 +9,7 @@ import {
   StateEffect,
   Range,
   EditorState,
+  Annotation,
   type Extension
 } from '@codemirror/state';
 import { mount, unmount } from 'svelte';
@@ -24,6 +25,17 @@ const FLINT_DECK_REGEX = /```flint-deck\s*\n([\s\S]*?)```/g;
 
 // StateEffect for forcing deck re-render
 const forceDeckUpdate = StateEffect.define<boolean>();
+
+// Annotation to mark transactions that originate from widget config changes
+// When present, we skip re-decoration to avoid recreating the widget
+const deckWidgetUpdate = Annotation.define<boolean>();
+
+// Flag to skip eq() comparison during widget-initiated updates
+// This prevents widget recreation when the widget updates its own YAML
+let skipWidgetComparison = false;
+
+// Track active widgets to ensure proper cleanup
+const activeWidgets = new Set<DeckWidgetType>();
 
 // StateField for storing handlers
 const deckHandlersField = StateField.define<DeckHandlers | null>({
@@ -88,17 +100,40 @@ function isCursorInRange(state: EditorState, from: number, to: number): boolean 
  */
 class DeckWidgetType extends WidgetType {
   private component: ReturnType<typeof mount> | null = null;
+  private view: EditorView | null = null;
+  // Public for cleanup tracking - stores the YAML content this widget represents
+  public yamlContent: string;
 
   constructor(
     private config: DeckConfig,
-    private blockFrom: number,
-    private blockTo: number,
+    yamlContent: string,
     private handlers: DeckHandlers
   ) {
     super();
+    this.yamlContent = yamlContent;
   }
 
-  toDOM(_view: EditorView): HTMLElement {
+  /**
+   * Find the current position of this deck block by searching for its YAML content
+   */
+  private findCurrentBlockPosition(): { from: number; to: number } | null {
+    if (!this.view) return null;
+
+    const blocks = findDeckBlocks(this.view.state);
+    for (const block of blocks) {
+      if (block.yamlContent === this.yamlContent) {
+        return { from: block.from, to: block.to };
+      }
+    }
+    return null;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    this.view = view;
+
+    // Register this widget as active
+    activeWidgets.add(this);
+
     const container = document.createElement('div');
     container.className = 'deck-widget-container';
 
@@ -120,7 +155,13 @@ class DeckWidgetType extends WidgetType {
       props: {
         config: this.config,
         onConfigChange: (newConfig: DeckConfig) => {
-          this.handlers.onConfigChange(this.blockFrom, this.blockTo, newConfig);
+          // Find current block position (may have shifted since widget was created)
+          const pos = this.findCurrentBlockPosition();
+          if (pos) {
+            this.handlers.onConfigChange(pos.from, pos.to, newConfig);
+            // Update our yamlContent to match the new config for future lookups
+            this.yamlContent = serializeDeckConfig(newConfig).trim();
+          }
         },
         onNoteOpen: (noteId: string) => {
           this.handlers.onNoteOpen(noteId);
@@ -132,6 +173,8 @@ class DeckWidgetType extends WidgetType {
   }
 
   destroy(): void {
+    // Unregister from active widgets
+    activeWidgets.delete(this);
     if (this.component) {
       unmount(this.component);
       this.component = null;
@@ -139,11 +182,12 @@ class DeckWidgetType extends WidgetType {
   }
 
   eq(other: DeckWidgetType): boolean {
-    return (
-      JSON.stringify(this.config) === JSON.stringify(other.config) &&
-      this.blockFrom === other.blockFrom &&
-      this.blockTo === other.blockTo
-    );
+    // During widget-initiated updates, always return true to preserve the widget
+    if (skipWidgetComparison) {
+      return true;
+    }
+    // Compare YAML content instead of positions - positions shift when editing elsewhere
+    return this.yamlContent === other.yamlContent;
   }
 
   get estimatedHeight(): number {
@@ -158,16 +202,24 @@ class DeckWidgetType extends WidgetType {
 
 /**
  * Create decorations for deck blocks
+ * Also cleans up any stale widgets that won't be reused
  */
 function decorateDeckBlocks(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const handlers = state.field(deckHandlersField, false);
 
   if (!handlers) {
+    // No handlers - clean up all active widgets
+    for (const widget of activeWidgets) {
+      widget.destroy();
+    }
     return Decoration.set([]);
   }
 
   const blocks = findDeckBlocks(state);
+
+  // Track which yamlContent values we're creating widgets for
+  const newYamlContents = new Set<string>();
 
   for (const block of blocks) {
     // Skip if cursor is inside the block - show raw YAML for editing
@@ -182,7 +234,8 @@ function decorateDeckBlocks(state: EditorState): DecorationSet {
       continue;
     }
 
-    const widget = new DeckWidgetType(config, block.from, block.to, handlers);
+    newYamlContents.add(block.yamlContent);
+    const widget = new DeckWidgetType(config, block.yamlContent, handlers);
 
     decorations.push(
       Decoration.replace({
@@ -191,6 +244,14 @@ function decorateDeckBlocks(state: EditorState): DecorationSet {
         inclusive: false
       }).range(block.from, block.to)
     );
+  }
+
+  // Clean up stale widgets that won't be reused
+  // (their yamlContent doesn't match any current block)
+  for (const widget of activeWidgets) {
+    if (!newYamlContents.has(widget.yamlContent)) {
+      widget.destroy();
+    }
   }
 
   return Decoration.set(decorations, true);
@@ -204,16 +265,22 @@ const deckField = StateField.define<DecorationSet>({
     return decorateDeckBlocks(state);
   },
   update(decorations, tr) {
-    // Recalculate when document changes or selection changes
-    if (tr.docChanged || tr.selection) {
-      return decorateDeckBlocks(tr.state);
-    }
-
     // Check for force update effect
     for (const effect of tr.effects) {
       if (effect.is(forceDeckUpdate)) {
         return decorateDeckBlocks(tr.state);
       }
+    }
+
+    // Skip re-decoration if this change originated from a widget config update
+    // The widget's internal state is already updated, no need to recreate
+    if (tr.annotation(deckWidgetUpdate)) {
+      return decorations.map(tr.changes);
+    }
+
+    // Recalculate when document changes or selection changes
+    if (tr.docChanged || tr.selection) {
+      return decorateDeckBlocks(tr.state);
     }
 
     return decorations.map(tr.changes);
@@ -223,6 +290,7 @@ const deckField = StateField.define<DecorationSet>({
 
 /**
  * Update a deck block's YAML content
+ * Marks the transaction as a widget update to avoid re-creating the widget
  */
 export function updateDeckBlock(
   view: EditorView,
@@ -233,9 +301,17 @@ export function updateDeckBlock(
   const newYaml = serializeDeckConfig(newConfig);
   const newBlock = '```flint-deck\n' + newYaml + '```';
 
-  view.dispatch({
-    changes: { from, to, insert: newBlock }
-  });
+  // Set flag to skip widget comparison during this update
+  skipWidgetComparison = true;
+  try {
+    view.dispatch({
+      changes: { from, to, insert: newBlock },
+      annotations: deckWidgetUpdate.of(true)
+    });
+  } finally {
+    // Clear the flag after dispatch completes
+    skipWidgetComparison = false;
+  }
 }
 
 /**

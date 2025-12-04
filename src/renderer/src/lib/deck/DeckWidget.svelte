@@ -31,7 +31,17 @@
     onNoteOpen?: (noteId: string) => void;
   }
 
-  let { config, onConfigChange, onNoteOpen }: Props = $props();
+  let { config: initialConfig, onConfigChange, onNoteOpen }: Props = $props();
+
+  // Internal config state - updated both from props and from internal changes
+  // This allows the widget to stay in sync even when CodeMirror skips re-decoration
+  let config = $state<DeckConfig>(initialConfig);
+
+  // Wrapper to update internal state before calling the callback
+  function updateConfig(newConfig: DeckConfig): void {
+    config = newConfig;
+    onConfigChange(newConfig);
+  }
 
   // State
   let results = $state<DeckResultNote[]>([]);
@@ -163,9 +173,17 @@
     return { ...config, filters: newFilters };
   });
 
+  // Track last query config to avoid redundant queries
+  let lastQueryConfig = $state<string>('');
+
   // Execute query when config or pending filter changes
   $effect(() => {
-    void effectiveConfig;
+    const configStr = JSON.stringify(effectiveConfig);
+    // Skip if config hasn't actually changed
+    if (configStr === lastQueryConfig) {
+      return;
+    }
+    lastQueryConfig = configStr;
     executeQuery();
   });
 
@@ -255,7 +273,12 @@
   }
 
   async function executeQuery(): Promise<void> {
-    loading = true;
+    // Only show loading state if we don't have results yet
+    // This prevents flash when refreshing existing results
+    const showLoading = results.length === 0;
+    if (showLoading) {
+      loading = true;
+    }
     error = null;
 
     try {
@@ -265,7 +288,9 @@
       error = e instanceof Error ? e.message : 'Query failed';
       results = [];
     } finally {
-      loading = false;
+      if (showLoading) {
+        loading = false;
+      }
     }
   }
 
@@ -543,7 +568,7 @@
   function commitPendingFilter(): void {
     const pending = pendingFilterEdit;
     if (!pending) return;
-    pendingFilterEdit = null;
+
     // Update or add the filter
     const existingIndex = config.filters.findIndex((f) => f.field === pending.field);
     let newFilters: DeckFilter[];
@@ -553,11 +578,21 @@
     } else {
       newFilters = [...config.filters, pending];
     }
+
+    // Build the new config
+    const newConfig = {
+      ...config,
+      filters: newFilters
+    };
+
+    // Update both state values synchronously - Svelte should batch these
+    config = newConfig;
+    pendingFilterEdit = null;
+
+    // Defer the CodeMirror update to next tick to ensure Svelte effects have settled
+    // This prevents the dispatch() from causing Svelte to flush in the middle
     setTimeout(() => {
-      onConfigChange({
-        ...config,
-        filters: newFilters
-      });
+      onConfigChange(newConfig);
     }, 0);
   }
 
@@ -571,7 +606,7 @@
     isFilterPopupOpen = false;
     filterPopupField = null;
     setTimeout(() => {
-      onConfigChange({
+      updateConfig({
         ...config,
         columns: newColumns,
         filters: newFilters
@@ -593,7 +628,7 @@
     const newColumn: ColumnConfig = { field: fieldName };
     const newColumns = [...activeColumns, newColumn];
     setTimeout(() => {
-      onConfigChange({
+      updateConfig({
         ...config,
         columns: newColumns
       });
@@ -620,7 +655,7 @@
     isEditingName = false;
     if (newName !== (config.name || '')) {
       setTimeout(() => {
-        onConfigChange({
+        updateConfig({
           ...config,
           name: newName || undefined
         });
