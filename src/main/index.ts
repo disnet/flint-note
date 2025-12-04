@@ -1088,7 +1088,8 @@ app.whenReady().then(async () => {
     async (
       _event,
       params: {
-        type?: string;
+        type?: string | string[];
+        type_operator?: '=' | '!=' | 'IN';
         metadata_filters?: Array<{
           key: string;
           value: string;

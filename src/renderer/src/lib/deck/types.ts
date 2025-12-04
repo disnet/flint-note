@@ -133,7 +133,7 @@ export const OPERATORS_BY_TYPE: Record<MetadataFieldType | 'system', FilterOpera
   date: ['=', '!=', '>', '<', '>=', '<='],
   array: ['IN', '=', '!='],
   select: ['=', '!=', 'IN'],
-  system: ['=', '!=', 'LIKE']
+  system: ['=', '!=', 'LIKE', 'IN']
 };
 
 /**

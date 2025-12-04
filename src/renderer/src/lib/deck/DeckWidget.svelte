@@ -49,7 +49,7 @@
   let schemaLoadedForType = $state<string | null>(null);
   let availableSchemaFields = $state<FilterFieldInfo[]>([]);
 
-  // Note types for type selector
+  // Note types (used for determining default type for new notes)
   let noteTypes = $state<string[]>([]);
 
   // Prop picker dialog state
@@ -71,36 +71,27 @@
     return [] as ColumnConfig[];
   });
 
-  // Derived: get single type if filtered by flint_type
-  const filteredType = $derived.by(() => {
+  // Derived: get types from flint_type filter (supports single value or array via IN operator)
+  const filteredTypes = $derived.by(() => {
     const typeFilter = config.filters.find((f) => f.field === 'flint_type');
-    return typeof typeFilter?.value === 'string' ? typeFilter.value : null;
-  });
-
-  // Track previous type to detect changes
-  let previousFilteredType = $state<string | null>(null);
-
-  // Clear columns when note type changes
-  $effect(() => {
-    const currentType = filteredType;
-    if (previousFilteredType !== null && currentType !== previousFilteredType) {
-      if (config.columns && config.columns.length > 0) {
-        setTimeout(() => {
-          onConfigChange({
-            ...config,
-            columns: []
-          });
-        }, 0);
-      }
+    if (!typeFilter) return [];
+    if (Array.isArray(typeFilter.value)) {
+      return typeFilter.value;
     }
-    previousFilteredType = currentType;
+    if (typeof typeFilter.value === 'string') {
+      return [typeFilter.value];
+    }
+    return [];
   });
 
-  // Load schema fields when filtered type changes
+  // First filtered type (for schema loading and new note creation)
+  const firstFilteredType = $derived(filteredTypes.length > 0 ? filteredTypes[0] : null);
+
+  // Load schema fields when first filtered type changes
   $effect(() => {
-    if (filteredType && filteredType !== schemaLoadedForType) {
-      loadSchemaFields(filteredType);
-    } else if (!filteredType) {
+    if (firstFilteredType && firstFilteredType !== schemaLoadedForType) {
+      loadSchemaFields(firstFilteredType);
+    } else if (!firstFilteredType) {
       schemaFields = new Map();
       availableSchemaFields = [];
       schemaLoadedForType = null;
@@ -223,17 +214,24 @@
       if (event.type === 'note.created' && event.note.id === newlyCreatedNoteId) {
         return false;
       }
-      if (event.type === 'note.updated' && 'noteId' in event && event.noteId === newlyCreatedNoteId) {
+      if (
+        event.type === 'note.updated' &&
+        'noteId' in event &&
+        event.noteId === newlyCreatedNoteId
+      ) {
         return false;
       }
     }
 
-    if (filteredType) {
-      if (event.type === 'note.created' && event.note.type === filteredType) {
+    // Check if event is relevant to filtered types (if any)
+    if (filteredTypes.length > 0) {
+      if (event.type === 'note.created' && filteredTypes.includes(event.note.type)) {
         return true;
       }
       if (event.type === 'note.moved') {
-        return event.oldType === filteredType || event.newType === filteredType;
+        return (
+          filteredTypes.includes(event.oldType) || filteredTypes.includes(event.newType)
+        );
       }
       if ('noteId' in event) {
         return results.some((r) => r.id === event.noteId);
@@ -287,7 +285,8 @@
     suppressRefresh = true;
 
     try {
-      const noteType = filteredType || 'note';
+      // Use first filtered type, or default to 'note'
+      const noteType = firstFilteredType || 'note';
 
       // Pre-fill metadata from equality filters (so note matches the deck's constraints)
       const prefillMetadata: Record<string, unknown> = {};
@@ -488,23 +487,6 @@
     executeQuery();
   }
 
-  function handleTypeChange(newType: string): void {
-    // Update or add the type filter
-    const existingFilters = config.filters.filter((f) => f.field !== 'flint_type');
-    const newFilters: DeckFilter[] = [
-      { field: 'flint_type', value: newType },
-      ...existingFilters
-    ];
-
-    setTimeout(() => {
-      onConfigChange({
-        ...config,
-        filters: newFilters,
-        columns: [] // Clear columns when type changes
-      });
-    }, 0);
-  }
-
   // Get filter for the popup field (use pending edit if available)
   const filterPopupFilter = $derived.by(() => {
     if (!filterPopupField) return null;
@@ -531,7 +513,13 @@
         f.name === `flint_${filterPopupField}` ||
         filterPopupField === f.name.replace('flint_', '')
     );
-    if (systemField) return systemField;
+    if (systemField) {
+      // For flint_type, add note types as options for IN operator
+      if (systemField.name === 'flint_type' && noteTypes.length > 0) {
+        return { ...systemField, options: noteTypes };
+      }
+      return systemField;
+    }
     // Fallback
     return {
       name: filterPopupField,
@@ -694,13 +682,10 @@
 
   <!-- Toolbar -->
   <DeckToolbar
-    typeName={filteredType}
-    {noteTypes}
     columns={activeColumns}
     availableFields={availableSchemaFields}
     sort={config.sort}
     onNewNote={handleNewNoteClick}
-    onTypeChange={handleTypeChange}
     onPropClick={handlePropClick}
     onAddProp={handleAddPropClick}
   />

@@ -136,7 +136,8 @@ export interface SearchResponse {
 
 // Dataview query types
 export interface DataviewQueryOptions {
-  type?: string;
+  type?: string | string[];
+  type_operator?: '=' | '!=' | 'IN';
   metadata_filters?: Array<{
     key: string;
     value: string;
@@ -634,10 +635,27 @@ export class HybridSearchManager {
       // Exclude archived notes
       whereConditions.push('(n.archived IS NULL OR n.archived = 0)');
 
-      // Type filter
+      // Type filter (supports single type or array of types, with operator)
       if (options.type) {
-        whereConditions.push('n.type = ?');
-        params.push(options.type);
+        const types = Array.isArray(options.type) ? options.type : [options.type];
+        const typeOp = options.type_operator || '=';
+
+        if (types.length === 1) {
+          if (typeOp === '!=') {
+            whereConditions.push('n.type != ?');
+          } else {
+            whereConditions.push('n.type = ?');
+          }
+          params.push(types[0]);
+        } else if (types.length > 1) {
+          const placeholders = types.map(() => '?').join(',');
+          if (typeOp === '!=') {
+            whereConditions.push(`n.type NOT IN (${placeholders})`);
+          } else {
+            whereConditions.push(`n.type IN (${placeholders})`);
+          }
+          params.push(...types);
+        }
       }
 
       // Metadata filters

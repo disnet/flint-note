@@ -43,9 +43,27 @@ const SYSTEM_FIELDS = new Set([
  * Uses the optimized server-side queryNotesForDeck API
  */
 export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
-  // Extract type filter if present (use flint_type)
+  // Extract type filter if present (supports single value or array via IN operator)
   const typeFilter = config.filters.find((f) => f.field === 'flint_type');
-  const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
+  let types: string | string[] | undefined;
+  let typeOperator: '=' | '!=' | 'IN' | undefined;
+
+  if (typeFilter) {
+    if (Array.isArray(typeFilter.value)) {
+      types = typeFilter.value.length === 1 ? typeFilter.value[0] : typeFilter.value;
+      // For arrays, use IN (or != becomes NOT IN on the server)
+      typeOperator = typeFilter.operator === '!=' ? '!=' : 'IN';
+    } else if (typeof typeFilter.value === 'string') {
+      // Check if it's an IN operator with comma-separated values
+      if (typeFilter.operator === 'IN' && typeFilter.value.includes(',')) {
+        types = typeFilter.value.split(',').map((v) => v.trim());
+        typeOperator = 'IN';
+      } else {
+        types = typeFilter.value;
+        typeOperator = typeFilter.operator === '!=' ? '!=' : '=';
+      }
+    }
+  }
 
   // Get metadata filters (everything except flint_type)
   const metadataFilters = config.filters
@@ -69,7 +87,8 @@ export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]
   try {
     // Use the optimized server-side API
     const response = await window.api?.queryNotesForDataview({
-      type: typeName,
+      type: types,
+      type_operator: typeOperator,
       metadata_filters: metadataFilters.length > 0 ? metadataFilters : undefined,
       sort,
       limit: config.limit || 50
@@ -117,21 +136,38 @@ function extractUserMetadata(metadata: Record<string, unknown>): Record<string, 
  */
 async function runLegacyDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
   const typeFilter = config.filters.find((f) => f.field === 'flint_type');
-  const typeName = typeof typeFilter?.value === 'string' ? typeFilter.value : undefined;
+  // Extract types from filter (supports single value or array)
+  let typeNames: string[] = [];
+  if (typeFilter) {
+    if (Array.isArray(typeFilter.value)) {
+      typeNames = typeFilter.value;
+    } else if (typeof typeFilter.value === 'string') {
+      if (typeFilter.operator === 'IN' && typeFilter.value.includes(',')) {
+        typeNames = typeFilter.value.split(',').map((v) => v.trim());
+      } else {
+        typeNames = [typeFilter.value];
+      }
+    }
+  }
   const metadataFilters = config.filters.filter((f) => f.field !== 'flint_type');
 
   let notes: DeckResultNote[] = [];
 
-  if (typeName) {
-    const noteList = await window.api?.listNotesByType({
-      type: typeName,
-      limit: config.limit || 50,
-      includeArchived: false
-    });
+  if (typeNames.length > 0) {
+    // Fetch notes for each type and merge
+    const allNoteIds: string[] = [];
+    for (const typeName of typeNames) {
+      const noteList = await window.api?.listNotesByType({
+        type: typeName,
+        limit: config.limit || 50,
+        includeArchived: false
+      });
 
-    if (noteList && Array.isArray(noteList)) {
-      notes = await fetchNotesWithMetadata(noteList.map((n) => n.id));
+      if (noteList && Array.isArray(noteList)) {
+        allNoteIds.push(...noteList.map((n: { id: string }) => n.id));
+      }
     }
+    notes = await fetchNotesWithMetadata(allNoteIds);
   } else {
     const searchResults = await window.api?.searchNotes({
       query: '',
