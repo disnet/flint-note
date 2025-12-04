@@ -40,7 +40,6 @@
   let useCustomView = $state(false);
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
-  let isLoadingNote = $state(false);
   let selectedNoteType = $state<string | null>(null);
   let isCreatingType = $state(false);
 
@@ -74,8 +73,6 @@
 
   async function loadNoteAndView(note: NoteMetadata): Promise<void> {
     try {
-      isLoadingNote = true;
-
       // Determine content kind from metadata (prefer flint_kind, fallback to type for legacy)
       const noteKind = (note.flint_kind as string) || 'markdown';
 
@@ -97,8 +94,6 @@
       useCustomView = false;
       noteContent = '';
       noteData = null;
-    } finally {
-      isLoadingNote = false;
     }
   }
 
@@ -219,12 +214,7 @@
     </div>
   {:else if activeNote}
     <div class="note-content">
-      {#if isLoadingNote}
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Loading note...</p>
-        </div>
-      {:else if useCustomView && customView && noteData}
+      {#if useCustomView && customView && noteData}
         {@const CustomComponent = customView.component}
         <CustomComponent
           {activeNote}
@@ -300,34 +290,6 @@
 
   .note-content::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
-  }
-
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 1rem;
-    color: var(--text-secondary);
-  }
-
-  .loading-spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--border-light);
-    border-top: 3px solid var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
   }
 
   .empty-state {
