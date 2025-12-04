@@ -763,7 +763,7 @@
   .note-editor {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.75rem;
     min-width: 30ch;
     max-width: 75ch;
     width: 100%;
