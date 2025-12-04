@@ -153,7 +153,7 @@ export const SYSTEM_FIELDS: FilterFieldInfo[] = [
 export function fieldDefToFilterInfo(field: MetadataFieldDefinition): FilterFieldInfo {
   return {
     name: field.name,
-    label: field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/_/g, ' '),
+    label: field.name.replace(/^flint_/, '').replace(/_/g, ' '),
     type: field.type,
     description: field.description,
     options: field.constraints?.options

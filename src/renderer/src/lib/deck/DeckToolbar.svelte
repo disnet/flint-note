@@ -55,10 +55,8 @@
     // Check available fields from schema
     const schemaField = availableFields.find((f) => f.name === column.field);
     if (schemaField) return schemaField.label;
-    // Fallback: capitalize
-    return (
-      column.field.charAt(0).toUpperCase() + column.field.slice(1).replace(/_/g, ' ')
-    );
+    // Fallback
+    return column.field.replace(/^flint_/, '').replace(/_/g, ' ');
   }
 
   // Close dropdown when clicking outside
@@ -112,7 +110,12 @@
   <!-- New Note button -->
   <button
     class="toolbar-btn new-note-btn"
-    onclick={onNewNote}
+    onclick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onNewNote();
+    }}
+    onmousedown={(e) => e.stopPropagation()}
     type="button"
     title="Create new note"
   >

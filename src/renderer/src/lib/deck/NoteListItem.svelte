@@ -113,9 +113,7 @@
   // Get column label
   function getColumnLabel(column: ColumnConfig): string {
     if (column.label) return column.label;
-    return (
-      column.field.charAt(0).toUpperCase() + column.field.slice(1).replace(/_/g, ' ')
-    );
+    return column.field.replace(/^flint_/, '').replace(/_/g, ' ');
   }
 
   // Get editing value for a field
@@ -229,7 +227,8 @@
           {#each columns as column (column.field)}
             {@const value = getDisplayValue(column.field)}
             {#if value}
-              <span class="prop-value-chip" title={getColumnLabel(column)}>
+              <span class="prop-value-chip">
+                <span class="prop-label">{getColumnLabel(column)}:</span>
                 {value}
               </span>
             {/if}
@@ -328,13 +327,19 @@
   }
 
   .prop-value-chip {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
     background: var(--bg-tertiary);
     color: var(--text-secondary);
     font-size: 0.7rem;
     white-space: nowrap;
+  }
+
+  .prop-label {
+    color: var(--text-tertiary);
   }
 
   .editing-props {

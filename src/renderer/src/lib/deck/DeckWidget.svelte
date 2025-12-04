@@ -47,9 +47,6 @@
   let isEditingName = $state(false);
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
-  let isExpanded = $state(config.expanded ?? false);
-  let contentRef = $state<HTMLDivElement | null>(null);
-  let needsExpand = $state(false);
 
   // Inline editing state
   let editingNoteId = $state<string | null>(null);
@@ -125,21 +122,6 @@
   // Load note types on mount
   $effect(() => {
     loadNoteTypes();
-  });
-
-  // Check if content overflows
-  $effect(() => {
-    void results;
-    void loading;
-    void isExpanded;
-
-    requestAnimationFrame(() => {
-      if (contentRef && !isExpanded) {
-        needsExpand = contentRef.scrollHeight > contentRef.clientHeight;
-      } else if (isExpanded) {
-        needsExpand = true;
-      }
-    });
   });
 
   /**
@@ -520,9 +502,7 @@
     // Fallback
     return {
       name: filterPopupField,
-      label:
-        filterPopupField.charAt(0).toUpperCase() +
-        filterPopupField.slice(1).replace(/_/g, ' '),
+      label: filterPopupField.replace(/^flint_/, '').replace(/_/g, ' '),
       type: 'string' as const,
       isSystem: false
     };
@@ -641,23 +621,14 @@
       cancelNameEdit();
     }
   }
-
-  function toggleExpanded(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    isExpanded = !isExpanded;
-    const newExpanded = isExpanded;
-    setTimeout(() => {
-      onConfigChange({
-        ...config,
-        expanded: newExpanded || undefined
-      });
-    }, 0);
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="deck-widget" onmousedown={(e) => e.stopPropagation()}>
+<div
+  class="deck-widget"
+  onmousedown={(e) => e.stopPropagation()}
+  onclick={(e) => e.stopPropagation()}
+>
   <!-- Header -->
   <div class="deck-header">
     {#if isEditingName}
@@ -681,38 +652,11 @@
         {config.name || 'New Deck'}
       </button>
     {/if}
-    <div class="deck-meta">
-      {#if !loading}
-        <span class="deck-count"
-          >{results.length} note{results.length === 1 ? '' : 's'}</span
-        >
-      {/if}
-      <button
-        class="expand-btn"
-        class:expanded={isExpanded}
-        onclick={toggleExpanded}
-        type="button"
-        title={isExpanded ? 'Collapse' : 'Expand'}
-        disabled={!needsExpand}
+    {#if !loading}
+      <span class="deck-count"
+        >{results.length} note{results.length === 1 ? '' : 's'}</span
       >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          {#if isExpanded}
-            <polyline points="18 15 12 9 6 15" />
-          {:else}
-            <polyline points="6 9 12 15 18 9" />
-          {/if}
-        </svg>
-      </button>
-    </div>
+    {/if}
   </div>
 
   <!-- Toolbar -->
@@ -755,7 +699,7 @@
   />
 
   <!-- Content -->
-  <div bind:this={contentRef} class="deck-content" class:expanded={isExpanded}>
+  <div class="deck-content">
     {#if loading}
       <div class="deck-loading">Loading...</div>
     {:else if error}
@@ -835,46 +779,13 @@
     outline: none;
   }
 
-  .deck-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
   .deck-count {
     font-size: 0.75rem;
     color: var(--text-tertiary);
   }
 
-  .expand-btn {
-    padding: 0.25rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .expand-btn:hover:not(:disabled) {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .expand-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
   .deck-content {
-    max-height: 300px;
-    overflow-y: auto;
     padding: 0.5rem 0;
-    scrollbar-gutter: stable;
-  }
-
-  .deck-content.expanded {
-    max-height: none;
   }
 
   .deck-loading,
