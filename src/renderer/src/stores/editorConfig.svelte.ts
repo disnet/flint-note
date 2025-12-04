@@ -392,6 +392,9 @@ export class EditorConfig {
                 if (this.editorView) {
                   updateDeckBlock(this.editorView, from, to, newConfig);
                 }
+              },
+              onNoteOpen: (noteId) => {
+                this.options.onWikilinkClick?.(noteId, '', false, false);
               }
             })
           ]

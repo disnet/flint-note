@@ -37,6 +37,8 @@
     onSave?: () => void;
     /** Called when cancel button is clicked */
     onCancel?: () => void;
+    /** Called when open button is clicked */
+    onOpen?: () => void;
   }
 
   let {
@@ -52,12 +54,12 @@
     onValueChange,
     onKeyDown,
     onSave,
-    onCancel
+    onCancel,
+    onOpen
   }: Props = $props();
 
   // Local state for title editing
   let titleValue = $state(note.title || '');
-  let titleTextarea: HTMLTextAreaElement | undefined = $state();
 
   // Handle type change
   async function handleTypeChange(newType: string): Promise<void> {
@@ -66,38 +68,9 @@
     }
   }
 
-  // Adjust textarea height to fit content
-  function adjustTextareaHeight(): void {
-    if (titleTextarea) {
-      titleTextarea.style.height = 'auto';
-      titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
-    }
-  }
-
   // Sync title value when note changes
   $effect(() => {
     titleValue = note.title || '';
-  });
-
-  // Adjust height when value changes or on mount
-  $effect(() => {
-    // Access titleValue to create dependency
-    void titleValue;
-    // Use setTimeout to ensure DOM has updated
-    setTimeout(adjustTextareaHeight, 0);
-  });
-
-  // Observe resize to adjust height when container width changes
-  $effect(() => {
-    if (!titleTextarea) return;
-
-    const observer = new ResizeObserver(() => {
-      adjustTextareaHeight();
-    });
-
-    observer.observe(titleTextarea);
-
-    return () => observer.disconnect();
   });
 
   // Handle title blur - save if changed
@@ -290,17 +263,24 @@
           />
         </div>
         <textarea
-          bind:this={titleTextarea}
           class="title-input"
           class:untitled={!titleValue}
           bind:value={titleValue}
           onblur={handleTitleBlur}
           onkeydown={handleTitleKeydown}
           onmousedown={(e) => e.stopPropagation()}
-          oninput={adjustTextareaHeight}
           placeholder="Untitled"
           rows="1"
         ></textarea>
+        <button
+          class="open-btn"
+          onclick={() => onOpen?.()}
+          onmousedown={(e) => e.stopPropagation()}
+          type="button"
+          title="Open note"
+        >
+          Open
+        </button>
       </div>
       {#if columns.length > 0}
         <div class="note-props">
@@ -402,6 +382,7 @@
   }
 
   .note-title-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -414,8 +395,9 @@
   }
 
   .title-input {
-    flex: 1;
-    min-width: 0;
+    field-sizing: content;
+    min-width: 3rem;
+    max-width: 100%;
     border: none;
     background: transparent;
     color: var(--text-primary);
@@ -428,8 +410,6 @@
     resize: none;
     overflow: hidden;
     line-height: 1.4;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
     transition: background 0.15s ease;
   }
 
@@ -448,6 +428,35 @@
     color: var(--text-tertiary);
     font-style: italic;
     font-weight: 400;
+  }
+
+  .open-btn {
+    position: absolute;
+    right: 0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    opacity: 0;
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition:
+      opacity 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .note-list-item:hover .open-btn {
+    opacity: 1;
+  }
+
+  .open-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .note-props {
@@ -518,6 +527,11 @@
 
   .prop-inline-date {
     min-width: 7rem;
+  }
+
+  .prop-inline-input[type='text'] {
+    field-sizing: content;
+    min-width: 2rem;
   }
 
   .prop-inline-input[type='number'] {

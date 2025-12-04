@@ -261,4 +261,6 @@ export interface DeckBlock {
 export interface DeckHandlers {
   /** Called when deck config changes (e.g., sort order) */
   onConfigChange: (from: number, to: number, newConfig: DeckConfig) => void;
+  /** Called when user opens a note */
+  onNoteOpen: (noteId: string) => void;
 }

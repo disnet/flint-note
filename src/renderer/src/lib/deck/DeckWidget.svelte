@@ -34,9 +34,10 @@
   interface Props {
     config: DeckConfig;
     onConfigChange: (config: DeckConfig) => void;
+    onNoteOpen?: (noteId: string) => void;
   }
 
-  let { config, onConfigChange }: Props = $props();
+  let { config, onConfigChange, onNoteOpen }: Props = $props();
 
   // State
   let results = $state<DeckResultNote[]>([]);
@@ -313,9 +314,11 @@
     'flint_kind',
     'flint_created',
     'flint_updated',
+    'flint_title',
     'id',
     'type',
     'filename',
+    'title',
     'created',
     'updated'
   ]);
@@ -840,6 +843,7 @@
             onKeyDown={handleEditingKeyDown}
             onSave={saveEditingNote}
             onCancel={cancelEditing}
+            onOpen={() => onNoteOpen?.(result.id)}
           />
         {/each}
       </div>
