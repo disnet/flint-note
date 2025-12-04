@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SvelteMap } from 'svelte/reactivity';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import type {
     DeckConfig,
     DeckView,
@@ -164,7 +164,7 @@
   async function loadSchemaFieldsForTypes(typeNames: string[]): Promise<void> {
     try {
       const newMap = new SvelteMap<string, SchemaFieldInfo>();
-      const fieldInfoMap = new Map<string, FilterFieldInfo>();
+      const fieldInfoMap = new SvelteMap<string, FilterFieldInfo>();
       const newFieldsByType = new SvelteMap<string, Set<string>>();
 
       // Load schema for each type and merge fields (union)
@@ -172,7 +172,7 @@
         typeNames.map(async (typeName) => {
           const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
           if (typeInfo?.metadata_schema?.fields) {
-            const typeFields = new Set<string>();
+            const typeFields = new SvelteSet<string>();
             for (const field of typeInfo.metadata_schema
               .fields as MetadataFieldDefinition[]) {
               typeFields.add(field.name);

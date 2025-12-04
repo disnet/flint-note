@@ -39,6 +39,7 @@
   let viewNameInputRef = $state<HTMLInputElement | null>(null);
 
   // Track the current input value for the active view name
+  // eslint-disable-next-line svelte/prefer-writable-derived -- need editable input with prop sync
   let currentViewName = $state('');
 
   const activeView = $derived(views[activeViewIndex] || views[0]);
