@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { DeckResultNote, ColumnConfig } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
-  import EditableCell from './EditableCell.svelte';
   import NoteTypeDropdown from '../../components/NoteTypeDropdown.svelte';
 
   interface SchemaFieldInfo {
@@ -15,28 +14,16 @@
     note: DeckResultNote;
     /** Columns/props to show as chips */
     columns: ColumnConfig[];
-    /** Whether this note is being edited (full row editing mode) */
-    isEditing: boolean;
-    /** Current editing values (when in full row editing mode) */
-    editingValues?: { title: string; metadata: Record<string, unknown> };
     /** Schema fields for type-aware editing */
     schemaFields: Map<string, SchemaFieldInfo>;
-    /** Whether currently saving */
-    isSaving: boolean;
+    /** Whether to auto-focus the title input on mount */
+    autoFocus?: boolean;
     /** Called when title is renamed inline */
     onTitleSave?: (newTitle: string) => void;
     /** Called when note type is changed */
     onTypeChange?: (newType: string) => Promise<void>;
-    /** Called when a field value is saved inline (for chip editing) */
+    /** Called when a field value is saved inline */
     onFieldSave?: (field: string, value: unknown) => void;
-    /** Called when editing value changes (for full row editing) */
-    onValueChange?: (field: string, value: unknown) => void;
-    /** Called on keydown during editing */
-    onKeyDown?: (event: KeyboardEvent) => void;
-    /** Called when save button is clicked */
-    onSave?: () => void;
-    /** Called when cancel button is clicked */
-    onCancel?: () => void;
     /** Called when open button is clicked */
     onOpen?: () => void;
   }
@@ -44,22 +31,24 @@
   let {
     note,
     columns,
-    isEditing,
-    editingValues,
     schemaFields,
-    isSaving,
+    autoFocus = false,
     onTitleSave,
     onTypeChange,
     onFieldSave,
-    onValueChange,
-    onKeyDown,
-    onSave,
-    onCancel,
     onOpen
   }: Props = $props();
 
   // Local state for title editing
   let titleValue = $state(note.title || '');
+  let titleInputRef = $state<HTMLTextAreaElement | null>(null);
+
+  // Auto-focus title input on mount if requested
+  $effect(() => {
+    if (autoFocus && titleInputRef) {
+      titleInputRef.focus();
+    }
+  });
 
   // Handle type change
   async function handleTypeChange(newType: string): Promise<void> {
@@ -156,13 +145,6 @@
     return column.field.replace(/^flint_/, '').replace(/_/g, ' ');
   }
 
-  // Get editing value for a field
-  function getEditingValue(field: string): unknown {
-    if (!editingValues) return '';
-    if (field === 'title' || field === 'flint_title') return editingValues.title;
-    return editingValues.metadata[field] ?? '';
-  }
-
   // Check if field is editable
   function isEditable(field: string): boolean {
     // System fields (except title) are not editable
@@ -187,178 +169,113 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div
-  class="note-list-item"
-  class:editing={isEditing}
-  role="listitem"
-  onmousedown={isEditing ? (e) => e.stopPropagation() : undefined}
-  onclick={isEditing ? (e) => e.stopPropagation() : undefined}
->
-  {#if isEditing && editingValues}
-    <!-- Editing mode -->
-    <div class="note-editing">
-      <div class="note-title-row">
-        <EditableCell
-          value={editingValues.title}
-          fieldType="system"
-          field="title"
-          onChange={(v) => onValueChange?.('title', v)}
-          {onKeyDown}
-          autoFocus={true}
+<div class="note-list-item" role="listitem">
+  <div class="note-display">
+    <div class="note-title-row">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="type-dropdown-wrapper" onmousedown={(e) => e.stopPropagation()}>
+        <NoteTypeDropdown
+          currentType={note.type}
+          onTypeChange={handleTypeChange}
+          compact
         />
-        <div class="editing-actions">
-          <button
-            class="save-btn"
-            onclick={onSave}
-            disabled={isSaving}
-            type="button"
-            title="Save (Enter)"
-          >
-            {#if isSaving}...{:else}✓{/if}
-          </button>
-          <button
-            class="cancel-btn"
-            onclick={onCancel}
-            disabled={isSaving}
-            type="button"
-            title="Cancel (Escape)"
-          >
-            ✕
-          </button>
-        </div>
       </div>
-      {#if columns.length > 0}
-        <div class="note-props editing-props">
-          {#each columns as column (column.field)}
-            <div class="prop-edit-chip">
-              <span class="prop-edit-label">{getColumnLabel(column)}</span>
-              {#if isEditable(column.field)}
-                <EditableCell
-                  value={getEditingValue(column.field)}
-                  fieldType={getFieldType(column.field)}
-                  field={column.field}
-                  onChange={(v) => onValueChange?.(column.field, v)}
-                  {onKeyDown}
-                  options={getFieldOptions(column.field)}
-                />
-              {:else}
-                <span class="prop-value">{getDisplayValue(column.field)}</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <textarea
+        bind:this={titleInputRef}
+        class="title-input"
+        class:untitled={!titleValue}
+        bind:value={titleValue}
+        onblur={handleTitleBlur}
+        onkeydown={handleTitleKeydown}
+        onmousedown={(e) => e.stopPropagation()}
+        placeholder="Untitled"
+        rows="1"
+      ></textarea>
+      <button
+        class="open-btn"
+        onclick={() => onOpen?.()}
+        onmousedown={(e) => e.stopPropagation()}
+        type="button"
+        title="Open note"
+      >
+        Open
+      </button>
     </div>
-  {:else}
-    <!-- Display mode with inline editable chips -->
-    <div class="note-display">
-      <div class="note-title-row">
-        <div class="type-dropdown-wrapper" onmousedown={(e) => e.stopPropagation()}>
-          <NoteTypeDropdown
-            currentType={note.type}
-            onTypeChange={handleTypeChange}
-            compact
-          />
-        </div>
-        <textarea
-          class="title-input"
-          class:untitled={!titleValue}
-          bind:value={titleValue}
-          onblur={handleTitleBlur}
-          onkeydown={handleTitleKeydown}
-          onmousedown={(e) => e.stopPropagation()}
-          placeholder="Untitled"
-          rows="1"
-        ></textarea>
-        <button
-          class="open-btn"
-          onclick={() => onOpen?.()}
-          onmousedown={(e) => e.stopPropagation()}
-          type="button"
-          title="Open note"
-        >
-          Open
-        </button>
+    {#if columns.length > 0}
+      <div class="note-props">
+        {#each columns as column (column.field)}
+          {@const fieldType = getFieldType(column.field)}
+          {@const rawValue = getRawValue(column.field)}
+          {@const options = getFieldOptions(column.field)}
+          {@const editable = isEditable(column.field)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="prop-chip-inline"
+            onmousedown={(e) => e.stopPropagation()}
+            onclick={(e) => e.stopPropagation()}
+          >
+            <span class="prop-name">{getColumnLabel(column)}</span>
+            <span class="prop-divider"></span>
+            {#if editable && fieldType === 'select' && options.length > 0}
+              <select
+                class="prop-inline-select"
+                value={String(rawValue || '')}
+                onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+              >
+                <option value="">—</option>
+                {#each options as opt}
+                  <option value={opt}>{opt}</option>
+                {/each}
+              </select>
+            {:else if editable && fieldType === 'boolean'}
+              <input
+                type="checkbox"
+                class="prop-inline-checkbox"
+                checked={Boolean(rawValue)}
+                onchange={(e) => handleFieldChange(column.field, e.currentTarget.checked)}
+              />
+            {:else if editable && fieldType === 'date'}
+              <input
+                type="date"
+                class="prop-inline-date"
+                value={rawValue ? String(rawValue).split('T')[0] : ''}
+                onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+              />
+            {:else if editable && fieldType === 'number'}
+              <input
+                type="number"
+                class="prop-inline-input"
+                value={rawValue ?? ''}
+                onblur={(e) => {
+                  const val = e.currentTarget.value;
+                  handleFieldChange(column.field, val ? Number(val) : null);
+                }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            {:else if editable}
+              <input
+                type="text"
+                class="prop-inline-input"
+                value={String(rawValue || '')}
+                onblur={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            {:else}
+              <span class="prop-value">{getDisplayValue(column.field) || '—'}</span>
+            {/if}
+          </div>
+        {/each}
       </div>
-      {#if columns.length > 0}
-        <div class="note-props">
-          {#each columns as column (column.field)}
-            {@const fieldType = getFieldType(column.field)}
-            {@const rawValue = getRawValue(column.field)}
-            {@const options = getFieldOptions(column.field)}
-            {@const editable = isEditable(column.field)}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-              class="prop-chip-inline"
-              onmousedown={(e) => e.stopPropagation()}
-              onclick={(e) => e.stopPropagation()}
-            >
-              <span class="prop-name">{getColumnLabel(column)}</span>
-              <span class="prop-divider"></span>
-              {#if editable && fieldType === 'select' && options.length > 0}
-                <select
-                  class="prop-inline-select"
-                  value={String(rawValue || '')}
-                  onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
-                >
-                  <option value="">—</option>
-                  {#each options as opt}
-                    <option value={opt}>{opt}</option>
-                  {/each}
-                </select>
-              {:else if editable && fieldType === 'boolean'}
-                <input
-                  type="checkbox"
-                  class="prop-inline-checkbox"
-                  checked={Boolean(rawValue)}
-                  onchange={(e) =>
-                    handleFieldChange(column.field, e.currentTarget.checked)}
-                />
-              {:else if editable && fieldType === 'date'}
-                <input
-                  type="date"
-                  class="prop-inline-date"
-                  value={rawValue ? String(rawValue).split('T')[0] : ''}
-                  onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
-                />
-              {:else if editable && fieldType === 'number'}
-                <input
-                  type="number"
-                  class="prop-inline-input"
-                  value={rawValue ?? ''}
-                  onblur={(e) => {
-                    const val = e.currentTarget.value;
-                    handleFieldChange(column.field, val ? Number(val) : null);
-                  }}
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                />
-              {:else if editable}
-                <input
-                  type="text"
-                  class="prop-inline-input"
-                  value={String(rawValue || '')}
-                  onblur={(e) => handleFieldChange(column.field, e.currentTarget.value)}
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                />
-              {:else}
-                <span class="prop-value">{getDisplayValue(column.field) || '—'}</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -373,8 +290,7 @@
     border-bottom: none;
   }
 
-  .note-display,
-  .note-editing {
+  .note-display {
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
@@ -419,14 +335,12 @@
   }
 
   .title-input.untitled {
-    color: var(--text-tertiary);
-    font-style: italic;
+    color: var(--text-muted);
     font-weight: 400;
   }
 
   .title-input::placeholder {
-    color: var(--text-tertiary);
-    font-style: italic;
+    color: var(--text-muted);
     font-weight: 400;
   }
 
@@ -536,88 +450,5 @@
 
   .prop-inline-input[type='number'] {
     min-width: 4rem;
-  }
-
-  .editing-props {
-    gap: 0.375rem;
-  }
-
-  .prop-edit-chip {
-    display: flex;
-    align-items: stretch;
-    border: 1px solid var(--border-light);
-    border-radius: 9999px;
-    background: var(--bg-secondary);
-    font-size: 0.75rem;
-    overflow: hidden;
-  }
-
-  .prop-edit-label {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem 0.125rem 0.625rem;
-    font-size: 0.65rem;
-    color: var(--text-tertiary);
-    background: var(--bg-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-    border-right: 1px solid var(--border-light);
-  }
-
-  .prop-edit-chip .prop-value {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  .editing-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-left: auto;
-  }
-
-  .save-btn,
-  .cancel-btn {
-    padding: 0.25rem 0.5rem;
-    border: none;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .save-btn {
-    background: var(--accent-success, #22c55e);
-    color: white;
-  }
-
-  .save-btn:hover:not(:disabled) {
-    background: #16a34a;
-  }
-
-  .cancel-btn {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-  }
-
-  .cancel-btn:hover:not(:disabled) {
-    background: var(--bg-secondary);
-  }
-
-  .save-btn:disabled,
-  .cancel-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .note-list-item.editing {
-    background: var(--bg-secondary);
-    border-radius: 0.375rem;
-    padding: 0.5rem;
-    margin: 0.25rem 0;
   }
 </style>

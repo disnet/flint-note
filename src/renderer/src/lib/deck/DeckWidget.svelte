@@ -25,12 +25,6 @@
     options?: string[];
   }
 
-  // Type for editing values
-  interface EditingValues {
-    title: string;
-    metadata: Record<string, unknown>;
-  }
-
   interface Props {
     config: DeckConfig;
     onConfigChange: (config: DeckConfig) => void;
@@ -47,14 +41,8 @@
   let isEditingName = $state(false);
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
-
-  // Inline editing state (for new note creation and full row editing)
-  let editingNoteId = $state<string | null>(null);
-  let editingValues = $state<EditingValues | null>(null);
-  let editingVaultId = $state<string | null>(null);
-  let editingOriginalTitle = $state<string>('');
-  let isCreatingNewNote = $state(false);
-  let isSavingNote = $state(false);
+  let newlyCreatedNoteId = $state<string | null>(null);
+  let suppressRefresh = $state(false);
 
   // Schema fields for inline editing
   let schemaFields = $state<Map<string, SchemaFieldInfo>>(new Map());
@@ -221,12 +209,23 @@
   });
 
   function isRelevantEvent(event: NoteEvent): boolean {
-    if (editingNoteId) {
+    // Skip all events while we're creating a note (to prevent flash)
+    if (suppressRefresh) {
       return false;
     }
 
     if (event.type === 'notes.bulkRefresh' || event.type === 'file.sync-completed') {
       return true;
+    }
+
+    // Skip events for notes we just created (already added optimistically)
+    if (newlyCreatedNoteId) {
+      if (event.type === 'note.created' && event.note.id === newlyCreatedNoteId) {
+        return false;
+      }
+      if (event.type === 'note.updated' && 'noteId' in event && event.noteId === newlyCreatedNoteId) {
+        return false;
+      }
     }
 
     if (filteredType) {
@@ -284,26 +283,60 @@
       return;
     }
 
-    const noteType = filteredType || 'note';
-    const placeholderId = `__new__${Date.now()}`;
-    const newNote: DeckResultNote = {
-      id: placeholderId,
-      title: '',
-      type: noteType,
-      created: new Date().toISOString(),
-      updated: new Date().toISOString(),
-      metadata: {}
-    };
+    // Suppress refreshes during note creation to prevent flash
+    suppressRefresh = true;
 
-    results = [newNote, ...results];
+    try {
+      const noteType = filteredType || 'note';
 
-    editingNoteId = placeholderId;
-    editingVaultId = vault.id;
-    isCreatingNewNote = true;
-    editingValues = {
-      title: '',
-      metadata: {}
-    };
+      // Pre-fill metadata from equality filters (so note matches the deck's constraints)
+      const prefillMetadata: Record<string, unknown> = {};
+      for (const filter of config.filters) {
+        // Only use simple equality filters with single string values
+        const isEquality = !filter.operator || filter.operator === '=';
+        const isSimpleValue = typeof filter.value === 'string';
+        const isSystemField =
+          filter.field === 'type' ||
+          filter.field === 'flint_type' ||
+          filter.field.startsWith('flint_');
+
+        if (isEquality && isSimpleValue && !isSystemField) {
+          prefillMetadata[filter.field] = filter.value;
+        }
+      }
+
+      // Create the note immediately with empty title
+      const createdNote = await window.api?.createNote({
+        type: noteType,
+        identifier: '',
+        content: '',
+        metadata: prefillMetadata,
+        vaultId: vault.id
+      });
+
+      if (createdNote) {
+        // Add the new note to the top of results
+        // Merge prefillMetadata with API response (API response takes precedence)
+        const newNote: DeckResultNote = {
+          id: createdNote.id,
+          title: createdNote.title || '',
+          type: createdNote.type,
+          created: createdNote.created,
+          updated: createdNote.updated,
+          metadata: { ...prefillMetadata, ...(createdNote.metadata || {}) }
+        };
+        results = [newNote, ...results];
+        newlyCreatedNoteId = createdNote.id;
+      }
+    } catch (e) {
+      console.error('Failed to create note:', e);
+      error = e instanceof Error ? e.message : 'Failed to create note';
+    } finally {
+      // Re-enable refreshes after a short delay to let any pending events pass
+      setTimeout(() => {
+        suppressRefresh = false;
+      }, 100);
+    }
   }
 
   // System fields that cannot be modified via updateNote
@@ -446,121 +479,6 @@
     } catch (e) {
       console.error('Failed to change note type:', e);
       error = e instanceof Error ? e.message : 'Failed to change type';
-    }
-  }
-
-  function updateEditingValue(field: string, value: unknown): void {
-    if (!editingValues) return;
-
-    if (field === 'title' || field === 'flint_title') {
-      editingValues = { ...editingValues, title: String(value) };
-    } else {
-      editingValues = {
-        ...editingValues,
-        metadata: { ...editingValues.metadata, [field]: value }
-      };
-    }
-  }
-
-  async function saveEditingNote(): Promise<void> {
-    if (!editingNoteId || !editingValues || isSavingNote) return;
-
-    isSavingNote = true;
-
-    try {
-      const newTitle = editingValues.title.trim();
-      const metadataSnapshot = $state.snapshot(editingValues.metadata);
-
-      if (isCreatingNewNote) {
-        const noteType = filteredType || 'note';
-
-        await window.api?.createNote({
-          type: noteType,
-          identifier: newTitle,
-          content: '',
-          metadata: metadataSnapshot,
-          vaultId: editingVaultId ?? undefined
-        });
-
-        results = results.filter((r) => r.id !== editingNoteId);
-      } else {
-        const existingNote = await window.api?.getNote({
-          identifier: editingNoteId,
-          vaultId: editingVaultId ?? undefined
-        });
-
-        // Update metadata (excluding system fields)
-        if (Object.keys(metadataSnapshot).length > 0) {
-          await window.api?.updateNote({
-            identifier: editingNoteId,
-            content: existingNote?.content ?? '',
-            metadata: metadataSnapshot,
-            vaultId: editingVaultId ?? undefined
-          });
-        }
-
-        // Update title via renameNote if it changed
-        if (newTitle !== editingOriginalTitle) {
-          await window.api?.renameNote({
-            identifier: editingNoteId,
-            newIdentifier: newTitle,
-            vaultId: editingVaultId ?? undefined
-          });
-        }
-
-        const noteIndex = results.findIndex((r) => r.id === editingNoteId);
-        if (noteIndex !== -1) {
-          results[noteIndex] = {
-            ...results[noteIndex],
-            title: newTitle || '',
-            metadata: { ...results[noteIndex].metadata, ...editingValues.metadata }
-          };
-          results = [...results];
-        }
-      }
-
-      // Only refresh for new notes (to get the real note with proper ID)
-      // For edits, the optimistic update is sufficient
-      const shouldRefresh = isCreatingNewNote;
-
-      editingNoteId = null;
-      editingVaultId = null;
-      editingValues = null;
-      editingOriginalTitle = '';
-      isCreatingNewNote = false;
-
-      if (shouldRefresh) {
-        debouncedRefresh();
-      }
-    } catch (e) {
-      console.error('Failed to save note:', e);
-      error = e instanceof Error ? e.message : 'Failed to save note';
-    } finally {
-      isSavingNote = false;
-    }
-  }
-
-  function cancelEditing(): void {
-    if (!editingNoteId) return;
-
-    if (isCreatingNewNote) {
-      results = results.filter((r) => r.id !== editingNoteId);
-    }
-
-    editingNoteId = null;
-    editingVaultId = null;
-    editingValues = null;
-    editingOriginalTitle = '';
-    isCreatingNewNote = false;
-  }
-
-  function handleEditingKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      saveEditingNote();
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      cancelEditing();
     }
   }
 
@@ -830,19 +748,16 @@
           <NoteListItem
             note={result}
             columns={activeColumns}
-            isEditing={editingNoteId === result.id}
-            editingValues={editingNoteId === result.id
-              ? (editingValues ?? undefined)
-              : undefined}
             {schemaFields}
-            isSaving={isSavingNote}
-            onTitleSave={(newTitle) => saveTitleValue(result.id, newTitle)}
+            autoFocus={result.id === newlyCreatedNoteId}
+            onTitleSave={(newTitle) => {
+              saveTitleValue(result.id, newTitle);
+              if (result.id === newlyCreatedNoteId) {
+                newlyCreatedNoteId = null;
+              }
+            }}
             onTypeChange={(newType) => saveTypeValue(result.id, newType)}
             onFieldSave={(field, value) => saveFieldValue(result.id, field, value)}
-            onValueChange={updateEditingValue}
-            onKeyDown={handleEditingKeyDown}
-            onSave={saveEditingNote}
-            onCancel={cancelEditing}
             onOpen={() => onNoteOpen?.(result.id)}
           />
         {/each}
