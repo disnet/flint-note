@@ -4,6 +4,13 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-canary.2]
+
+## Changed
+
+- added decks (note queries)
+- update metadata/props styling
+
 ## [0.13.0-canary.1]
 
 ## Changed
