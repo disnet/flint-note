@@ -71,6 +71,8 @@
 
   // Note types (used for determining default type for new notes)
   let noteTypes = $state<string[]>([]);
+  // Type icons map (type name -> icon)
+  let typeIcons = $state<Record<string, string>>({});
 
   // Prop picker dialog state
   let isPropPickerOpen = $state(false);
@@ -140,10 +142,19 @@
       const types = await window.api?.listNoteTypes();
       if (types) {
         noteTypes = types.map((t: { name: string }) => t.name);
+        // Build icon map
+        const icons: Record<string, string> = {};
+        for (const t of types) {
+          if (t.icon) {
+            icons[t.name] = t.icon;
+          }
+        }
+        typeIcons = icons;
       }
     } catch (e) {
       console.error('Failed to load note types:', e);
       noteTypes = ['note'];
+      typeIcons = {};
     }
   }
 
@@ -589,7 +600,7 @@
     if (systemField) {
       // For flint_type, add note types as options for IN operator
       if (systemField.name === 'flint_type' && noteTypes.length > 0) {
-        return { ...systemField, options: noteTypes };
+        return { ...systemField, options: noteTypes, optionIcons: typeIcons };
       }
       return systemField;
     }
@@ -739,24 +750,6 @@
     });
   }
 
-  function handleViewReorder(fromIndex: number, toIndex: number): void {
-    const views = [...(config.views || [])];
-    const [moved] = views.splice(fromIndex, 1);
-    views.splice(toIndex, 0, moved);
-
-    // Adjust activeView if needed
-    let newActiveView = config.activeView || 0;
-    if (newActiveView === fromIndex) {
-      newActiveView = toIndex;
-    } else if (fromIndex < newActiveView && toIndex >= newActiveView) {
-      newActiveView--;
-    } else if (fromIndex > newActiveView && toIndex <= newActiveView) {
-      newActiveView++;
-    }
-
-    updateConfig({ ...config, views, activeView: newActiveView });
-  }
-
   function handleViewDuplicate(index: number): void {
     const views = config.views || [];
     const viewToDuplicate = views[index];
@@ -794,7 +787,6 @@
       onViewRename={handleViewRename}
       onViewCreate={handleViewCreate}
       onViewDelete={handleViewDelete}
-      onViewReorder={handleViewReorder}
       onViewDuplicate={handleViewDuplicate}
     />
     {#if !loading}

@@ -14,8 +14,6 @@
     onViewCreate: (name: string) => void;
     /** Called when a view is deleted */
     onViewDelete: (index: number) => void;
-    /** Called when views are reordered */
-    onViewReorder: (fromIndex: number, toIndex: number) => void;
     /** Called when a view is duplicated */
     onViewDuplicate: (index: number) => void;
   }
@@ -27,30 +25,39 @@
     onViewRename,
     onViewCreate,
     onViewDelete,
-    onViewReorder,
     onViewDuplicate
   }: Props = $props();
 
   let isOpen = $state(false);
   let buttonRef = $state<HTMLButtonElement | null>(null);
   let dropdownRef = $state<HTMLDivElement | null>(null);
-  let editingIndex = $state<number | null>(null);
-  let editingName = $state('');
   let menuOpenIndex = $state<number | null>(null);
+  let menuPosition = $state<{ top: number; left: number } | null>(null);
   let isCreatingNew = $state(false);
   let newViewName = $state('');
-  let nameInputRef = $state<HTMLInputElement | null>(null);
   let newViewInputRef = $state<HTMLInputElement | null>(null);
+  let viewNameInputRef = $state<HTMLInputElement | null>(null);
+
+  // Track the current input value for the active view name
+  let currentViewName = $state('');
 
   const activeView = $derived(views[activeViewIndex] || views[0]);
 
+  // Sync input value when active view changes
+  $effect(() => {
+    currentViewName = activeView?.name || 'Default';
+  });
+
   // Close dropdown when clicking outside
   function handleMouseDownOutside(event: MouseEvent): void {
+    const target = event.target as Node;
     if (
       dropdownRef &&
-      !dropdownRef.contains(event.target as Node) &&
+      !dropdownRef.contains(target) &&
       buttonRef &&
-      !buttonRef.contains(event.target as Node)
+      !buttonRef.contains(target) &&
+      viewNameInputRef &&
+      !viewNameInputRef.contains(target)
     ) {
       closeDropdown();
     }
@@ -67,14 +74,6 @@
       };
     }
     return undefined;
-  });
-
-  // Focus input when editing starts
-  $effect(() => {
-    if (editingIndex !== null && nameInputRef) {
-      nameInputRef.focus();
-      nameInputRef.select();
-    }
   });
 
   // Focus new view input
@@ -94,43 +93,35 @@
 
   function closeDropdown(): void {
     isOpen = false;
-    editingIndex = null;
     menuOpenIndex = null;
+    menuPosition = null;
     isCreatingNew = false;
     newViewName = '';
   }
 
   function handleViewClick(index: number): void {
-    if (editingIndex === index) return;
     onViewChange(index);
     closeDropdown();
   }
 
-  function startEditing(index: number, event: MouseEvent): void {
-    event.stopPropagation();
-    editingIndex = index;
-    editingName = views[index].name;
-    menuOpenIndex = null;
-  }
-
-  function saveEdit(): void {
-    if (editingIndex !== null && editingName.trim()) {
-      onViewRename(editingIndex, editingName.trim());
+  // Save view name when input loses focus or Enter is pressed
+  function saveViewName(): void {
+    const trimmedName = currentViewName.trim();
+    if (trimmedName && trimmedName !== activeView?.name) {
+      onViewRename(activeViewIndex, trimmedName);
+    } else if (!trimmedName) {
+      // Reset to current name if empty
+      currentViewName = activeView?.name || 'Default';
     }
-    editingIndex = null;
-    editingName = '';
   }
 
-  function cancelEdit(): void {
-    editingIndex = null;
-    editingName = '';
-  }
-
-  function handleEditKeyDown(event: KeyboardEvent): void {
+  function handleViewNameKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-      saveEdit();
+      saveViewName();
+      viewNameInputRef?.blur();
     } else if (event.key === 'Escape') {
-      cancelEdit();
+      currentViewName = activeView?.name || 'Default';
+      viewNameInputRef?.blur();
     }
   }
 
@@ -138,7 +129,14 @@
     event.stopPropagation();
     if (menuOpenIndex === index) {
       menuOpenIndex = null;
+      menuPosition = null;
     } else {
+      const button = event.currentTarget as HTMLButtonElement;
+      const rect = button.getBoundingClientRect();
+      menuPosition = {
+        top: rect.top,
+        left: rect.right + 4
+      };
       menuOpenIndex = index;
     }
   }
@@ -147,6 +145,7 @@
     event.stopPropagation();
     onViewDuplicate(index);
     menuOpenIndex = null;
+    menuPosition = null;
   }
 
   function handleDelete(index: number, event: MouseEvent): void {
@@ -155,35 +154,24 @@
       onViewDelete(index);
     }
     menuOpenIndex = null;
-  }
-
-  function handleMoveUp(index: number, event: MouseEvent): void {
-    event.stopPropagation();
-    if (index > 0) {
-      onViewReorder(index, index - 1);
-    }
-    menuOpenIndex = null;
-  }
-
-  function handleMoveDown(index: number, event: MouseEvent): void {
-    event.stopPropagation();
-    if (index < views.length - 1) {
-      onViewReorder(index, index + 1);
-    }
-    menuOpenIndex = null;
+    menuPosition = null;
   }
 
   function startCreatingNew(): void {
     isCreatingNew = true;
     newViewName = '';
     menuOpenIndex = null;
+    menuPosition = null;
   }
 
   function createNewView(): void {
+    // Guard against double-calling (Enter triggers this, then blur fires too)
+    if (!isCreatingNew) return;
+
     const name = newViewName.trim() || 'New View';
-    onViewCreate(name);
     isCreatingNew = false;
     newViewName = '';
+    onViewCreate(name);
     closeDropdown();
   }
 
@@ -210,29 +198,38 @@
 </script>
 
 <div class="view-switcher">
-  <button
-    bind:this={buttonRef}
-    class="view-button"
-    type="button"
-    onclick={toggleDropdown}
-    title="Switch view"
-  >
-    <span class="view-name">{activeView?.name || 'Default'}</span>
-    <svg
-      class="chevron"
-      class:open={isOpen}
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+  <div class="view-control">
+    <input
+      bind:this={viewNameInputRef}
+      type="text"
+      class="view-name-input"
+      bind:value={currentViewName}
+      onblur={saveViewName}
+      onkeydown={handleViewNameKeyDown}
+    />
+    <button
+      bind:this={buttonRef}
+      class="dropdown-button"
+      type="button"
+      onclick={toggleDropdown}
+      title="Switch view"
     >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  </button>
+      <svg
+        class="chevron"
+        class:open={isOpen}
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+  </div>
 
   {#if isOpen}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -245,33 +242,21 @@
             class:active={index === activeViewIndex}
             onclick={() => handleViewClick(index)}
           >
-            {#if editingIndex === index}
-              <input
-                bind:this={nameInputRef}
-                type="text"
-                class="view-name-input"
-                bind:value={editingName}
-                onblur={saveEdit}
-                onkeydown={handleEditKeyDown}
-                onclick={(e) => e.stopPropagation()}
-              />
-            {:else}
-              <span class="view-item-name">{view.name}</span>
-              {#if index === activeViewIndex}
-                <svg
-                  class="check-icon"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              {/if}
+            <span class="view-item-name">{view.name}</span>
+            {#if index === activeViewIndex}
+              <svg
+                class="check-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             {/if}
 
             <button
@@ -286,57 +271,36 @@
                 <circle cx="12" cy="19" r="2" />
               </svg>
             </button>
-
-            {#if menuOpenIndex === index}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="context-menu" onclick={(e) => e.stopPropagation()}>
-                <button
-                  class="context-item"
-                  type="button"
-                  onclick={(e) => startEditing(index, e)}
-                >
-                  Rename
-                </button>
-                <button
-                  class="context-item"
-                  type="button"
-                  onclick={(e) => handleDuplicate(index, e)}
-                >
-                  Duplicate
-                </button>
-                {#if index > 0}
-                  <button
-                    class="context-item"
-                    type="button"
-                    onclick={(e) => handleMoveUp(index, e)}
-                  >
-                    Move Up
-                  </button>
-                {/if}
-                {#if index < views.length - 1}
-                  <button
-                    class="context-item"
-                    type="button"
-                    onclick={(e) => handleMoveDown(index, e)}
-                  >
-                    Move Down
-                  </button>
-                {/if}
-                {#if views.length > 1}
-                  <div class="context-divider"></div>
-                  <button
-                    class="context-item danger"
-                    type="button"
-                    onclick={(e) => handleDelete(index, e)}
-                  >
-                    Delete
-                  </button>
-                {/if}
-              </div>
-            {/if}
           </div>
         {/each}
       </div>
+
+      {#if menuOpenIndex !== null && menuPosition}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="context-menu"
+          style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <button
+            class="context-item"
+            type="button"
+            onclick={(e) => handleDuplicate(menuOpenIndex!, e)}
+          >
+            Duplicate
+          </button>
+          {#if views.length > 1}
+            <div class="context-divider"></div>
+            <button
+              class="context-item danger"
+              type="button"
+              onclick={(e) => handleDelete(menuOpenIndex!, e)}
+            >
+              Delete
+            </button>
+          {/if}
+        </div>
+      {/if}
 
       <div class="dropdown-divider"></div>
 
@@ -380,31 +344,49 @@
     display: inline-flex;
   }
 
-  .view-button {
+  .view-control {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-secondary);
-    color: var(--text-secondary);
+    overflow: hidden;
+  }
+
+  .view-control:focus-within {
+    border-color: var(--accent-primary);
+  }
+
+  .view-name-input {
+    width: 100px;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
     font-size: 0.75rem;
+    outline: none;
+  }
+
+  .view-name-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .dropdown-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.375rem;
+    border: none;
+    border-left: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
-  .view-button:hover {
+  .dropdown-button:hover {
     background: var(--bg-tertiary);
-    border-color: var(--border-medium);
     color: var(--text-primary);
-  }
-
-  .view-name {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .chevron {
@@ -477,17 +459,6 @@
     white-space: nowrap;
   }
 
-  .view-name-input {
-    flex: 1;
-    padding: 0.125rem 0.25rem;
-    border: 1px solid var(--accent-primary);
-    border-radius: 0.25rem;
-    font-size: 0.8rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    outline: none;
-  }
-
   .check-icon {
     flex-shrink: 0;
     color: var(--accent-primary);
@@ -518,10 +489,7 @@
   }
 
   .context-menu {
-    position: absolute;
-    top: 0;
-    right: 0;
-    transform: translateX(100%);
+    position: fixed;
     background: var(--bg-primary);
     border: 1px solid var(--border-medium);
     border-radius: 0.375rem;

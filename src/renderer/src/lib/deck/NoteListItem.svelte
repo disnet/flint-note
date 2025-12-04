@@ -478,6 +478,7 @@
   }
 
   .prop-inline-input[type='number'] {
-    min-width: 4rem;
+    field-sizing: content;
+    min-width: 3rem;
   }
 </style>

@@ -119,7 +119,7 @@ This now displays an error widget prompting users to create a standalone deck no
 - **Embedded View**: Widget renders inline when cursor is outside the code block
 - **Edit Mode**: Shows raw embed syntax (`n-<id>`) when cursor is inside the block
 - **Header**: View switcher dropdown and result count
-- **View Switcher**: Dropdown to switch between views, with options to rename, duplicate, reorder, and delete views
+- **View Switcher**: Dropdown to switch between views, with options to rename, duplicate, and delete views
 - **Table**: Shows title column (always first) plus configured metadata columns
 - **Clickable Titles**: Click title to navigate to note
 - **Sortable Headers**: Click column headers to toggle sort order
@@ -165,7 +165,7 @@ src/renderer/src/lib/deck/
 ├── queryService.svelte.ts      # Query execution
 ├── DeckWidget.svelte           # Main UI component
 ├── DeckToolbar.svelte          # Toolbar with filters/columns/sort
-├── ViewSwitcher.svelte         # View dropdown with management (rename, duplicate, delete, reorder)
+├── ViewSwitcher.svelte         # View dropdown with management (rename, duplicate, delete)
 ├── NoteListItem.svelte         # Individual note row
 ├── FilterBuilder.svelte        # Visual filter editor
 ├── FilterRow.svelte            # Single filter row
@@ -221,7 +221,7 @@ src/server/api/flint-note-api.ts
 ### v9: Multi-View Support
 
 - **Multiple views per deck**: Each deck can have multiple named views with different filters, columns, and sort
-- **View switcher dropdown**: Header displays view name with dropdown to switch, create, rename, duplicate, reorder, and delete views
+- **View switcher dropdown**: Header displays view name with dropdown to switch, create, rename, duplicate, and delete views
 - **Per-view configuration**: Each view has its own filters, columns, and sort settings
 - **Auto-migration**: Legacy single-view decks automatically migrate to multi-view format with a "Default" view
 - **Removed deck name**: Decks no longer have a top-level name; views provide the naming

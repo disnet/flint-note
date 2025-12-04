@@ -193,6 +193,9 @@
                 onchange={(e) =>
                   handleCheckboxChange(option, (e.target as HTMLInputElement).checked)}
               />
+              {#if fieldInfo?.optionIcons}
+                <span class="option-icon">{fieldInfo.optionIcons[option] || '📄'}</span>
+              {/if}
               <span class="checkbox-label">{option}</span>
             </label>
           {/each}
@@ -206,7 +209,11 @@
         <select class="value-input" value={currentValue} onchange={handleValueChange}>
           <option value="">Select...</option>
           {#each fieldInfo.options as option (option)}
-            <option value={option}>{option}</option>
+            <option value={option}
+              >{fieldInfo?.optionIcons
+                ? `${fieldInfo.optionIcons[option] || '📄'} ${option}`
+                : option}</option
+            >
           {/each}
         </select>
       {:else if fieldInfo?.type === 'date'}
@@ -376,6 +383,11 @@
   .checkbox-label {
     font-size: 0.75rem;
     color: var(--text-primary);
+  }
+
+  .option-icon {
+    font-size: 0.875rem;
+    line-height: 1;
   }
 
   /* For date inputs */

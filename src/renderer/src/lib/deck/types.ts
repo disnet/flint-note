@@ -119,6 +119,8 @@ export interface FilterFieldInfo {
   description?: string;
   /** Available options for select fields */
   options?: string[];
+  /** Icons for options (keyed by option value) */
+  optionIcons?: Record<string, string>;
   /** Whether this is a system field */
   isSystem?: boolean;
 }
