@@ -392,10 +392,6 @@ export class EditorConfig {
                 if (this.editorView) {
                   updateDeckBlock(this.editorView, from, to, newConfig);
                 }
-              },
-              onNoteClick: (noteId, shiftKey) => {
-                // Reuse wikilink click handler for note navigation
-                this.options.onWikilinkClick?.(noteId, '', false, shiftKey);
               }
             })
           ]

@@ -121,9 +121,6 @@ class DeckWidgetType extends WidgetType {
         config: this.config,
         onConfigChange: (newConfig: DeckConfig) => {
           this.handlers.onConfigChange(this.blockFrom, this.blockTo, newConfig);
-        },
-        onNoteClick: (noteId: string, shiftKey?: boolean) => {
-          this.handlers.onNoteClick(noteId, shiftKey);
         }
       }
     });

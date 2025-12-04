@@ -34,10 +34,9 @@
   interface Props {
     config: DeckConfig;
     onConfigChange: (config: DeckConfig) => void;
-    onNoteClick: (noteId: string, shiftKey?: boolean) => void;
   }
 
-  let { config, onConfigChange, onNoteClick }: Props = $props();
+  let { config, onConfigChange }: Props = $props();
 
   // State
   let results = $state<DeckResultNote[]>([]);
@@ -272,12 +271,6 @@
     }
   }
 
-  function handleNoteClick(result: DeckResultNote, event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    onNoteClick(result.id, event.shiftKey);
-  }
-
   async function handleNewNoteClick(): Promise<void> {
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
@@ -417,6 +410,39 @@
     } catch (e) {
       console.error('Failed to rename note:', e);
       error = e instanceof Error ? e.message : 'Failed to rename';
+    }
+  }
+
+  /**
+   * Change a note's type (move to different type)
+   */
+  async function saveTypeValue(noteId: string, newType: string): Promise<void> {
+    try {
+      const vault = await window.api?.getCurrentVault();
+      if (!vault?.id) return;
+
+      // Get the current note
+      const noteIndex = results.findIndex((r) => r.id === noteId);
+      if (noteIndex === -1) return;
+
+      const currentType = results[noteIndex].type;
+      if (newType === currentType) return;
+
+      await window.api?.moveNote({
+        identifier: noteId,
+        newType,
+        vaultId: vault.id
+      });
+
+      // Optimistically update local results
+      results[noteIndex] = {
+        ...results[noteIndex],
+        type: newType
+      };
+      results = [...results];
+    } catch (e) {
+      console.error('Failed to change note type:', e);
+      error = e instanceof Error ? e.message : 'Failed to change type';
     }
   }
 
@@ -807,8 +833,8 @@
               : undefined}
             {schemaFields}
             isSaving={isSavingNote}
-            onTitleClick={(e) => handleNoteClick(result, e)}
             onTitleSave={(newTitle) => saveTitleValue(result.id, newTitle)}
+            onTypeChange={(newType) => saveTypeValue(result.id, newType)}
             onFieldSave={(field, value) => saveFieldValue(result.id, field, value)}
             onValueChange={updateEditingValue}
             onKeyDown={handleEditingKeyDown}
@@ -827,7 +853,8 @@
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .deck-header {

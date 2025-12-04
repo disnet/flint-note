@@ -2,7 +2,7 @@
   import type { DeckResultNote, ColumnConfig } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
   import EditableCell from './EditableCell.svelte';
-  import { notesStore } from '../../services/noteStore.svelte';
+  import NoteTypeDropdown from '../../components/NoteTypeDropdown.svelte';
 
   interface SchemaFieldInfo {
     name: string;
@@ -23,10 +23,10 @@
     schemaFields: Map<string, SchemaFieldInfo>;
     /** Whether currently saving */
     isSaving: boolean;
-    /** Called when note title is clicked (for navigation) */
-    onTitleClick: (event: MouseEvent) => void;
     /** Called when title is renamed inline */
     onTitleSave?: (newTitle: string) => void;
+    /** Called when note type is changed */
+    onTypeChange?: (newType: string) => Promise<void>;
     /** Called when a field value is saved inline (for chip editing) */
     onFieldSave?: (field: string, value: unknown) => void;
     /** Called when editing value changes (for full row editing) */
@@ -46,8 +46,8 @@
     editingValues,
     schemaFields,
     isSaving,
-    onTitleClick,
     onTitleSave,
+    onTypeChange,
     onFieldSave,
     onValueChange,
     onKeyDown,
@@ -58,6 +58,13 @@
   // Local state for title editing
   let titleValue = $state(note.title || '');
   let titleTextarea: HTMLTextAreaElement | undefined = $state();
+
+  // Handle type change
+  async function handleTypeChange(newType: string): Promise<void> {
+    if (onTypeChange) {
+      await onTypeChange(newType);
+    }
+  }
 
   // Adjust textarea height to fit content
   function adjustTextareaHeight(): void {
@@ -205,12 +212,6 @@
   function handleFieldChange(field: string, value: unknown): void {
     onFieldSave?.(field, value);
   }
-
-  // Get note type icon
-  function getTypeIcon(typeName: string): string | undefined {
-    const noteType = notesStore.noteTypes.find((t) => t.name === typeName);
-    return noteType?.icon;
-  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -281,16 +282,13 @@
     <!-- Display mode with inline editable chips -->
     <div class="note-display">
       <div class="note-title-row">
-        {#if getTypeIcon(note.type)}
-          <button
-            class="type-icon-btn"
-            onclick={onTitleClick}
-            type="button"
-            title="Open note"
-          >
-            <span class="type-icon">{getTypeIcon(note.type)}</span>
-          </button>
-        {/if}
+        <div class="type-dropdown-wrapper" onmousedown={(e) => e.stopPropagation()}>
+          <NoteTypeDropdown
+            currentType={note.type}
+            onTypeChange={handleTypeChange}
+            compact
+          />
+        </div>
         <textarea
           bind:this={titleTextarea}
           class="title-input"
@@ -405,31 +403,14 @@
 
   .note-title-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.25rem;
     width: 100%;
     min-width: 0;
   }
 
-  .type-icon-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.125rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: transparent;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .type-icon-btn:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .type-icon {
-    font-size: 0.875rem;
-    line-height: 1;
+  .type-dropdown-wrapper {
+    flex-shrink: 0;
   }
 
   .title-input {

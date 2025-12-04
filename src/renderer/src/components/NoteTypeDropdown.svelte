@@ -5,16 +5,20 @@
     currentType: string;
     onTypeChange: (newType: string) => Promise<void>;
     disabled?: boolean;
+    /** When true, shows only the type icon (no name or dropdown arrow) */
+    compact?: boolean;
   }
 
-  let { currentType, onTypeChange, disabled = false }: Props = $props();
+  let { currentType, onTypeChange, disabled = false, compact = false }: Props = $props();
 
   let isOpen = $state(false);
   let isSaving = $state(false);
   let dropdownRef = $state<HTMLDivElement | null>(null);
+  let buttonRef = $state<HTMLButtonElement | null>(null);
   let searchQuery = $state('');
   let searchInputRef = $state<HTMLInputElement | null>(null);
   let highlightedIndex = $state(0);
+  let menuPosition = $state({ top: 0, left: 0 });
 
   // Get available note types from the store
   let availableTypes = $derived(notesStore.noteTypes);
@@ -40,9 +44,10 @@
 
   $effect(() => {
     if (isOpen) {
-      document.addEventListener('click', handleClickOutside);
+      // Use capture phase to detect clicks before stopPropagation can block them
+      document.addEventListener('click', handleClickOutside, true);
       return () => {
-        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('click', handleClickOutside, true);
       };
     }
     return undefined;
@@ -78,8 +83,21 @@
     };
   });
 
+  function updateMenuPosition(): void {
+    if (buttonRef) {
+      const rect = buttonRef.getBoundingClientRect();
+      menuPosition = {
+        top: rect.bottom + 4,
+        left: rect.left
+      };
+    }
+  }
+
   function toggleDropdown(): void {
     if (!disabled && !isSaving) {
+      if (!isOpen) {
+        updateMenuPosition();
+      }
       isOpen = !isOpen;
     }
   }
@@ -148,8 +166,10 @@
   class="note-type-dropdown"
   class:disabled
   class:saving={isSaving}
+  class:compact
 >
   <button
+    bind:this={buttonRef}
     class="type-button"
     onclick={toggleDropdown}
     type="button"
@@ -158,17 +178,21 @@
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
-    {#if availableTypes.find((t) => t.name === currentType)?.icon}
-      <span class="type-icon"
-        >{availableTypes.find((t) => t.name === currentType)?.icon}</span
-      >
+    <span class="type-icon"
+      >{availableTypes.find((t) => t.name === currentType)?.icon || '📄'}</span
+    >
+    {#if !compact}
+      <span class="type-name">{currentType}</span>
+      <span class="dropdown-icon" class:open={isOpen}>▼</span>
     {/if}
-    <span class="type-name">{currentType}</span>
-    <span class="dropdown-icon" class:open={isOpen}>▼</span>
   </button>
 
   {#if isOpen}
-    <div class="dropdown-menu" role="menu">
+    <div
+      class="dropdown-menu"
+      role="menu"
+      style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
+    >
       <div class="search-container">
         <input
           bind:this={searchInputRef}
@@ -219,9 +243,7 @@
             role="menuitem"
           >
             <div class="item-main">
-              {#if noteType.icon}
-                <span class="item-icon">{noteType.icon}</span>
-              {/if}
+              <span class="item-icon">{noteType.icon || '📄'}</span>
               <span class="item-name">{noteType.name}</span>
             </div>
             <span class="item-count">{noteType.count}</span>
@@ -276,6 +298,23 @@
     cursor: wait;
   }
 
+  /* Compact mode styles */
+  .note-type-dropdown.compact {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .note-type-dropdown.compact .type-button {
+    padding: 0.125rem;
+    gap: 0;
+    height: auto;
+    line-height: 1;
+  }
+
+  .note-type-dropdown.compact .type-icon {
+    font-size: 0.875rem;
+  }
+
   .type-icon {
     font-size: 1rem;
     line-height: 1;
@@ -296,16 +335,14 @@
   }
 
   .dropdown-menu {
-    position: absolute;
-    top: calc(100% + 0.25rem);
-    left: 0;
-    min-width: 100%;
+    position: fixed;
+    min-width: 160px;
     max-height: 24rem; /* ~10 items at 2.4rem each */
     background: var(--bg-primary);
     border: 1px solid var(--border-medium);
     border-radius: 0.375rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
+    z-index: 10000;
     animation: slideDown 0.15s ease-out;
     overflow-y: auto;
     overflow-x: hidden;
