@@ -206,7 +206,7 @@
 
   .loading-indicator {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-style: italic;
   }
 
@@ -229,7 +229,7 @@
 
   .empty-hint {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .add-filter-btn {

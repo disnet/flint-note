@@ -248,7 +248,7 @@
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .search-input:focus {
@@ -263,7 +263,7 @@
   .no-results {
     padding: 1rem;
     text-align: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
     font-style: italic;
   }
@@ -314,7 +314,7 @@
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
     background: var(--bg-tertiary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     flex-shrink: 0;
   }
 

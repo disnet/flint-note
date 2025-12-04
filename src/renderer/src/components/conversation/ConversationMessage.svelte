@@ -46,7 +46,7 @@
   // Determine border color based on role and state
   let borderColor = $derived.by(() => {
     if (variant === 'section') {
-      if (collapsed) return 'var(--text-tertiary)';
+      if (collapsed) return 'var(--text-muted)';
       if (role === 'user') return 'var(--accent-secondary)';
       if (role === 'agent' && label?.toLowerCase().includes('feedback')) {
         return 'var(--success)';
@@ -152,7 +152,7 @@
   }
 
   .section-variant.collapsed .message-label {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .section-variant .message-content {

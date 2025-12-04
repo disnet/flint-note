@@ -296,7 +296,7 @@
     display: flex;
     align-items: center;
     padding: 0.125rem 0.5rem 0.125rem 0.625rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     background: var(--bg-tertiary);
   }
 
@@ -364,7 +364,7 @@
     border: 1px solid var(--border-light);
     border-radius: 9999px;
     background: var(--bg-secondary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.15s ease;

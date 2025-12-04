@@ -1370,7 +1370,7 @@
   }
 
   .untitled-text {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     opacity: 0.6;
     font-style: italic;
   }

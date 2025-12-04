@@ -132,7 +132,7 @@
   .toast-dismiss {
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     padding: 0.25rem;
     font-size: 1rem;

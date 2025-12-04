@@ -270,7 +270,7 @@
 
   .chevron {
     transition: transform 0.2s ease;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .chevron.expanded {
@@ -307,7 +307,7 @@
   }
 
   .menu-item.disabled {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: not-allowed;
   }
 
@@ -318,7 +318,7 @@
   .item-shortcut {
     margin-left: 16px;
     font-size: 11px;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .menu-separator {

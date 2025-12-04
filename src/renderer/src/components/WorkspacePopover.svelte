@@ -541,7 +541,7 @@
 
   .shortcut {
     font-size: 0.6875rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-weight: 400;
     letter-spacing: 0.025em;
     opacity: 0.5;
@@ -630,7 +630,7 @@
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .search-input:focus {
@@ -841,7 +841,7 @@
   .menu-hint {
     margin-left: auto;
     font-size: 0.6875rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-weight: 400;
   }
 </style>

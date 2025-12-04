@@ -206,6 +206,6 @@
 
   .empty-state .hint {
     font-size: 0.85rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 </style>

@@ -253,7 +253,7 @@
 
   .editor-hint {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-style: italic;
     text-align: right;
   }

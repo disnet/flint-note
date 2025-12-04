@@ -790,7 +790,7 @@
   .clear-all {
     background: none;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
     cursor: pointer;
     white-space: nowrap;

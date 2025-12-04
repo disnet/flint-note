@@ -399,7 +399,7 @@
     border: none;
     border-radius: 0.25rem;
     cursor: pointer;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     opacity: 0;
     transition: all 0.15s ease;
   }

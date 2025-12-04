@@ -1079,7 +1079,7 @@
     left: 0.75rem;
     width: 1rem;
     height: 1rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     pointer-events: none;
     z-index: 3;
   }
@@ -1127,7 +1127,7 @@
     border: none;
     border-radius: 0.25rem;
     background: transparent;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -1197,7 +1197,7 @@
   }
 
   .search-results::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
   }
 
   .search-result-item {
@@ -1258,7 +1258,7 @@
 
   .result-path {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1280,7 +1280,7 @@
   .loading-placeholder {
     padding: 1rem;
     text-align: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.875rem;
   }
 
@@ -1331,7 +1331,7 @@
     padding: 0.5rem 1rem;
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: var(--bg-secondary);
@@ -1358,7 +1358,7 @@
   }
 
   .action-results::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
   }
 
   .action-item {
@@ -1396,7 +1396,7 @@
 
   .action-shortcut {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     background: var(--bg-tertiary);
     padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
@@ -1443,7 +1443,7 @@
   .conversations-header {
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 0.25rem 0.5rem 0.5rem;
@@ -1494,7 +1494,7 @@
     display: flex;
     gap: 0.5rem;
     font-size: 0.6875rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .conversation-count {
@@ -1516,7 +1516,7 @@
     justify-content: center;
     padding: 0.5rem;
     font-size: 0.6875rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     border-top: 1px solid var(--border-light);
     margin-top: 0.5rem;
   }
@@ -1533,7 +1533,7 @@
   }
 
   .agent-hint {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
   }
 
@@ -1570,7 +1570,7 @@
   .agent-user-label {
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -1796,7 +1796,7 @@
 
   .agent-actions .agent-hint {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     margin-bottom: 0;
   }
 
@@ -1837,7 +1837,7 @@
     padding: 0.5rem 1rem;
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: var(--bg-secondary);
@@ -1863,7 +1863,7 @@
   }
 
   .wikilink-results::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
   }
 
   .wikilink-item {
@@ -1912,7 +1912,7 @@
 
   .wikilink-id {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-family: var(--font-mono, monospace);
   }
 
@@ -1923,7 +1923,7 @@
     display: flex;
     gap: 1rem;
     font-size: 0.65rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   @media (max-width: 768px) {

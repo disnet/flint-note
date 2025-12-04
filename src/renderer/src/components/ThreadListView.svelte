@@ -197,7 +197,7 @@
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .search-input:focus {
@@ -301,7 +301,7 @@
 
   .thread-date {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     white-space: nowrap;
     flex-shrink: 0;
   }
@@ -346,7 +346,7 @@
   .no-threads {
     padding: 2rem 1rem;
     text-align: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.875rem;
   }
 </style>

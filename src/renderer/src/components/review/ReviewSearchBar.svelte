@@ -246,7 +246,7 @@
   }
 
   .search-icon {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     flex-shrink: 0;
   }
 
@@ -261,7 +261,7 @@
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .clear-btn {
@@ -272,7 +272,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     transition: color 0.2s;
     flex-shrink: 0;
   }
@@ -346,7 +346,7 @@
   }
 
   .meta-separator {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .result-action {

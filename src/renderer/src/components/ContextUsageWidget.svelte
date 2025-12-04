@@ -224,7 +224,7 @@
   }
 
   .tooltip-percentage.loading-text {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-style: italic;
   }
 

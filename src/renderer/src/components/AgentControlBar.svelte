@@ -393,7 +393,7 @@
   .no-conversations {
     padding: 2rem 1rem;
     text-align: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.875rem;
   }
 

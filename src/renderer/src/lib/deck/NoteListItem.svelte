@@ -424,7 +424,7 @@
     display: flex;
     align-items: center;
     padding: 0.125rem 0.5rem 0.125rem 0.625rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     background: var(--bg-tertiary);
   }
 

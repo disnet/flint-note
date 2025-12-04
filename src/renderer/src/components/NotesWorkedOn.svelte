@@ -75,7 +75,7 @@
 
   .notes-count {
     background: var(--bg-tertiary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 600;
     padding: 0.25rem 0.5rem;

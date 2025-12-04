@@ -198,6 +198,6 @@
 
   .dismiss-btn {
     background: var(--bg-tertiary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 </style>

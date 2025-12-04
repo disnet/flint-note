@@ -143,11 +143,11 @@
   }
 
   .stat-item.retired {
-    border-color: var(--text-tertiary);
+    border-color: var(--text-muted);
   }
 
   .stat-item.secondary {
-    border-color: var(--text-tertiary);
+    border-color: var(--text-muted);
   }
 
   .stat-value {
@@ -246,7 +246,7 @@
   }
 
   .result-item.rating-4 {
-    border-left-color: var(--text-tertiary);
+    border-left-color: var(--text-muted);
   }
 
   .result-header {
@@ -284,7 +284,7 @@
   }
 
   .result-item.rating-4 .result-rating {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
     color: white;
   }
 

@@ -363,7 +363,7 @@
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .search-input:focus {

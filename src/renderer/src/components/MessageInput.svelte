@@ -407,7 +407,7 @@
   .credits-display {
     position: relative;
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     padding: 0.25rem 0.5rem;
     background: var(--bg-tertiary);
     border-radius: 0.375rem;
@@ -479,7 +479,7 @@
 
   .credits-label {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-weight: 500;
   }
 

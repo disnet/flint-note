@@ -317,7 +317,7 @@
     border: 1.5px solid var(--border-medium);
     border-radius: 0.25rem;
     background: var(--bg-secondary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .boolean-check.checked {

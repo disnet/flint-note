@@ -140,7 +140,7 @@
 
   .prompt-section.collapsed {
     background: var(--bg-tertiary);
-    border-left-color: var(--text-tertiary);
+    border-left-color: var(--text-muted);
   }
 
   .response-section {
@@ -216,7 +216,7 @@
     padding: 0.125rem 0.375rem;
     border-radius: 4px;
     background: var(--bg-tertiary);
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .rating-btn .label {
@@ -266,12 +266,12 @@
   }
 
   .processed-btn {
-    border-color: var(--text-tertiary);
-    color: var(--text-tertiary);
+    border-color: var(--text-muted);
+    color: var(--text-muted);
   }
 
   .processed-btn:hover:not(:disabled) {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
     color: #ffffff;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
@@ -288,7 +288,7 @@
 
   .keyboard-hint {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-style: italic;
   }
 </style>

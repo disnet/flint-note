@@ -309,7 +309,7 @@
     display: flex;
     justify-content: center;
     margin-bottom: 1.5rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .empty-content h2 {
@@ -321,7 +321,7 @@
 
   .empty-content p {
     margin: 0;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     line-height: 1.5;
   }
 

@@ -264,7 +264,7 @@
     display: flex;
     justify-content: center;
     margin-bottom: 1.5rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .error-content h2 {
@@ -276,7 +276,7 @@
 
   .error-content p {
     margin: 0 0 1.5rem 0;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     line-height: 1.5;
   }
 

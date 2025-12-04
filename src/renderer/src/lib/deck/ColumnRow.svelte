@@ -320,7 +320,7 @@
     padding: 0;
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: grab;
     border-radius: 0.25rem;
     flex-shrink: 0;
@@ -362,7 +362,7 @@
   }
 
   .label-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .format-select {
@@ -397,7 +397,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: 0.25rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -422,7 +422,7 @@
     padding: 0;
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.2s ease;

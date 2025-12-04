@@ -146,6 +146,6 @@
   }
 
   .drawer-content::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
   }
 </style>

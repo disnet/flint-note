@@ -368,7 +368,7 @@
   }
 
   .view-name-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .dropdown-button {
@@ -472,7 +472,7 @@
     border: none;
     border-radius: 0.25rem;
     background: transparent;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     opacity: 0;
     transition: all 0.15s ease;
@@ -572,6 +572,6 @@
   }
 
   .new-view-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 </style>

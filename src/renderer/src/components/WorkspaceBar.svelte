@@ -495,7 +495,7 @@
   }
 
   .context-menu-item:disabled {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: not-allowed;
     opacity: 0.5;
   }

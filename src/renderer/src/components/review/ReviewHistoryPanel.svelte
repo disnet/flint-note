@@ -206,7 +206,7 @@
   }
 
   .badge.rating-4 {
-    background: var(--text-tertiary);
+    background: var(--text-muted);
     color: #ffffff;
   }
 

@@ -332,7 +332,7 @@
   }
 
   .text-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .text-input:focus,
@@ -439,7 +439,7 @@
   }
 
   .tag-text-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   /* Suggestions dropdown */

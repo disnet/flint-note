@@ -300,7 +300,7 @@
   }
 
   .cell-input::placeholder {
-    color: var(--text-tertiary, #999);
+    color: var(--text-muted, #999);
   }
 
   .cell-select {

@@ -888,7 +888,7 @@
 
   .deck-count {
     font-size: 0.75rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .deck-content {
@@ -900,7 +900,7 @@
   .deck-empty {
     padding: 1rem;
     text-align: center;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-size: 0.8rem;
   }
 

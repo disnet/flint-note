@@ -149,7 +149,7 @@
     padding: 0;
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.2s ease;

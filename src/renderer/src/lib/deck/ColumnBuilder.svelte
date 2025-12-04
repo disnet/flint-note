@@ -253,7 +253,7 @@
 
   .loading-indicator {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     font-style: italic;
   }
 
@@ -276,7 +276,7 @@
 
   .empty-hint {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   .add-column-btn {
@@ -311,6 +311,6 @@
 
   .hint-text {
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 </style>

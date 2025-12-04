@@ -311,7 +311,7 @@
     border: none;
     border-radius: 0.25rem;
     background: transparent;
-    color: var(--text-tertiary);
+    color: var(--text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
     flex-shrink: 0;
@@ -344,7 +344,7 @@
   }
 
   .value-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
   }
 
   /* Checkbox list for multi-select */
