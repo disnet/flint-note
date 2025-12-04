@@ -39,6 +39,7 @@
   import { settingsStore } from './stores/settingsStore.svelte';
   import { logger } from './utils/logger';
   import { actionRegistry } from './services/actionRegistry.svelte';
+  import { serializeDeckConfig, createEmptyDeckConfig } from './lib/deck/yaml-utils';
 
   // Initialize action registry with a callback to execute actions
   // This dispatches a custom event that our menu handlers will pick up
@@ -133,6 +134,9 @@
       switch (action) {
         case 'new-note':
           await handleCreateNote(undefined, true);
+          break;
+        case 'new-deck':
+          await handleCreateDeck();
           break;
         case 'new-vault':
           document.dispatchEvent(new CustomEvent('vault-create-modal-open'));
@@ -321,6 +325,9 @@
       switch (action) {
         case 'new-note':
           await handleCreateNote(undefined, true);
+          break;
+        case 'new-deck':
+          await handleCreateDeck();
           break;
         case 'new-vault':
           document.dispatchEvent(new CustomEvent('vault-create-modal-open'));
@@ -1211,6 +1218,61 @@
     }
   }
 
+  /**
+   * Create a new deck note with default configuration
+   */
+  async function handleCreateDeck(): Promise<void> {
+    try {
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for deck creation');
+        return;
+      }
+
+      // Create default deck configuration
+      const defaultConfig = {
+        ...createEmptyDeckConfig(),
+        name: 'New Deck',
+        sort: { field: 'flint_updated', order: 'desc' as const }
+      };
+
+      // Create the deck note with kind: 'deck'
+      const createdNote = await chatService.createNote({
+        type: 'note',
+        kind: 'deck',
+        identifier: 'New Deck',
+        content: serializeDeckConfig(defaultConfig),
+        vaultId: currentVault.id
+      });
+
+      // Convert to NoteMetadata format
+      const noteMetadata: NoteMetadata = {
+        id: createdNote.id,
+        type: createdNote.type,
+        flint_kind: 'deck',
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0
+      };
+
+      // Open the new deck note
+      await noteNavigationService.openNote(
+        noteMetadata,
+        'navigation',
+        openNoteEditor,
+        () => {
+          activeSystemView = null;
+        }
+      );
+    } catch (error) {
+      console.error('Failed to create deck:', error);
+    }
+  }
+
   async function handleSystemViewSelect(
     view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
   ): Promise<void> {
@@ -1988,6 +2050,7 @@
         onNoteSelect={handleNoteSelect}
         onSystemViewSelect={handleSystemViewSelect}
         onCreateNote={(noteType) => handleCreateNote(noteType)}
+        onCreateDeck={handleCreateDeck}
         onImportFile={handleImportFile}
         onCaptureWebpage={handleCaptureWebpage}
       />

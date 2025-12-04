@@ -5,6 +5,7 @@
 
   interface Props {
     onCreateNote?: (noteType?: string) => void;
+    onCreateDeck?: () => void;
     showShadow?: boolean;
     onImportFile?: () => void;
     onCaptureWebpage?: () => void;
@@ -12,6 +13,7 @@
 
   let {
     onCreateNote,
+    onCreateDeck,
     showShadow = false,
     onImportFile,
     onCaptureWebpage
@@ -286,6 +288,7 @@
   {#if isPopoverOpen}
     <WorkspacePopover
       {onCreateNote}
+      {onCreateDeck}
       onClose={closePopover}
       {editingWorkspaceId}
       {onImportFile}

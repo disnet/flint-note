@@ -2,18 +2,24 @@
 
 ## Overview
 
-The Deck feature enables users to embed dynamic, queryable note lists directly within their notes. Similar to Obsidian's Dataview plugin, this feature allows users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
+The Deck feature enables users to create dynamic, queryable note lists. Decks can exist as **standalone deck notes** (opened full-screen like PDFs/EPUBs) or be **embedded within other notes**. Similar to Obsidian's Dataview plugin, decks allow users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v6)
+## Current Implementation (v7)
 
 ### Features Implemented
 
-#### 1. Deck Block Syntax
+#### 1. Standalone Deck Notes
 
-Users can create deck widgets using fenced code blocks with the `flint-deck` language identifier:
+Decks are now first-class note types with `flint_kind: 'deck'`. Creating a deck note:
 
-````markdown
-```flint-deck
+- **Menu**: File → New Deck (`Cmd/Ctrl+Shift+D`)
+- **Sidebar**: WorkspaceBar dropdown → New Deck button
+
+When opened, deck notes display the DeckWidget as the main content area (no markdown editor), similar to how PDFs and EPUBs are rendered.
+
+**Deck Note Content (YAML Configuration):**
+
+```yaml
 name: My Projects
 filters:
   - field: flint_type
@@ -26,9 +32,41 @@ columns:
   - priority
 limit: 50
 ```
+
+#### 2. Embedded Decks
+
+Other notes can embed existing deck notes using the embed syntax:
+
+````markdown
+```flint-deck
+n-abc123xyz
+```
 ````
 
-#### 2. YAML Configuration Schema
+Where `n-abc123xyz` is the ID of a deck note. The embedded deck:
+
+- Displays the same interactive DeckWidget
+- Is fully interactive (edit filters, create notes, etc.)
+- Saves config changes back to the source deck note
+- Shows loading state while fetching deck configuration
+- Shows error if deck note not found or invalid
+
+**Deprecated Syntax:**
+
+The old inline YAML configuration syntax is deprecated:
+
+````markdown
+```flint-deck
+name: My Deck
+filters:
+  - field: flint_type
+    value: task
+```
+````
+
+This now displays an error widget prompting users to create a standalone deck note and embed it instead.
+
+#### 3. YAML Configuration Schema
 
 | Field                | Type         | Required | Description                                              |
 | -------------------- | ------------ | -------- | -------------------------------------------------------- |
@@ -52,39 +90,41 @@ limit: 50
 - `LIKE` (pattern matching, automatically wraps value with `%` for "contains" matching unless user includes their own wildcards)
 - `IN` (matches any value in list)
 
-#### 3. Widget Rendering
+#### 4. Widget Rendering
 
-- **Live Preview**: Widget renders as an interactive table when cursor is outside the code block
-- **Edit Mode**: Shows raw YAML when cursor is inside the block for editing
+- **Standalone View**: Full-height DeckWidget with standard note header (title, action bar)
+- **Embedded View**: Widget renders inline when cursor is outside the code block
+- **Edit Mode**: Shows raw embed syntax (`n-<id>`) when cursor is inside the block
 - **Header**: Displays deck name (click to edit) and result count
 - **Table**: Shows title column (always first) plus configured metadata columns
-- **Clickable Titles**: Click title to navigate to note, Shift+click for split view
+- **Clickable Titles**: Click title to navigate to note
 - **Sortable Headers**: Click column headers to toggle sort order
 - **Expand/Collapse**: Height-capped by default with toggle button; state persisted in YAML
-- **Inline Note Creation**: New Note button adds editable row for inline editing (title + metadata fields)
-- **Inline Row Editing**: Edit button (✎) appears on row hover; click to edit existing note inline
+- **Inline Note Creation**: New Note button adds editable row for inline editing
+- **Inline Row Editing**: Edit button (✎) appears on row hover
 - **Schema-Aware Editing**: Select fields show dropdown with valid options from note type schema
-- **Untitled Note Styling**: Notes without titles display as muted, italic "Untitled" (matching wikilink style)
+- **Untitled Note Styling**: Notes without titles display as muted, italic "Untitled"
 
-#### 4. Query Execution (v2 - Optimized)
+#### 5. Query Execution
 
-- **Server-side filtering**: All filtering (type and metadata) performed server-side via `queryNotesForDataview` API
-- **Batch metadata fetching**: Notes and metadata fetched in a single optimized query (no N+1 problem)
+- **Server-side filtering**: All filtering performed server-side via `queryNotesForDataview` API
+- **Batch metadata fetching**: Notes and metadata fetched in a single optimized query
 - **Efficient SQL**: Uses JOINs with `note_metadata` table for metadata filtering
 - **Fallback support**: Gracefully falls back to legacy client-side approach if new API unavailable
 
-#### 5. Real-time Updates (v2)
+#### 6. Real-time Updates
 
 - **Event subscription**: Widget subscribes to note events via `messageBus`
 - **Monitored events**: `note.created`, `note.updated`, `note.deleted`, `note.renamed`, `note.moved`, `note.archived`, `note.unarchived`, `notes.bulkRefresh`, `file.sync-completed`
 - **Smart refresh**: Only refreshes when events are relevant to the current deck
 - **Debouncing**: 300ms debounce prevents excessive re-renders during rapid changes
 
-#### 6. Integration Points
+#### 7. Integration Points
 
-- **EditorConfig**: Extension integrated with deck handlers
-- **NoteEditor**: Handles new note creation from widget
-- **CodeMirror**: Uses `Decoration.replace` with custom `WidgetType` for rendering
+- **ViewRegistry**: `DeckNoteView` registered for `flint_kind: 'deck'`
+- **EditorConfig**: Extension integrated with deck handlers for embeds
+- **Menu System**: "New Deck" in File menu and WorkspaceBar dropdown
+- **NoteNavigationService**: Navigation from deck items via wikilink service
 - **MessageBus**: Real-time event subscription for live updates
 
 ### Technical Architecture
@@ -93,282 +133,167 @@ limit: 50
 src/renderer/src/lib/deck/
 ├── types.ts                    # Type definitions + filter utilities
 ├── yaml-utils.ts               # YAML parsing/serialization
-├── deck-theme.ts               # CodeMirror styling
-├── deckExtension.svelte.ts     # CodeMirror extension
-├── queryService.svelte.ts      # Query execution (uses queryNotesForDataview API)
-├── DeckWidget.svelte           # UI component with real-time updates
-├── FilterBuilder.svelte        # Visual filter editor (v3)
-├── FilterRow.svelte            # Single filter row component (v3)
-├── FieldSelector.svelte        # Field dropdown with search (v3)
-├── OperatorSelector.svelte     # Operator selection dropdown (v3)
-├── ValueInput.svelte           # Smart value input by type (v3)
+├── deck-theme.ts               # CodeMirror styling (incl. embed & error styles)
+├── deckExtension.svelte.ts     # CodeMirror extension (embed + deprecated error)
+├── queryService.svelte.ts      # Query execution
+├── DeckWidget.svelte           # Main UI component
+├── DeckToolbar.svelte          # Toolbar with filters/columns/sort
+├── NoteListItem.svelte         # Individual note row
+├── FilterBuilder.svelte        # Visual filter editor
+├── FilterRow.svelte            # Single filter row
+├── FieldSelector.svelte        # Field dropdown
+├── OperatorSelector.svelte     # Operator dropdown
+├── ValueInput.svelte           # Smart value input
+├── PropPickerDialog.svelte     # Column/prop picker
+├── PropFilterPopup.svelte      # Filter popup editor
 └── index.ts                    # Public exports
 
+src/renderer/src/lib/views/
+├── DeckNoteView.svelte         # Standalone deck note view
+├── ViewRegistry.ts             # View registration (includes 'deck' kind)
+└── index.ts                    # View registrations
+
+src/server/core/
+└── system-fields.ts            # NoteKind type includes 'deck'
+
+src/shared/
+└── menu-definitions.ts         # "New Deck" menu item
+
+src/main/
+├── menu.ts                     # Native menu "New Deck" handler
+└── index.ts                    # IPC handlers
+
+src/renderer/src/
+├── App.svelte                  # handleCreateDeck(), menu action handler
+└── components/
+    ├── LeftSidebar.svelte      # onCreateDeck prop
+    ├── WorkspaceBar.svelte     # onCreateDeck prop
+    └── WorkspacePopover.svelte # "New Deck" button
+
 src/server/database/search-manager.ts
-├── queryNotesForDataview()     # Optimized server-side query with metadata
+├── queryNotesForDataview()     # Optimized server-side query
 └── batchFetchMetadata()        # Batch metadata retrieval
 
 src/server/api/flint-note-api.ts
 └── queryNotesForDataview()     # API wrapper
-
-src/main/index.ts
-└── 'query-notes-for-dataview'  # IPC handler
 ```
 
-### Known Limitations (v6)
+### Known Limitations (v7)
 
-1. ~~**Client-side metadata filtering**: Metadata filters are applied after fetching notes~~ ✅ Fixed in v2
-2. ~~**N+1 query problem**: Each note requires a separate `getNote` call~~ ✅ Fixed in v2
-3. ~~**No filter builder UI**: Users must manually write YAML~~ ✅ Fixed in v3
-4. ~~**No column configuration UI**: Column selection requires YAML editing~~ ✅ Fixed in v4
-5. ~~**No real-time updates**: Widget doesn't automatically refresh when notes change~~ ✅ Fixed in v2
-6. ~~**No inline note creation**: New note button opens editor instead of inline editing~~ ✅ Fixed in v5
-7. ~~**No inline row editing**: Cannot edit existing notes inline~~ ✅ Fixed in v6
-8. ~~**No schema-aware inputs**: Select fields rendered as text instead of dropdown~~ ✅ Fixed in v6
-9. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
-10. **Metadata field sorting**: Sorting by metadata fields falls back to updated date (server-side metadata sort not yet implemented)
-11. **Column width configuration**: Not yet implemented (planned)
+1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
+2. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
+3. **Column width configuration**: Not yet implemented
+4. **No deck templates**: Cannot save/reuse deck configurations across notes
 
 ---
 
-## Completed Phases
+## Version History
 
-### Phase 2: Enhanced Query Capabilities ✅
+### v7: Standalone Deck Notes
 
-Implemented in v2.
+- **Deck as note type**: Decks are now `flint_kind: 'deck'` notes
+- **DeckNoteView**: Full-screen deck view (like PDF/EPUB)
+- **Embed syntax**: `n-<note-id>` for embedding decks in other notes
+- **Menu integration**: "New Deck" in File menu (`Cmd/Ctrl+Shift+D`)
+- **Sidebar integration**: "New Deck" button in WorkspaceBar dropdown
+- **Deprecated inline YAML**: Shows error widget for old syntax
+- **Embedded config persistence**: Changes to embedded decks save to source note
 
-#### 2.1 Server-side Metadata Filtering ✅
+### v6: Inline Row Editing
 
-- Added `queryNotesForDataview` IPC endpoint with metadata filter support
-- Filtering performed server-side via SQL JOINs with `note_metadata` table
-- Supports all operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IN`
-- Significantly reduced data transfer between main and renderer processes
-
-#### 2.2 Batch Note Fetching ✅
-
-- Added `batchFetchMetadata` helper for efficient metadata retrieval
-- Single query fetches all metadata for matching notes
-- Eliminated N+1 query problem - notes and metadata fetched together
-
-#### 2.3 Real-time Updates ✅
-
-- Widget subscribes to note change events via `messageBus`
-- Smart relevance checking - only refreshes when events affect current deck
-- 300ms debouncing prevents excessive re-renders
-- Handles: create, update, delete, rename, move, archive, unarchive, bulk refresh, file sync
-
-### Phase 3: Filter Builder UI ✅
-
-Implemented in v3.
-
-#### 3.1 Visual Filter Editor ✅
-
-- FieldSelector dropdown for field selection (shows system fields + metadata fields from type schema)
-- OperatorSelector dropdown with context-aware operators based on field type
-- ValueInput component with smart input types (text, number, date, boolean toggle, select dropdown)
-- Multi-value tag input for IN operator
-- Add/remove filter buttons
-- Configure button (filter icon) in widget header to toggle filter builder
-
-#### 3.2 Filter Suggestions ✅
-
-- Loads note type schemas to populate available fields
-- System fields always available (flint_type, flint_title, flint_created, flint_updated, flint_archived)
-- Field type indicators (T=text, #=number, ?=boolean, D=date, []=array, S=select, \*=system)
-- Select field options shown as suggestions
-- Note type list used for flint_type autocomplete
-
-#### 3.3 Implementation Details
-
-**Local Editing State:**
-
-- FilterBuilder maintains local `editingFilters` state separate from parent config
-- Incomplete filters (missing field or value) are kept locally but not synced to YAML
-- Only complete filters are serialized to the deck block
-- Prevents widget disappearing while building filters
-
-**Pending Filters (Deferred YAML Updates):**
-
-- DeckWidget maintains `pendingFilters` state while filter builder is open
-- Filter changes update `pendingFilters` locally and re-run queries in real-time
-- YAML is only updated when filter builder is closed (prevents widget recreation during editing)
-- Uses `setTimeout` to defer YAML update and avoid CodeMirror "update during update" errors
-
-**Event Handling:**
-
-- Value inputs use `oninput` for real-time suggestion filtering as user types
-- Enter key always triggers onChange (selects first highlighted suggestion if available)
-- Event propagation stopped on filter builder container to prevent cursor jumps
-- Click-outside detection uses capture phase to work with stopPropagation in parent elements
-
-**Dropdown Positioning:**
-
-- FieldSelector and OperatorSelector use `position: fixed` with calculated coordinates
-- Position calculated from button's bounding rect when dropdown opens
-- Escapes parent container's `overflow: hidden` constraints
-- High z-index (10000) ensures dropdowns appear above other elements
-
-**YAML Serialization:**
-
-- Incomplete filters filtered out during serialization
-- Widget remains visible even with in-progress filter edits
-
-**New Components:**
-
-- `FilterBuilder.svelte` - Main filter management with local editing state
-- `FilterRow.svelte` - Individual filter row with field/operator/value
-- `FieldSelector.svelte` - Searchable field dropdown with keyboard navigation, fixed positioning
-- `OperatorSelector.svelte` - Operator selection dropdown with fixed positioning
-- `ValueInput.svelte` - Smart input based on field type (text, number, date, boolean, select, tags) with real-time suggestion filtering
-
-### Phase 4: Column Configuration UI ✅
-
-Implemented in v4.
-
-#### 4.1 Visual Column Editor ✅
-
-- ColumnBuilder component for adding/removing/reordering columns
-- Drag-and-drop reordering with visual feedback
-- Field selector dropdown (reuses FieldSelector from filter builder)
-- Optional custom label input for column headers
-- Format selector for applicable field types
-
-#### 4.2 Type-Aware Column Rendering ✅
-
-- ColumnCell component with smart formatting based on field type:
-  - Date: relative ("2 days ago"), absolute ("Dec 15, 2024"), or ISO format
-  - Number: thousands separators
-  - Boolean: checkbox or Yes/No text
-  - Array: pill badges or comma-separated
-  - Wikilink: clickable links parsed from `[[note]]` syntax
-- Format can be configured per-column in YAML
-
-#### 4.3 Enhanced YAML Schema ✅
-
-Backward-compatible enhanced column format:
-
-```yaml
-columns:
-  - status # Simple string (still works)
-  - field: priority # Enhanced format with options
-    label: Priority Level
-    format: pills
-```
-
-#### 4.4 New Components ✅
-
-- `ColumnBuilder.svelte` - Main column configuration panel with drag-and-drop
-- `ColumnRow.svelte` - Individual column row with field/label/format controls
-- `ColumnCell.svelte` - Type-aware cell renderer with multiple format options
-
-### Phase 5: UI Enhancements ✅
-
-Implemented in v5.
-
-#### 5.1 Editable Deck Name ✅
-
-- Click deck name in header to edit inline
-- Saves to YAML on blur or Enter key
-- Escape cancels edit
-
-#### 5.2 Expand/Collapse Widget ✅
-
-- Widget has max-height by default with internal scrolling
-- Toggle button in header to expand/collapse
-- `expanded` state persisted in YAML config
-
-#### 5.3 Inline Note Creation ✅
-
-- "New Note" button creates editable row at top of table
-- Title and metadata fields editable inline
-- Enter saves note, Escape cancels
-- Note created on save (not on click) - uses placeholder until saved
-- Empty titles allowed (creates untitled note)
-
-#### 5.4 Inline Row Editing ✅
-
-- Edit button (✎) appears on far right of row on hover
-- Clicking edit button enters inline edit mode for that row
+- Edit button (✎) on row hover
 - Same editing interface as new note creation
-- Confirm (✓) saves changes, Cancel (✕) discards
+- Schema-aware inputs for select fields
 
-#### 5.5 Schema-Aware Editing ✅
+### v5: UI Enhancements
 
-- Loads note type schema when type filter is present
-- Select fields render as dropdown with valid options from schema
-- Prevents invalid values for constrained fields
-- Field types detected from schema (not inferred from values)
+- Editable deck name in header
+- Expand/collapse toggle with YAML persistence
+- Inline note creation with placeholder rows
+- Untitled note styling (muted, italic)
+- Title-only navigation (not entire row)
 
-#### 5.6 Untitled Note Styling ✅
+### v4: Column Configuration UI
 
-- Notes without titles display "Untitled" text
-- Styled with muted color and italic (matching wikilink style in editor)
-- Server returns empty string for untitled notes (UI handles display)
+- ColumnBuilder for visual column management
+- Drag-and-drop column reordering
+- Type-aware cell rendering (dates, numbers, booleans, arrays, wikilinks)
+- Custom column labels and format options
 
-#### 5.7 Title-Only Navigation ✅
+### v3: Filter Builder UI
 
-- Only clicking on title text navigates to note (not entire row)
-- Allows interaction with other cells without accidental navigation
-- Title styled as clickable link with hover effect
+- Visual filter editor with field/operator/value selectors
+- Schema-aware field suggestions
+- Local editing state (incomplete filters not synced)
+- Pending filters for deferred YAML updates
 
-#### 5.8 New Components ✅
+### v2: Enhanced Query Capabilities
 
-- `EditableCell.svelte` - Inline cell editor with schema-aware inputs (text, number, date, boolean, select dropdown)
+- Server-side metadata filtering via SQL JOINs
+- Batch note fetching (eliminated N+1 problem)
+- Real-time updates via messageBus subscription
+- Smart relevance checking and debouncing
+
+### v1: Initial Implementation
+
+- Basic YAML-configured deck blocks
+- Client-side filtering
+- CodeMirror widget rendering
 
 ---
 
 ## Next Steps
 
-### Phase 6: Advanced Features
+### Phase 8: Advanced Features
 
-#### 6.1 Grouping
+#### 8.1 Grouping
 
 - Group results by field value
 - Collapsible groups
 - Group counts
 
-#### 6.2 Aggregations
+#### 8.2 Aggregations
 
 - Count, sum, average for numeric fields
 - Display in footer row
 
-#### 6.3 Multiple Views
+#### 8.3 Multiple Views
 
 - Table view (current)
 - List view (compact)
 - Card/gallery view
 - Calendar view (for date-based queries)
 
-#### 6.4 Saved Decks
+#### 8.4 Deck Templates
 
 - Save deck configurations as reusable templates
-- Insert saved deck via autocomplete
-- Share decks across notes
+- Quick-insert via command palette
+- Template library management
 
-#### 6.5 Deck Chaining
+#### 8.5 Deck Chaining
 
 - Reference other deck results
 - Filter based on linked notes
 - Intersection/union of multiple decks
 
-### Phase 7: Performance Optimizations
+### Phase 9: Performance Optimizations
 
-#### 7.1 Virtual Scrolling
+#### 9.1 Virtual Scrolling
 
 - Only render visible rows
 - Handle large result sets efficiently
 
-#### 7.2 Query Caching
+#### 9.2 Query Caching
 
 - Cache query results with invalidation
 - Share cache across identical decks
 
-#### 7.3 Incremental Updates
+#### 9.3 Incremental Updates
 
 - Track which notes changed
 - Update only affected rows instead of full re-query
 
-#### 7.4 Metadata Field Sorting
+#### 9.4 Metadata Field Sorting
 
 - Implement server-side sorting by metadata fields
 - Add LEFT JOIN for sort field to enable proper ordering
@@ -377,10 +302,11 @@ Implemented in v5.
 
 ## Success Metrics
 
-1. **Adoption**: % of users with at least one deck block
-2. **Usage**: Average deck blocks per active user
-3. **Performance**: Query execution time p50/p95
-4. **Satisfaction**: User feedback on feature usefulness
+1. **Adoption**: % of users with at least one deck note
+2. **Usage**: Average deck notes per active user
+3. **Embedding**: % of decks that are embedded in other notes
+4. **Performance**: Query execution time p50/p95
+5. **Satisfaction**: User feedback on feature usefulness
 
 ## Dependencies
 
@@ -388,12 +314,14 @@ Implemented in v5.
 - js-yaml for YAML parsing
 - Existing note search and type APIs
 - MessageBus for real-time event subscription
+- ViewRegistry for custom note kind rendering
 
 ## Risks & Mitigations
 
 | Risk                          | Impact | Mitigation                                                                  |
 | ----------------------------- | ------ | --------------------------------------------------------------------------- |
-| Performance with large vaults | High   | ✅ Server-side filtering implemented; pagination, virtual scrolling planned |
-| YAML syntax errors            | Medium | Add validation feedback, consider GUI-only mode                             |
-| Widget conflicts with editor  | Medium | Thorough testing of cursor detection and edit mode                          |
-| Stale data display            | Low    | ✅ Real-time updates with debouncing implemented                            |
+| Performance with large vaults | High   | ✅ Server-side filtering; pagination, virtual scrolling planned             |
+| YAML syntax errors            | Medium | GUI-based editing; validation feedback                                      |
+| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML                      |
+| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config                      |
+| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks            |

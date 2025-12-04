@@ -39,7 +39,8 @@
     onOpen
   }: Props = $props();
 
-  // Local state for title editing
+  // Local state for title editing (needs $state + $effect for editable prop sync)
+  // eslint-disable-next-line svelte/prefer-writable-derived
   let titleValue = $state(note.title || '');
   let titleInputRef = $state<HTMLTextAreaElement | null>(null);
 
@@ -223,7 +224,7 @@
                 onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
               >
                 <option value="">—</option>
-                {#each options as opt}
+                {#each options as opt (opt)}
                   <option value={opt}>{opt}</option>
                 {/each}
               </select>

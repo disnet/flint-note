@@ -21,10 +21,11 @@
  * - epub: EPUB ebook reader notes
  * - pdf: PDF document reader notes
  * - webpage: Web article reader notes
+ * - deck: Queryable note list (deck) notes
  */
-export type NoteKind = 'markdown' | 'epub' | 'pdf' | 'webpage';
+export type NoteKind = 'markdown' | 'epub' | 'pdf' | 'webpage' | 'deck';
 
-export const NOTE_KINDS: NoteKind[] = ['markdown', 'epub', 'pdf', 'webpage'];
+export const NOTE_KINDS: NoteKind[] = ['markdown', 'epub', 'pdf', 'webpage', 'deck'];
 export const DEFAULT_NOTE_KIND: NoteKind = 'markdown';
 
 /**

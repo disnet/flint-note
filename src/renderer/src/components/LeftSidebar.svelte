@@ -24,6 +24,7 @@
       view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
     ) => void;
     onCreateNote?: (noteType?: string) => void;
+    onCreateDeck?: () => void;
     onImportFile?: () => void;
     onCaptureWebpage?: () => void;
   }
@@ -34,6 +35,7 @@
     onSystemViewSelect,
     activeSystemView,
     onCreateNote,
+    onCreateDeck,
     onImportFile,
     onCaptureWebpage
   }: Props = $props();
@@ -133,7 +135,13 @@
         </div>
       {/key}
     </div>
-    <WorkspaceBar {onCreateNote} {showShadow} {onImportFile} {onCaptureWebpage} />
+    <WorkspaceBar
+      {onCreateNote}
+      {onCreateDeck}
+      {showShadow}
+      {onImportFile}
+      {onCaptureWebpage}
+    />
   </div>
 </div>
 

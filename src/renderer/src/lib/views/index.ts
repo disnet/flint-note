@@ -11,6 +11,7 @@ import ImageNoteView from './ImageNoteView.svelte';
 import EpubNoteView from './EpubNoteView.svelte';
 import PdfNoteView from './PdfNoteView.svelte';
 import WebpageNoteView from './WebpageNoteView.svelte';
+import DeckNoteView from './DeckNoteView.svelte';
 
 // Register the ImageNoteView for 'image' content kind
 ViewRegistry.registerView('image', {
@@ -44,6 +45,15 @@ ViewRegistry.registerView('webpage', {
   component: WebpageNoteView,
   modes: ['hybrid', 'view'],
   supportedKinds: ['webpage'],
+  priority: 1
+});
+
+// Register the DeckNoteView for 'deck' content kind
+// This view handles deck notes - queryable note lists
+ViewRegistry.registerView('deck', {
+  component: DeckNoteView,
+  modes: ['hybrid', 'view'],
+  supportedKinds: ['deck'],
   priority: 1
 });
 

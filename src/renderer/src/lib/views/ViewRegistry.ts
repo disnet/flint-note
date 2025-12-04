@@ -16,8 +16,9 @@ export type ViewMode = 'edit' | 'view' | 'hybrid';
  * - markdown: Standard markdown notes (default)
  * - epub: EPUB ebook reader notes
  * - pdf: PDF document reader notes
+ * - deck: Queryable note list (deck) notes
  */
-export type NoteKind = 'markdown' | 'epub' | 'pdf';
+export type NoteKind = 'markdown' | 'epub' | 'pdf' | 'deck';
 
 export interface NoteView {
   component: Component<NoteViewProps>;

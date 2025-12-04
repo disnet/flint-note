@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import type {
     DeckConfig,
     DeckResultNote,
@@ -54,8 +55,9 @@
   let newlyCreatedNoteId = $state<string | null>(null);
   let suppressRefresh = $state(false);
 
-  // Schema fields for inline editing
-  let schemaFields = $state<Map<string, SchemaFieldInfo>>(new Map());
+  // Schema fields for inline editing (need $state for reassignment reactivity)
+  // eslint-disable-next-line svelte/no-unnecessary-state-wrap
+  let schemaFields = $state(new SvelteMap<string, SchemaFieldInfo>());
   let schemaLoadedForType = $state<string | null>(null);
   let availableSchemaFields = $state<FilterFieldInfo[]>([]);
 
@@ -102,7 +104,7 @@
     if (firstFilteredType && firstFilteredType !== schemaLoadedForType) {
       loadSchemaFields(firstFilteredType);
     } else if (!firstFilteredType) {
-      schemaFields = new Map();
+      schemaFields = new SvelteMap();
       availableSchemaFields = [];
       schemaLoadedForType = null;
     }
@@ -135,7 +137,7 @@
     try {
       const typeInfo = await window.api?.getNoteTypeInfo({ typeName });
       if (typeInfo?.metadata_schema?.fields) {
-        const newMap = new Map<string, SchemaFieldInfo>();
+        const newMap = new SvelteMap<string, SchemaFieldInfo>();
         const fieldInfos: FilterFieldInfo[] = [];
         for (const field of typeInfo.metadata_schema
           .fields as MetadataFieldDefinition[]) {
@@ -152,7 +154,7 @@
       }
     } catch (e) {
       console.error('Failed to load schema fields:', e);
-      schemaFields = new Map();
+      schemaFields = new SvelteMap();
       availableSchemaFields = [];
     }
   }

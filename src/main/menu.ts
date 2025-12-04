@@ -144,6 +144,13 @@ export function createApplicationMenu(): Menu {
           }
         },
         {
+          label: 'New Deck',
+          accelerator: 'CmdOrCtrl+Shift+D',
+          click: (): void => {
+            sendToRenderer('menu-action', 'new-deck');
+          }
+        },
+        {
           label: 'Import File... (PDF/EPUB)',
           click: (): void => {
             sendToRenderer('menu-action', 'import-file');

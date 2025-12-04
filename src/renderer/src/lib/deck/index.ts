@@ -2,26 +2,25 @@
  * Deck feature - Display filtered note lists inline within notes
  *
  * Usage:
- * 1. Import the extension in editorConfig.svelte.ts
- * 2. Add to extensions array with handlers
- * 3. Use ```flint-deck code blocks in notes
+ * 1. Create a deck note (flint_kind: 'deck') with YAML configuration as content
+ * 2. Embed decks in other notes using: ```flint-deck\nn-<note-id>\n```
  *
- * Example deck block:
+ * Example embed block:
  * ```flint-deck
+ * n-my-deck-id
+ * ```
+ *
+ * Deck notes store their configuration as YAML content:
  * name: My Tasks
  * filters:
  *   - field: type
  *     value: Task
- *   - field: status
- *     operator: "!="
- *     value: done
  * sort:
  *   field: updated
  *   order: desc
  * columns:
  *   - status
  *   - priority
- * ```
  */
 
 // Extension
@@ -29,7 +28,8 @@ export {
   deckExtension,
   updateDeckBlock,
   forceDeckRefresh,
-  insertDeckBlock
+  insertDeckBlock,
+  insertDeckEmbed
 } from './deckExtension.svelte';
 
 // Types

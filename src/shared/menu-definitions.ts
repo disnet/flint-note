@@ -31,6 +31,7 @@ export interface MenuDef {
  */
 export const fileMenuItems: MenuItemDef[] = [
   { label: 'New Note', accelerator: 'CmdOrCtrl+Shift+N', action: 'new-note' },
+  { label: 'New Deck', accelerator: 'CmdOrCtrl+Shift+D', action: 'new-deck' },
   { label: 'Import File...', action: 'import-file' },
   { label: 'Capture Webpage...', action: 'import-webpage' },
   { label: 'New Vault...', action: 'new-vault' },

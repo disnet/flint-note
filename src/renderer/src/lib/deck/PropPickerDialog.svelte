@@ -32,7 +32,8 @@
     );
     const customFields = fields.filter((f) => !f.isSystem);
     const combined = [...commonSystemFields, ...customFields];
-    // Filter out excluded fields
+    // Filter out excluded fields (temporary Set created fresh each derivation)
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const excludeSet = new Set(excludeFields);
     // Also exclude variants (with/without flint_ prefix)
     excludeFields.forEach((f) => {
