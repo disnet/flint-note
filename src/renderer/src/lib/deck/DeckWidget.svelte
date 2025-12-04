@@ -312,28 +312,6 @@
     };
   }
 
-  async function startEditingNote(
-    result: DeckResultNote,
-    event: MouseEvent
-  ): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const vault = await window.api?.getCurrentVault();
-    if (!vault?.id) {
-      return;
-    }
-
-    editingNoteId = result.id;
-    editingVaultId = vault.id;
-    isCreatingNewNote = false;
-    editingOriginalTitle = result.title || '';
-    editingValues = {
-      title: result.title || '',
-      metadata: { ...result.metadata }
-    };
-  }
-
   // System fields that cannot be modified via updateNote
   const SYSTEM_METADATA_FIELDS = new Set([
     'flint_id',
@@ -406,6 +384,39 @@
     } catch (e) {
       console.error('Failed to save field value:', e);
       error = e instanceof Error ? e.message : 'Failed to save';
+    }
+  }
+
+  /**
+   * Save a title change (rename note)
+   */
+  async function saveTitleValue(noteId: string, newTitle: string): Promise<void> {
+    try {
+      const vault = await window.api?.getCurrentVault();
+      if (!vault?.id) return;
+
+      // Get the current note to check if title actually changed
+      const noteIndex = results.findIndex((r) => r.id === noteId);
+      if (noteIndex === -1) return;
+
+      const currentTitle = results[noteIndex].title || '';
+      if (newTitle === currentTitle) return;
+
+      await window.api?.renameNote({
+        identifier: noteId,
+        newIdentifier: newTitle,
+        vaultId: vault.id
+      });
+
+      // Optimistically update local results
+      results[noteIndex] = {
+        ...results[noteIndex],
+        title: newTitle
+      };
+      results = [...results];
+    } catch (e) {
+      console.error('Failed to rename note:', e);
+      error = e instanceof Error ? e.message : 'Failed to rename';
     }
   }
 
@@ -797,7 +808,7 @@
             {schemaFields}
             isSaving={isSavingNote}
             onTitleClick={(e) => handleNoteClick(result, e)}
-            onEditClick={(e) => startEditingNote(result, e)}
+            onTitleSave={(newTitle) => saveTitleValue(result.id, newTitle)}
             onFieldSave={(field, value) => saveFieldValue(result.id, field, value)}
             onValueChange={updateEditingValue}
             onKeyDown={handleEditingKeyDown}
@@ -814,6 +825,8 @@
   .deck-widget {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    min-width: 0;
     overflow: hidden;
   }
 
@@ -895,5 +908,7 @@
   .note-list {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
   }
 </style>

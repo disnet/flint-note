@@ -23,10 +23,10 @@
     schemaFields: Map<string, SchemaFieldInfo>;
     /** Whether currently saving */
     isSaving: boolean;
-    /** Called when note title is clicked */
+    /** Called when note title is clicked (for navigation) */
     onTitleClick: (event: MouseEvent) => void;
-    /** Called when edit button is clicked */
-    onEditClick: (event: MouseEvent) => void;
+    /** Called when title is renamed inline */
+    onTitleSave?: (newTitle: string) => void;
     /** Called when a field value is saved inline (for chip editing) */
     onFieldSave?: (field: string, value: unknown) => void;
     /** Called when editing value changes (for full row editing) */
@@ -47,13 +47,70 @@
     schemaFields,
     isSaving,
     onTitleClick,
-    onEditClick,
+    onTitleSave,
     onFieldSave,
     onValueChange,
     onKeyDown,
     onSave,
     onCancel
   }: Props = $props();
+
+  // Local state for title editing
+  let titleValue = $state(note.title || '');
+  let titleTextarea: HTMLTextAreaElement | undefined = $state();
+
+  // Adjust textarea height to fit content
+  function adjustTextareaHeight(): void {
+    if (titleTextarea) {
+      titleTextarea.style.height = 'auto';
+      titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
+    }
+  }
+
+  // Sync title value when note changes
+  $effect(() => {
+    titleValue = note.title || '';
+  });
+
+  // Adjust height when value changes or on mount
+  $effect(() => {
+    // Access titleValue to create dependency
+    void titleValue;
+    // Use setTimeout to ensure DOM has updated
+    setTimeout(adjustTextareaHeight, 0);
+  });
+
+  // Observe resize to adjust height when container width changes
+  $effect(() => {
+    if (!titleTextarea) return;
+
+    const observer = new ResizeObserver(() => {
+      adjustTextareaHeight();
+    });
+
+    observer.observe(titleTextarea);
+
+    return () => observer.disconnect();
+  });
+
+  // Handle title blur - save if changed
+  function handleTitleBlur(): void {
+    const newTitle = titleValue.trim();
+    if (newTitle !== (note.title || '')) {
+      onTitleSave?.(newTitle);
+    }
+  }
+
+  // Handle title keydown
+  function handleTitleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      (event.target as HTMLTextAreaElement)?.blur();
+    } else if (event.key === 'Escape') {
+      titleValue = note.title || '';
+      (event.target as HTMLTextAreaElement)?.blur();
+    }
+  }
 
   // Get display value for a field
   function getDisplayValue(field: string): string {
@@ -224,18 +281,28 @@
     <!-- Display mode with inline editable chips -->
     <div class="note-display">
       <div class="note-title-row">
-        <button
-          class="note-title"
-          class:untitled={!note.title}
-          onclick={onTitleClick}
-          type="button"
-        >
-          {#if getTypeIcon(note.type)}
+        {#if getTypeIcon(note.type)}
+          <button
+            class="type-icon-btn"
+            onclick={onTitleClick}
+            type="button"
+            title="Open note"
+          >
             <span class="type-icon">{getTypeIcon(note.type)}</span>
-          {/if}
-          <span class="title-text">{note.title || 'Untitled'}</span>
-        </button>
-        <button class="edit-btn" onclick={onEditClick} type="button"> Edit </button>
+          </button>
+        {/if}
+        <textarea
+          bind:this={titleTextarea}
+          class="title-input"
+          class:untitled={!titleValue}
+          bind:value={titleValue}
+          onblur={handleTitleBlur}
+          onkeydown={handleTitleKeydown}
+          onmousedown={(e) => e.stopPropagation()}
+          oninput={adjustTextareaHeight}
+          placeholder="Untitled"
+          rows="1"
+        ></textarea>
       </div>
       {#if columns.length > 0}
         <div class="note-props">
@@ -320,14 +387,12 @@
   .note-list-item {
     padding: 0.5rem 0;
     border-bottom: 1px solid var(--border-light);
+    min-width: 0;
+    width: 100%;
   }
 
   .note-list-item:last-child {
     border-bottom: none;
-  }
-
-  .note-list-item:hover .edit-btn {
-    opacity: 1;
   }
 
   .note-display,
@@ -335,36 +400,31 @@
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
+    min-width: 0;
   }
 
   .note-title-row {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: 0.25rem;
+    width: 100%;
+    min-width: 0;
   }
 
-  .note-title {
-    display: inline-flex;
+  .type-icon-btn {
+    display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.25rem;
+    justify-content: center;
+    padding: 0.125rem;
     border: none;
     border-radius: 0.25rem;
     background: transparent;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-align: left;
     cursor: pointer;
     transition: background 0.15s ease;
   }
 
-  .note-title:hover {
-    background: var(--bg-secondary);
-  }
-
-  .note-title:hover .title-text {
-    text-decoration: underline;
+  .type-icon-btn:hover {
+    background: var(--bg-tertiary);
   }
 
   .type-icon {
@@ -372,28 +432,41 @@
     line-height: 1;
   }
 
-  .note-title.untitled .title-text {
+  .title-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    transition: background 0.15s ease;
+  }
+
+  .title-input:hover,
+  .title-input:focus {
+    background: var(--bg-secondary);
+  }
+
+  .title-input.untitled {
     color: var(--text-tertiary);
     font-style: italic;
     font-weight: 400;
   }
 
-  .edit-btn {
-    margin-left: auto;
-    padding: 0.25rem 0.375rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: transparent;
+  .title-input::placeholder {
     color: var(--text-tertiary);
-    font-size: 0.75rem;
-    cursor: pointer;
-    opacity: 0;
-    transition: all 0.15s ease;
-  }
-
-  .edit-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+    font-style: italic;
+    font-weight: 400;
   }
 
   .note-props {

@@ -8,6 +8,7 @@ import { EditorView } from '@codemirror/view';
 export const deckTheme = EditorView.theme({
   '.deck-widget-container': {
     display: 'block',
+    width: '100%',
     margin: '1rem 0',
     overflow: 'visible',
     fontFamily: 'inherit'
