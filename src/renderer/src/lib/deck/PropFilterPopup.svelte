@@ -161,12 +161,7 @@
           <option value={op}>{getOperatorLabel(op)}</option>
         {/each}
       </select>
-      <button
-        class="delete-btn"
-        onclick={handleRemove}
-        type="button"
-        title="Remove"
-      >
+      <button class="delete-btn" onclick={handleRemove} type="button" title="Remove">
         <svg
           width="14"
           height="14"
@@ -178,7 +173,9 @@
           stroke-linejoin="round"
         >
           <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path
+            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+          />
         </svg>
       </button>
     </div>
@@ -193,27 +190,20 @@
               <input
                 type="checkbox"
                 checked={selectedValues.includes(option)}
-                onchange={(e) => handleCheckboxChange(option, (e.target as HTMLInputElement).checked)}
+                onchange={(e) =>
+                  handleCheckboxChange(option, (e.target as HTMLInputElement).checked)}
               />
               <span class="checkbox-label">{option}</span>
             </label>
           {/each}
         </div>
       {:else if fieldInfo?.type === 'boolean'}
-        <select
-          class="value-input"
-          value={currentValue}
-          onchange={handleValueChange}
-        >
+        <select class="value-input" value={currentValue} onchange={handleValueChange}>
           <option value="true">true</option>
           <option value="false">false</option>
         </select>
       {:else if fieldInfo?.options && fieldInfo.options.length > 0}
-        <select
-          class="value-input"
-          value={currentValue}
-          onchange={handleValueChange}
-        >
+        <select class="value-input" value={currentValue} onchange={handleValueChange}>
           <option value="">Select...</option>
           {#each fieldInfo.options as option (option)}
             <option value={option}>{option}</option>
@@ -239,7 +229,9 @@
           type="text"
           class="value-input"
           value={currentValue}
-          placeholder={currentOperator === 'IN' ? 'value1, value2, ...' : 'Enter value...'}
+          placeholder={currentOperator === 'IN'
+            ? 'value1, value2, ...'
+            : 'Enter value...'}
           onchange={handleValueChange}
         />
       {/if}

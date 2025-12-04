@@ -15,9 +15,9 @@
     note: DeckResultNote;
     /** Columns/props to show as chips */
     columns: ColumnConfig[];
-    /** Whether this note is being edited */
+    /** Whether this note is being edited (full row editing mode) */
     isEditing: boolean;
-    /** Current editing values (when editing) */
+    /** Current editing values (when in full row editing mode) */
     editingValues?: { title: string; metadata: Record<string, unknown> };
     /** Schema fields for type-aware editing */
     schemaFields: Map<string, SchemaFieldInfo>;
@@ -27,7 +27,9 @@
     onTitleClick: (event: MouseEvent) => void;
     /** Called when edit button is clicked */
     onEditClick: (event: MouseEvent) => void;
-    /** Called when editing value changes */
+    /** Called when a field value is saved inline (for chip editing) */
+    onFieldSave?: (field: string, value: unknown) => void;
+    /** Called when editing value changes (for full row editing) */
     onValueChange?: (field: string, value: unknown) => void;
     /** Called on keydown during editing */
     onKeyDown?: (event: KeyboardEvent) => void;
@@ -46,6 +48,7 @@
     isSaving,
     onTitleClick,
     onEditClick,
+    onFieldSave,
     onValueChange,
     onKeyDown,
     onSave,
@@ -132,6 +135,20 @@
     return true;
   }
 
+  // Get raw value for a field (for editing)
+  function getRawValue(field: string): unknown {
+    if (field === 'title' || field === 'flint_title') return note.title || '';
+    if (field === 'type' || field === 'flint_type') return note.type;
+    if (field === 'created' || field === 'flint_created') return note.created;
+    if (field === 'updated' || field === 'flint_updated') return note.updated;
+    return note.metadata[field] ?? '';
+  }
+
+  // Handle inline field change (save immediately)
+  function handleFieldChange(field: string, value: unknown): void {
+    onFieldSave?.(field, value);
+  }
+
   // Get note type icon
   function getTypeIcon(typeName: string): string | undefined {
     const noteType = notesStore.noteTypes.find((t) => t.name === typeName);
@@ -204,7 +221,7 @@
       {/if}
     </div>
   {:else}
-    <!-- Display mode -->
+    <!-- Display mode with inline editable chips -->
     <div class="note-display">
       <div class="note-title-row">
         <button
@@ -218,20 +235,80 @@
           {/if}
           <span class="title-text">{note.title || 'Untitled'}</span>
         </button>
-        <button class="edit-btn" onclick={onEditClick} type="button">
-          Edit
-        </button>
+        <button class="edit-btn" onclick={onEditClick} type="button"> Edit </button>
       </div>
       {#if columns.length > 0}
         <div class="note-props">
           {#each columns as column (column.field)}
-            {@const value = getDisplayValue(column.field)}
-            {#if value}
-              <span class="prop-value-chip">
-                <span class="prop-label">{getColumnLabel(column)}:</span>
-                {value}
-              </span>
-            {/if}
+            {@const fieldType = getFieldType(column.field)}
+            {@const rawValue = getRawValue(column.field)}
+            {@const options = getFieldOptions(column.field)}
+            {@const editable = isEditable(column.field)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="prop-chip-inline"
+              onmousedown={(e) => e.stopPropagation()}
+              onclick={(e) => e.stopPropagation()}
+            >
+              <span class="prop-name">{getColumnLabel(column)}</span>
+              <span class="prop-divider"></span>
+              {#if editable && fieldType === 'select' && options.length > 0}
+                <select
+                  class="prop-inline-select"
+                  value={String(rawValue || '')}
+                  onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                >
+                  <option value="">—</option>
+                  {#each options as opt}
+                    <option value={opt}>{opt}</option>
+                  {/each}
+                </select>
+              {:else if editable && fieldType === 'boolean'}
+                <input
+                  type="checkbox"
+                  class="prop-inline-checkbox"
+                  checked={Boolean(rawValue)}
+                  onchange={(e) =>
+                    handleFieldChange(column.field, e.currentTarget.checked)}
+                />
+              {:else if editable && fieldType === 'date'}
+                <input
+                  type="date"
+                  class="prop-inline-date"
+                  value={rawValue ? String(rawValue).split('T')[0] : ''}
+                  onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                />
+              {:else if editable && fieldType === 'number'}
+                <input
+                  type="number"
+                  class="prop-inline-input"
+                  value={rawValue ?? ''}
+                  onblur={(e) => {
+                    const val = e.currentTarget.value;
+                    handleFieldChange(column.field, val ? Number(val) : null);
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                />
+              {:else if editable}
+                <input
+                  type="text"
+                  class="prop-inline-input"
+                  value={String(rawValue || '')}
+                  onblur={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                />
+              {:else}
+                <span class="prop-value">{getDisplayValue(column.field) || '—'}</span>
+              {/if}
+            </div>
           {/each}
         </div>
       {/if}
@@ -326,20 +403,71 @@
     padding-left: 0.25rem;
   }
 
-  .prop-value-chip {
+  .prop-chip-inline {
     display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
+    align-items: stretch;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
+    background: var(--bg-secondary);
     font-size: 0.7rem;
     white-space: nowrap;
+    overflow: hidden;
   }
 
-  .prop-label {
+  .prop-name {
+    display: flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem 0.125rem 0.625rem;
     color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+  }
+
+  .prop-divider {
+    width: 1px;
+    background: var(--border-light);
+  }
+
+  .prop-chip-inline .prop-value {
+    display: flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
+    color: var(--text-secondary);
+  }
+
+  .prop-inline-input,
+  .prop-inline-select,
+  .prop-inline-date {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 0.125rem 0.5rem;
+    min-width: 3rem;
+    outline: none;
+  }
+
+  .prop-inline-input:focus,
+  .prop-inline-select:focus,
+  .prop-inline-date:focus {
+    background: var(--bg-primary);
+  }
+
+  .prop-inline-select {
+    cursor: pointer;
+    padding-right: 0.25rem;
+  }
+
+  .prop-inline-checkbox {
+    margin: 0 0.5rem;
+    cursor: pointer;
+  }
+
+  .prop-inline-date {
+    min-width: 7rem;
+  }
+
+  .prop-inline-input[type='number'] {
+    min-width: 4rem;
   }
 
   .editing-props {
@@ -348,23 +476,31 @@
 
   .prop-edit-chip {
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    background: var(--bg-tertiary);
+    align-items: stretch;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
+    background: var(--bg-secondary);
     font-size: 0.75rem;
+    overflow: hidden;
   }
 
   .prop-edit-label {
+    display: flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem 0.125rem 0.625rem;
     font-size: 0.65rem;
     color: var(--text-tertiary);
+    background: var(--bg-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
     white-space: nowrap;
+    border-right: 1px solid var(--border-light);
   }
 
-  .prop-value {
+  .prop-edit-chip .prop-value {
+    display: flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
   }

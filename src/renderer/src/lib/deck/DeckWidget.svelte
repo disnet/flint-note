@@ -48,7 +48,7 @@
   let editingName = $state('');
   let nameInputRef = $state<HTMLInputElement | null>(null);
 
-  // Inline editing state
+  // Inline editing state (for new note creation and full row editing)
   let editingNoteId = $state<string | null>(null);
   let editingValues = $state<EditingValues | null>(null);
   let editingVaultId = $state<string | null>(null);
@@ -332,6 +332,81 @@
       title: result.title || '',
       metadata: { ...result.metadata }
     };
+  }
+
+  // System fields that cannot be modified via updateNote
+  const SYSTEM_METADATA_FIELDS = new Set([
+    'flint_id',
+    'flint_filename',
+    'flint_type',
+    'flint_kind',
+    'flint_created',
+    'flint_updated',
+    'id',
+    'type',
+    'filename',
+    'created',
+    'updated'
+  ]);
+
+  /**
+   * Filter out system fields from metadata
+   */
+  function filterSystemFields(
+    metadata: Record<string, unknown>
+  ): Record<string, unknown> {
+    const filtered: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+      if (!SYSTEM_METADATA_FIELDS.has(key)) {
+        filtered[key] = value;
+      }
+    }
+    return filtered;
+  }
+
+  /**
+   * Save a single field value directly (for inline chip editing)
+   */
+  async function saveFieldValue(
+    noteId: string,
+    field: string,
+    value: unknown
+  ): Promise<void> {
+    try {
+      const vault = await window.api?.getCurrentVault();
+      if (!vault?.id) return;
+
+      const existingNote = await window.api?.getNote({
+        identifier: noteId,
+        vaultId: vault.id
+      });
+
+      if (!existingNote) return;
+
+      // Update metadata with the new field value, filtering out system fields
+      const baseMetadata = filterSystemFields(existingNote.metadata || {});
+      const updatedMetadata = { ...baseMetadata, [field]: value };
+
+      await window.api?.updateNote({
+        identifier: noteId,
+        content: existingNote.content ?? '',
+        metadata: $state.snapshot(updatedMetadata),
+        vaultId: vault.id
+      });
+
+      // Optimistically update local results
+      const noteIndex = results.findIndex((r) => r.id === noteId);
+      if (noteIndex !== -1) {
+        results[noteIndex] = {
+          ...results[noteIndex],
+          metadata: { ...results[noteIndex].metadata, [field]: value }
+        };
+        results = [...results];
+      }
+    } catch (e) {
+      console.error('Failed to save field value:', e);
+      error = e instanceof Error ? e.message : 'Failed to save';
+    }
   }
 
   function updateEditingValue(field: string, value: unknown): void {
@@ -723,6 +798,7 @@
             isSaving={isSavingNote}
             onTitleClick={(e) => handleNoteClick(result, e)}
             onEditClick={(e) => startEditingNote(result, e)}
+            onFieldSave={(field, value) => saveFieldValue(result.id, field, value)}
             onValueChange={updateEditingValue}
             onKeyDown={handleEditingKeyDown}
             onSave={saveEditingNote}
