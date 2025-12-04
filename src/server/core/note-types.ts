@@ -47,6 +47,7 @@ export interface NoteTypeDescription {
   icon?: string;
   suggestions_config?: import('../types/index.js').NoteTypeSuggestionConfig;
   default_review_mode?: boolean;
+  editor_chips?: string[];
 }
 
 export interface NoteTypeListItem {
@@ -324,6 +325,16 @@ export class NoteTypeManager {
             }
           }
 
+          // Parse editor_chips if present
+          let editorChips: string[] | undefined;
+          if (row.editor_chips) {
+            try {
+              editorChips = JSON.parse(row.editor_chips);
+            } catch (error) {
+              console.warn('Failed to parse editor_chips:', error);
+            }
+          }
+
           return {
             name: typeName,
             path: typePath,
@@ -333,7 +344,8 @@ export class NoteTypeManager {
             content_hash: row.content_hash || '',
             icon: row.icon || undefined,
             suggestions_config: suggestionsConfig,
-            default_review_mode: row.default_review_mode === 1
+            default_review_mode: row.default_review_mode === 1,
+            editor_chips: editorChips
           };
         }
       }

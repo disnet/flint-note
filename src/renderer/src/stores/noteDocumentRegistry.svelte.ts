@@ -31,6 +31,11 @@ export class NoteDocument {
   // Track save errors
   error = $state<string | null>(null);
 
+  // Track if we're expecting a reload (e.g., after metadata update via UI)
+  // This suppresses the "modified externally" toast
+  private expectingReload = $state(false);
+  private expectingReloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
   constructor(noteId: string, title: string = '', content: string = '') {
     this.noteId = noteId;
     this.title = title;
@@ -180,6 +185,44 @@ export class NoteDocument {
   }
 
   /**
+   * Mark the document as expecting a reload from an API-triggered change.
+   * This suppresses the "modified externally" toast for a short period.
+   * Used when updating metadata via chips or other UI that bypasses autosave.
+   */
+  markExpectingReload(): void {
+    // Clear any existing timeout
+    if (this.expectingReloadTimeout) {
+      clearTimeout(this.expectingReloadTimeout);
+    }
+
+    this.expectingReload = true;
+
+    // Auto-clear after 3 seconds (should be enough for file write to complete)
+    this.expectingReloadTimeout = setTimeout(() => {
+      this.expectingReload = false;
+      this.expectingReloadTimeout = null;
+    }, 3000);
+  }
+
+  /**
+   * Check if document is expecting a reload (suppresses external change toast)
+   */
+  get isExpectingReload(): boolean {
+    return this.expectingReload;
+  }
+
+  /**
+   * Clear the expecting reload flag (called after successful reload)
+   */
+  clearExpectingReload(): void {
+    this.expectingReload = false;
+    if (this.expectingReloadTimeout) {
+      clearTimeout(this.expectingReloadTimeout);
+      this.expectingReloadTimeout = null;
+    }
+  }
+
+  /**
    * Reload the document from the database
    * Useful after external changes (e.g., from AI agents)
    */
@@ -248,6 +291,10 @@ export class NoteDocument {
    */
   destroy(): void {
     this.autoSave.destroy();
+    if (this.expectingReloadTimeout) {
+      clearTimeout(this.expectingReloadTimeout);
+      this.expectingReloadTimeout = null;
+    }
   }
 
   /**
@@ -344,6 +391,9 @@ class NoteDocumentRegistryClass {
       // Check if document has unsaved changes
       const isDirty = doc.isDirty;
 
+      // Check if we're expecting this reload (e.g., from metadata update via UI)
+      const isExpectedReload = doc.isExpectingReload;
+
       if (isDirty) {
         // Document has unsaved changes - emit conflict event for user to resolve
         messageBus.publish({
@@ -352,16 +402,23 @@ class NoteDocumentRegistryClass {
           path: event.path
         });
       } else {
-        // Document is clean - auto-reload and show toast notification
+        // Document is clean - auto-reload
         await doc.reload();
 
-        // Emit toast notification event
-        messageBus.publish({
-          type: 'toast.show',
-          message: 'Note reloaded (modified externally)',
-          duration: 3000,
-          variant: 'info'
-        });
+        // Clear expecting reload flag after successful reload
+        if (isExpectedReload) {
+          doc.clearExpectingReload();
+        }
+
+        // Only show toast if this was a truly external change (not from our UI)
+        if (!isExpectedReload) {
+          messageBus.publish({
+            type: 'toast.show',
+            message: 'Note reloaded (modified externally)',
+            duration: 3000,
+            variant: 'info'
+          });
+        }
       }
     });
   }

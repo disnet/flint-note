@@ -202,6 +202,7 @@ export interface GetNoteTypeInfoResult {
   icon?: string;
   suggestions_config?: import('../types/index.js').NoteTypeSuggestionConfig;
   default_review_mode?: boolean;
+  editor_chips?: string[];
 }
 
 export interface CreateVaultArgs {

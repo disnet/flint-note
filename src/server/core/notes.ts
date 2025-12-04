@@ -359,9 +359,7 @@ export class FileWriteQueue {
     const normalizedPath = path.resolve(filePath);
 
     const expectedHashes = this.expectedContent.get(normalizedPath);
-    const result = expectedHashes ? expectedHashes.has(contentHash) : false;
-
-    return result;
+    return expectedHashes ? expectedHashes.has(contentHash) : false;
   }
 
   /**

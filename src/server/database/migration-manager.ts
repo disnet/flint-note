@@ -2206,8 +2206,48 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.16.0: Add editor_chips column to note_type_descriptions table
+ * Stores which metadata fields to display as chips in the note editor
+ */
+async function migrateToV2_16_0(db: DatabaseConnection): Promise<void> {
+  logger.info(
+    'Migrating to v2.16.0: Adding editor_chips column to note_type_descriptions table'
+  );
+
+  try {
+    // First ensure the note_type_descriptions table exists
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_type_descriptions'
+    `);
+
+    if (!tableExists || tableExists.count === 0) {
+      logger.info('note_type_descriptions table does not exist, skipping migration');
+      return;
+    }
+
+    // Check if editor_chips column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('note_type_descriptions')"
+    );
+    const hasEditorChips = columns.some((col) => col.name === 'editor_chips');
+
+    if (!hasEditorChips) {
+      logger.info('Adding editor_chips column to note_type_descriptions table');
+      await db.run('ALTER TABLE note_type_descriptions ADD COLUMN editor_chips TEXT');
+      logger.info('editor_chips column added successfully');
+    } else {
+      logger.info('editor_chips column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add editor_chips column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.15.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.16.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2336,6 +2376,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_15_0
+    },
+    {
+      version: '2.16.0',
+      description: 'Add editor_chips column to note_type_descriptions table',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_16_0
     }
   ];
 

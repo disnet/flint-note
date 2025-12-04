@@ -58,6 +58,12 @@
   let isGeneratingSuggestions = $state(false);
   let suggestionsEnabled = $state(false);
 
+  // Note type info for chips
+  let noteTypeInfo = $state<{
+    metadata_schema: import('@/server/core/metadata-schema').MetadataSchema;
+    editor_chips?: string[];
+  } | null>(null);
+
   // Archive confirmation modal state
   let showArchiveConfirmation = $state(false);
 
@@ -161,7 +167,7 @@
 
       if (await noteService.isReady()) {
         // Load full note data, cursor position, and note type info
-        const [noteResult, cursorPosition, noteTypeInfo] = await Promise.all([
+        const [noteResult, cursorPosition, noteTypeInfoResult] = await Promise.all([
           noteService.getNote({ identifier: note.id }),
           cursorManager.getCursorPosition(note.id),
           window.api?.getNoteTypeInfo({ typeName: note.type })
@@ -170,8 +176,18 @@
         noteData = noteResult;
         pendingCursorPosition = cursorPosition;
 
+        // Store note type info for chips
+        if (noteTypeInfoResult) {
+          noteTypeInfo = {
+            metadata_schema: noteTypeInfoResult.metadata_schema,
+            editor_chips: noteTypeInfoResult.editor_chips
+          };
+        } else {
+          noteTypeInfo = null;
+        }
+
         // Check if suggestions are enabled for this note type
-        if (noteTypeInfo?.suggestions_config?.enabled) {
+        if (noteTypeInfoResult?.suggestions_config?.enabled) {
           suggestionsEnabled = true;
           await loadSuggestions(note.id);
         } else {
@@ -347,11 +363,15 @@
     if (!noteData || !doc) return;
 
     try {
+      // Mark document as expecting a reload to suppress "modified externally" toast
+      doc.markExpectingReload();
+
       const noteService = getChatService();
       await noteService.updateNote({
         identifier: note.id,
         content: doc.content,
-        metadata: $state.snapshot(metadata) as import('@/server/types').NoteMetadata
+        metadata: $state.snapshot(metadata) as import('@/server/types').NoteMetadata,
+        silent: true // Suppress note.updated event since editor already has the data
       });
 
       // Refresh the note data to reflect changes
@@ -361,6 +381,51 @@
       console.error('Error updating metadata:', err);
       throw err;
     }
+  }
+
+  // System fields that cannot be modified via metadata update
+  const SYSTEM_METADATA_FIELDS = new Set([
+    'flint_id',
+    'flint_title',
+    'flint_filename',
+    'flint_type',
+    'flint_kind',
+    'flint_created',
+    'flint_updated',
+    'id',
+    'type',
+    'title',
+    'filename',
+    'created',
+    'updated'
+  ]);
+
+  // Filter out system fields from metadata
+  function filterSystemFields(
+    metadata: Record<string, unknown>
+  ): Record<string, unknown> {
+    const filtered: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+      if (!SYSTEM_METADATA_FIELDS.has(key)) {
+        filtered[key] = value;
+      }
+    }
+    return filtered;
+  }
+
+  // Handler for individual field changes from EditorChips
+  function handleChipMetadataChange(field: string, value: unknown): void {
+    if (!noteData) return;
+
+    // Filter out system fields and add the new field value
+    const filteredMetadata = filterSystemFields(noteData.metadata);
+    const updatedMetadata = {
+      ...filteredMetadata,
+      [field]: value
+    };
+
+    // Use the existing metadata update handler
+    handleMetadataUpdate(updatedMetadata);
   }
 
   async function handleTypeChange(newType: string): Promise<void> {
@@ -629,6 +694,19 @@
       onTitleChange={handleTitleChange}
       onTypeChange={handleTypeChange}
       onTabToContent={() => editorRef?.focus()}
+      disabled={isArchived}
+      note={noteData
+        ? {
+            id: noteData.id,
+            type: noteData.type,
+            created: noteData.created,
+            updated: noteData.updated,
+            metadata: noteData.metadata
+          }
+        : undefined}
+      metadataSchema={noteTypeInfo?.metadata_schema}
+      editorChips={noteTypeInfo?.editor_chips}
+      onMetadataChange={handleChipMetadataChange}
       isPinned={workspacesStore.isPinned(note.id)}
       isOnShelf={notesShelfStore.isOnShelf(note.id)}
       {metadataExpanded}

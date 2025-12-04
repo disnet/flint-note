@@ -629,6 +629,7 @@ export interface NoteTypeDescriptionRow {
   icon: string | null;
   suggestions_config: string | null;
   default_review_mode: number | null; // SQLite boolean (0 or 1)
+  editor_chips: string | null; // JSON array of field names to show as chips
   created_at: string;
   updated_at: string;
 }

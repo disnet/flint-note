@@ -845,7 +845,8 @@ export class FlintNoteApi {
       content_hash: desc.content_hash,
       icon: desc.icon,
       suggestions_config: desc.suggestions_config,
-      default_review_mode: desc.default_review_mode
+      default_review_mode: desc.default_review_mode,
+      editor_chips: desc.editor_chips
     };
   }
 
