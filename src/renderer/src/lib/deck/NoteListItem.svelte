@@ -130,6 +130,79 @@
   let titleValue = $state(note.title || '');
   let titleInputRef = $state<HTMLTextAreaElement | null>(null);
 
+  // Refs for editable prop inputs (keyed by field name)
+  let propInputRefs = $state<Map<string, HTMLElement>>(new Map());
+
+  // Get ordered list of editable columns for Tab navigation
+  function getEditableColumns(): ColumnConfig[] {
+    return columns.filter((col) => isEditable(col.field));
+  }
+
+  // Focus the next editable field after the given field (or first if field is null/title)
+  function focusNextProp(currentField: string | null): boolean {
+    const editableColumns = getEditableColumns();
+    if (editableColumns.length === 0) return false;
+
+    if (currentField === null) {
+      // From title, go to first editable prop
+      const firstCol = editableColumns[0];
+      const ref = propInputRefs.get(firstCol.field);
+      if (ref) {
+        ref.focus();
+        return true;
+      }
+    } else {
+      // Find current index and go to next
+      const currentIndex = editableColumns.findIndex((col) => col.field === currentField);
+      if (currentIndex >= 0 && currentIndex < editableColumns.length - 1) {
+        const nextCol = editableColumns[currentIndex + 1];
+        const ref = propInputRefs.get(nextCol.field);
+        if (ref) {
+          ref.focus();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Focus the previous editable field before the given field
+  function focusPrevProp(currentField: string): boolean {
+    const editableColumns = getEditableColumns();
+    const currentIndex = editableColumns.findIndex((col) => col.field === currentField);
+
+    if (currentIndex === 0) {
+      // At first prop, go back to title
+      titleInputRef?.focus();
+      return true;
+    } else if (currentIndex > 0) {
+      const prevCol = editableColumns[currentIndex - 1];
+      const ref = propInputRefs.get(prevCol.field);
+      if (ref) {
+        ref.focus();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Handle keydown for prop fields (Tab navigation)
+  function handlePropKeydown(event: KeyboardEvent, field: string): void {
+    if (event.key === 'Tab') {
+      if (event.shiftKey) {
+        if (focusPrevProp(field)) {
+          event.preventDefault();
+        }
+      } else {
+        if (focusNextProp(field)) {
+          event.preventDefault();
+        }
+      }
+    } else if (event.key === 'Enter') {
+      (event.target as HTMLElement)?.blur();
+    }
+  }
+
   // Auto-focus title input on mount if requested
   $effect(() => {
     if (autoFocus && titleInputRef) {
@@ -165,6 +238,11 @@
     } else if (event.key === 'Escape') {
       titleValue = note.title || '';
       (event.target as HTMLTextAreaElement)?.blur();
+    } else if (event.key === 'Tab' && !event.shiftKey) {
+      // Tab from title to first editable prop
+      if (focusNextProp(null)) {
+        event.preventDefault();
+      }
     }
   }
 
@@ -254,6 +332,16 @@
   function handleFieldChange(field: string, value: unknown): void {
     onFieldSave?.(field, value);
   }
+
+  // Action to register prop input refs for Tab navigation
+  function registerPropRef(node: HTMLElement, field: string): { destroy: () => void } {
+    propInputRefs.set(field, node);
+    return {
+      destroy() {
+        propInputRefs.delete(field);
+      }
+    };
+  }
 </script>
 
 <div class="note-list-item" role="listitem">
@@ -316,6 +404,8 @@
                 class="prop-inline-select"
                 value={currentValue}
                 onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                onkeydown={(e) => handlePropKeydown(e, column.field)}
+                use:registerPropRef={column.field}
               >
                 <option value="">—</option>
                 {#if valueNotInOptions}
@@ -334,6 +424,8 @@
                 class="prop-inline-checkbox"
                 checked={Boolean(rawValue)}
                 onchange={(e) => handleFieldChange(column.field, e.currentTarget.checked)}
+                onkeydown={(e) => handlePropKeydown(e, column.field)}
+                use:registerPropRef={column.field}
               />
             {:else if editable && fieldType === 'date'}
               <input
@@ -341,6 +433,8 @@
                 class="prop-inline-date"
                 value={rawValue ? String(rawValue).split('T')[0] : ''}
                 onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
+                onkeydown={(e) => handlePropKeydown(e, column.field)}
+                use:registerPropRef={column.field}
               />
             {:else if editable && fieldType === 'number'}
               <input
@@ -351,11 +445,8 @@
                   const val = e.currentTarget.value;
                   handleFieldChange(column.field, val ? Number(val) : null);
                 }}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur();
-                  }
-                }}
+                onkeydown={(e) => handlePropKeydown(e, column.field)}
+                use:registerPropRef={column.field}
               />
             {:else if editable}
               <input
@@ -363,11 +454,8 @@
                 class="prop-inline-input"
                 value={String(rawValue || '')}
                 onblur={(e) => handleFieldChange(column.field, e.currentTarget.value)}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur();
-                  }
-                }}
+                onkeydown={(e) => handlePropKeydown(e, column.field)}
+                use:registerPropRef={column.field}
               />
             {:else}
               <span class="prop-value">{getDisplayValue(column.field) || '—'}</span>
