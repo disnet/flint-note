@@ -322,6 +322,47 @@ export class NoteService {
     });
   }
 
+  /**
+   * Query notes for dataview/deck functionality.
+   * Supports type filtering, metadata filtering, sorting, and pagination.
+   */
+  async queryNotesForDataview(params: {
+    vaultId: string;
+    type?: string | string[];
+    type_operator?: '=' | '!=' | 'IN';
+    metadata_filters?: Array<{
+      key: string;
+      value: string;
+      operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+    }>;
+    sort?: Array<{ field: string; order: 'asc' | 'desc' }>;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    results: Array<{
+      id: string;
+      title: string;
+      type: string;
+      created: string;
+      updated: string;
+      metadata: Record<string, unknown>;
+    }>;
+    total: number;
+    has_more: boolean;
+    query_time_ms: number;
+  }> {
+    this.ensureInitialized();
+    return await this.api.queryNotesForDataview({
+      vault_id: params.vaultId,
+      type: params.type,
+      type_operator: params.type_operator,
+      metadata_filters: params.metadata_filters,
+      sort: params.sort,
+      limit: params.limit,
+      offset: params.offset
+    });
+  }
+
   // Note type operations
   async listNoteTypes(vaultId: string): Promise<NoteTypeListItem[]> {
     this.ensureInitialized();

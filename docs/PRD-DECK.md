@@ -4,7 +4,7 @@
 
 The Deck feature enables users to create dynamic, queryable note lists. Decks can exist as **standalone deck notes** (opened full-screen like PDFs/EPUBs) or be **embedded within other notes**. Similar to Obsidian's Dataview plugin, decks allow users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v9)
+## Current Implementation (v10)
 
 ### Features Implemented
 
@@ -154,6 +154,57 @@ This now displays an error widget prompting users to create a standalone deck no
 - **NoteNavigationService**: Navigation from deck items via wikilink service
 - **MessageBus**: Real-time event subscription for live updates
 
+#### 8. AI Agent Integration
+
+AI agents can create, query, and modify decks through dedicated tools:
+
+**Available Tools:**
+
+| Tool               | Description                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `query_deck`       | Execute deck queries (ad-hoc or from existing deck). Returns filtered notes |
+| `create_deck`      | Create new deck notes with structured configuration                         |
+| `get_deck_config`  | Retrieve deck configuration (views, filters, columns, settings)             |
+| `update_deck_view` | Add, update, or remove views from existing decks                            |
+
+**Ad-hoc Queries:**
+
+Agents can run queries without creating deck notes by passing filters directly:
+
+```typescript
+query_deck({
+  filters: [
+    { field: 'flint_type', value: 'task' },
+    { field: 'due_date', operator: '<', value: '2024-12-05' },
+    { field: 'status', operator: '!=', value: 'completed' }
+  ],
+  sort: { field: 'due_date', order: 'asc' },
+  limit: 50
+});
+```
+
+**Field Discovery:**
+
+Agents use `get_note_type_details` to discover available metadata fields before querying:
+
+1. Call `get_note_type_details({ typeName: "task" })`
+2. Receive schema with field names, types, and valid options for select fields
+3. Use discovered fields in deck filters
+
+**When Agents Use Deck Tools vs `search_notes`:**
+
+- `search_notes`: Find notes by title/content text
+- `query_deck`: Find notes by structured metadata (status, priority, dates)
+
+**System Prompt Documentation:**
+
+The agent system prompt includes comprehensive guidance on:
+
+- When to use deck tools vs text search
+- Filter operator reference
+- Common filter patterns
+- Step-by-step examples for common queries
+
 ### Technical Architecture
 
 ```
@@ -185,11 +236,15 @@ src/server/core/
 └── system-fields.ts            # NoteKind type includes 'deck'
 
 src/shared/
-└── menu-definitions.ts         # "New Deck" menu item
+├── menu-definitions.ts         # "New Deck" menu item
+└── deck-yaml-utils.ts          # Shared YAML parsing/serialization (used by main + renderer)
 
 src/main/
 ├── menu.ts                     # Native menu "New Deck" handler
-└── index.ts                    # IPC handlers
+├── index.ts                    # IPC handlers
+├── tool-service.ts             # AI agent deck tools (query_deck, create_deck, etc.)
+├── note-service.ts             # queryNotesForDataview wrapper
+└── system-prompt.md            # Agent documentation for deck tools
 
 src/renderer/src/
 ├── App.svelte                  # handleCreateDeck(), menu action handler
@@ -206,9 +261,9 @@ src/server/api/flint-note-api.ts
 └── queryNotesForDataview()     # API wrapper
 ```
 
-### Known Limitations (v9)
+### Known Limitations (v10)
 
-1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes
+1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes (agent queries support up to 200)
 2. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
 3. **Column width configuration**: Not yet implemented
 4. **No deck templates**: Cannot save/reuse deck configurations across notes
@@ -217,6 +272,16 @@ src/server/api/flint-note-api.ts
 ---
 
 ## Version History
+
+### v10: AI Agent Integration
+
+- **Dedicated agent tools**: `query_deck`, `create_deck`, `get_deck_config`, `update_deck_view`
+- **Ad-hoc queries**: Agents can query notes by metadata without creating deck notes
+- **Structured input**: Agents use structured tool parameters instead of raw YAML
+- **Field discovery**: Agents use existing `get_note_type_details` to discover filterable fields
+- **System prompt documentation**: Comprehensive guidance for when/how to use deck tools
+- **Shared YAML utilities**: Moved parsing logic to `src/shared/deck-yaml-utils.ts` for main process access
+- **Higher limits**: Agent queries support up to 200 results (vs 50 for UI)
 
 ### v9: Multi-View Support
 
@@ -288,20 +353,20 @@ src/server/api/flint-note-api.ts
 
 ## Next Steps
 
-### Phase 10: Advanced Features
+### Phase 11: Advanced Features
 
-#### 10.1 Grouping
+#### 11.1 Grouping
 
 - Group results by field value
 - Collapsible groups
 - Group counts
 
-#### 10.2 Aggregations
+#### 11.2 Aggregations
 
 - Count, sum, average for numeric fields
 - Display in footer row
 
-#### 10.3 Layout Types
+#### 11.3 Layout Types
 
 - Table view (current default)
 - List view (compact)
@@ -309,36 +374,36 @@ src/server/api/flint-note-api.ts
 - Calendar view (for date-based queries)
 - Layout type stored per-view
 
-#### 10.4 Deck Templates
+#### 11.4 Deck Templates
 
 - Save deck configurations as reusable templates
 - Quick-insert via command palette
 - Template library management
 
-#### 10.5 Deck Chaining
+#### 11.5 Deck Chaining
 
 - Reference other deck results
 - Filter based on linked notes
 - Intersection/union of multiple decks
 
-### Phase 11: Performance Optimizations
+### Phase 12: Performance Optimizations
 
-#### 11.1 Virtual Scrolling
+#### 12.1 Virtual Scrolling
 
 - Only render visible rows
 - Handle large result sets efficiently
 
-#### 11.2 Query Caching
+#### 12.2 Query Caching
 
 - Cache query results with invalidation
 - Share cache across identical decks
 
-#### 11.3 Incremental Updates
+#### 12.3 Incremental Updates
 
 - Track which notes changed
 - Update only affected rows instead of full re-query
 
-#### 11.4 Metadata Field Sorting
+#### 12.4 Metadata Field Sorting
 
 - Implement server-side sorting by metadata fields
 - Add LEFT JOIN for sort field to enable proper ordering

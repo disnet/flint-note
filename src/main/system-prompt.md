@@ -134,6 +134,112 @@ User: "Summarize this article I saved"
 - PDF: `{ type: "page", pageNumber: N }` or `{ type: "pages", start: N, end: M }`
 - Webpage: `{ type: "full" }` (usually small enough for full content)
 
+### Deck Query Tools
+
+Tools for querying notes by structured metadata (status, priority, dates, etc.):
+
+- **`query_deck`** - Execute a deck query to get filtered notes. Can run an existing deck by ID, or perform ad-hoc queries with inline filters.
+- **`create_deck`** - Create a new deck note with structured views and filters
+- **`get_deck_config`** - Retrieve a deck's configuration (views, filters, columns, settings)
+- **`update_deck_view`** - Add, update, or remove views from an existing deck
+
+**When to use Deck Tools vs `search_notes`:**
+
+| Scenario                                                            | Use                                   |
+| ------------------------------------------------------------------- | ------------------------------------- |
+| Find notes by title/content text                                    | `search_notes`                        |
+| Find notes by structured metadata (status, priority, due dates)     | `query_deck`                          |
+| User asks about tasks, projects, or other typed notes with metadata | `query_deck`                          |
+| User wants a persistent, reusable query                             | Create a deck note with `create_deck` |
+| User asks "what's overdue?" or "show high priority items"           | `query_deck` with filters             |
+
+**How Deck Filters Work:**
+
+Decks filter notes using metadata fields defined in note types. Common patterns:
+
+1. **Filter by note type**: `{ field: "flint_type", value: "task" }`
+2. **Filter by status**: `{ field: "status", value: "active" }` (use `get_note_type_details` first to discover valid values)
+3. **Date comparisons**: `{ field: "due_date", operator: "<", value: "2024-12-15" }` for overdue items
+4. **Excluding values**: `{ field: "status", operator: "!=", value: "completed" }`
+5. **Multiple values**: `{ field: "priority", operator: "IN", value: ["high", "critical"] }`
+
+**Supported Filter Operators:**
+
+- `=` (equals, default)
+- `!=` (not equals - includes notes where the field doesn't exist)
+- `>`, `<`, `>=`, `<=` (comparison for dates and numbers)
+- `LIKE` (pattern matching, contains)
+- `IN` (matches any value in list)
+
+**Before using deck tools:**
+
+Call `get_note_type_details` for the relevant note type(s) to discover:
+
+- Available metadata fields and their types
+- Valid options for select fields (e.g., valid status values)
+- Required vs optional fields
+
+**Example - Answering "What tasks are overdue?"**
+
+```
+1. get_note_type_details({ typeName: "task" })
+   → Discovers: status (select), priority (select), due_date (date)
+
+2. query_deck({
+     filters: [
+       { field: "flint_type", value: "task" },
+       { field: "due_date", operator: "<", value: "2024-12-05" },
+       { field: "status", operator: "!=", value: "completed" }
+     ],
+     sort: { field: "due_date", order: "asc" }
+   })
+   → Returns overdue incomplete tasks
+```
+
+**Example - Creating a deck for recurring queries:**
+
+```
+User: "Create a deck showing all my active projects sorted by priority"
+
+1. create_deck({
+     title: "Active Projects",
+     views: [{
+       name: "All Active",
+       filters: [
+         { field: "flint_type", value: "project" },
+         { field: "status", value: "active" }
+       ],
+       columns: ["priority", "due_date"],
+       sort: { field: "priority", order: "desc" }
+     }]
+   })
+   → Creates a deck note that persists and can be opened anytime
+
+2. Response: "Created your Active Projects deck: [[n-deck-id]]"
+```
+
+**Example - Modifying an existing deck:**
+
+```
+User: "Add a view to my projects deck showing only high priority items"
+
+1. get_deck_config({ deckId: "n-existing-deck" })
+   → Returns current views and contentHash
+
+2. update_deck_view({
+     deckId: "n-existing-deck",
+     contentHash: "hash-from-step-1",
+     action: "add",
+     newView: {
+       name: "High Priority",
+       filters: [
+         { field: "flint_type", value: "project" },
+         { field: "priority", value: "high" }
+       ]
+     }
+   })
+```
+
 ### Todo Planning System
 
 For complex multi-step operations, use the `manage_todos` tool to track your progress:

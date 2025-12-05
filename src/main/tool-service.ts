@@ -21,6 +21,12 @@ import {
   removeWorkflowMaterialSchema
 } from '../server/types/workflow-schemas.js';
 import { logger } from './logger';
+import {
+  parseDeckYaml,
+  serializeDeckConfig,
+  createDeckConfigFromInput,
+  getView
+} from '../shared/deck-yaml-utils';
 
 export class ToolService {
   private todoPlanService: TodoPlanService | null = null;
@@ -102,6 +108,12 @@ export class ToolService {
       tools.get_document_chunk = this.getDocumentChunkTool;
       tools.search_document_text = this.searchDocumentTextTool;
     }
+
+    // Deck tools for structured note queries
+    tools.query_deck = this.queryDeckTool;
+    tools.create_deck = this.createDeckTool;
+    tools.get_deck_config = this.getDeckConfigTool;
+    tools.update_deck_view = this.updateDeckViewTool;
 
     return tools;
   }
@@ -3191,6 +3203,718 @@ export class ToolService {
           success: false,
           error: 'SEARCH_FAILED',
           message: `Failed to search document: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  // =====================
+  // Deck Tools
+  // =====================
+
+  private queryDeckTool = tool({
+    description:
+      'Execute a deck query to get filtered notes. Can run an existing deck by ID, or perform ad-hoc queries with inline filters. Use get_note_type_details first to discover available fields for filtering. For finding notes by text content, use search_notes instead.',
+    inputSchema: z.object({
+      deckId: z
+        .string()
+        .optional()
+        .describe(
+          "ID of an existing deck note to execute. If provided, uses the deck's saved configuration."
+        ),
+      view: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe(
+          'Which view to execute: view name (string) or index (number, 0-based). Defaults to active view.'
+        ),
+      filters: z
+        .array(
+          z.object({
+            field: z
+              .string()
+              .describe('Field to filter on (e.g., "flint_type", "status", "due_date")'),
+            operator: z
+              .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
+              .optional()
+              .describe('Comparison operator (default: "=")'),
+            value: z
+              .union([z.string(), z.array(z.string())])
+              .describe('Value(s) to match')
+          })
+        )
+        .optional()
+        .describe(
+          'Filter conditions. Use get_note_type_details to discover available fields.'
+        ),
+      sort: z
+        .object({
+          field: z.string().describe('Field to sort by'),
+          order: z.enum(['asc', 'desc']).describe('Sort direction')
+        })
+        .optional()
+        .describe('Sort configuration'),
+      columns: z
+        .array(z.string())
+        .optional()
+        .describe('Metadata fields to include in results'),
+      limit: z.number().optional().describe('Maximum results (default: 50, max: 200)')
+    }),
+    execute: async ({ deckId, view, filters, sort, columns, limit }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const currentVault = await this.noteService.getCurrentVault();
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        let effectiveFilters = filters;
+        let effectiveSort = sort;
+        let effectiveLimit = limit ?? 50;
+
+        // If deckId provided, load the deck configuration
+        if (deckId) {
+          const flintApi = this.noteService.getFlintNoteApi();
+          const deckNote = await flintApi.getNote(currentVault.id, deckId);
+
+          if (!deckNote) {
+            return {
+              success: false,
+              error: 'DECK_NOT_FOUND',
+              message: `Deck note not found: ${deckId}`
+            };
+          }
+
+          if (deckNote.metadata.flint_kind !== 'deck') {
+            return {
+              success: false,
+              error: 'NOT_A_DECK',
+              message: `Note ${deckId} is not a deck (kind: ${deckNote.metadata.flint_kind})`
+            };
+          }
+
+          const deckConfig = parseDeckYaml(deckNote.content);
+          if (!deckConfig) {
+            return {
+              success: false,
+              error: 'INVALID_DECK_CONFIG',
+              message: 'Failed to parse deck configuration'
+            };
+          }
+
+          // Get the specified view or active view
+          const deckView =
+            view !== undefined
+              ? getView(deckConfig, view)
+              : getView(deckConfig, deckConfig.activeView ?? 0);
+
+          if (!deckView) {
+            return {
+              success: false,
+              error: 'VIEW_NOT_FOUND',
+              message: `View not found: ${view}`
+            };
+          }
+
+          // Use deck config unless overridden by parameters
+          if (!filters) {
+            effectiveFilters = deckView.filters;
+          }
+          if (!sort && deckView.sort) {
+            effectiveSort = deckView.sort;
+          }
+          if (!limit) {
+            effectiveLimit = deckConfig.limit ?? 50;
+          }
+        }
+
+        // Convert filters to API format
+        const typeFilters =
+          effectiveFilters?.filter(
+            (f) => f.field === 'flint_type' || f.field === 'type'
+          ) ?? [];
+        const metadataFilters =
+          effectiveFilters?.filter(
+            (f) => f.field !== 'flint_type' && f.field !== 'type'
+          ) ?? [];
+
+        // Build query options
+        const queryOptions: Parameters<typeof this.noteService.queryNotesForDataview>[0] =
+          {
+            vaultId: currentVault.id,
+            limit: Math.min(effectiveLimit, 200),
+            sort: effectiveSort ? [effectiveSort] : undefined
+          };
+
+        // Handle type filter
+        if (typeFilters.length > 0) {
+          const typeFilter = typeFilters[0];
+          if (Array.isArray(typeFilter.value)) {
+            queryOptions.type = typeFilter.value;
+            queryOptions.type_operator = 'IN';
+          } else {
+            queryOptions.type = typeFilter.value;
+            queryOptions.type_operator =
+              (typeFilter.operator as '=' | '!=' | 'IN') ?? '=';
+          }
+        }
+
+        // Handle metadata filters
+        if (metadataFilters.length > 0) {
+          queryOptions.metadata_filters = metadataFilters.map((f) => ({
+            key: f.field,
+            value: Array.isArray(f.value) ? f.value.join(',') : f.value,
+            operator: f.operator
+          }));
+        }
+
+        const result = await this.noteService.queryNotesForDataview(queryOptions);
+
+        // Filter result columns if specified
+        let results = result.results;
+        if (columns && columns.length > 0) {
+          results = results.map((note) => ({
+            ...note,
+            metadata: Object.fromEntries(
+              Object.entries(note.metadata).filter(
+                ([key]) => columns.includes(key) || key.startsWith('flint_') // Always include system fields
+              )
+            )
+          }));
+        }
+
+        return {
+          success: true,
+          data: {
+            results,
+            total: result.total,
+            has_more: result.has_more,
+            query_time_ms: result.query_time_ms
+          },
+          message: `Found ${result.total} note(s)${result.has_more ? ` (showing first ${results.length})` : ''}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to query deck', { deckId, filters, error: errorMessage });
+
+        return {
+          success: false,
+          error: 'QUERY_FAILED',
+          message: `Failed to query deck: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private createDeckTool = tool({
+    description:
+      'Create a new deck note with structured configuration. A deck is a dynamic list of notes based on filters. Use this to create reusable queries for tasks, projects, or other note collections.',
+    inputSchema: z.object({
+      title: z.string().describe('Title for the deck note'),
+      parentId: z
+        .string()
+        .optional()
+        .describe('Parent note ID to establish hierarchy (optional)'),
+      views: z
+        .array(
+          z.object({
+            name: z.string().describe('Display name for this view'),
+            filters: z
+              .array(
+                z.object({
+                  field: z.string().describe('Field to filter on'),
+                  operator: z
+                    .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
+                    .optional(),
+                  value: z.union([z.string(), z.array(z.string())])
+                })
+              )
+              .describe('Filter conditions for this view'),
+            columns: z.array(z.string()).optional().describe('Columns to display'),
+            sort: z
+              .object({
+                field: z.string(),
+                order: z.enum(['asc', 'desc'])
+              })
+              .optional()
+              .describe('Sort configuration')
+          })
+        )
+        .min(1)
+        .describe('One or more views with different filter configurations'),
+      limit: z.number().optional().describe('Maximum results per view (default: 50)')
+    }),
+    execute: async ({ title, parentId, views, limit }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Create deck config
+        const deckConfig = createDeckConfigFromInput({
+          views: views.map((v) => ({
+            name: v.name,
+            filters: v.filters,
+            columns: v.columns,
+            sort: v.sort
+          })),
+          limit
+        });
+
+        // Serialize to YAML
+        const yamlContent = serializeDeckConfig(deckConfig);
+
+        // Create the deck note
+        const noteInfo = await flintApi.createNote({
+          type: 'note', // Decks use 'note' type with kind='deck'
+          kind: 'deck',
+          title,
+          content: yamlContent,
+          vaultId: currentVault.id,
+          callerContext: 'agent'
+        });
+
+        // If parentId is specified, add hierarchy
+        if (parentId) {
+          try {
+            await flintApi.addSubnote({
+              parent_id: parentId,
+              child_id: noteInfo.id,
+              vault_id: currentVault.id
+            });
+          } catch (hierarchyError) {
+            logger.warn('Failed to add hierarchy relationship:', hierarchyError);
+          }
+        }
+
+        // Get the full note
+        const note = await flintApi.getNote(currentVault.id, noteInfo.id);
+
+        // Publish creation event
+        publishNoteEvent({
+          type: 'note.created',
+          note: {
+            id: noteInfo.id,
+            type: note.type,
+            flint_kind: 'deck',
+            filename: note.filename,
+            title: note.title,
+            created: note.created,
+            modified: note.updated,
+            size: note.size || 0,
+            tags: note.metadata.tags || [],
+            path: note.path
+          }
+        });
+
+        return {
+          success: true,
+          data: {
+            id: noteInfo.id,
+            title: note.title,
+            contentHash: note.content_hash,
+            views: deckConfig.views?.map((v) => v.name) ?? []
+          },
+          message: `Created deck: ${note.title} with ${views.length} view(s). Reference as [[${noteInfo.id}]]`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to create deck', { title, error: errorMessage });
+
+        return {
+          success: false,
+          error: 'CREATE_FAILED',
+          message: `Failed to create deck: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getDeckConfigTool = tool({
+    description:
+      'Retrieve the full configuration of a deck note, including all views, filters, columns, and settings. Use this before modifying a deck to get its current state and content hash.',
+    inputSchema: z.object({
+      deckId: z.string().describe('ID of the deck note to read')
+    }),
+    execute: async ({ deckId }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const deckNote = await flintApi.getNote(currentVault.id, deckId);
+
+        if (!deckNote) {
+          return {
+            success: false,
+            error: 'DECK_NOT_FOUND',
+            message: `Deck note not found: ${deckId}`
+          };
+        }
+
+        if (deckNote.metadata.flint_kind !== 'deck') {
+          return {
+            success: false,
+            error: 'NOT_A_DECK',
+            message: `Note ${deckId} is not a deck (kind: ${deckNote.metadata.flint_kind})`
+          };
+        }
+
+        const deckConfig = parseDeckYaml(deckNote.content);
+        if (!deckConfig) {
+          return {
+            success: false,
+            error: 'INVALID_DECK_CONFIG',
+            message: 'Failed to parse deck configuration'
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            id: deckNote.id,
+            title: deckNote.title,
+            views: deckConfig.views,
+            activeView: deckConfig.activeView ?? 0,
+            limit: deckConfig.limit ?? 50,
+            expanded: deckConfig.expanded ?? false,
+            contentHash: deckNote.content_hash
+          },
+          message: `Retrieved deck config: ${deckNote.title} with ${deckConfig.views?.length ?? 0} view(s)`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to get deck config', { deckId, error: errorMessage });
+
+        return {
+          success: false,
+          error: 'GET_CONFIG_FAILED',
+          message: `Failed to get deck config: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private updateDeckViewTool = tool({
+    description:
+      'Add, update, or remove views from an existing deck. Get the deck config first to obtain the content hash.',
+    inputSchema: z.object({
+      deckId: z.string().describe('ID of the deck note to modify'),
+      contentHash: z
+        .string()
+        .describe('Content hash for safe update (from get_deck_config)'),
+      action: z
+        .enum(['add', 'update', 'remove', 'set_active'])
+        .describe('Operation to perform'),
+      newView: z
+        .object({
+          name: z.string(),
+          filters: z.array(
+            z.object({
+              field: z.string(),
+              operator: z
+                .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
+                .optional(),
+              value: z.union([z.string(), z.array(z.string())])
+            })
+          ),
+          columns: z.array(z.string()).optional(),
+          sort: z
+            .object({
+              field: z.string(),
+              order: z.enum(['asc', 'desc'])
+            })
+            .optional()
+        })
+        .optional()
+        .describe('New view configuration (required for "add" action)'),
+      viewIndex: z
+        .number()
+        .optional()
+        .describe('Index of view to update/remove (0-based)'),
+      viewName: z
+        .string()
+        .optional()
+        .describe('Name of view to update/remove (alternative to viewIndex)'),
+      updates: z
+        .object({
+          name: z.string().optional(),
+          filters: z
+            .array(
+              z.object({
+                field: z.string(),
+                operator: z
+                  .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
+                  .optional(),
+                value: z.union([z.string(), z.array(z.string())])
+              })
+            )
+            .optional(),
+          columns: z.array(z.string()).optional(),
+          sort: z
+            .object({
+              field: z.string(),
+              order: z.enum(['asc', 'desc'])
+            })
+            .optional()
+        })
+        .optional()
+        .describe('Fields to update (for "update" action)'),
+      activeView: z
+        .number()
+        .optional()
+        .describe('View index to set as active (for "set_active" action)')
+    }),
+    execute: async ({
+      deckId,
+      contentHash,
+      action,
+      newView,
+      viewIndex,
+      viewName,
+      updates,
+      activeView
+    }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const deckNote = await flintApi.getNote(currentVault.id, deckId);
+
+        if (!deckNote) {
+          return {
+            success: false,
+            error: 'DECK_NOT_FOUND',
+            message: `Deck note not found: ${deckId}`
+          };
+        }
+
+        if (deckNote.content_hash !== contentHash) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_MISMATCH',
+            message:
+              'Content hash mismatch. The deck has been modified. Please fetch the latest config and try again.'
+          };
+        }
+
+        const deckConfig = parseDeckYaml(deckNote.content);
+        if (!deckConfig || !deckConfig.views) {
+          return {
+            success: false,
+            error: 'INVALID_DECK_CONFIG',
+            message: 'Failed to parse deck configuration'
+          };
+        }
+
+        // Find view index if viewName is provided
+        let targetIndex = viewIndex;
+        if (viewName !== undefined && targetIndex === undefined) {
+          targetIndex = deckConfig.views.findIndex((v) => v.name === viewName);
+          if (targetIndex === -1) {
+            return {
+              success: false,
+              error: 'VIEW_NOT_FOUND',
+              message: `View not found: ${viewName}`
+            };
+          }
+        }
+
+        // Perform the action
+        switch (action) {
+          case 'add':
+            if (!newView) {
+              return {
+                success: false,
+                error: 'MISSING_NEW_VIEW',
+                message: 'newView is required for "add" action'
+              };
+            }
+            deckConfig.views.push({
+              name: newView.name,
+              filters: newView.filters,
+              columns: newView.columns,
+              sort: newView.sort
+            });
+            break;
+
+          case 'update':
+            if (targetIndex === undefined) {
+              return {
+                success: false,
+                error: 'MISSING_VIEW_REF',
+                message: 'viewIndex or viewName is required for "update" action'
+              };
+            }
+            if (targetIndex < 0 || targetIndex >= deckConfig.views.length) {
+              return {
+                success: false,
+                error: 'VIEW_INDEX_OUT_OF_RANGE',
+                message: `View index ${targetIndex} is out of range`
+              };
+            }
+            if (updates) {
+              const view = deckConfig.views[targetIndex];
+              if (updates.name) view.name = updates.name;
+              if (updates.filters) view.filters = updates.filters;
+              if (updates.columns) view.columns = updates.columns;
+              if (updates.sort) view.sort = updates.sort;
+            }
+            break;
+
+          case 'remove':
+            if (targetIndex === undefined) {
+              return {
+                success: false,
+                error: 'MISSING_VIEW_REF',
+                message: 'viewIndex or viewName is required for "remove" action'
+              };
+            }
+            if (targetIndex < 0 || targetIndex >= deckConfig.views.length) {
+              return {
+                success: false,
+                error: 'VIEW_INDEX_OUT_OF_RANGE',
+                message: `View index ${targetIndex} is out of range`
+              };
+            }
+            if (deckConfig.views.length === 1) {
+              return {
+                success: false,
+                error: 'CANNOT_REMOVE_LAST_VIEW',
+                message: 'Cannot remove the last view from a deck'
+              };
+            }
+            deckConfig.views.splice(targetIndex, 1);
+            // Adjust activeView if needed
+            if ((deckConfig.activeView ?? 0) >= deckConfig.views.length) {
+              deckConfig.activeView = deckConfig.views.length - 1;
+            }
+            break;
+
+          case 'set_active':
+            if (activeView === undefined) {
+              return {
+                success: false,
+                error: 'MISSING_ACTIVE_VIEW',
+                message: 'activeView is required for "set_active" action'
+              };
+            }
+            if (activeView < 0 || activeView >= deckConfig.views.length) {
+              return {
+                success: false,
+                error: 'VIEW_INDEX_OUT_OF_RANGE',
+                message: `View index ${activeView} is out of range`
+              };
+            }
+            deckConfig.activeView = activeView;
+            break;
+        }
+
+        // Serialize and update
+        const newContent = serializeDeckConfig(deckConfig);
+
+        await flintApi.updateNote({
+          identifier: deckId,
+          content: newContent,
+          contentHash,
+          vaultId: currentVault.id,
+          callerContext: 'agent'
+        });
+
+        const updatedNote = await flintApi.getNote(currentVault.id, deckId);
+
+        // Publish update event
+        publishNoteEvent({
+          type: 'note.updated',
+          noteId: updatedNote.id,
+          updates: {
+            title: updatedNote.title,
+            filename: updatedNote.filename,
+            modified: updatedNote.updated
+          },
+          source: 'agent'
+        });
+
+        return {
+          success: true,
+          data: {
+            id: updatedNote.id,
+            title: updatedNote.title,
+            views: deckConfig.views.map((v) => v.name),
+            activeView: deckConfig.activeView ?? 0,
+            contentHash: updatedNote.content_hash
+          },
+          message: `Updated deck: ${action} operation completed`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to update deck view', {
+          deckId,
+          action,
+          error: errorMessage
+        });
+
+        return {
+          success: false,
+          error: 'UPDATE_FAILED',
+          message: `Failed to update deck view: ${errorMessage}`
         };
       }
     }
