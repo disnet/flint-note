@@ -89,14 +89,7 @@
     if (field === 'flint_type') return 'type';
     if (field === 'flint_filename') return 'filename';
 
-    // Schema field - check for label in definition
-    const def = getFieldDef(field);
-    if (def?.description) {
-      // Use first word of description as label if it's short
-      const firstWord = def.description.split(' ')[0];
-      if (firstWord.length <= 12) return firstWord.toLowerCase();
-    }
-    // Default: clean up field name
+    // Use field name, cleaning up underscores
     return field.replace(/_/g, ' ');
   }
 
