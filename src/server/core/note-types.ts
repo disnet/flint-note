@@ -77,6 +77,8 @@ export interface NoteTypeListItem {
   icon?: string;
   /** True for system types like 'type' that users cannot create notes of */
   isSystemType?: boolean;
+  /** The ID of the type note file (for file-based types) */
+  noteId?: string;
 }
 
 export interface NoteTypeUpdateRequest {
@@ -794,7 +796,8 @@ export class NoteTypeManager {
                   (typeNote.frontmatter.flint_updated as string) ||
                   new Date().toISOString(),
                 icon: typeNote.definition.icon,
-                isSystemType
+                isSystemType,
+                noteId: typeNote.frontmatter.flint_id as string | undefined
               });
             }
           }

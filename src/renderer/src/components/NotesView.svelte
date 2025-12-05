@@ -1,31 +1,28 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
 
-  const groupedNotes = $derived.by(() => {
-    const notes = notesStore.groupedNotes;
-    return notes;
-  });
-
   const noteTypes = $derived.by(() => {
-    const types = notesStore.noteTypes;
-    return types;
+    // Filter out the 'type' system type from the list
+    return notesStore.noteTypes.filter((t) => t.name !== 'type');
   });
 
   interface Props {
-    onTypeSelect?: (typeName: string) => void;
+    onTypeSelect?: (noteId: string) => void;
     onCreateType?: () => void;
   }
 
   let { onTypeSelect, onCreateType }: Props = $props();
 
-  function handleTypeClick(typeName: string): void {
-    onTypeSelect?.(typeName);
+  function handleTypeClick(noteId: string | undefined): void {
+    if (noteId) {
+      onTypeSelect?.(noteId);
+    }
   }
 
-  function handleTypeKeyDown(event: KeyboardEvent, typeName: string): void {
+  function handleTypeKeyDown(event: KeyboardEvent, noteId: string | undefined): void {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      handleTypeClick(typeName);
+      handleTypeClick(noteId);
     }
   }
 </script>
@@ -38,58 +35,32 @@
       onclick={() => onCreateType?.()}
       title="Create new note type"
     >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-      New Type
+      + New Type
     </button>
   </div>
 
   {#if notesStore.error}
     <div class="error-message">
-      <h3>Failed to load note types</h3>
       <p>{notesStore.error}</p>
-      <details>
-        <summary>Troubleshooting</summary>
-        <ul>
-          <li>Check that the flint-note MCP server is running</li>
-          <li>Verify that the note service initialized successfully</li>
-          <li>Check the browser console for detailed error logs</li>
-        </ul>
-      </details>
     </div>
   {/if}
 
+  <div class="divider"></div>
+
   {#if noteTypes.length > 0}
-    <div class="type-grid">
+    <div class="type-list">
       {#each noteTypes as noteType (noteType.name)}
-        {@const notes = groupedNotes[noteType.name] || []}
         <button
-          class="type-card"
-          onclick={() => handleTypeClick(noteType.name)}
-          onkeydown={(e) => handleTypeKeyDown(e, noteType.name)}
+          class="type-row"
+          onclick={() => handleTypeClick(noteType.noteId)}
+          onkeydown={(e) => handleTypeKeyDown(e, noteType.noteId)}
         >
-          <div class="card-content">
-            <div class="card-header">
-              {#if noteType.icon}
-                <span class="type-icon">{noteType.icon}</span>
-              {/if}
-              <h2 class="type-name">{noteType.name}</h2>
-            </div>
+          <span class="type-icon">{noteType.icon || '📄'}</span>
+          <div class="type-info">
+            <span class="type-name">{noteType.name}</span>
             {#if noteType.purpose}
-              <p class="type-purpose">{noteType.purpose}</p>
+              <span class="type-purpose">{noteType.purpose}</span>
             {/if}
-            <p class="note-count">
-              {notes.length}
-              {notes.length === 1 ? 'note' : 'notes'}
-            </p>
           </div>
         </button>
       {/each}
@@ -100,7 +71,7 @@
     </div>
   {:else}
     <div class="loading-state">
-      <p>Loading note types...</p>
+      <p>Loading...</p>
     </div>
   {/if}
 </div>
@@ -110,7 +81,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 1.5rem;
+    padding: 1.5rem 0;
     background: var(--bg-primary);
   }
 
@@ -118,164 +89,120 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2rem;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .page-title {
     margin: 0;
-    font-size: 1.75rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
   }
 
   .create-type-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--accent-primary);
-    color: var(--accent-text);
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
     border: none;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .create-type-btn:hover {
-    background: var(--accent-primary-hover);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
 
   .error-message {
     background: var(--error-bg);
     color: var(--error-text);
-    padding: 1rem;
-    border-radius: 0.375rem;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid var(--error-border, #ef4444);
-  }
-
-  .error-message h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    margin: 0 0.5rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
   }
 
   .error-message p {
-    margin: 0 0 0.75rem 0;
-    font-size: 0.875rem;
-    font-family: monospace;
-    background: rgba(0, 0, 0, 0.1);
-    padding: 0.5rem;
-    border-radius: 0.25rem;
-  }
-
-  .error-message details {
-    font-size: 0.875rem;
-  }
-
-  .error-message summary {
-    cursor: pointer;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-
-  .error-message ul {
     margin: 0;
-    padding-left: 1.25rem;
   }
 
-  .error-message li {
-    margin-bottom: 0.25rem;
+  .divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0 0.5rem 0.5rem;
   }
 
-  .type-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    padding: 0.5rem 0;
-  }
-
-  .type-card {
+  .type-list {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+  }
+
+  .type-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.5rem;
     background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
+    border: none;
+    border-radius: 0.375rem;
     cursor: pointer;
-    transition: all 0.2s ease;
     text-align: left;
-    min-height: 100px;
+    transition: background 0.15s ease;
   }
 
-  .type-card:hover {
-    border-color: var(--accent-primary);
-    transform: translateY(-2px);
+  .type-row:hover {
+    background: var(--bg-secondary);
   }
 
-  .type-card:active {
-    transform: translateY(0);
-  }
-
-  .type-card:focus {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
-  }
-
-  .card-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .type-row:focus {
+    outline: none;
+    background: var(--bg-secondary);
   }
 
   .type-icon {
-    font-size: 1.5rem;
-    line-height: 1;
+    font-size: 1rem;
+    line-height: 1.4;
     flex-shrink: 0;
   }
 
+  .type-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
   .type-name {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--text-primary);
-    text-transform: capitalize;
   }
 
   .type-purpose {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-weight: 400;
+    font-size: 0.75rem;
+    color: var(--text-muted);
     line-height: 1.4;
-    flex: 1;
-  }
-
-  .note-count {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .empty-state,
   .loading-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: var(--text-secondary);
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
   }
 
   .empty-state p,
   .loading-state p {
     margin: 0;
-    font-size: 0.9375rem;
   }
 </style>

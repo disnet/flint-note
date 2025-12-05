@@ -23,6 +23,8 @@ export type NoteType = {
   icon?: string;
   /** True for system types like 'type' that users cannot create notes of */
   isSystemType?: boolean;
+  /** The ID of the type note file (for file-based types) */
+  noteId?: string;
 };
 
 interface NotesStoreState {
@@ -40,6 +42,7 @@ function createNotesStore(): {
   readonly error: string | null;
   readonly groupedNotes: Record<string, NoteMetadata[]>;
   initialize: () => Promise<void>;
+  refresh: () => Promise<void>;
 } {
   const noteService = getChatService();
 
@@ -92,7 +95,8 @@ function createNotesStore(): {
         count: typeItem.noteCount,
         purpose: typeItem.purpose || '',
         icon: typeItem.icon,
-        isSystemType: typeItem.isSystemType
+        isSystemType: typeItem.isSystemType,
+        noteId: typeItem.noteId
       }));
       state.noteTypes = noteTypes;
       state.loading = false;
@@ -150,7 +154,20 @@ function createNotesStore(): {
       );
       return state.initializationPromise;
     }
+    return doInitialize();
+  }
 
+  // Force refresh - clears any existing promise and re-initializes
+  async function refresh(): Promise<void> {
+    logger.debug('[noteStore] Force refresh requested');
+    // Wait for any in-progress initialization to complete, then re-initialize
+    if (state.initializationPromise) {
+      await state.initializationPromise;
+    }
+    return doInitialize();
+  }
+
+  async function doInitialize(): Promise<void> {
     // Create and store the initialization promise
     state.initializationPromise = (async () => {
       try {
@@ -233,7 +250,8 @@ function createNotesStore(): {
     get groupedNotes() {
       return groupedNotes;
     },
-    initialize
+    initialize,
+    refresh
   };
 }
 

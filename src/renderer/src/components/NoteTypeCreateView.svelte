@@ -3,17 +3,25 @@
   import EmojiPicker from './EmojiPicker.svelte';
 
   interface Props {
-    onBack: () => void;
+    onClose: () => void;
     onCreated?: () => void;
   }
 
-  let { onBack, onCreated }: Props = $props();
+  let { onClose, onCreated }: Props = $props();
 
   let typeName = $state('');
   let description = $state('');
   let icon = $state('');
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let inputRef = $state<HTMLInputElement | null>(null);
+
+  // Focus input on mount
+  $effect(() => {
+    if (inputRef) {
+      inputRef.focus();
+    }
+  });
 
   async function handleSubmit(): Promise<void> {
     // Validate
@@ -44,9 +52,9 @@
           vaultId: currentVault.id
         });
 
-        // Success! Navigate back
-        onCreated?.();
-        onBack();
+        // Success! Wait for refresh to complete before closing
+        await onCreated?.();
+        onClose();
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to create note type';
@@ -56,30 +64,45 @@
     }
   }
 
-  function handleCancel(): void {
-    onBack();
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && !loading) {
+      onClose();
+    }
   }
 </script>
 
-<div class="create-view">
-  <div class="header">
-    <button class="back-button" onclick={onBack}>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="modal-overlay"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="modal-title"
+  onclick={onClose}
+  onkeydown={handleKeyDown}
+>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal" onclick={(e) => e.stopPropagation()} onkeydown={handleKeyDown}>
+    <div class="modal-header">
+      <h2 id="modal-title" class="modal-title">New Note Type</h2>
+      <button
+        class="close-btn"
+        type="button"
+        onclick={onClose}
+        disabled={loading}
+        aria-label="Close"
       >
-        <path d="M19 12H5M12 19l-7-7 7-7" />
-      </svg>
-      Note Types
-    </button>
-  </div>
-
-  <div class="content">
-    <h1 class="title">Create Note Type</h1>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
 
     {#if error}
       <div class="error-banner">
@@ -95,10 +118,9 @@
       }}
     >
       <div class="form-group">
-        <label for="type-name" class="label">
-          Type Name <span class="required">*</span>
-        </label>
+        <label for="type-name" class="label">Name</label>
         <input
+          bind:this={inputRef}
           id="type-name"
           type="text"
           class="input"
@@ -106,45 +128,31 @@
           placeholder="e.g., meeting-notes"
           disabled={loading}
         />
-        <p class="help-text">
-          Use lowercase letters, numbers, and hyphens. Spaces will be converted to
-          hyphens.
-        </p>
       </div>
 
       <div class="form-group">
-        <label for="description" class="label">Description</label>
+        <label for="description" class="label">Purpose</label>
         <textarea
           id="description"
           class="textarea"
           bind:value={description}
-          placeholder="Brief description of what this note type is for..."
+          placeholder="What is this note type for?"
           disabled={loading}
-          rows="4"
+          rows="2"
         ></textarea>
-        <p class="help-text">
-          This will be shown on the note type card and helps users understand when to use
-          this type.
-        </p>
       </div>
 
       <div class="form-group">
-        <div class="label" role="heading" aria-level="2">Icon (Optional)</div>
+        <div class="label">Icon</div>
         <EmojiPicker bind:value={icon} onselect={(emoji) => (icon = emoji)} />
-        <p class="help-text">Choose an emoji icon to represent this note type.</p>
       </div>
 
       <div class="actions">
-        <button type="submit" class="create-btn" disabled={loading || !typeName.trim()}>
-          {loading ? 'Creating...' : 'Create Type'}
-        </button>
-        <button
-          type="button"
-          class="cancel-btn"
-          onclick={handleCancel}
-          disabled={loading}
-        >
+        <button type="button" class="cancel-btn" onclick={onClose} disabled={loading}>
           Cancel
+        </button>
+        <button type="submit" class="create-btn" disabled={loading || !typeName.trim()}>
+          {loading ? 'Creating...' : 'Create'}
         </button>
       </div>
     </form>
@@ -152,98 +160,128 @@
 </div>
 
 <style>
-  .create-view {
-    height: 100%;
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
-    flex-direction: column;
-    background: var(--bg-primary);
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.15s ease-out;
   }
 
-  .header {
-    padding: 1rem;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+    width: 90%;
+    max-width: 360px;
+    animation: slideUp 0.15s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-light);
   }
 
-  .back-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
+  .modal-title {
+    margin: 0;
     font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.2s ease;
-  }
-
-  .back-button:hover {
-    color: var(--accent-primary);
-  }
-
-  .content {
-    flex: 1;
-    overflow: auto;
-    padding: 2rem;
-    max-width: 600px;
-    width: 100%;
-    margin: 0 auto;
-  }
-
-  .title {
-    margin: 0 0 2rem 0;
-    font-size: 1.75rem;
     font-weight: 600;
     color: var(--text-primary);
+  }
+
+  .close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .close-btn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  .close-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .error-banner {
     background: var(--error-bg);
     color: var(--error-text);
-    padding: 1rem;
-    border-radius: 0.375rem;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid var(--error-border, #ef4444);
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
   }
 
   .error-banner p {
     margin: 0;
-    font-size: 0.875rem;
   }
 
   .form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
+    padding: 1rem;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.375rem;
   }
 
   .label {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .required {
-    color: var(--error-text);
+    color: var(--text-secondary);
   }
 
   .input,
   .textarea {
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-medium);
     border-radius: 0.375rem;
     font-family: inherit;
     font-size: 0.875rem;
     color: var(--text-primary);
     background: var(--bg-primary);
-    transition: border-color 0.2s ease;
+    transition: border-color 0.15s ease;
   }
 
   .input:focus,
@@ -260,31 +298,26 @@
 
   .textarea {
     resize: vertical;
-    min-height: 100px;
-  }
-
-  .help-text {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
+    min-height: 60px;
   }
 
   .actions {
     display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-light);
   }
 
   .create-btn,
   .cancel-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1rem;
     border: none;
     border-radius: 0.375rem;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .create-btn {
@@ -302,13 +335,12 @@
   }
 
   .cancel-btn {
-    background: var(--bg-secondary);
+    background: transparent;
     color: var(--text-secondary);
-    border: 1px solid var(--border-medium);
   }
 
   .cancel-btn:hover:not(:disabled) {
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     color: var(--text-primary);
   }
 

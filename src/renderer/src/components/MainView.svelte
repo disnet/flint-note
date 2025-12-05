@@ -1,7 +1,6 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
   import NotesView from './NotesView.svelte';
-  import NoteTypeDetailView from './NoteTypeDetailView.svelte';
   import NoteTypeCreateView from './NoteTypeCreateView.svelte';
   import DailyView from './DailyView.svelte';
   import InboxView from './InboxView.svelte';
@@ -29,18 +28,15 @@
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
-    onCreateNote: (noteType?: string) => void;
   }
 
-  let { activeNote, activeSystemView, onClose, onNoteSelect, onCreateNote }: Props =
-    $props();
+  let { activeNote, activeSystemView, onClose, onNoteSelect }: Props = $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let customView = $state<{ component: Component<NoteViewProps> } | null>(null);
   let useCustomView = $state(false);
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
-  let selectedNoteType = $state<string | null>(null);
   let isCreatingType = $state(false);
 
   function focusEditor(): void {
@@ -142,12 +138,21 @@
     }
   }
 
-  function handleTypeSelect(typeName: string): void {
-    selectedNoteType = typeName;
+  function handleTypeSelect(noteId: string): void {
+    console.log('handleTypeSelect called with noteId:', noteId);
+    console.log(
+      'Available noteTypes:',
+      notesStore.noteTypes.map((t) => ({ name: t.name, noteId: t.noteId }))
+    );
+    // Find the type note by its ID
+    const typeNote = notesStore.allNotes.find((note) => note.id === noteId);
+    console.log('Found typeNote:', typeNote);
+    if (typeNote) {
+      onNoteSelect(typeNote);
+    }
   }
 
   function handleBackToNoteTypes(): void {
-    selectedNoteType = null;
     isCreatingType = false;
   }
 
@@ -156,8 +161,8 @@
   }
 
   async function handleTypeCreated(): Promise<void> {
-    // Reload note types after creation
-    await notesStore.initialize();
+    // Force refresh to load the newly created type note
+    await notesStore.refresh();
   }
 </script>
 
@@ -177,23 +182,12 @@
   {:else if activeSystemView === 'notes'}
     <div class="system-view-container">
       <div class="system-view-content">
-        {#if isCreatingType}
-          <NoteTypeCreateView
-            onBack={handleBackToNoteTypes}
-            onCreated={handleTypeCreated}
-          />
-        {:else if selectedNoteType}
-          <NoteTypeDetailView
-            typeName={selectedNoteType}
-            onBack={handleBackToNoteTypes}
-            {onNoteSelect}
-            {onCreateNote}
-          />
-        {:else}
-          <NotesView onTypeSelect={handleTypeSelect} onCreateType={handleCreateType} />
-        {/if}
+        <NotesView onTypeSelect={handleTypeSelect} onCreateType={handleCreateType} />
       </div>
     </div>
+    {#if isCreatingType}
+      <NoteTypeCreateView onClose={handleBackToNoteTypes} onCreated={handleTypeCreated} />
+    {/if}
   {:else if activeSystemView === 'settings'}
     <div class="system-view-container">
       <div class="system-view-content">

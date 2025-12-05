@@ -806,14 +806,55 @@ export class FlintNoteApi {
       }
     }
 
-    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
-    return await noteTypeManager.createNoteType(
+    const { noteTypeManager, hybridSearchManager, workspace } =
+      await this.getVaultContext(args.vault_id);
+    const result = await noteTypeManager.createNoteType(
       args.type_name,
       args.description,
       args.agent_instructions || null,
       args.metadata_schema || null,
       args.icon || null
     );
+
+    // Immediately index the new type note in the database to avoid race condition
+    // where the file watcher hasn't picked it up yet
+    try {
+      const typeNotePath = path.join(workspace.rootPath, 'type', `${args.type_name}.md`);
+      const content = await fs.readFile(typeNotePath, 'utf-8');
+
+      // Parse frontmatter to get note metadata
+      const frontmatterMatch = content.match(
+        /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/
+      );
+      if (frontmatterMatch) {
+        const yaml = await import('js-yaml');
+        const frontmatter = yaml.load(frontmatterMatch[1]) as Record<string, unknown>;
+        const body = frontmatterMatch[2];
+
+        const noteId = frontmatter.flint_id as string;
+        const title = (frontmatter.flint_title as string) || args.type_name;
+        const filename = (frontmatter.flint_filename as string) || args.type_name;
+
+        await hybridSearchManager.upsertNote(
+          noteId,
+          title,
+          body,
+          'type',
+          `${filename}.md`,
+          typeNotePath,
+          frontmatter as NoteMetadata
+        );
+
+        logger.debug(`[createNoteType] Indexed type note ${noteId} immediately`);
+      }
+    } catch (error) {
+      // Don't fail the entire operation if indexing fails - file watcher will pick it up eventually
+      logger.warn(
+        `[createNoteType] Failed to immediately index type note: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+
+    return result;
   }
 
   /**

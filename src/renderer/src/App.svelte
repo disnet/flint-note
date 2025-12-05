@@ -2054,7 +2054,6 @@
         noteTypes={notesStore.noteTypes}
         onClose={closeNoteEditor}
         onNoteSelect={handleNoteSelect}
-        onCreateNote={handleCreateNote}
       />
 
       <RightSidebar
