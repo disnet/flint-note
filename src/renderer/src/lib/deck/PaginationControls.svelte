@@ -110,7 +110,7 @@
         value={pageSize}
         onchange={handlePageSizeChange}
       >
-        {#each PAGE_SIZE_OPTIONS as size}
+        {#each PAGE_SIZE_OPTIONS as size (size)}
           <option value={size}>{size}</option>
         {/each}
       </select>
