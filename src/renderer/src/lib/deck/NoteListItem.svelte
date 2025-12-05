@@ -1,12 +1,17 @@
 <script lang="ts">
   import type { DeckResultNote, ColumnConfig } from './types';
-  import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
+  import type {
+    MetadataFieldType,
+    MetadataFieldConstraints
+  } from '../../../../server/core/metadata-schema';
   import NoteTypeDropdown from '../../components/NoteTypeDropdown.svelte';
 
   interface SchemaFieldInfo {
     name: string;
     type: MetadataFieldType;
     options?: string[];
+    constraints?: MetadataFieldConstraints;
+    required?: boolean;
   }
 
   interface Props {
@@ -58,6 +63,66 @@
     const typeFields = fieldsByType.get(note.type);
     if (!typeFields) return true; // If type not found, assume in schema
     return typeFields.has(field);
+  }
+
+  // Check if a field value violates any constraints
+  // Returns error message if violated, null if valid
+  function getConstraintViolation(field: string, value: unknown): string | null {
+    const fieldInfo = schemaFields.get(field);
+    if (!fieldInfo) return null;
+
+    // Skip validation for empty/null values (required is handled separately)
+    if (value === undefined || value === null || value === '') {
+      // Check required constraint
+      if (fieldInfo.required) {
+        return 'Required field is empty';
+      }
+      return null;
+    }
+
+    const constraints = fieldInfo.constraints;
+    if (!constraints) return null;
+
+    // Select field: check if value is in options
+    if (fieldInfo.type === 'select' && constraints.options?.length) {
+      if (!constraints.options.includes(String(value))) {
+        return `Value "${value}" not in allowed options`;
+      }
+    }
+
+    // Number: check min/max
+    if (fieldInfo.type === 'number' && typeof value === 'number') {
+      if (constraints.min !== undefined && value < constraints.min) {
+        return `Value must be at least ${constraints.min}`;
+      }
+      if (constraints.max !== undefined && value > constraints.max) {
+        return `Value must be at most ${constraints.max}`;
+      }
+    }
+
+    // String: check pattern
+    if (fieldInfo.type === 'string' && typeof value === 'string' && constraints.pattern) {
+      try {
+        const regex = new RegExp(constraints.pattern);
+        if (!regex.test(value)) {
+          return `Value doesn't match pattern`;
+        }
+      } catch {
+        // Invalid regex, skip validation
+      }
+    }
+
+    // Array: check min/max length
+    if (fieldInfo.type === 'array' && Array.isArray(value)) {
+      if (constraints.min !== undefined && value.length < constraints.min) {
+        return `Must have at least ${constraints.min} items`;
+      }
+      if (constraints.max !== undefined && value.length > constraints.max) {
+        return `Must have at most ${constraints.max} items`;
+      }
+    }
+
+    return null;
   }
 
   // Local state for title editing (needs $state + $effect for editable prop sync)
@@ -231,10 +296,13 @@
           {@const options = getFieldOptions(column.field)}
           {@const editable = isEditable(column.field)}
           {@const inSchema = isFieldInTypeSchema(column.field)}
+          {@const constraintViolation = getConstraintViolation(column.field, rawValue)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="prop-chip-inline"
             class:muted={!inSchema}
+            class:invalid={constraintViolation !== null}
+            title={constraintViolation || ''}
             onmousedown={(e) => e.stopPropagation()}
             onclick={(e) => e.stopPropagation()}
           >
@@ -426,6 +494,15 @@
   .prop-chip-inline.muted {
     opacity: 0.5;
     border-style: dashed;
+  }
+
+  .prop-chip-inline.invalid {
+    border-color: var(--accent-error, #ef4444);
+    background: color-mix(in srgb, var(--accent-error, #ef4444) 10%, var(--bg-secondary));
+  }
+
+  .prop-chip-inline.invalid .prop-name {
+    background: color-mix(in srgb, var(--accent-error, #ef4444) 15%, var(--bg-tertiary));
   }
 
   .prop-name {

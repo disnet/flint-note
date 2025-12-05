@@ -24,7 +24,8 @@
   import ViewSwitcher from './ViewSwitcher.svelte';
   import type {
     MetadataFieldType,
-    MetadataFieldDefinition
+    MetadataFieldDefinition,
+    MetadataFieldConstraints
   } from '../../../../server/core/metadata-schema';
 
   // Schema field info for inline editing
@@ -32,6 +33,8 @@
     name: string;
     type: MetadataFieldType;
     options?: string[];
+    constraints?: MetadataFieldConstraints;
+    required?: boolean;
   }
 
   interface Props {
@@ -181,7 +184,9 @@
                 newMap.set(field.name, {
                   name: field.name,
                   type: field.type,
-                  options: field.constraints?.options
+                  options: field.constraints?.options,
+                  constraints: field.constraints,
+                  required: field.required
                 });
                 fieldInfoMap.set(field.name, fieldDefToFilterInfo(field));
               }
