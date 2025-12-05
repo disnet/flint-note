@@ -10,36 +10,72 @@
     sort?: DeckSort;
     /** Called when chip is clicked */
     onClick: (event: MouseEvent) => void;
+    /** Called when sort is toggled */
+    onSort?: (field: string, order: 'asc' | 'desc') => void;
   }
 
-  let { field, label, sort, onClick }: Props = $props();
+  let { field, label, sort, onClick, onSort }: Props = $props();
 
   const isSorted = $derived(sort?.field === field);
   const sortOrder = $derived(isSorted ? sort?.order : null);
+
+  function handleSortToggle(event: MouseEvent): void {
+    event.stopPropagation();
+    // If not sorted by this field, default to desc; otherwise toggle
+    const newOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    onSort?.(field, newOrder);
+  }
 </script>
 
-<button
-  class="prop-chip"
-  class:sorted={isSorted}
-  onclick={onClick}
-  type="button"
-  title={label}
->
-  <span class="prop-label">{label}</span>
-  {#if isSorted}
-    <span class="sort-indicator">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-  {/if}
-</button>
+<div class="prop-chip-wrapper">
+  <button
+    class="prop-chip"
+    class:sorted={isSorted}
+    onclick={onClick}
+    type="button"
+    title={label}
+  >
+    <span class="prop-label">{label}</span>
+  </button>
+  <button
+    class="sort-btn"
+    class:active={isSorted}
+    onclick={handleSortToggle}
+    type="button"
+    title={isSorted
+      ? `Sorted ${sortOrder}ending - click to toggle`
+      : 'Sort by this field'}
+  >
+    {#if sortOrder === 'asc'}
+      ↑
+    {:else}
+      ↓
+    {/if}
+  </button>
+</div>
 
 <style>
+  .prop-chip-wrapper {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border-light);
+    border-radius: 1rem;
+    background: var(--bg-secondary);
+    overflow: hidden;
+    transition: border-color 0.15s ease;
+  }
+
+  .prop-chip-wrapper:hover {
+    border-color: var(--border-medium);
+  }
+
   .prop-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-light);
-    border-radius: 1rem;
-    background: var(--bg-secondary);
+    border: none;
+    background: transparent;
     color: var(--text-secondary);
     font-size: 0.75rem;
     cursor: pointer;
@@ -48,12 +84,10 @@
 
   .prop-chip:hover {
     background: var(--bg-tertiary);
-    border-color: var(--border-medium);
   }
 
   .prop-chip.sorted {
     background: var(--accent-primary);
-    border-color: var(--accent-primary);
     color: white;
   }
 
@@ -61,8 +95,27 @@
     white-space: nowrap;
   }
 
-  .sort-indicator {
+  .sort-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.375rem;
+    border: none;
+    border-left: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-muted);
     font-size: 0.65rem;
-    opacity: 0.8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .sort-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .sort-btn.active {
+    background: var(--accent-primary);
+    color: white;
   }
 </style>

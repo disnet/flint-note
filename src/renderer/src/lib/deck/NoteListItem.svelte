@@ -241,12 +241,20 @@
             <span class="prop-name">{getColumnLabel(column)}</span>
             <span class="prop-divider"></span>
             {#if editable && fieldType === 'select' && options.length > 0}
+              {@const currentValue = String(rawValue || '')}
+              {@const valueNotInOptions = currentValue && !options.includes(currentValue)}
               <select
                 class="prop-inline-select"
-                value={String(rawValue || '')}
+                value={currentValue}
                 onchange={(e) => handleFieldChange(column.field, e.currentTarget.value)}
               >
                 <option value="">—</option>
+                {#if valueNotInOptions}
+                  <!-- Show current value even if not in schema (legacy/out-of-schema value) -->
+                  <option value={currentValue} class="out-of-schema"
+                    >{currentValue}</option
+                  >
+                {/if}
                 {#each options as opt (opt)}
                   <option value={opt}>{opt}</option>
                 {/each}

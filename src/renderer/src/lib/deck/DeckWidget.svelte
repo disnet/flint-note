@@ -770,6 +770,12 @@
       activeView: newViews.length - 1
     });
   }
+
+  function handleSort(field: string, order: 'asc' | 'desc'): void {
+    updateActiveView({
+      sort: { field, order }
+    });
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -804,6 +810,7 @@
     onNewNote={handleNewNoteClick}
     onPropClick={handlePropClick}
     onAddProp={handleAddPropClick}
+    onSort={handleSort}
   />
 
   <!-- Prop Picker Dialog -->

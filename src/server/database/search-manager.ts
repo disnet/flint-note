@@ -639,12 +639,14 @@ export class HybridSearchManager {
       const limit = options.limit ?? 50;
       const offset = options.offset ?? 0;
 
-      const sql = 'SELECT DISTINCT n.id, n.title, n.type, n.created, n.updated';
+      // Base SELECT - we'll add sort columns dynamically
+      let sql = 'SELECT n.id, n.title, n.type, n.created, n.updated';
       const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
       let fromClause = ' FROM notes n';
       const whereConditions: string[] = [];
       const params: (string | number)[] = [];
       const joins: string[] = [];
+      const sortSelectColumns: string[] = [];
 
       // Exclude archived notes
       whereConditions.push('(n.archived IS NULL OR n.archived = 0)');
@@ -715,39 +717,69 @@ export class HybridSearchManager {
         });
       }
 
-      // Build complete query
-      fromClause += ' ' + joins.join(' ');
-
-      if (whereConditions.length > 0) {
-        fromClause += ' WHERE ' + whereConditions.join(' AND ');
-      }
-
-      // Add sorting - handle metadata field sorting
+      // Determine sort joins and order clause BEFORE building the full query
+      // This ensures JOINs come before WHERE in the SQL
       let orderClause = '';
+      const sortJoins: string[] = [];
       if (options.sort && options.sort.length > 0) {
-        const sortTerms = options.sort.map((sort) => {
+        const sortTerms = options.sort.map((sort, index) => {
           const field = sort.field;
           // Built-in fields sort directly on notes table
           if (['title', 'type', 'created', 'updated'].includes(field)) {
             return `n.${field} ${sort.order.toUpperCase()}`;
           }
-          // For metadata fields, we need to join and sort
-          return `n.updated ${sort.order.toUpperCase()}`; // Fallback for now
+          // For metadata fields, LEFT JOIN to get the value and sort by it
+          // Use a unique alias for each sort field
+          const sortAlias = `sort_${index}`;
+          sortJoins.push(
+            `LEFT JOIN note_metadata ${sortAlias} ON n.id = ${sortAlias}.note_id AND ${sortAlias}.key = '${field}'`
+          );
+          // Add the sort column to SELECT so ORDER BY works correctly
+          sortSelectColumns.push(`${sortAlias}.value as ${sortAlias}_value`);
+          // Sort with NULLS LAST behavior (empty values at end regardless of direction)
+          if (sort.order.toUpperCase() === 'ASC') {
+            // For ASC: put NULLs/empty at the end, then sort A→Z
+            return `(${sortAlias}.value IS NULL OR ${sortAlias}.value = '') ASC, ${sortAlias}.value ASC`;
+          } else {
+            // For DESC: put NULLs/empty at the end, then sort Z→A
+            return `(${sortAlias}.value IS NULL OR ${sortAlias}.value = '') ASC, ${sortAlias}.value DESC`;
+          }
         });
         orderClause = ' ORDER BY ' + sortTerms.join(', ');
       } else {
         orderClause = ' ORDER BY n.updated DESC';
       }
 
-      // Execute count query
+      // Add sort columns to SELECT so ORDER BY works correctly with the results
+      if (sortSelectColumns.length > 0) {
+        sql += ', ' + sortSelectColumns.join(', ');
+      }
+
+      // Build complete query - JOINs must come before WHERE
+      // Add filter joins first
+      fromClause += ' ' + joins.join(' ');
+      // Add sort joins (these are LEFT JOINs so they don't affect filtering)
+      if (sortJoins.length > 0) {
+        fromClause += ' ' + sortJoins.join(' ');
+      }
+      // Add WHERE clause last
+      if (whereConditions.length > 0) {
+        fromClause += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      // Execute count query (before adding GROUP BY)
       const countResult = await connection.get<{ total: number }>(
         countSql + fromClause,
         params
       );
       const total = countResult?.total || 0;
 
+      // Add GROUP BY to handle potential duplicates from JOINs
+      fromClause += ' GROUP BY n.id';
+
       // Execute main query
       const mainSql = sql + fromClause + orderClause + ' LIMIT ? OFFSET ?';
+
       const rows = await connection.all<{
         id: string;
         title: string;

@@ -16,10 +16,19 @@
     onPropClick: (field: string, position: { top: number; left: number }) => void;
     /** Called when Add Prop is clicked */
     onAddProp: (event: MouseEvent) => void;
+    /** Called when sort is toggled on a prop */
+    onSort?: (field: string, order: 'asc' | 'desc') => void;
   }
 
-  let { columns, availableFields, sort, onNewNote, onPropClick, onAddProp }: Props =
-    $props();
+  let {
+    columns,
+    availableFields,
+    sort,
+    onNewNote,
+    onPropClick,
+    onAddProp,
+    onSort
+  }: Props = $props();
 
   // Get label for a column field
   function getColumnLabel(column: ColumnConfig): string {
@@ -67,6 +76,7 @@
         const rect = target.getBoundingClientRect();
         onPropClick(column.field, { top: rect.bottom + 4, left: rect.left });
       }}
+      {onSort}
     />
   {/each}
 
