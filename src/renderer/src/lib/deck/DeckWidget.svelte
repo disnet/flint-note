@@ -45,20 +45,12 @@
 
   let { config: initialConfig, onConfigChange, onNoteOpen }: Props = $props();
 
-  // Internal config state - updated both from props and from internal changes
-  // This allows the widget to stay in sync even when CodeMirror skips re-decoration
-  let config = $state<DeckConfig>(initialConfig);
+  // Derived config that syncs with prop changes
+  // This stays in sync when CodeMirror skips re-decoration or when switching notes
+  let config = $derived(initialConfig);
 
-  // Sync internal state from prop when it changes externally
-  // This handles the case where noteContent loads after component mount
-  // (e.g., when switching from a markdown note back to a deck)
-  $effect(() => {
-    config = initialConfig;
-  });
-
-  // Wrapper to update internal state before calling the callback
+  // Wrapper to notify parent of config changes (derived value updates via prop)
   function updateConfig(newConfig: DeckConfig): void {
-    config = newConfig;
     onConfigChange(newConfig);
   }
 
