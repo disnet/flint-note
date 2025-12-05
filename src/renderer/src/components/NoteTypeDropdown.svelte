@@ -7,6 +7,8 @@
     currentKind?: string;
     onTypeChange: (newType: string) => Promise<void>;
     disabled?: boolean;
+    /** Read-only mode: disabled without greyed-out appearance */
+    readOnly?: boolean;
     /** When true, shows only the type icon (no name or dropdown arrow) */
     compact?: boolean;
   }
@@ -16,12 +18,15 @@
     currentKind,
     onTypeChange,
     disabled = false,
+    readOnly = false,
     compact = false
   }: Props = $props();
 
   // Disable type switching for type notes (kind === 'type' or type === 'type')
   const isTypeNote = $derived(currentKind === 'type' || currentType === 'type');
-  const effectivelyDisabled = $derived(disabled || isTypeNote);
+  const effectivelyDisabled = $derived(disabled || readOnly || isTypeNote);
+  // For styling: only grey out when disabled, not when readOnly
+  const showDisabledStyle = $derived(disabled && !readOnly);
 
   let isOpen = $state(false);
   let isSaving = $state(false);
@@ -179,7 +184,8 @@
 <div
   bind:this={dropdownRef}
   class="note-type-dropdown"
-  class:disabled={effectivelyDisabled}
+  class:disabled={showDisabledStyle}
+  class:readonly={readOnly || isTypeNote}
   class:saving={isSaving}
   class:compact
 >
@@ -189,7 +195,7 @@
     onclick={toggleDropdown}
     type="button"
     title={isTypeNote ? 'Type notes cannot change type' : 'Change note type'}
-    disabled={effectivelyDisabled}
+    disabled={showDisabledStyle}
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
@@ -306,6 +312,17 @@
   .type-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  /* Read-only mode: no visual change, just default cursor */
+  .note-type-dropdown.readonly .type-button {
+    cursor: default;
+  }
+
+  .note-type-dropdown.readonly .type-button:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
   }
 
   .note-type-dropdown.saving .type-button {

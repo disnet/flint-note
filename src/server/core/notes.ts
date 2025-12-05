@@ -1950,7 +1950,11 @@ export class NoteManager {
         );
 
         // Extract and store links in the database (using rewritten content)
-        await this.extractAndStoreLinks(noteId, rewrittenContent);
+        // Skip link extraction for type notes (they contain YAML, not markdown)
+        const noteKind = parsed.metadata.flint_kind as string | undefined;
+        if (noteType !== 'type' && noteKind !== 'type') {
+          await this.extractAndStoreLinks(noteId, rewrittenContent);
+        }
 
         return finalContent;
       }

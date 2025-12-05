@@ -8,6 +8,8 @@
     onTabToContent?: () => void;
     placeholder?: string;
     disabled?: boolean;
+    /** Read-only mode: prevents editing without greying out */
+    readOnly?: boolean;
   }
 
   let {
@@ -16,7 +18,8 @@
     onCancel,
     onTabToContent,
     placeholder = 'Untitled',
-    disabled = false
+    disabled = false,
+    readOnly = false
   }: Props = $props();
 
   let titleValue = $state(value);
@@ -133,11 +136,13 @@
   class="note-title-input"
   class:processing={isProcessing}
   class:empty={!titleValue || titleValue.trim().length === 0}
+  class:readonly={readOnly}
   onkeydown={handleKeydown}
   onfocus={handleFocus}
   onblur={handleBlur}
   {placeholder}
   {disabled}
+  readonly={readOnly}
   rows="1"
 ></textarea>
 
@@ -178,5 +183,9 @@
   .note-title-input.processing {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .note-title-input.readonly {
+    cursor: default;
   }
 </style>

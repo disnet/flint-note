@@ -1525,9 +1525,9 @@ export class FlintNoteApi {
       }
     }
 
-    // Get all notes from the database
+    // Get all notes from the database (excluding type notes which contain YAML, not markdown)
     const notes = await db.all<{ id: string; content: string }>(
-      'SELECT id, content FROM notes'
+      "SELECT id, content FROM notes WHERE type != 'type' AND (flint_kind IS NULL OR flint_kind != 'type')"
     );
     let processedCount = 0;
     let errorCount = 0;

@@ -317,14 +317,13 @@
   .deck-note-view {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    background: var(--bg-primary, #fff);
+    min-width: 30ch;
+    max-width: 75ch;
+    width: 100%;
   }
 
   /* Deck content */
   .deck-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 0.5rem;
+    padding: 0 0.75rem;
   }
 </style>

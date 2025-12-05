@@ -21,6 +21,8 @@
     onTypeChange: (newType: string) => Promise<void>;
     onTabToContent?: () => void;
     disabled?: boolean;
+    /** Read-only mode for title: prevents editing without greying out */
+    readOnly?: boolean;
     /** When true, disables type change (used for type notes) */
     disableTypeChange?: boolean;
     // Chips props
@@ -53,6 +55,7 @@
     onTypeChange,
     onTabToContent,
     disabled = false,
+    readOnly = false,
     disableTypeChange = false,
     note,
     metadataSchema,
@@ -346,6 +349,7 @@
         currentKind={noteKind}
         {onTypeChange}
         disabled={disabled || disableTypeChange}
+        {readOnly}
         compact={true}
       />
       <NoteTitle
@@ -354,6 +358,7 @@
         onSave={onTitleChange}
         {onTabToContent}
         {disabled}
+        {readOnly}
       />
       {#if note && metadataSchema}
         <EditorChips
