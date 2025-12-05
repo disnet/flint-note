@@ -422,13 +422,16 @@ export class HybridSearchManager {
       const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
       let fromClause = ' FROM notes n';
       const whereConditions: string[] = [];
-      const params: (string | number)[] = [];
+      // Separate params for JOINs vs WHERE to maintain correct SQL placeholder order
+      // SQL order is: JOINs (with their params), then WHERE (with its params)
+      const joinParams: (string | number)[] = [];
+      const whereParams: (string | number)[] = [];
       const joins: string[] = [];
 
       // Type filter
       if (options.type) {
         whereConditions.push('n.type = ?');
-        params.push(options.type);
+        whereParams.push(options.type);
       }
 
       // Metadata filters
@@ -443,32 +446,32 @@ export class HybridSearchManager {
             joins.push(
               `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
             );
-            params.push(filter.key);
+            joinParams.push(filter.key);
 
             // Match notes where field doesn't exist (NULL) OR value doesn't match
             whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-            params.push(filter.value);
+            whereParams.push(filter.value);
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
             whereConditions.push(`${alias}.key = ?`);
-            params.push(filter.key);
+            whereParams.push(filter.key);
 
             if (operator === 'IN') {
               const values = filter.value.split(',').map((v) => v.trim());
               const placeholders = values.map(() => '?').join(',');
               whereConditions.push(`${alias}.value IN (${placeholders})`);
-              params.push(...values);
+              whereParams.push(...values);
             } else if (operator === 'LIKE') {
               // Wrap value with % for "contains" matching unless user provided their own wildcards
               whereConditions.push(`${alias}.value LIKE ?`);
               const likeValue = filter.value.includes('%')
                 ? filter.value
                 : `%${filter.value}%`;
-              params.push(likeValue);
+              whereParams.push(likeValue);
             } else {
               whereConditions.push(`${alias}.value ${operator} ?`);
-              params.push(filter.value);
+              whereParams.push(filter.value);
             }
           }
         });
@@ -478,45 +481,45 @@ export class HybridSearchManager {
       if (options.updated_within) {
         const date = this.parseDateFilter(options.updated_within);
         whereConditions.push('n.updated >= ?');
-        params.push(date);
+        whereParams.push(date);
       }
 
       if (options.updated_before) {
         const date = this.parseDateFilter(options.updated_before);
         whereConditions.push('n.updated <= ?');
-        params.push(date);
+        whereParams.push(date);
       }
 
       if (options.created_within) {
         const date = this.parseDateFilter(options.created_within);
         whereConditions.push('n.created >= ?');
-        params.push(date);
+        whereParams.push(date);
       }
 
       if (options.created_before) {
         const date = this.parseDateFilter(options.created_before);
         whereConditions.push('n.created <= ?');
-        params.push(date);
+        whereParams.push(date);
       }
 
       // Content search
       if (options.content_contains) {
         joins.push('JOIN notes_fts fts ON n.id = fts.id');
         whereConditions.push('notes_fts MATCH ?');
-        params.push(options.content_contains);
+        whereParams.push(options.content_contains);
       }
 
       // Hierarchy filters
       if (options.parent_of) {
         joins.push('JOIN note_hierarchies h_parent ON n.id = h_parent.parent_id');
         whereConditions.push('h_parent.child_id = ?');
-        params.push(options.parent_of);
+        whereParams.push(options.parent_of);
       }
 
       if (options.child_of) {
         joins.push('JOIN note_hierarchies h_child ON n.id = h_child.child_id');
         whereConditions.push('h_child.parent_id = ?');
-        params.push(options.child_of);
+        whereParams.push(options.child_of);
       }
 
       if (options.descendants_of) {
@@ -536,7 +539,7 @@ export class HybridSearchManager {
             SELECT id FROM descendants
           ) d ON n.id = d.id
         `);
-        params.push(ancestorId);
+        joinParams.push(ancestorId);
       }
 
       if (options.ancestors_of) {
@@ -553,7 +556,7 @@ export class HybridSearchManager {
             SELECT id FROM ancestors
           ) a ON n.id = a.id
         `);
-        params.push(options.ancestors_of);
+        joinParams.push(options.ancestors_of);
       }
 
       if (options.has_children !== undefined) {
@@ -579,6 +582,9 @@ export class HybridSearchManager {
           );
         }
       }
+
+      // Combine params in correct order: JOIN params first, then WHERE params
+      const params = [...joinParams, ...whereParams];
 
       // Build complete query
       fromClause += ' ' + joins.join(' ');
@@ -644,7 +650,10 @@ export class HybridSearchManager {
       const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
       let fromClause = ' FROM notes n';
       const whereConditions: string[] = [];
-      const params: (string | number)[] = [];
+      // Separate params for JOINs vs WHERE to maintain correct SQL placeholder order
+      // SQL order is: JOINs (with their params), then WHERE (with its params)
+      const joinParams: (string | number)[] = [];
+      const whereParams: (string | number)[] = [];
       const joins: string[] = [];
       const sortSelectColumns: string[] = [];
 
@@ -662,7 +671,7 @@ export class HybridSearchManager {
           } else {
             whereConditions.push('n.type = ?');
           }
-          params.push(types[0]);
+          whereParams.push(types[0]);
         } else if (types.length > 1) {
           const placeholders = types.map(() => '?').join(',');
           if (typeOp === '!=') {
@@ -670,7 +679,7 @@ export class HybridSearchManager {
           } else {
             whereConditions.push(`n.type IN (${placeholders})`);
           }
-          params.push(...types);
+          whereParams.push(...types);
         }
       }
 
@@ -686,36 +695,39 @@ export class HybridSearchManager {
             joins.push(
               `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
             );
-            params.push(filter.key);
+            joinParams.push(filter.key);
 
             // Match notes where field doesn't exist (NULL) OR value doesn't match
             whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-            params.push(filter.value);
+            whereParams.push(filter.value);
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
             whereConditions.push(`${alias}.key = ?`);
-            params.push(filter.key);
+            whereParams.push(filter.key);
 
             if (operator === 'IN') {
               const values = filter.value.split(',').map((v) => v.trim());
               const placeholders = values.map(() => '?').join(',');
               whereConditions.push(`${alias}.value IN (${placeholders})`);
-              params.push(...values);
+              whereParams.push(...values);
             } else if (operator === 'LIKE') {
               // Wrap value with % for "contains" matching unless user provided their own wildcards
               whereConditions.push(`${alias}.value LIKE ?`);
               const likeValue = filter.value.includes('%')
                 ? filter.value
                 : `%${filter.value}%`;
-              params.push(likeValue);
+              whereParams.push(likeValue);
             } else {
               whereConditions.push(`${alias}.value ${operator} ?`);
-              params.push(filter.value);
+              whereParams.push(filter.value);
             }
           }
         });
       }
+
+      // Combine params in correct order: JOIN params first, then WHERE params
+      const params = [...joinParams, ...whereParams];
 
       // Determine sort joins and order clause BEFORE building the full query
       // This ensures JOINs come before WHERE in the SQL

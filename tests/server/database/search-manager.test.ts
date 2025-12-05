@@ -8,6 +8,133 @@ import path from 'path';
 import os from 'os';
 import { HybridSearchManager } from '../../../src/server/database/search-manager.js';
 
+describe('HybridSearchManager - Dataview Queries', () => {
+  let searchManager: HybridSearchManager;
+  let testWorkspacePath: string;
+
+  beforeEach(async () => {
+    const uniqueId = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    testWorkspacePath = await fs.mkdtemp(
+      path.join(os.tmpdir(), `flint-dataview-test-${uniqueId}-`)
+    );
+    searchManager = new HybridSearchManager(testWorkspacePath);
+  });
+
+  afterEach(async () => {
+    if (searchManager) {
+      await searchManager.close();
+    }
+    await fs.rm(testWorkspacePath, { recursive: true, force: true });
+  });
+
+  describe('queryNotesForDataview', () => {
+    it('should filter with != operator on metadata field', async () => {
+      // Create notes with different status values
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'active-project.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# Active Project'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'completed-project.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\n---\n# Completed Project'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'no-status-project.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\n---\n# No Status Project'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status != 'completed'
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [{ key: 'status', value: 'completed', operator: '!=' }]
+      });
+
+      // Should include 'active' and 'no status' notes (not 'completed')
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000001'); // active
+      expect(ids).toContain('n-00000003'); // no status
+      expect(ids).not.toContain('n-00000002'); // completed
+    });
+
+    it('should combine type filter with != metadata filter correctly', async () => {
+      // Create notes in different types with status metadata
+      const projectDir = path.join(testWorkspacePath, 'project');
+      const taskDir = path.join(testWorkspacePath, 'task');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.mkdir(taskDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(projectDir, 'active-project.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# Active Project'
+      );
+      await fs.writeFile(
+        path.join(projectDir, 'completed-project.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\n---\n# Completed Project'
+      );
+      await fs.writeFile(
+        path.join(taskDir, 'active-task.md'),
+        '---\nflint_id: n-00000003\nflint_type: task\nstatus: active\n---\n# Active Task'
+      );
+      await fs.writeFile(
+        path.join(taskDir, 'completed-task.md'),
+        '---\nflint_id: n-00000004\nflint_type: task\nstatus: completed\n---\n# Completed Task'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for project notes where status != 'completed'
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [{ key: 'status', value: 'completed', operator: '!=' }]
+      });
+
+      // Should include only the active project (not completed project, not tasks)
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].id).toBe('n-00000001');
+      expect(result.results[0].type).toBe('project');
+    });
+
+    it('should handle multiple != metadata filters', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'project1.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\npriority: high\n---\n# Project 1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project2.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\npriority: high\n---\n# Project 2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project3.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\nstatus: active\npriority: low\n---\n# Project 3'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status != 'completed' AND priority != 'low'
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [
+          { key: 'status', value: 'completed', operator: '!=' },
+          { key: 'priority', value: 'low', operator: '!=' }
+        ]
+      });
+
+      // Should include only project1 (active, high)
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].id).toBe('n-00000001');
+    });
+  });
+});
+
 describe('HybridSearchManager - Filesystem Sync', () => {
   let searchManager: HybridSearchManager;
   let testWorkspacePath: string;
