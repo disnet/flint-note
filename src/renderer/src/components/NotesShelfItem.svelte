@@ -7,6 +7,7 @@
   import DeckWidget from '../lib/deck/DeckWidget.svelte';
   import PdfShelfView from '../lib/views/pdf/PdfShelfView.svelte';
   import EpubShelfView from '../lib/views/epub/EpubShelfView.svelte';
+  import TypeShelfView from '../lib/views/type/TypeShelfView.svelte';
   import type { DeckConfig } from '../lib/deck/types';
   import {
     parseDeckYaml,
@@ -66,6 +67,12 @@
   const isEpub = $derived.by(() => {
     const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
     return note?.flint_kind === 'epub';
+  });
+
+  // Check if note is a Type
+  const isType = $derived.by(() => {
+    const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
+    return note?.flint_kind === 'type';
   });
 
   // Parse deck config from content (only used for deck notes)
@@ -258,6 +265,10 @@
         <div class="reader-content">
           <EpubShelfView noteId={doc.noteId} content={doc.content} {onContentChange} />
         </div>
+      {:else if isType}
+        <div class="type-content">
+          <TypeShelfView content={doc.content} />
+        </div>
       {:else}
         <CodeMirrorEditor
           bind:this={editorRef}
@@ -387,6 +398,11 @@
   }
 
   .reader-content {
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .type-content {
     max-height: 400px;
     overflow: hidden;
   }
