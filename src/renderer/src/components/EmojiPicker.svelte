@@ -8,6 +8,8 @@
 
   let searchQuery = $state('');
   let isOpen = $state(false);
+  let buttonRef = $state<HTMLButtonElement | null>(null);
+  let dropdownPosition = $state({ top: 0, left: 0, openUpward: false });
 
   // Emoji to keywords mapping for better search
   const emojiKeywords: Record<string, string> = {
@@ -414,58 +416,123 @@
     }
   }
 
+  function calculatePosition(): void {
+    if (!buttonRef) return;
+
+    const rect = buttonRef.getBoundingClientRect();
+    const dropdownHeight = 400; // max-height of dropdown
+    const dropdownWidth = 320; // min-width of dropdown
+    const padding = 8;
+
+    // Check if there's enough space below
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUpward = spaceBelow < dropdownHeight + padding && spaceAbove > spaceBelow;
+
+    // Calculate top position
+    let top: number;
+    if (openUpward) {
+      top = rect.top - dropdownHeight - 4;
+    } else {
+      top = rect.bottom + 4;
+    }
+
+    // Calculate left position with viewport boundary check
+    let left = rect.left;
+    if (left + dropdownWidth > window.innerWidth - padding) {
+      left = window.innerWidth - dropdownWidth - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    dropdownPosition = { top, left, openUpward };
+  }
+
   function togglePicker(): void {
+    if (!isOpen) {
+      calculatePosition();
+    }
     isOpen = !isOpen;
     if (!isOpen) {
       searchQuery = '';
     }
   }
+
+  // Close when clicking outside
+  function handleClickOutside(event: MouseEvent): void {
+    const target = event.target as Element;
+    if (
+      !target.closest('.emoji-picker-container') &&
+      !target.closest('.emoji-picker-dropdown')
+    ) {
+      isOpen = false;
+      searchQuery = '';
+    }
+  }
+
+  // Update position on scroll/resize when open
+  $effect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = (): void => calculatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    document.addEventListener('click', handleClickOutside);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  });
 </script>
 
 <div class="emoji-picker-container">
-  <button type="button" class="emoji-button" onclick={togglePicker}>
+  <button type="button" class="emoji-button" bind:this={buttonRef} onclick={togglePicker}>
     {value || '😀'} <span class="arrow">{isOpen ? '▲' : '▼'}</span>
   </button>
-
-  {#if isOpen}
-    <div
-      class="emoji-picker-dropdown"
-      onkeydown={handleKeydown}
-      role="dialog"
-      aria-label="Emoji picker"
-      tabindex="-1"
-    >
-      <div class="search-box">
-        <input
-          type="text"
-          placeholder="Search emoji..."
-          bind:value={searchQuery}
-          class="search-input"
-        />
-      </div>
-
-      <div class="emoji-categories">
-        {#each Object.entries(filteredEmojis) as [category, emojis] (category)}
-          <div class="emoji-category">
-            <div class="category-name">{category}</div>
-            <div class="emoji-grid">
-              {#each emojis as emoji (emoji)}
-                <button
-                  type="button"
-                  class="emoji-item"
-                  onclick={() => selectEmoji(emoji)}
-                  title={emoji}
-                >
-                  {emoji}
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
 </div>
+
+{#if isOpen}
+  <div
+    class="emoji-picker-dropdown"
+    style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px;"
+    onkeydown={handleKeydown}
+    role="dialog"
+    aria-label="Emoji picker"
+    tabindex="-1"
+  >
+    <div class="search-box">
+      <input
+        type="text"
+        placeholder="Search emoji..."
+        bind:value={searchQuery}
+        class="search-input"
+      />
+    </div>
+
+    <div class="emoji-categories">
+      {#each Object.entries(filteredEmojis) as [category, emojis] (category)}
+        <div class="emoji-category">
+          <div class="category-name">{category}</div>
+          <div class="emoji-grid">
+            {#each emojis as emoji (emoji)}
+              <button
+                type="button"
+                class="emoji-item"
+                onclick={() => selectEmoji(emoji)}
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 <style>
   .emoji-picker-container {
@@ -497,10 +564,8 @@
   }
 
   .emoji-picker-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    z-index: 1000;
+    position: fixed;
+    z-index: 10000;
     min-width: 320px;
     max-width: 400px;
     max-height: 400px;
