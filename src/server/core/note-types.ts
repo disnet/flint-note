@@ -228,8 +228,10 @@ export class NoteTypeManager {
     });
 
     // Serialize definition body
+    // Use lineWidth: -1 to prevent wrapping, as wrapped lines with colons
+    // (e.g., "[link text](URL)") get incorrectly interpreted as YAML mappings
     const definitionYaml = yaml.dump(definition, {
-      lineWidth: 80,
+      lineWidth: -1,
       noRefs: true,
       sortKeys: false
     });

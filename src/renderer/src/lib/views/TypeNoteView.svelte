@@ -73,7 +73,7 @@
 
   function serializeDefinition(def: TypeDefinition): string {
     return yaml.dump(def, {
-      lineWidth: 80,
+      lineWidth: -1,
       noRefs: true,
       sortKeys: false
     });
@@ -94,7 +94,10 @@
     const def = definition;
     editedPurpose = def.purpose || '';
     editedIcon = def.icon || '';
-    editedInstructions = [...(def.agent_instructions || [])];
+    // Ensure all instructions are strings (YAML parsing can produce non-strings)
+    editedInstructions = (def.agent_instructions || [])
+      .map((i) => (typeof i === 'string' ? i : String(i)))
+      .filter((i) => i !== 'undefined' && i !== 'null');
     editedMetadataSchema = def.metadata_schema
       ? { fields: [...def.metadata_schema.fields] }
       : { fields: [] };
@@ -337,7 +340,7 @@
 
     if (editedInstructions.length > 0) {
       updatedDefinition.agent_instructions = editedInstructions.filter(
-        (i) => i.trim() !== ''
+        (i) => typeof i === 'string' && i.trim() !== ''
       );
     }
 
