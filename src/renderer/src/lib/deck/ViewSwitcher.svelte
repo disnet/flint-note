@@ -36,7 +36,7 @@
   let isCreatingNew = $state(false);
   let newViewName = $state('');
   let newViewInputRef = $state<HTMLInputElement | null>(null);
-  let viewNameInputRef = $state<HTMLInputElement | null>(null);
+  let viewNameInputRef = $state<HTMLDivElement | null>(null);
 
   // Track the current input value for the active view name
   // eslint-disable-next-line svelte/prefer-writable-derived -- need editable input with prop sync
@@ -46,8 +46,20 @@
 
   // Sync input value when active view changes
   $effect(() => {
-    currentViewName = activeView?.name || 'Default';
+    const newName = activeView?.name || 'Default';
+    currentViewName = newName;
+    // Update contenteditable if it exists and doesn't have focus
+    if (viewNameInputRef) {
+      // Only update if not focused (to avoid cursor jumping while typing)
+      if (document.activeElement !== viewNameInputRef) {
+        viewNameInputRef.textContent = newName;
+      }
+    }
   });
+
+  function handleViewNameInput(): void {
+    currentViewName = viewNameInputRef?.textContent || '';
+  }
 
   // Close dropdown when clicking outside
   function handleMouseDownOutside(event: MouseEvent): void {
@@ -118,10 +130,15 @@
 
   function handleViewNameKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent newline in contenteditable
       saveViewName();
       viewNameInputRef?.blur();
     } else if (event.key === 'Escape') {
-      currentViewName = activeView?.name || 'Default';
+      const originalName = activeView?.name || 'Default';
+      currentViewName = originalName;
+      if (viewNameInputRef) {
+        viewNameInputRef.textContent = originalName;
+      }
       viewNameInputRef?.blur();
     }
   }
@@ -200,14 +217,17 @@
 
 <div class="view-switcher">
   <div class="view-control">
-    <input
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
       bind:this={viewNameInputRef}
-      type="text"
       class="view-name-input"
-      bind:value={currentViewName}
+      contenteditable="true"
+      role="textbox"
+      tabindex="0"
       onblur={saveViewName}
       onkeydown={handleViewNameKeyDown}
-    />
+      oninput={handleViewNameInput}
+    ></div>
     <button
       bind:this={buttonRef}
       class="dropdown-button"
@@ -354,11 +374,10 @@
 
   .view-control {
     display: inline-flex;
-    align-items: center;
+    align-items: stretch;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-secondary);
-    overflow: hidden;
   }
 
   .view-control:focus-within {
@@ -366,16 +385,22 @@
   }
 
   .view-name-input {
-    width: 100px;
+    min-width: 60px;
+    max-width: 200px;
     padding: 0.25rem 0.5rem;
     border: none;
     background: transparent;
     color: var(--text-primary);
     font-size: 0.75rem;
     outline: none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
   }
 
-  .view-name-input::placeholder {
+  .view-name-input:empty::before {
+    content: 'View name...';
     color: var(--text-muted);
   }
 
