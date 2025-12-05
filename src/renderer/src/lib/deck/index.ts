@@ -71,10 +71,14 @@ export {
 // Utilities
 export {
   parseDeckYaml,
+  parseDeckYamlWithWarnings,
   serializeDeckConfig,
   createEmptyDeckConfig,
   createTypeFilterDeck
 } from './yaml-utils';
+
+// Re-export warning types from yaml-utils (shared module)
+export type { DeckValidationWarning, ParsedDeckResult } from './yaml-utils';
 
 // Filter Builder components
 export { default as FilterBuilder } from './FilterBuilder.svelte';

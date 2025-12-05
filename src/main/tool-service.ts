@@ -3235,17 +3235,19 @@ export class ToolService {
               .string()
               .describe('Field to filter on (e.g., "flint_type", "status", "due_date")'),
             operator: z
-              .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
+              .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN', 'NOT IN', 'BETWEEN'])
               .optional()
-              .describe('Comparison operator (default: "=")'),
+              .describe(
+                'Comparison operator (default: "="). Use NOT IN to exclude multiple values, BETWEEN for ranges.'
+              ),
             value: z
               .union([z.string(), z.array(z.string())])
-              .describe('Value(s) to match')
+              .describe('Value(s) to match. For BETWEEN, provide [min, max] array.')
           })
         )
         .optional()
         .describe(
-          'Filter conditions. Use get_note_type_details to discover available fields.'
+          'Filter conditions. Each field can only appear ONCE - use IN/NOT IN for multiple values, BETWEEN for ranges. Use get_note_type_details to discover available fields.'
         ),
       sort: z
         .object({
@@ -3267,6 +3269,21 @@ export class ToolService {
           error: 'Note service not available',
           message: 'Note service not initialized'
         };
+      }
+
+      // Validate no duplicate fields in filters
+      if (filters && filters.length > 0) {
+        const seen = new Set<string>();
+        for (const filter of filters) {
+          if (seen.has(filter.field)) {
+            return {
+              success: false,
+              error: 'DUPLICATE_FILTER_FIELD',
+              message: `Duplicate filter field "${filter.field}". Each field can only appear once - use IN/NOT IN for multiple values or BETWEEN for ranges.`
+            };
+          }
+          seen.add(filter.field);
+        }
       }
 
       try {
@@ -3374,7 +3391,14 @@ export class ToolService {
         if (metadataFilters.length > 0) {
           queryOptions.metadata_filters = metadataFilters.map((f) => ({
             key: f.field,
-            value: Array.isArray(f.value) ? f.value.join(',') : f.value,
+            // For IN/NOT IN/BETWEEN, pass array directly; for other operators, join as string
+            value:
+              Array.isArray(f.value) &&
+              (f.operator === 'IN' || f.operator === 'NOT IN' || f.operator === 'BETWEEN')
+                ? f.value
+                : Array.isArray(f.value)
+                  ? f.value.join(',')
+                  : f.value,
             operator: f.operator
           }));
         }
@@ -3435,12 +3459,30 @@ export class ToolService {
                 z.object({
                   field: z.string().describe('Field to filter on'),
                   operator: z
-                    .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
-                    .optional(),
-                  value: z.union([z.string(), z.array(z.string())])
+                    .enum([
+                      '=',
+                      '!=',
+                      '>',
+                      '<',
+                      '>=',
+                      '<=',
+                      'LIKE',
+                      'IN',
+                      'NOT IN',
+                      'BETWEEN'
+                    ])
+                    .optional()
+                    .describe(
+                      'Comparison operator (default: "="). Use NOT IN to exclude multiple values, BETWEEN for ranges.'
+                    ),
+                  value: z
+                    .union([z.string(), z.array(z.string())])
+                    .describe('Value(s) to match. For BETWEEN, provide [min, max] array.')
                 })
               )
-              .describe('Filter conditions for this view'),
+              .describe(
+                'Filter conditions for this view. Each field can only appear ONCE - use IN/NOT IN for multiple values.'
+              ),
             columns: z.array(z.string()).optional().describe('Columns to display'),
             sort: z
               .object({
@@ -3462,6 +3504,24 @@ export class ToolService {
           error: 'Note service not available',
           message: 'Note service not initialized'
         };
+      }
+
+      // Validate no duplicate fields in any view's filters
+      for (let i = 0; i < views.length; i++) {
+        const view = views[i];
+        if (view.filters && view.filters.length > 0) {
+          const seen = new Set<string>();
+          for (const filter of view.filters) {
+            if (seen.has(filter.field)) {
+              return {
+                success: false,
+                error: 'DUPLICATE_FILTER_FIELD',
+                message: `View "${view.name}" has duplicate filter field "${filter.field}". Each field can only appear once - use IN/NOT IN for multiple values or BETWEEN for ranges.`
+              };
+            }
+            seen.add(filter.field);
+          }
+        }
       }
 
       try {
@@ -3654,9 +3714,25 @@ export class ToolService {
             z.object({
               field: z.string(),
               operator: z
-                .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
-                .optional(),
-              value: z.union([z.string(), z.array(z.string())])
+                .enum([
+                  '=',
+                  '!=',
+                  '>',
+                  '<',
+                  '>=',
+                  '<=',
+                  'LIKE',
+                  'IN',
+                  'NOT IN',
+                  'BETWEEN'
+                ])
+                .optional()
+                .describe(
+                  'Comparison operator. Use NOT IN to exclude multiple values, BETWEEN for ranges.'
+                ),
+              value: z
+                .union([z.string(), z.array(z.string())])
+                .describe('Value(s) to match. For BETWEEN, provide [min, max] array.')
             })
           ),
           columns: z.array(z.string()).optional(),
@@ -3668,7 +3744,9 @@ export class ToolService {
             .optional()
         })
         .optional()
-        .describe('New view configuration (required for "add" action)'),
+        .describe(
+          'New view configuration (required for "add" action). Each filter field can only appear once.'
+        ),
       viewIndex: z
         .number()
         .optional()
@@ -3685,12 +3763,29 @@ export class ToolService {
               z.object({
                 field: z.string(),
                 operator: z
-                  .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'])
-                  .optional(),
-                value: z.union([z.string(), z.array(z.string())])
+                  .enum([
+                    '=',
+                    '!=',
+                    '>',
+                    '<',
+                    '>=',
+                    '<=',
+                    'LIKE',
+                    'IN',
+                    'NOT IN',
+                    'BETWEEN'
+                  ])
+                  .optional()
+                  .describe(
+                    'Comparison operator. Use NOT IN to exclude multiple values, BETWEEN for ranges.'
+                  ),
+                value: z
+                  .union([z.string(), z.array(z.string())])
+                  .describe('Value(s) to match. For BETWEEN, provide [min, max] array.')
               })
             )
-            .optional(),
+            .optional()
+            .describe('Filter conditions. Each field can only appear once.'),
           columns: z.array(z.string()).optional(),
           sort: z
             .object({
@@ -3722,6 +3817,36 @@ export class ToolService {
           error: 'Note service not available',
           message: 'Note service not initialized'
         };
+      }
+
+      // Validate no duplicate fields in newView filters
+      if (newView?.filters && newView.filters.length > 0) {
+        const seen = new Set<string>();
+        for (const filter of newView.filters) {
+          if (seen.has(filter.field)) {
+            return {
+              success: false,
+              error: 'DUPLICATE_FILTER_FIELD',
+              message: `Duplicate filter field "${filter.field}" in new view. Each field can only appear once - use IN/NOT IN for multiple values or BETWEEN for ranges.`
+            };
+          }
+          seen.add(filter.field);
+        }
+      }
+
+      // Validate no duplicate fields in updates filters
+      if (updates?.filters && updates.filters.length > 0) {
+        const seen = new Set<string>();
+        for (const filter of updates.filters) {
+          if (seen.has(filter.field)) {
+            return {
+              success: false,
+              error: 'DUPLICATE_FILTER_FIELD',
+              message: `Duplicate filter field "${filter.field}" in updates. Each field can only appear once - use IN/NOT IN for multiple values or BETWEEN for ranges.`
+            };
+          }
+          seen.add(filter.field);
+        }
       }
 
       try {

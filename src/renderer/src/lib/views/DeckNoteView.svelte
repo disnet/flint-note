@@ -4,9 +4,10 @@
   import DeckWidget from '../deck/DeckWidget.svelte';
   import type { DeckConfig } from '../deck/types';
   import {
-    parseDeckYaml,
+    parseDeckYamlWithWarnings,
     serializeDeckConfig,
-    createEmptyDeckConfig
+    createEmptyDeckConfig,
+    type DeckValidationWarning
   } from '../deck/yaml-utils';
   import EditorHeader from '../../components/EditorHeader.svelte';
   import { workspacesStore } from '../../stores/workspacesStore.svelte.js';
@@ -27,11 +28,13 @@
   }: NoteViewProps = $props();
 
   // Parse deck config from note content (which is YAML)
-  let config = $derived.by(() => {
-    if (!noteContent) return createEmptyDeckConfig();
-    const parsed = parseDeckYaml(noteContent);
-    return parsed || createEmptyDeckConfig();
+  let configResult = $derived.by(() => {
+    if (!noteContent) return { config: createEmptyDeckConfig(), warnings: [] };
+    const parsed = parseDeckYamlWithWarnings(noteContent);
+    return parsed || { config: createEmptyDeckConfig(), warnings: [] };
   });
+  let config = $derived(configResult.config);
+  let validationWarnings: DeckValidationWarning[] = $derived(configResult.warnings);
 
   // Handle config changes from DeckWidget
   function handleConfigChange(newConfig: DeckConfig): void {
@@ -305,6 +308,7 @@
       <div class="deck-content">
         <DeckWidget
           {config}
+          {validationWarnings}
           onConfigChange={handleConfigChange}
           onNoteOpen={handleNoteOpen}
         />

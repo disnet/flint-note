@@ -132,6 +132,317 @@ describe('HybridSearchManager - Dataview Queries', () => {
       expect(result.results.length).toBe(1);
       expect(result.results[0].id).toBe('n-00000001');
     });
+
+    it('should filter with NOT IN operator to exclude multiple values', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'active-project.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# Active'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'completed-project.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\n---\n# Completed'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'archived-project.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\nstatus: archived\n---\n# Archived'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'pending-project.md'),
+        '---\nflint_id: n-00000004\nflint_type: project\nstatus: pending\n---\n# Pending'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status NOT IN ('completed', 'archived')
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [
+          { key: 'status', value: ['completed', 'archived'], operator: 'NOT IN' }
+        ]
+      });
+
+      // Should include 'active' and 'pending' (not 'completed' or 'archived')
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000001'); // active
+      expect(ids).toContain('n-00000004'); // pending
+      expect(ids).not.toContain('n-00000002'); // completed
+      expect(ids).not.toContain('n-00000003'); // archived
+    });
+
+    it('should include notes missing the field when using NOT IN', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'active-project.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# Active'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'completed-project.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\n---\n# Completed'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'no-status-project.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\n---\n# No Status'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status NOT IN ('completed')
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [{ key: 'status', value: ['completed'], operator: 'NOT IN' }]
+      });
+
+      // Should include 'active' and 'no status' (notes missing the field should be included)
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000001'); // active
+      expect(ids).toContain('n-00000003'); // no status (missing field)
+      expect(ids).not.toContain('n-00000002'); // completed
+    });
+
+    it('should filter with NOT IN using a single value', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'active-project.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# Active'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'completed-project.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: completed\n---\n# Completed'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status NOT IN ('completed') - single value in array
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [{ key: 'status', value: ['completed'], operator: 'NOT IN' }]
+      });
+
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].id).toBe('n-00000001');
+    });
+
+    it('should filter with BETWEEN operator for numeric values', async () => {
+      const noteDir = path.join(testWorkspacePath, 'task');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'task1.md'),
+        '---\nflint_id: n-00000001\nflint_type: task\npriority: 1\n---\n# Task 1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task2.md'),
+        '---\nflint_id: n-00000002\nflint_type: task\npriority: 3\n---\n# Task 2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task3.md'),
+        '---\nflint_id: n-00000003\nflint_type: task\npriority: 5\n---\n# Task 3'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task4.md'),
+        '---\nflint_id: n-00000004\nflint_type: task\npriority: 10\n---\n# Task 4'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where priority BETWEEN 2 and 6 (inclusive)
+      const result = await searchManager.queryNotesForDataview({
+        type: 'task',
+        metadata_filters: [{ key: 'priority', value: ['2', '6'], operator: 'BETWEEN' }]
+      });
+
+      // Should include tasks with priority 3 and 5 (within 2-6 range inclusive)
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000002'); // priority 3
+      expect(ids).toContain('n-00000003'); // priority 5
+      expect(ids).not.toContain('n-00000001'); // priority 1
+      expect(ids).not.toContain('n-00000004'); // priority 10
+    });
+
+    it('should filter with BETWEEN operator for date values', async () => {
+      const noteDir = path.join(testWorkspacePath, 'event');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'event1.md'),
+        '---\nflint_id: n-00000001\nflint_type: event\ndate: 2024-01-01\n---\n# Event 1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'event2.md'),
+        '---\nflint_id: n-00000002\nflint_type: event\ndate: 2024-03-15\n---\n# Event 2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'event3.md'),
+        '---\nflint_id: n-00000003\nflint_type: event\ndate: 2024-06-30\n---\n# Event 3'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'event4.md'),
+        '---\nflint_id: n-00000004\nflint_type: event\ndate: 2024-12-31\n---\n# Event 4'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for events where date BETWEEN 2024-02-01 and 2024-07-01 (inclusive)
+      const result = await searchManager.queryNotesForDataview({
+        type: 'event',
+        metadata_filters: [
+          { key: 'date', value: ['2024-02-01', '2024-07-01'], operator: 'BETWEEN' }
+        ]
+      });
+
+      // Should include events on 2024-03-15 and 2024-06-30
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000002'); // 2024-03-15
+      expect(ids).toContain('n-00000003'); // 2024-06-30
+      expect(ids).not.toContain('n-00000001'); // 2024-01-01
+      expect(ids).not.toContain('n-00000004'); // 2024-12-31
+    });
+
+    it('should handle BETWEEN with boundary values (inclusive)', async () => {
+      // Note: Metadata values are stored as strings and compared lexicographically.
+      // Using zero-padded numbers ensures correct ordering (010 < 050 < 100).
+      const noteDir = path.join(testWorkspacePath, 'task');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'task1.md'),
+        '---\nflint_id: n-00000001\nflint_type: task\nscore: "010"\n---\n# Task 1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task2.md'),
+        '---\nflint_id: n-00000002\nflint_type: task\nscore: "050"\n---\n# Task 2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task3.md'),
+        '---\nflint_id: n-00000003\nflint_type: task\nscore: "100"\n---\n# Task 3'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where score BETWEEN 010 and 100 - should be inclusive
+      const result = await searchManager.queryNotesForDataview({
+        type: 'task',
+        metadata_filters: [{ key: 'score', value: ['010', '100'], operator: 'BETWEEN' }]
+      });
+
+      // Should include all three (boundaries are inclusive)
+      expect(result.results.length).toBe(3);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000001'); // 010 (lower bound)
+      expect(ids).toContain('n-00000002'); // 050
+      expect(ids).toContain('n-00000003'); // 100 (upper bound)
+    });
+
+    it('should combine NOT IN with other filters', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'project1.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\npriority: high\n---\n# P1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project2.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: active\npriority: low\n---\n# P2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project3.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\nstatus: completed\npriority: high\n---\n# P3'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for active projects NOT IN ('low') priority
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [
+          { key: 'status', value: 'active', operator: '=' },
+          { key: 'priority', value: ['low'], operator: 'NOT IN' }
+        ]
+      });
+
+      // Should only include project1 (active + high priority)
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].id).toBe('n-00000001');
+    });
+
+    it('should combine BETWEEN with other filters', async () => {
+      // Note: Metadata values are compared as strings. Using single-digit priorities
+      // works correctly: '1' < '3' < '5' < '9' in string comparison.
+      const noteDir = path.join(testWorkspacePath, 'task');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'task1.md'),
+        '---\nflint_id: n-00000001\nflint_type: task\nstatus: open\npriority: 5\n---\n# T1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task2.md'),
+        '---\nflint_id: n-00000002\nflint_type: task\nstatus: closed\npriority: 5\n---\n# T2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'task3.md'),
+        '---\nflint_id: n-00000003\nflint_type: task\nstatus: open\npriority: 1\n---\n# T3'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for open tasks with priority BETWEEN 3 and 9 (single digits for correct string comparison)
+      const result = await searchManager.queryNotesForDataview({
+        type: 'task',
+        metadata_filters: [
+          { key: 'status', value: 'open', operator: '=' },
+          { key: 'priority', value: ['3', '9'], operator: 'BETWEEN' }
+        ]
+      });
+
+      // Should only include task1 (open + priority 5, which is between 3 and 9)
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].id).toBe('n-00000001');
+    });
+
+    it('should filter with IN operator using array value', async () => {
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(noteDir, 'project1.md'),
+        '---\nflint_id: n-00000001\nflint_type: project\nstatus: active\n---\n# P1'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project2.md'),
+        '---\nflint_id: n-00000002\nflint_type: project\nstatus: review\n---\n# P2'
+      );
+      await fs.writeFile(
+        path.join(noteDir, 'project3.md'),
+        '---\nflint_id: n-00000003\nflint_type: project\nstatus: completed\n---\n# P3'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query for notes where status IN ('active', 'review')
+      const result = await searchManager.queryNotesForDataview({
+        type: 'project',
+        metadata_filters: [{ key: 'status', value: ['active', 'review'], operator: 'IN' }]
+      });
+
+      expect(result.results.length).toBe(2);
+      const ids = result.results.map((r) => r.id);
+      expect(ids).toContain('n-00000001'); // active
+      expect(ids).toContain('n-00000002'); // review
+      expect(ids).not.toContain('n-00000003'); // completed
+    });
   });
 });
 

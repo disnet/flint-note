@@ -8,6 +8,8 @@
     onSelect: (fieldName: string) => void;
     placeholder?: string;
     excludeFields?: string[];
+    /** Fields to show as disabled (grayed out, not selectable) - used for duplicate filter prevention */
+    disabledFields?: Set<string>;
   }
 
   let {
@@ -15,8 +17,16 @@
     selectedField,
     onSelect,
     placeholder = 'Select field...',
-    excludeFields = []
+    excludeFields = [],
+    disabledFields = new Set()
   }: Props = $props();
+
+  // Check if a field is disabled (already used in another filter)
+  // Exclude the current field from the check (so you can see your own selection)
+  function isFieldDisabled(fieldName: string): boolean {
+    if (fieldName === selectedField) return false;
+    return disabledFields.has(fieldName);
+  }
 
   let isOpen = $state(false);
   let dropdownRef = $state<HTMLDivElement | null>(null);
@@ -101,6 +111,9 @@
   }
 
   function selectField(fieldName: string): void {
+    // Don't allow selecting disabled fields
+    if (isFieldDisabled(fieldName)) return;
+
     isOpen = false;
     searchQuery = '';
     highlightedIndex = 0;
@@ -231,22 +244,28 @@
         <div class="dropdown-item no-results">No matching fields</div>
       {:else}
         {#each filteredFields as field, index (field.name)}
+          {@const disabled = isFieldDisabled(field.name)}
           <button
             class="dropdown-item"
             class:selected={field.name === selectedField}
-            class:highlighted={index === highlightedIndex}
+            class:highlighted={index === highlightedIndex && !disabled}
+            class:disabled
             onclick={() => selectField(field.name)}
             type="button"
             role="option"
             aria-selected={field.name === selectedField}
+            aria-disabled={disabled}
           >
             <div class="item-main">
               <span class="type-icon" title={field.type}>{getTypeIcon(field.type)}</span>
               <span class="item-name">{field.label}</span>
+              {#if disabled}
+                <span class="disabled-hint">(already filtered)</span>
+              {/if}
             </div>
-            {#if field.isSystem}
+            {#if field.isSystem && !disabled}
               <span class="item-badge system">system</span>
-            {:else if field.type !== 'system'}
+            {:else if field.type !== 'system' && !disabled}
               <span class="item-badge type">{field.type}</span>
             {/if}
           </button>
@@ -476,5 +495,22 @@
   .dropdown-item.selected .type-icon {
     background: rgba(255, 255, 255, 0.2);
     color: white;
+  }
+
+  /* Disabled fields (already filtered) */
+  .dropdown-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dropdown-item.disabled:hover {
+    background: transparent;
+  }
+
+  .disabled-hint {
+    font-size: 0.625rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-left: 0.25rem;
   }
 </style>

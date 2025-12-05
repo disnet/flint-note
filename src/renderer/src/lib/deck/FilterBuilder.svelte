@@ -133,6 +133,11 @@
   function getValueSuggestionsForField(fieldName: string): string[] {
     return valueSuggestions[fieldName] || [];
   }
+
+  // Track fields already used in filters (to prevent duplicates)
+  const usedFields = $derived(
+    new Set(editingFilters.map((f) => f.field).filter((f) => f && f.trim()))
+  );
 </script>
 
 <div class="filter-builder">
@@ -155,6 +160,7 @@
           {filter}
           fields={schemaFields}
           valueSuggestions={getValueSuggestionsForField(filter.field)}
+          disabledFields={usedFields}
           onChange={(newFilter) => handleFilterChange(index, newFilter)}
           onRemove={() => handleRemoveFilter(index)}
         />

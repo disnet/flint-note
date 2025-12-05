@@ -31,20 +31,37 @@
   let tagInput = $state('');
   let textInput = $state(''); // Local state for text input to enable filtering while typing
 
-  // Determine if we need multi-value input (for IN operator)
-  const isMultiValue = $derived(operator === 'IN');
+  // Determine if we need multi-value input (for IN/NOT IN operators)
+  const isMultiValue = $derived(operator === 'IN' || operator === 'NOT IN');
+
+  // Determine if we need BETWEEN input (two values)
+  const isBetween = $derived(operator === 'BETWEEN');
 
   // Ensure value is always correct type
   const normalizedValue = $derived.by(() => {
+    if (isBetween) {
+      // BETWEEN expects [min, max] tuple
+      if (Array.isArray(value) && value.length >= 2) {
+        return value.slice(0, 2);
+      }
+      return ['', ''];
+    }
     if (isMultiValue) {
       return Array.isArray(value) ? value : value ? [value] : [];
     }
     return Array.isArray(value) ? value[0] || '' : value;
   });
 
+  // Handle BETWEEN value changes
+  function handleBetweenChange(index: 0 | 1, newValue: string): void {
+    const current = Array.isArray(value) ? [...value] : ['', ''];
+    current[index] = newValue;
+    onChange(current);
+  }
+
   // Sync local text input with parent value when it changes externally
   $effect(() => {
-    if (!isMultiValue) {
+    if (!isMultiValue && !isBetween) {
       textInput = normalizedValue as string;
     }
   });
@@ -71,10 +88,28 @@
     return val === EMPTY_MARKER ? '<empty>' : val;
   }
 
-  // For select fields, use options
+  // Check if we have options available (for select fields or fields with suggestions)
+  const hasOptions = $derived(options.length > 0);
+
+  // For multi-value operators with available options, show checkboxes
+  const isMultiSelectCheckbox = $derived(isMultiValue && hasOptions);
+
+  // For single-value select dropdown (only when fieldType is 'select' and has options)
   const selectOptions = $derived(
     fieldType === 'select' && options.length > 0 ? options : null
   );
+
+  // Handle checkbox toggle for multi-select
+  function handleCheckboxToggle(optionValue: string, checked: boolean): void {
+    const vals = normalizedValue as string[];
+    if (checked) {
+      if (!vals.includes(optionValue)) {
+        onChange([...vals, optionValue]);
+      }
+    } else {
+      onChange(vals.filter((v) => v !== optionValue));
+    }
+  }
 
   // For select fields, add <empty> option to suggestions
   const effectiveSuggestions = $derived.by(() => {
@@ -231,6 +266,65 @@
       />
       <span class="toggle-label">{normalizedValue === 'true' ? 'Yes' : 'No'}</span>
     </label>
+  {:else if isBetween}
+    <!-- BETWEEN two-value input -->
+    <div class="between-inputs">
+      {#if fieldType === 'date'}
+        <input
+          type="date"
+          class="text-input between-input"
+          value={(normalizedValue as string[])[0] || ''}
+          onchange={(e) => handleBetweenChange(0, (e.target as HTMLInputElement).value)}
+        />
+        <span class="between-separator">to</span>
+        <input
+          type="date"
+          class="text-input between-input"
+          value={(normalizedValue as string[])[1] || ''}
+          onchange={(e) => handleBetweenChange(1, (e.target as HTMLInputElement).value)}
+        />
+      {:else}
+        <input
+          type="number"
+          class="text-input between-input"
+          value={(normalizedValue as string[])[0] || ''}
+          onchange={(e) => handleBetweenChange(0, (e.target as HTMLInputElement).value)}
+          placeholder="Min"
+        />
+        <span class="between-separator">to</span>
+        <input
+          type="number"
+          class="text-input between-input"
+          value={(normalizedValue as string[])[1] || ''}
+          onchange={(e) => handleBetweenChange(1, (e.target as HTMLInputElement).value)}
+          placeholder="Max"
+        />
+      {/if}
+    </div>
+  {:else if isMultiSelectCheckbox}
+    <!-- Checkbox list for IN/NOT IN with available options -->
+    <div class="checkbox-list">
+      <label class="checkbox-item">
+        <input
+          type="checkbox"
+          checked={(normalizedValue as string[]).includes(EMPTY_MARKER)}
+          onchange={(e) =>
+            handleCheckboxToggle(EMPTY_MARKER, (e.target as HTMLInputElement).checked)}
+        />
+        <span class="checkbox-label">&lt;empty&gt;</span>
+      </label>
+      {#each options as opt (opt)}
+        <label class="checkbox-item">
+          <input
+            type="checkbox"
+            checked={(normalizedValue as string[]).includes(opt)}
+            onchange={(e) =>
+              handleCheckboxToggle(opt, (e.target as HTMLInputElement).checked)}
+          />
+          <span class="checkbox-label">{opt}</span>
+        </label>
+      {/each}
+    </div>
   {:else if selectOptions && !isMultiValue}
     <!-- Select dropdown -->
     <select class="select-input" value={normalizedValue} onchange={handleSelectChange}>
@@ -513,5 +607,67 @@
   .suggestion-item:hover,
   .suggestion-item.highlighted {
     background: var(--bg-secondary);
+  }
+
+  /* BETWEEN two-value input */
+  .between-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .between-input {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .between-separator {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Checkbox list for multi-value select */
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    max-height: 10rem;
+    overflow-y: auto;
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.125rem 0;
+  }
+
+  .checkbox-item:hover {
+    background: var(--bg-tertiary);
+    margin: 0 -0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.125rem;
+  }
+
+  .checkbox-item input[type='checkbox'] {
+    width: 0.875rem;
+    height: 0.875rem;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .checkbox-label {
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

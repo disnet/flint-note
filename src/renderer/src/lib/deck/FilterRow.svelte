@@ -9,11 +9,20 @@
     filter: DeckFilter;
     fields: FilterFieldInfo[];
     valueSuggestions?: string[];
+    /** Fields already used in other filters (to disable in selector) */
+    disabledFields?: Set<string>;
     onChange: (filter: DeckFilter) => void;
     onRemove: () => void;
   }
 
-  let { filter, fields, valueSuggestions = [], onChange, onRemove }: Props = $props();
+  let {
+    filter,
+    fields,
+    valueSuggestions = [],
+    disabledFields = new Set(),
+    onChange,
+    onRemove
+  }: Props = $props();
 
   // Combine system fields with custom fields
   const allFields = $derived.by(() => {
@@ -54,15 +63,32 @@
   }
 
   function handleOperatorChange(operator: FilterOperator): void {
-    // Reset value when switching to/from IN operator
-    const newValue =
-      operator === 'IN'
-        ? Array.isArray(filter.value)
-          ? filter.value
-          : []
-        : Array.isArray(filter.value)
-          ? filter.value[0] || ''
-          : filter.value;
+    let newValue: string | string[];
+
+    if (operator === 'BETWEEN') {
+      // BETWEEN expects [min, max] tuple
+      if (Array.isArray(filter.value) && filter.value.length >= 2) {
+        newValue = [filter.value[0] || '', filter.value[1] || ''];
+      } else if (Array.isArray(filter.value) && filter.value.length === 1) {
+        newValue = [filter.value[0] || '', ''];
+      } else {
+        newValue = [typeof filter.value === 'string' ? filter.value : '', ''];
+      }
+    } else if (operator === 'IN' || operator === 'NOT IN') {
+      // IN/NOT IN expects array
+      if (Array.isArray(filter.value)) {
+        newValue = filter.value;
+      } else {
+        newValue = filter.value ? [filter.value] : [];
+      }
+    } else {
+      // Single value operators
+      if (Array.isArray(filter.value)) {
+        newValue = filter.value[0] || '';
+      } else {
+        newValue = filter.value;
+      }
+    }
 
     onChange({
       ...filter,
@@ -81,7 +107,12 @@
 
 <div class="filter-row">
   <div class="filter-controls">
-    <FieldSelector {fields} selectedField={filter.field} onSelect={handleFieldChange} />
+    <FieldSelector
+      {fields}
+      selectedField={filter.field}
+      {disabledFields}
+      onSelect={handleFieldChange}
+    />
 
     <OperatorSelector
       operators={availableOperators}

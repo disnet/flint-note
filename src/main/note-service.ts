@@ -332,8 +332,18 @@ export class NoteService {
     type_operator?: '=' | '!=' | 'IN';
     metadata_filters?: Array<{
       key: string;
-      value: string;
-      operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+      value: string | string[];
+      operator?:
+        | '='
+        | '!='
+        | '>'
+        | '<'
+        | '>='
+        | '<='
+        | 'LIKE'
+        | 'IN'
+        | 'NOT IN'
+        | 'BETWEEN';
     }>;
     sort?: Array<{ field: string; order: 'asc' | 'desc' }>;
     limit?: number;

@@ -6,6 +6,7 @@
 // Re-export everything from the shared module
 export {
   parseDeckYaml,
+  parseDeckYamlWithWarnings,
   serializeDeckConfig,
   createEmptyDeckConfig,
   createDeckConfigFromInput,
@@ -23,7 +24,9 @@ export type {
   FilterOperator,
   ColumnDefinition,
   ColumnConfig,
-  ColumnFormat
+  ColumnFormat,
+  DeckValidationWarning,
+  ParsedDeckResult
 } from '../../../../shared/deck-yaml-utils';
 
 // Import local types for createTypeFilterDeck

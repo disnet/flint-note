@@ -49,9 +49,11 @@
     Array.isArray(filter?.value) ? filter?.value.join(', ') : filter?.value || ''
   );
 
-  // Check if we should show multi-select (IN operator with options)
+  // Check if we should show multi-select (IN or NOT IN operator with options)
   const showMultiSelect = $derived(
-    currentOperator === 'IN' && fieldInfo?.options && fieldInfo.options.length > 0
+    (currentOperator === 'IN' || currentOperator === 'NOT IN') &&
+      fieldInfo?.options &&
+      fieldInfo.options.length > 0
   );
 
   // Close when clicking outside - use mousedown to detect before any state changes
@@ -79,11 +81,13 @@
     const select = event.target as HTMLSelectElement;
     const newOperator = select.value as FilterOperator;
     if (filter) {
-      // When switching to IN, convert value to array if needed
+      // When switching to IN or NOT IN, convert value to array if needed
+      const isMultiValueOp = newOperator === 'IN' || newOperator === 'NOT IN';
+      const wasMultiValueOp = filter.operator === 'IN' || filter.operator === 'NOT IN';
       let newValue: string | string[] = filter.value;
-      if (newOperator === 'IN' && !Array.isArray(filter.value)) {
+      if (isMultiValueOp && !Array.isArray(filter.value)) {
         newValue = filter.value ? [filter.value] : [];
-      } else if (newOperator !== 'IN' && Array.isArray(filter.value)) {
+      } else if (!isMultiValueOp && wasMultiValueOp && Array.isArray(filter.value)) {
         newValue = filter.value[0] || '';
       }
       onUpdate({
@@ -98,9 +102,9 @@
     const input = event.target as HTMLInputElement | HTMLSelectElement;
     const newValue = input.value;
     if (filter) {
-      // For IN operator without options, split by comma
-      const value =
-        currentOperator === 'IN' ? newValue.split(',').map((v) => v.trim()) : newValue;
+      // For IN/NOT IN operator without options, split by comma
+      const isMultiValueOp = currentOperator === 'IN' || currentOperator === 'NOT IN';
+      const value = isMultiValueOp ? newValue.split(',').map((v) => v.trim()) : newValue;
       onUpdate({
         ...filter,
         value
@@ -254,7 +258,7 @@
           type="text"
           class="value-input"
           value={currentValue}
-          placeholder={currentOperator === 'IN'
+          placeholder={currentOperator === 'IN' || currentOperator === 'NOT IN'
             ? 'value1, value2, ...'
             : 'Enter value...'}
           onchange={handleValueChange}

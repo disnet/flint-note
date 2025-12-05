@@ -161,15 +161,29 @@ Decks filter notes using metadata fields defined in note types. Common patterns:
 2. **Filter by status**: `{ field: "status", value: "active" }` (use `get_note_type_details` first to discover valid values)
 3. **Date comparisons**: `{ field: "due_date", operator: "<", value: "2024-12-15" }` for overdue items
 4. **Excluding values**: `{ field: "status", operator: "!=", value: "completed" }`
-5. **Multiple values**: `{ field: "priority", operator: "IN", value: ["high", "critical"] }`
+5. **Multiple values (include)**: `{ field: "priority", operator: "IN", value: ["high", "critical"] }`
+6. **Multiple values (exclude)**: `{ field: "status", operator: "NOT IN", value: ["done", "cancelled"] }`
+7. **Date/number ranges**: `{ field: "due_date", operator: "BETWEEN", value: ["2024-01-01", "2024-03-31"] }`
 
 **Supported Filter Operators:**
 
-- `=` (equals, default)
-- `!=` (not equals - includes notes where the field doesn't exist)
-- `>`, `<`, `>=`, `<=` (comparison for dates and numbers)
-- `LIKE` (pattern matching, contains)
-- `IN` (matches any value in list)
+| Operator             | Description                   | Value Type   | Example                                                                           |
+| -------------------- | ----------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| `=`                  | Equals (default)              | `string`     | `{ field: "status", value: "active" }`                                            |
+| `!=`                 | Not equals (includes missing) | `string`     | `{ field: "status", operator: "!=", value: "done" }`                              |
+| `>`, `<`, `>=`, `<=` | Comparison                    | `string`     | `{ field: "priority", operator: ">", value: "3" }`                                |
+| `LIKE`               | Contains                      | `string`     | `{ field: "title", operator: "LIKE", value: "meeting" }`                          |
+| `IN`                 | Matches any                   | `string[]`   | `{ field: "status", operator: "IN", value: ["active", "pending"] }`               |
+| `NOT IN`             | Excludes all                  | `string[]`   | `{ field: "status", operator: "NOT IN", value: ["done", "cancelled"] }`           |
+| `BETWEEN`            | Range (inclusive)             | `[min, max]` | `{ field: "due_date", operator: "BETWEEN", value: ["2024-01-01", "2024-12-31"] }` |
+
+**Important: Single Filter Per Field**
+
+Each field can only appear ONCE in filters. Use the appropriate operator:
+
+- To exclude multiple values: use `NOT IN` instead of multiple `!=` filters
+- To specify a range: use `BETWEEN` instead of multiple `>=` and `<=` filters
+- To include multiple values: use `IN` instead of multiple `=` filters
 
 **Before using deck tools:**
 

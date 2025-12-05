@@ -6,7 +6,26 @@
 import yaml from 'js-yaml';
 
 // Type definitions for deck configuration
-export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+export type FilterOperator =
+  | '='
+  | '!='
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  | 'LIKE'
+  | 'IN'
+  | 'NOT IN'
+  | 'BETWEEN';
+
+/**
+ * Validation warning for deck configuration issues
+ */
+export interface DeckValidationWarning {
+  type: 'duplicate_field';
+  field: string;
+  message: string;
+}
 export type ColumnFormat =
   | 'default'
   | 'relative'
@@ -54,10 +73,57 @@ export interface DeckConfig {
   columns?: ColumnDefinition[];
 }
 
-const VALID_OPERATORS: FilterOperator[] = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'];
+const VALID_OPERATORS: FilterOperator[] = [
+  '=',
+  '!=',
+  '>',
+  '<',
+  '>=',
+  '<=',
+  'LIKE',
+  'IN',
+  'NOT IN',
+  'BETWEEN'
+];
 const VALID_SORT_ORDERS = ['asc', 'desc'] as const;
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
+
+/**
+ * Result of parsing deck YAML, including any validation warnings
+ */
+export interface ParsedDeckResult {
+  config: DeckConfig;
+  warnings: DeckValidationWarning[];
+}
+
+/**
+ * Deduplicate filters by field, keeping only the first filter for each field.
+ * Returns the deduplicated filters and any warnings generated.
+ */
+function deduplicateFilters(filters: DeckFilter[]): {
+  filters: DeckFilter[];
+  warnings: DeckValidationWarning[];
+} {
+  const seen = new Set<string>();
+  const deduplicated: DeckFilter[] = [];
+  const warnings: DeckValidationWarning[] = [];
+
+  for (const filter of filters) {
+    if (seen.has(filter.field)) {
+      warnings.push({
+        type: 'duplicate_field',
+        field: filter.field,
+        message: `Multiple filters for "${filter.field}" - only the first is used. Use IN/NOT IN for multiple values or BETWEEN for ranges.`
+      });
+      continue;
+    }
+    seen.add(filter.field);
+    deduplicated.push(filter);
+  }
+
+  return { filters: deduplicated, warnings };
+}
 
 /**
  * Check if a column has custom settings (needs enhanced YAML format)
@@ -71,9 +137,18 @@ export function columnHasCustomSettings(col: ColumnConfig): boolean {
  * Returns null if parsing fails or content is invalid
  */
 export function parseDeckYaml(yamlContent: string): DeckConfig | null {
+  const result = parseDeckYamlWithWarnings(yamlContent);
+  return result?.config ?? null;
+}
+
+/**
+ * Parse YAML content into a validated DeckConfig with warnings
+ * Returns both the config and any validation warnings (e.g., duplicate filters)
+ */
+export function parseDeckYamlWithWarnings(yamlContent: string): ParsedDeckResult | null {
   try {
     const parsed = yaml.load(yamlContent);
-    return validateDeckConfig(parsed);
+    return validateDeckConfigWithWarnings(parsed);
   } catch (e) {
     console.error('Failed to parse flint-deck YAML:', e);
     return null;
@@ -193,23 +268,28 @@ export function serializeDeckConfig(config: DeckConfig): string {
 }
 
 /**
- * Validate a single view object
+ * Validate a single view object and collect warnings
  */
-function validateView(view: unknown): DeckView | null {
+function validateViewWithWarnings(view: unknown): {
+  view: DeckView | null;
+  warnings: DeckValidationWarning[];
+} {
+  const warnings: DeckValidationWarning[] = [];
+
   if (!view || typeof view !== 'object') {
-    return null;
+    return { view: null, warnings };
   }
 
   const v = view as Record<string, unknown>;
 
   // name is required
   if (typeof v.name !== 'string' || !v.name.trim()) {
-    return null;
+    return { view: null, warnings };
   }
 
   // filters must be an array (can be empty)
   if (!Array.isArray(v.filters)) {
-    return null;
+    return { view: null, warnings };
   }
 
   const validatedFilters: DeckFilter[] = [];
@@ -221,9 +301,13 @@ function validateView(view: unknown): DeckView | null {
     // Skip invalid filters instead of failing entire view
   }
 
+  // Deduplicate filters and collect warnings
+  const dedupeResult = deduplicateFilters(validatedFilters);
+  warnings.push(...dedupeResult.warnings);
+
   const result: DeckView = {
     name: v.name.trim(),
-    filters: validatedFilters
+    filters: dedupeResult.filters
   };
 
   // Optional sort
@@ -248,15 +332,17 @@ function validateView(view: unknown): DeckView | null {
     }
   }
 
-  return result;
+  return { view: result, warnings };
 }
 
 /**
- * Validate parsed YAML as a DeckConfig.
+ * Validate parsed YAML as a DeckConfig with warnings.
  * Handles both multi-view format (views array) and legacy single-view format.
  * Legacy format is auto-migrated to views format.
  */
-function validateDeckConfig(parsed: unknown): DeckConfig | null {
+function validateDeckConfigWithWarnings(parsed: unknown): ParsedDeckResult | null {
+  const warnings: DeckValidationWarning[] = [];
+
   if (!parsed || typeof parsed !== 'object') {
     return null;
   }
@@ -269,9 +355,10 @@ function validateDeckConfig(parsed: unknown): DeckConfig | null {
   if (Array.isArray(config.views) && config.views.length > 0) {
     const validatedViews: DeckView[] = [];
     for (const view of config.views) {
-      const validatedView = validateView(view);
-      if (validatedView) {
-        validatedViews.push(validatedView);
+      const viewResult = validateViewWithWarnings(view);
+      if (viewResult.view) {
+        validatedViews.push(viewResult.view);
+        warnings.push(...viewResult.warnings);
       }
     }
 
@@ -294,9 +381,13 @@ function validateDeckConfig(parsed: unknown): DeckConfig | null {
       }
     }
 
+    // Deduplicate filters and collect warnings
+    const dedupeResult = deduplicateFilters(validatedFilters);
+    warnings.push(...dedupeResult.warnings);
+
     const legacyView: DeckView = {
       name: 'Default',
-      filters: validatedFilters
+      filters: dedupeResult.filters
     };
 
     // Optional sort (legacy)
@@ -341,7 +432,7 @@ function validateDeckConfig(parsed: unknown): DeckConfig | null {
     result.expanded = true;
   }
 
-  return result;
+  return { config: result, warnings };
 }
 
 /**

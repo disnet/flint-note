@@ -19,7 +19,11 @@ import {
 import { mount, unmount } from 'svelte';
 
 import { deckTheme } from './deck-theme';
-import { parseDeckYaml, serializeDeckConfig } from './yaml-utils';
+import {
+  parseDeckYamlWithWarnings,
+  serializeDeckConfig,
+  type DeckValidationWarning
+} from './yaml-utils';
 import type { DeckConfig, DeckBlock, DeckHandlers } from './types';
 import DeckWidget from './DeckWidget.svelte';
 
@@ -189,6 +193,7 @@ class EmbeddedDeckWidgetType extends WidgetType {
   private component: ReturnType<typeof mount> | null = null;
   public yamlContent: string;
   private config: DeckConfig | null = null;
+  private validationWarnings: DeckValidationWarning[] = [];
   private loadError: string | null = null;
 
   constructor(
@@ -217,14 +222,15 @@ class EmbeddedDeckWidgetType extends WidgetType {
         return;
       }
 
-      // Parse the deck note's content as YAML
-      const config = parseDeckYaml(note.content || '');
-      if (!config) {
+      // Parse the deck note's content as YAML (with warnings)
+      const result = parseDeckYamlWithWarnings(note.content || '');
+      if (!result) {
         this.loadError = 'Invalid deck configuration';
         return;
       }
 
-      this.config = config;
+      this.config = result.config;
+      this.validationWarnings = result.warnings;
     } catch (err) {
       this.loadError = `Failed to load deck: ${err}`;
     }
@@ -299,6 +305,7 @@ class EmbeddedDeckWidgetType extends WidgetType {
         target: container,
         props: {
           config: this.config,
+          validationWarnings: this.validationWarnings,
           onConfigChange: (newConfig: DeckConfig) => {
             // Save to source deck note
             this.saveConfigToSourceNote(newConfig);

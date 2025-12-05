@@ -95,8 +95,18 @@ export interface AdvancedSearchOptions {
   type?: string;
   metadata_filters?: Array<{
     key: string;
-    value: string;
-    operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+    value: string | string[];
+    operator?:
+      | '='
+      | '!='
+      | '>'
+      | '<'
+      | '>='
+      | '<='
+      | 'LIKE'
+      | 'IN'
+      | 'NOT IN'
+      | 'BETWEEN';
   }>;
   updated_within?: string; // e.g., '7d', '1w', '2m'
   updated_before?: string;
@@ -140,8 +150,18 @@ export interface DataviewQueryOptions {
   type_operator?: '=' | '!=' | 'IN';
   metadata_filters?: Array<{
     key: string;
-    value: string;
-    operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+    value: string | string[];
+    operator?:
+      | '='
+      | '!='
+      | '>'
+      | '<'
+      | '>='
+      | '<='
+      | 'LIKE'
+      | 'IN'
+      | 'NOT IN'
+      | 'BETWEEN';
   }>;
   sort?: Array<{
     field: string;
@@ -458,7 +478,10 @@ export class HybridSearchManager {
               );
               joinParams.push(filter.key);
               whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-              whereParams.push(filter.value);
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              whereParams.push(filterValue);
             }
           } else if (operator === '=' && isEmptyFilter) {
             // = __empty__ means "field is empty or doesn't exist"
@@ -468,7 +491,9 @@ export class HybridSearchManager {
             joinParams.push(filter.key);
             whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
           } else if (operator === 'IN') {
-            const values = filter.value.split(',').map((v) => v.trim());
+            const values = Array.isArray(filter.value)
+              ? filter.value
+              : filter.value.split(',').map((v) => v.trim());
             const hasEmpty = values.includes(EMPTY_MARKER);
             const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
 
@@ -495,6 +520,50 @@ export class HybridSearchManager {
               whereConditions.push(`${alias}.value IN (${placeholders})`);
               whereParams.push(...values);
             }
+          } else if (operator === 'NOT IN') {
+            // NOT IN - exclude notes matching any of the values, include notes missing the field
+            const values = Array.isArray(filter.value)
+              ? filter.value
+              : filter.value.split(',').map((v) => v.trim());
+            const hasEmpty = values.includes(EMPTY_MARKER);
+            const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
+
+            // Use LEFT JOIN to include notes without the field
+            joins.push(
+              `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+            );
+            joinParams.push(filter.key);
+
+            if (hasEmpty && nonEmptyValues.length > 0) {
+              // NOT IN [__empty__, val1, val2] means "field exists AND has a value AND value is not in list"
+              const placeholders = nonEmptyValues.map(() => '?').join(',');
+              whereConditions.push(
+                `(${alias}.value IS NOT NULL AND ${alias}.value != '' AND ${alias}.value NOT IN (${placeholders}))`
+              );
+              whereParams.push(...nonEmptyValues);
+            } else if (hasEmpty) {
+              // NOT IN [__empty__] means "field exists and has a non-empty value"
+              whereConditions.push(
+                `(${alias}.value IS NOT NULL AND ${alias}.value != '')`
+              );
+            } else {
+              // Regular NOT IN - exclude matching values, include NULL/missing
+              const placeholders = nonEmptyValues.map(() => '?').join(',');
+              whereConditions.push(
+                `(${alias}.value IS NULL OR ${alias}.value NOT IN (${placeholders}))`
+              );
+              whereParams.push(...nonEmptyValues);
+            }
+          } else if (operator === 'BETWEEN') {
+            // BETWEEN - inclusive range query for dates and numbers
+            const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+            if (values.length >= 2) {
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              whereConditions.push(`${alias}.value BETWEEN ? AND ?`);
+              whereParams.push(values[0], values[1]);
+            }
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
@@ -503,13 +572,19 @@ export class HybridSearchManager {
 
             if (operator === 'LIKE') {
               whereConditions.push(`${alias}.value LIKE ?`);
-              const likeValue = filter.value.includes('%')
-                ? filter.value
-                : `%${filter.value}%`;
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              const likeValue = filterValue.includes('%')
+                ? filterValue
+                : `%${filterValue}%`;
               whereParams.push(likeValue);
             } else {
               whereConditions.push(`${alias}.value ${operator} ?`);
-              whereParams.push(filter.value);
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              whereParams.push(filterValue);
             }
           }
         });
@@ -749,7 +824,10 @@ export class HybridSearchManager {
 
               // Match notes where field doesn't exist (NULL) OR value doesn't match
               whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-              whereParams.push(filter.value);
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              whereParams.push(filterValue);
             }
           } else if (operator === '=' && isEmptyFilter) {
             // = __empty__ means "field is empty or doesn't exist"
@@ -760,7 +838,9 @@ export class HybridSearchManager {
             joinParams.push(filter.key);
             whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
           } else if (operator === 'IN') {
-            const values = filter.value.split(',').map((v) => v.trim());
+            const values = Array.isArray(filter.value)
+              ? filter.value
+              : filter.value.split(',').map((v) => v.trim());
             const hasEmpty = values.includes(EMPTY_MARKER);
             const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
 
@@ -791,6 +871,50 @@ export class HybridSearchManager {
               whereConditions.push(`${alias}.value IN (${placeholders})`);
               whereParams.push(...values);
             }
+          } else if (operator === 'NOT IN') {
+            // NOT IN - exclude notes matching any of the values, include notes missing the field
+            const values = Array.isArray(filter.value)
+              ? filter.value
+              : filter.value.split(',').map((v) => v.trim());
+            const hasEmpty = values.includes(EMPTY_MARKER);
+            const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
+
+            // Use LEFT JOIN to include notes without the field
+            joins.push(
+              `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+            );
+            joinParams.push(filter.key);
+
+            if (hasEmpty && nonEmptyValues.length > 0) {
+              // NOT IN [__empty__, val1, val2] means "field exists AND has a value AND value is not in list"
+              const placeholders = nonEmptyValues.map(() => '?').join(',');
+              whereConditions.push(
+                `(${alias}.value IS NOT NULL AND ${alias}.value != '' AND ${alias}.value NOT IN (${placeholders}))`
+              );
+              whereParams.push(...nonEmptyValues);
+            } else if (hasEmpty) {
+              // NOT IN [__empty__] means "field exists and has a non-empty value"
+              whereConditions.push(
+                `(${alias}.value IS NOT NULL AND ${alias}.value != '')`
+              );
+            } else {
+              // Regular NOT IN - exclude matching values, include NULL/missing
+              const placeholders = nonEmptyValues.map(() => '?').join(',');
+              whereConditions.push(
+                `(${alias}.value IS NULL OR ${alias}.value NOT IN (${placeholders}))`
+              );
+              whereParams.push(...nonEmptyValues);
+            }
+          } else if (operator === 'BETWEEN') {
+            // BETWEEN - inclusive range query for dates and numbers
+            const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+            if (values.length >= 2) {
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              whereConditions.push(`${alias}.value BETWEEN ? AND ?`);
+              whereParams.push(values[0], values[1]);
+            }
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
@@ -800,13 +924,19 @@ export class HybridSearchManager {
             if (operator === 'LIKE') {
               // Wrap value with % for "contains" matching unless user provided their own wildcards
               whereConditions.push(`${alias}.value LIKE ?`);
-              const likeValue = filter.value.includes('%')
-                ? filter.value
-                : `%${filter.value}%`;
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              const likeValue = filterValue.includes('%')
+                ? filterValue
+                : `%${filterValue}%`;
               whereParams.push(likeValue);
             } else {
               whereConditions.push(`${alias}.value ${operator} ?`);
-              whereParams.push(filter.value);
+              const filterValue = Array.isArray(filter.value)
+                ? filter.value[0]
+                : filter.value;
+              whereParams.push(filterValue);
             }
           }
         });

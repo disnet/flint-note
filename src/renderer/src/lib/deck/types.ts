@@ -103,7 +103,17 @@ export function getFormatLabel(format: ColumnFormat): string {
 /**
  * Filter operators supported by the searchNotesAdvanced API
  */
-export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+export type FilterOperator =
+  | '='
+  | '!='
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  | 'LIKE'
+  | 'IN'
+  | 'NOT IN'
+  | 'BETWEEN';
 
 /**
  * Special marker value for filtering on empty/null values.
@@ -135,13 +145,13 @@ export interface FilterFieldInfo {
  * Operators grouped by field type for UI
  */
 export const OPERATORS_BY_TYPE: Record<MetadataFieldType | 'system', FilterOperator[]> = {
-  string: ['=', '!=', 'LIKE'],
-  number: ['=', '!=', '>', '<', '>=', '<='],
+  string: ['=', '!=', 'LIKE', 'IN', 'NOT IN'],
+  number: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN'],
   boolean: ['=', '!='],
-  date: ['=', '!=', '>', '<', '>=', '<='],
-  array: ['IN', '=', '!='],
-  select: ['=', '!=', 'IN'],
-  system: ['=', '!=', 'LIKE', 'IN']
+  date: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN'],
+  array: ['IN', '=', '!=', 'NOT IN'],
+  select: ['=', '!=', 'IN', 'NOT IN'],
+  system: ['=', '!=', 'LIKE', 'IN', 'NOT IN']
 };
 
 /**
@@ -189,10 +199,14 @@ export function getOperatorLabel(operator: FilterOperator): string {
     '>=': 'at least',
     '<=': 'at most',
     LIKE: 'contains',
-    IN: 'in list'
+    IN: 'in list',
+    'NOT IN': 'not in list',
+    BETWEEN: 'between'
   };
   return labels[operator] || operator;
 }
+
+// DeckValidationWarning is re-exported from yaml-utils.ts (shared module)
 
 /**
  * A single filter condition in a deck
@@ -202,7 +216,7 @@ export interface DeckFilter {
   field: string;
   /** Comparison operator (default: '=') */
   operator?: FilterOperator;
-  /** Value to compare against. Array for 'IN' operator */
+  /** Value to compare against. Array for IN/NOT IN, [min, max] tuple for BETWEEN */
   value: string | string[];
 }
 
