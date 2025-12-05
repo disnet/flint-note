@@ -8,7 +8,13 @@
  * - No more N+1 queries - notes and metadata fetched in single request
  */
 
-import type { DeckConfig, DeckResultNote, FilterOperator } from './types';
+import type {
+  DeckConfig,
+  DeckResultNote,
+  DeckQueryResult,
+  FilterOperator
+} from './types';
+import { DEFAULT_PAGE_SIZE } from './types';
 
 // System fields to exclude from user metadata display
 const SYSTEM_FIELDS = new Set([
@@ -39,10 +45,22 @@ const SYSTEM_FIELDS = new Set([
 ]);
 
 /**
- * Execute a deck query and return matching notes
+ * Options for running a deck query
+ */
+export interface DeckQueryOptions {
+  /** Offset for pagination (default: 0) */
+  offset?: number;
+}
+
+/**
+ * Execute a deck query and return matching notes with pagination info
  * Uses the optimized server-side queryNotesForDeck API
  */
-export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]> {
+export async function runDeckQuery(
+  config: DeckConfig,
+  options: DeckQueryOptions = {}
+): Promise<DeckQueryResult> {
+  const { offset = 0 } = options;
   const filters = config.filters ?? [];
   // Extract type filter if present (supports single value or array via IN operator)
   const typeFilter = filters.find((f) => f.field === 'flint_type');
@@ -85,6 +103,9 @@ export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]
       ]
     : undefined;
 
+  // Use pageSize (or legacy limit, or default)
+  const limit = config.pageSize || config.limit || DEFAULT_PAGE_SIZE;
+
   try {
     // Use the optimized server-side API
     const response = await window.api?.queryNotesForDataview({
@@ -92,16 +113,17 @@ export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]
       type_operator: typeOperator,
       metadata_filters: metadataFilters.length > 0 ? metadataFilters : undefined,
       sort,
-      limit: config.limit || 50
+      limit,
+      offset
     });
 
     if (!response || !response.results) {
-      return [];
+      return { notes: [], total: 0, hasMore: false };
     }
 
     // Transform response to DeckResultNote format
     // Filter out system fields from metadata for display
-    return response.results.map((note) => ({
+    const notes = response.results.map((note) => ({
       id: note.id,
       title: note.title,
       type: note.type,
@@ -109,10 +131,17 @@ export async function runDeckQuery(config: DeckConfig): Promise<DeckResultNote[]
       updated: note.updated,
       metadata: extractUserMetadata(note.metadata)
     }));
+
+    return {
+      notes,
+      total: response.total,
+      hasMore: response.has_more
+    };
   } catch (error) {
     console.error('Deck query failed:', error);
     // Fall back to legacy query method if new API fails
-    return runLegacyDeckQuery(config);
+    const notes = await runLegacyDeckQuery(config);
+    return { notes, total: notes.length, hasMore: false };
   }
 }
 

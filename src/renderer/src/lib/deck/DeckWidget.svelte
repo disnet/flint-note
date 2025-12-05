@@ -6,7 +6,8 @@
     DeckResultNote,
     DeckFilter,
     ColumnConfig,
-    FilterFieldInfo
+    FilterFieldInfo,
+    PageSize
   } from './types';
   import {
     normalizeColumn,
@@ -14,9 +15,11 @@
     SYSTEM_FIELDS,
     getActiveView,
     createDefaultView,
-    EMPTY_FILTER_VALUE
+    EMPTY_FILTER_VALUE,
+    DEFAULT_PAGE_SIZE
   } from './types';
   import { runDeckQuery } from './queryService.svelte';
+  import PaginationControls from './PaginationControls.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
   import DeckToolbar from './DeckToolbar.svelte';
   import NoteListItem from './NoteListItem.svelte';
@@ -71,6 +74,10 @@
   let newlyCreatedNoteId = $state<string | null>(null);
   let suppressRefresh = $state(false);
 
+  // Pagination state
+  let currentPage = $state(0);
+  let total = $state(0);
+
   // Schema fields for inline editing (need $state for reassignment reactivity)
   // eslint-disable-next-line svelte/no-unnecessary-state-wrap
   let schemaFields = $state(new SvelteMap<string, SchemaFieldInfo>());
@@ -122,6 +129,11 @@
 
   // First filtered type (for new note creation)
   const firstFilteredType = $derived(filteredTypes.length > 0 ? filteredTypes[0] : null);
+
+  // Pagination derived values
+  const pageSize = $derived(config.pageSize || DEFAULT_PAGE_SIZE);
+  const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
+  const offset = $derived(currentPage * pageSize);
 
   // Load schema fields when filtered types change (union of all types' fields)
   // If no type filter, load fields from ALL note types
@@ -241,21 +253,35 @@
       filters: finalFilters,
       sort: activeView.sort,
       columns: activeView.columns,
-      limit: config.limit
+      pageSize: config.pageSize || DEFAULT_PAGE_SIZE
     };
   });
 
   // Track last query config to avoid redundant queries
   let lastQueryConfig = $state<string>('');
+  let lastOffset = $state<number>(0);
 
-  // Execute query when config or pending filter changes
+  // Reset to page 0 when filters/sort/pageSize change
   $effect(() => {
     const configStr = JSON.stringify(effectiveConfig);
-    // Skip if config hasn't actually changed
-    if (configStr === lastQueryConfig) {
+    // When config changes (not just offset), reset to first page
+    if (configStr !== lastQueryConfig) {
+      currentPage = 0;
+    }
+  });
+
+  // Execute query when config or page changes
+  $effect(() => {
+    const configStr = JSON.stringify(effectiveConfig);
+    const currentOffset = offset;
+
+    // Skip if nothing has changed
+    if (configStr === lastQueryConfig && currentOffset === lastOffset) {
       return;
     }
+
     lastQueryConfig = configStr;
+    lastOffset = currentOffset;
     executeQuery();
   });
 
@@ -356,10 +382,22 @@
 
     try {
       // Use effectiveConfig to include pending filter changes
-      results = await runDeckQuery(effectiveConfig);
+      const queryResult = await runDeckQuery(effectiveConfig, { offset });
+      results = queryResult.notes;
+      total = queryResult.total;
+
+      // If we're on an invalid page (e.g., after deletion), go back to last valid page
+      if (results.length === 0 && currentPage > 0 && total > 0) {
+        const lastValidPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+        if (currentPage > lastValidPage) {
+          currentPage = lastValidPage;
+          // Query will re-run due to offset change
+        }
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : 'Query failed';
       results = [];
+      total = 0;
     } finally {
       if (showLoading) {
         loading = false;
@@ -792,6 +830,21 @@
       sort: { field, order }
     });
   }
+
+  // ========================================
+  // Pagination Handlers
+  // ========================================
+
+  function handlePageChange(page: number): void {
+    currentPage = page;
+  }
+
+  function handlePageSizeChange(size: PageSize): void {
+    // Update config with new page size
+    updateConfig({ ...config, pageSize: size });
+    // Reset to first page when page size changes
+    currentPage = 0;
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -812,10 +865,12 @@
       onViewDelete={handleViewDelete}
       onViewDuplicate={handleViewDuplicate}
     />
-    {#if !loading}
-      <span class="deck-count"
-        >{results.length} note{results.length === 1 ? '' : 's'}</span
-      >
+    {#if !loading && total > 0}
+      {@const startItem = currentPage * pageSize + 1}
+      {@const endItem = Math.min((currentPage + 1) * pageSize, total)}
+      <span class="deck-count">{startItem}-{endItem} of {total}</span>
+    {:else if !loading}
+      <span class="deck-count">0 notes</span>
     {/if}
   </div>
 
@@ -891,7 +946,7 @@
         <span>{error}</span>
         <button onclick={handleRetryClick}>Retry</button>
       </div>
-    {:else if results.length === 0}
+    {:else if results.length === 0 && total === 0}
       <div class="deck-empty">No notes match this query</div>
     {:else}
       <div class="note-list" role="list">
@@ -920,6 +975,16 @@
           />
         {/each}
       </div>
+
+      <!-- Pagination Controls -->
+      <PaginationControls
+        {currentPage}
+        {totalPages}
+        {pageSize}
+        {total}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+      />
     {/if}
   </div>
 </div>

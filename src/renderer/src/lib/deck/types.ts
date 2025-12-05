@@ -245,6 +245,11 @@ export interface DeckView {
   sort?: DeckSort;
 }
 
+/** Available page size options for the UI */
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+export const DEFAULT_PAGE_SIZE: PageSize = 25;
+
 /**
  * Complete deck configuration stored in YAML.
  * Supports multi-view format (views array) and legacy single-view format.
@@ -254,8 +259,10 @@ export interface DeckConfig {
   views?: DeckView[];
   /** Index of the currently active view (default: 0) */
   activeView?: number;
-  /** Maximum results to return (default: 50) - deck-level setting */
+  /** @deprecated Use pageSize instead. Kept for backward compatibility. */
   limit?: number;
+  /** Number of items to show per page (default: 25) */
+  pageSize?: number;
   /** Whether the widget is expanded (default: false) - deck-level setting */
   expanded?: boolean;
   // Legacy fields (for backward compatibility during parsing)
@@ -314,6 +321,18 @@ export interface DeckResultNote {
   updated: string;
   /** User-defined metadata fields */
   metadata: Record<string, unknown>;
+}
+
+/**
+ * Result of a deck query, including pagination metadata
+ */
+export interface DeckQueryResult {
+  /** Notes matching the query for the current page */
+  notes: DeckResultNote[];
+  /** Total number of notes matching the query (across all pages) */
+  total: number;
+  /** Whether there are more results beyond the current page */
+  hasMore: boolean;
 }
 
 /**

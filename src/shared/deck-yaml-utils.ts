@@ -65,7 +65,10 @@ export interface DeckView {
 export interface DeckConfig {
   views?: DeckView[];
   activeView?: number;
+  /** @deprecated Use pageSize instead. Kept for backward compatibility. */
   limit?: number;
+  /** Number of items to show per page (default: 25) */
+  pageSize?: number;
   expanded?: boolean;
   // Legacy fields for backward compatibility
   filters?: DeckFilter[];
@@ -88,6 +91,11 @@ const VALID_OPERATORS: FilterOperator[] = [
 const VALID_SORT_ORDERS = ['asc', 'desc'] as const;
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
+
+/** Available page size options for the UI */
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+export const DEFAULT_PAGE_SIZE: PageSize = 25;
 
 /**
  * Result of parsing deck YAML, including any validation warnings
@@ -251,7 +259,17 @@ export function serializeDeckConfig(config: DeckConfig): string {
     cleanConfig.views = [serializeView(legacyView)];
   }
 
-  if (config.limit && config.limit !== DEFAULT_LIMIT) {
+  // Serialize pageSize if not default
+  if (config.pageSize && config.pageSize !== DEFAULT_PAGE_SIZE) {
+    cleanConfig.pageSize = config.pageSize;
+  }
+
+  // Keep limit for backward compatibility if explicitly set (and different from pageSize)
+  if (
+    config.limit &&
+    config.limit !== DEFAULT_LIMIT &&
+    config.limit !== config.pageSize
+  ) {
     cleanConfig.limit = config.limit;
   }
 
@@ -422,10 +440,28 @@ function validateDeckConfigWithWarnings(parsed: unknown): ParsedDeckResult | nul
   }
 
   // Deck-level settings
+
+  // Parse pageSize (primary) and limit (legacy fallback)
+  if (typeof config.pageSize === 'number' && config.pageSize > 0) {
+    // Clamp pageSize to valid options range
+    result.pageSize = Math.min(
+      Math.max(config.pageSize, PAGE_SIZE_OPTIONS[0]),
+      MAX_LIMIT
+    );
+  } else if (typeof config.limit === 'number' && config.limit > 0) {
+    // Migrate limit to pageSize (for backward compatibility)
+    // Clamp to max of 100 (largest page size option)
+    result.pageSize = Math.min(
+      config.limit,
+      PAGE_SIZE_OPTIONS[PAGE_SIZE_OPTIONS.length - 1]
+    );
+  } else {
+    result.pageSize = DEFAULT_PAGE_SIZE;
+  }
+
+  // Keep limit for backward compatibility (used by legacy clients)
   if (typeof config.limit === 'number' && config.limit > 0) {
     result.limit = Math.min(config.limit, MAX_LIMIT);
-  } else {
-    result.limit = DEFAULT_LIMIT;
   }
 
   if (config.expanded === true) {
@@ -581,7 +617,7 @@ export function createEmptyDeckConfig(): DeckConfig {
       }
     ],
     activeView: 0,
-    limit: DEFAULT_LIMIT
+    pageSize: DEFAULT_PAGE_SIZE
   };
 }
 
@@ -600,6 +636,7 @@ export function createDeckConfigFromInput(input: {
     sort?: { field: string; order: 'asc' | 'desc' };
   }>;
   limit?: number;
+  pageSize?: number;
 }): DeckConfig {
   return {
     views: input.views.map((v) => ({
@@ -613,7 +650,7 @@ export function createDeckConfigFromInput(input: {
       sort: v.sort
     })),
     activeView: 0,
-    limit: input.limit ?? DEFAULT_LIMIT
+    pageSize: input.pageSize ?? input.limit ?? DEFAULT_PAGE_SIZE
   };
 }
 

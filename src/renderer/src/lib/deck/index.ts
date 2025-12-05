@@ -40,13 +40,16 @@ export type {
   DeckSort,
   FilterOperator,
   DeckResultNote,
+  DeckQueryResult,
   DeckBlock,
   DeckHandlers,
   FilterFieldInfo,
   // Column types
   ColumnConfig,
   ColumnDefinition,
-  ColumnFormat
+  ColumnFormat,
+  // Pagination types
+  PageSize
 } from './types';
 
 // Type utilities
@@ -65,7 +68,10 @@ export {
   // View utilities
   getActiveView,
   isMultiViewConfig,
-  createDefaultView
+  createDefaultView,
+  // Pagination utilities
+  PAGE_SIZE_OPTIONS,
+  DEFAULT_PAGE_SIZE
 } from './types';
 
 // Utilities
@@ -99,6 +105,8 @@ export { default as NoteListItem } from './NoteListItem.svelte';
 export { default as PropPickerDialog } from './PropPickerDialog.svelte';
 export { default as PropFilterPopup } from './PropFilterPopup.svelte';
 export { default as ViewSwitcher } from './ViewSwitcher.svelte';
+export { default as PaginationControls } from './PaginationControls.svelte';
 
 // Query service
 export { runDeckQuery, getMetadataFieldsForType } from './queryService.svelte';
+export type { DeckQueryOptions } from './queryService.svelte';

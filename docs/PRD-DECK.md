@@ -4,7 +4,7 @@
 
 The Deck feature enables users to create dynamic, queryable note lists. Decks can exist as **standalone deck notes** (opened full-screen like PDFs/EPUBs) or be **embedded within other notes**. Similar to Obsidian's Dataview plugin, decks allow users to create live tables of notes based on filters, with interactive sorting and the ability to create new notes directly from the widget.
 
-## Current Implementation (v10)
+## Current Implementation (v11)
 
 ### Features Implemented
 
@@ -44,7 +44,7 @@ views:
       - priority
       - due_date
 activeView: 0
-limit: 50
+pageSize: 25
 ```
 
 #### 2. Embedded Decks
@@ -84,12 +84,12 @@ This now displays an error widget prompting users to create a standalone deck no
 
 **Deck-level fields:**
 
-| Field        | Type    | Required | Description                                       |
-| ------------ | ------- | -------- | ------------------------------------------------- |
-| `views`      | array   | Yes      | Array of view configurations                      |
-| `activeView` | number  | No       | Index of currently active view (default: 0)       |
-| `limit`      | number  | No       | Maximum results (default: 50)                     |
-| `expanded`   | boolean | No       | Whether widget is fully expanded (default: false) |
+| Field        | Type    | Required | Description                                                |
+| ------------ | ------- | -------- | ---------------------------------------------------------- |
+| `views`      | array   | Yes      | Array of view configurations                               |
+| `activeView` | number  | No       | Index of currently active view (default: 0)                |
+| `pageSize`   | number  | No       | Items per page: 10, 25, 50, or 100 (default: 25)           |
+| `expanded`   | boolean | No       | Whether widget is fully expanded (default: false)          |
 
 **View fields (`views[]`):**
 
@@ -118,11 +118,12 @@ This now displays an error widget prompting users to create a standalone deck no
 - **Standalone View**: Full-height DeckWidget with standard note header (title, action bar)
 - **Embedded View**: Widget renders inline when cursor is outside the code block
 - **Edit Mode**: Shows raw embed syntax (`n-<id>`) when cursor is inside the block
-- **Header**: View switcher dropdown and result count
+- **Header**: View switcher dropdown and page range display (e.g., "1-25 of 87")
 - **View Switcher**: Dropdown to switch between views, with options to rename, duplicate, and delete views
 - **Table**: Shows title column (always first) plus configured metadata columns
 - **Clickable Titles**: Click title to navigate to note
 - **Sortable Headers**: Click column headers to toggle sort order
+- **Pagination Controls**: Previous/Next buttons with page size selector (10, 25, 50, 100 items)
 - **Expand/Collapse**: Height-capped by default with toggle button; state persisted in YAML
 - **Inline Note Creation**: New Note button adds editable row for inline editing
 - **Inline Row Editing**: Edit button (✎) appears on row hover
@@ -134,7 +135,9 @@ This now displays an error widget prompting users to create a standalone deck no
 #### 5. Query Execution
 
 - **Server-side filtering**: All filtering performed server-side via `queryNotesForDataview` API
+- **Server-side pagination**: Uses `LIMIT` and `OFFSET` SQL clauses for efficient paging
 - **Batch metadata fetching**: Notes and metadata fetched in a single optimized query
+- **Total count**: Server returns total matching count for pagination UI
 - **Efficient SQL**: Uses JOINs with `note_metadata` table for metadata filtering
 - **Smart != handling**: Uses LEFT JOIN for `!=` operator to include notes missing the field
 - **Fallback support**: Gracefully falls back to legacy client-side approach if new API unavailable
@@ -213,10 +216,11 @@ src/renderer/src/lib/deck/
 ├── yaml-utils.ts               # YAML parsing/serialization with auto-migration
 ├── deck-theme.ts               # CodeMirror styling (incl. embed & error styles)
 ├── deckExtension.svelte.ts     # CodeMirror extension (embed + deprecated error)
-├── queryService.svelte.ts      # Query execution
+├── queryService.svelte.ts      # Query execution with pagination support
 ├── DeckWidget.svelte           # Main UI component
 ├── DeckToolbar.svelte          # Toolbar with filters/columns/sort
 ├── ViewSwitcher.svelte         # View dropdown with management (rename, duplicate, delete)
+├── PaginationControls.svelte   # Pagination navigation and page size selector
 ├── NoteListItem.svelte         # Individual note row
 ├── FilterBuilder.svelte        # Visual filter editor
 ├── FilterRow.svelte            # Single filter row
@@ -261,17 +265,26 @@ src/server/api/flint-note-api.ts
 └── queryNotesForDataview()     # API wrapper
 ```
 
-### Known Limitations (v10)
+### Known Limitations (v11)
 
-1. **Limited to 50 results**: Default limit prevents performance issues but may hide relevant notes (agent queries support up to 200)
-2. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
-3. **Column width configuration**: Not yet implemented
-4. **No deck templates**: Cannot save/reuse deck configurations across notes
-5. **Single layout type**: All views use table layout; card/list/calendar views not yet implemented
+1. **Metadata field sorting**: Sorting by metadata fields falls back to updated date
+2. **Column width configuration**: Not yet implemented
+3. **No deck templates**: Cannot save/reuse deck configurations across notes
+4. **Single layout type**: All views use table layout; card/list/calendar views not yet implemented
 
 ---
 
 ## Version History
+
+### v11: Pagination
+
+- **Pagination controls**: Previous/Next navigation buttons at bottom of deck
+- **Page range display**: Header shows "1-25 of 87" instead of just count
+- **Page size selector**: Dropdown to choose 10, 25, 50, or 100 items per page
+- **Persisted page size**: `pageSize` saved in deck YAML config
+- **Smart page reset**: Returns to page 1 when filters/sort/pageSize change
+- **Backward compatible**: Existing `limit` field migrated to `pageSize`
+- **Server-side pagination**: Uses SQL `LIMIT`/`OFFSET` for efficient querying
 
 ### v10: AI Agent Integration
 
@@ -388,22 +401,17 @@ src/server/api/flint-note-api.ts
 
 ### Phase 12: Performance Optimizations
 
-#### 12.1 Virtual Scrolling
-
-- Only render visible rows
-- Handle large result sets efficiently
-
-#### 12.2 Query Caching
+#### 12.1 Query Caching
 
 - Cache query results with invalidation
 - Share cache across identical decks
 
-#### 12.3 Incremental Updates
+#### 12.2 Incremental Updates
 
 - Track which notes changed
 - Update only affected rows instead of full re-query
 
-#### 12.4 Metadata Field Sorting
+#### 12.3 Metadata Field Sorting
 
 - Implement server-side sorting by metadata fields
 - Add LEFT JOIN for sort field to enable proper ordering
@@ -428,10 +436,10 @@ src/server/api/flint-note-api.ts
 
 ## Risks & Mitigations
 
-| Risk                          | Impact | Mitigation                                                       |
-| ----------------------------- | ------ | ---------------------------------------------------------------- |
-| Performance with large vaults | High   | ✅ Server-side filtering; pagination, virtual scrolling planned  |
-| YAML syntax errors            | Medium | GUI-based editing; validation feedback                           |
-| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML           |
-| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config           |
-| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks |
+| Risk                          | Impact | Mitigation                                                            |
+| ----------------------------- | ------ | --------------------------------------------------------------------- |
+| Performance with large vaults | High   | ✅ Server-side filtering; ✅ pagination with configurable page sizes  |
+| YAML syntax errors            | Medium | GUI-based editing; validation feedback                                |
+| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML                |
+| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config                |
+| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks      |
