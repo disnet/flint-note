@@ -5,6 +5,8 @@
   import type { NoteDocument } from '../stores/noteDocumentRegistry.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import DeckWidget from '../lib/deck/DeckWidget.svelte';
+  import PdfShelfView from '../lib/views/pdf/PdfShelfView.svelte';
+  import EpubShelfView from '../lib/views/epub/EpubShelfView.svelte';
   import type { DeckConfig } from '../lib/deck/types';
   import {
     parseDeckYaml,
@@ -52,6 +54,18 @@
   const isDeck = $derived.by(() => {
     const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
     return note?.flint_kind === 'deck';
+  });
+
+  // Check if note is a PDF
+  const isPdf = $derived.by(() => {
+    const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
+    return note?.flint_kind === 'pdf';
+  });
+
+  // Check if note is an EPUB
+  const isEpub = $derived.by(() => {
+    const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
+    return note?.flint_kind === 'epub';
   });
 
   // Parse deck config from content (only used for deck notes)
@@ -115,6 +129,14 @@
   function getNoteIcon(): { type: 'emoji' | 'svg'; value: string } {
     const note = notesStore.notes.find((n) => n.id === doc.noteId);
     if (note) {
+      // Check for special note kinds first
+      if (note.flint_kind === 'pdf') {
+        return { type: 'svg', value: 'pdf' };
+      }
+      if (note.flint_kind === 'epub') {
+        return { type: 'svg', value: 'epub' };
+      }
+      // Then check note type icon
       const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
       if (noteType?.icon) {
         return { type: 'emoji', value: noteType.icon };
@@ -135,6 +157,19 @@
       case 'folder':
         return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"></path>
+        </svg>`;
+      case 'pdf':
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14,2 14,8 20,8"></polyline>
+          <text x="6" y="17" font-size="6" fill="currentColor" font-weight="bold">PDF</text>
+        </svg>`;
+      case 'epub':
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <line x1="8" y1="7" x2="16" y2="7"></line>
+          <line x1="8" y1="11" x2="14" y2="11"></line>
         </svg>`;
       default:
         return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -214,6 +249,14 @@
             onConfigChange={handleDeckConfigChange}
             onNoteOpen={handleDeckNoteOpen}
           />
+        </div>
+      {:else if isPdf}
+        <div class="reader-content">
+          <PdfShelfView noteId={doc.noteId} content={doc.content} {onContentChange} />
+        </div>
+      {:else if isEpub}
+        <div class="reader-content">
+          <EpubShelfView noteId={doc.noteId} content={doc.content} {onContentChange} />
         </div>
       {:else}
         <CodeMirrorEditor
@@ -341,6 +384,11 @@
     padding: 0.5rem;
     max-height: 400px;
     overflow-y: auto;
+  }
+
+  .reader-content {
+    max-height: 400px;
+    overflow: hidden;
   }
 
   .note-icon {
