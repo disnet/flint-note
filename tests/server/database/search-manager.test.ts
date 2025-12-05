@@ -443,6 +443,98 @@ describe('HybridSearchManager - Dataview Queries', () => {
       expect(ids).toContain('n-00000002'); // review
       expect(ids).not.toContain('n-00000003'); // completed
     });
+
+    it('should sort by flint_created (prefixed field name)', async () => {
+      // Create notes with different created timestamps
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      // Note 1: created first
+      const note1Path = path.join(noteDir, 'first.md');
+      await fs.writeFile(
+        note1Path,
+        '---\nid: n-00000001\ntype: project\ntitle: First Note\n---\n# First Note\n'
+      );
+
+      // Small delay to ensure different timestamps
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Note 2: created second
+      const note2Path = path.join(noteDir, 'second.md');
+      await fs.writeFile(
+        note2Path,
+        '---\nid: n-00000002\ntype: project\ntitle: Second Note\n---\n# Second Note\n'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query with flint_created sort (prefixed field name from UI)
+      const resultAsc = await searchManager.queryNotesForDataview({
+        type: 'project',
+        sort: [{ field: 'flint_created', order: 'asc' }]
+      });
+
+      expect(resultAsc.results.length).toBe(2);
+      expect(resultAsc.results[0].id).toBe('n-00000001'); // First created
+      expect(resultAsc.results[1].id).toBe('n-00000002'); // Second created
+
+      // Also test descending order
+      const resultDesc = await searchManager.queryNotesForDataview({
+        type: 'project',
+        sort: [{ field: 'flint_created', order: 'desc' }]
+      });
+
+      expect(resultDesc.results.length).toBe(2);
+      expect(resultDesc.results[0].id).toBe('n-00000002'); // Second created
+      expect(resultDesc.results[1].id).toBe('n-00000001'); // First created
+    });
+
+    it('should sort by flint_updated (prefixed field name)', async () => {
+      // Create notes with a delay to ensure different updated timestamps
+      const noteDir = path.join(testWorkspacePath, 'project');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      // Note 1: created first
+      const note1Path = path.join(noteDir, 'first.md');
+      await fs.writeFile(
+        note1Path,
+        '---\nid: n-00000001\ntype: project\ntitle: First Note\n---\n# First Note\n'
+      );
+
+      // Small delay to ensure different timestamps
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Note 2: created second (will have later updated timestamp initially)
+      const note2Path = path.join(noteDir, 'second.md');
+      await fs.writeFile(
+        note2Path,
+        '---\nid: n-00000002\ntype: project\ntitle: Second Note\n---\n# Second Note\n'
+      );
+
+      await searchManager.rebuildIndex();
+
+      // Query with flint_updated sort descending (prefixed field name from UI)
+      const resultDesc = await searchManager.queryNotesForDataview({
+        type: 'project',
+        sort: [{ field: 'flint_updated', order: 'desc' }]
+      });
+
+      expect(resultDesc.results.length).toBe(2);
+      // Second note was created/updated later
+      expect(resultDesc.results[0].id).toBe('n-00000002');
+      expect(resultDesc.results[1].id).toBe('n-00000001');
+
+      // Also test ascending order
+      const resultAsc = await searchManager.queryNotesForDataview({
+        type: 'project',
+        sort: [{ field: 'flint_updated', order: 'asc' }]
+      });
+
+      expect(resultAsc.results.length).toBe(2);
+      // First note was created/updated earlier
+      expect(resultAsc.results[0].id).toBe('n-00000001');
+      expect(resultAsc.results[1].id).toBe('n-00000002');
+    });
   });
 });
 

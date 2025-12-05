@@ -952,9 +952,11 @@ export class HybridSearchManager {
       if (options.sort && options.sort.length > 0) {
         const sortTerms = options.sort.map((sort, index) => {
           const field = sort.field;
+          // Normalize field name: strip flint_ prefix if present
+          const normalizedField = field.replace(/^flint_/, '');
           // Built-in fields sort directly on notes table
-          if (['title', 'type', 'created', 'updated'].includes(field)) {
-            return `n.${field} ${sort.order.toUpperCase()}`;
+          if (['title', 'type', 'created', 'updated'].includes(normalizedField)) {
+            return `n.${normalizedField} ${sort.order.toUpperCase()}`;
           }
           // For metadata fields, LEFT JOIN to get the value and sort by it
           // Use a unique alias for each sort field

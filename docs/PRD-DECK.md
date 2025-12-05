@@ -84,12 +84,12 @@ This now displays an error widget prompting users to create a standalone deck no
 
 **Deck-level fields:**
 
-| Field        | Type    | Required | Description                                                |
-| ------------ | ------- | -------- | ---------------------------------------------------------- |
-| `views`      | array   | Yes      | Array of view configurations                               |
-| `activeView` | number  | No       | Index of currently active view (default: 0)                |
-| `pageSize`   | number  | No       | Items per page: 10, 25, 50, or 100 (default: 25)           |
-| `expanded`   | boolean | No       | Whether widget is fully expanded (default: false)          |
+| Field        | Type    | Required | Description                                       |
+| ------------ | ------- | -------- | ------------------------------------------------- |
+| `views`      | array   | Yes      | Array of view configurations                      |
+| `activeView` | number  | No       | Index of currently active view (default: 0)       |
+| `pageSize`   | number  | No       | Items per page: 10, 25, 50, or 100 (default: 25)  |
+| `expanded`   | boolean | No       | Whether widget is fully expanded (default: false) |
 
 **View fields (`views[]`):**
 
@@ -436,10 +436,10 @@ src/server/api/flint-note-api.ts
 
 ## Risks & Mitigations
 
-| Risk                          | Impact | Mitigation                                                            |
-| ----------------------------- | ------ | --------------------------------------------------------------------- |
-| Performance with large vaults | High   | ✅ Server-side filtering; ✅ pagination with configurable page sizes  |
-| YAML syntax errors            | Medium | GUI-based editing; validation feedback                                |
-| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML                |
-| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config                |
-| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks      |
+| Risk                          | Impact | Mitigation                                                           |
+| ----------------------------- | ------ | -------------------------------------------------------------------- |
+| Performance with large vaults | High   | ✅ Server-side filtering; ✅ pagination with configurable page sizes |
+| YAML syntax errors            | Medium | GUI-based editing; validation feedback                               |
+| Widget conflicts with editor  | Medium | Embed syntax isolates deck reference from complex YAML               |
+| Stale embedded data           | Low    | ✅ Real-time updates; embedded decks fetch live config               |
+| Migration from inline YAML    | Low    | Clear deprecation error with guidance to create standalone decks     |
