@@ -23,7 +23,6 @@
   import ErrorBanner from './ErrorBanner.svelte';
   import Backlinks from './Backlinks.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
-  import ConfirmationModal from './ConfirmationModal.svelte';
   import type { NoteSuggestion } from '@/server/types';
 
   interface Props {
@@ -61,9 +60,6 @@
     metadata_schema: import('@/server/core/metadata-schema').MetadataSchema;
     editor_chips?: string[];
   } | null>(null);
-
-  // Archive confirmation modal state
-  let showArchiveConfirmation = $state(false);
 
   const cursorManager = new CursorPositionManager();
 
@@ -506,10 +502,6 @@
   }
 
   async function handleArchiveNote(): Promise<void> {
-    showArchiveConfirmation = true;
-  }
-
-  async function confirmArchiveNote(): Promise<void> {
     try {
       const noteService = getChatService();
       const vault = await noteService.getCurrentVault();
@@ -521,18 +513,10 @@
         vaultId: vault.id,
         identifier: note.id
       });
-
-      // Close the modal - note stays open in read-only archived state
-      showArchiveConfirmation = false;
+      // Note stays open in read-only archived state
     } catch (err) {
       console.error('Error archiving note:', err);
-      showArchiveConfirmation = false;
-      // Optionally show an error message to the user
     }
-  }
-
-  function cancelArchiveNote(): void {
-    showArchiveConfirmation = false;
   }
 
   async function handleUnarchiveNote(): Promise<void> {
@@ -752,17 +736,6 @@
     <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
   </div>
 {/if}
-
-<ConfirmationModal
-  isOpen={showArchiveConfirmation}
-  title="Archive Note"
-  message="Archive this note? It will be hidden from search and lists, but wikilinks will still work. You can unarchive it later."
-  confirmText="Archive"
-  cancelText="Cancel"
-  confirmStyle="primary"
-  onConfirm={confirmArchiveNote}
-  onCancel={cancelArchiveNote}
-/>
 
 <style>
   .note-editor {
