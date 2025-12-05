@@ -435,35 +435,73 @@ export class HybridSearchManager {
       }
 
       // Metadata filters
+      // Special marker for filtering on empty/null values
+      const EMPTY_MARKER = '__empty__';
+
       if (options.metadata_filters && options.metadata_filters.length > 0) {
         options.metadata_filters.forEach((filter, index) => {
           const alias = `m${index}`;
           const operator = filter.operator || '=';
+          const isEmptyFilter = filter.value === EMPTY_MARKER;
 
           if (operator === '!=') {
-            // For != we need LEFT JOIN to include notes without the field
-            // Move key condition to ON clause so unmatched notes still appear
+            if (isEmptyFilter) {
+              // != __empty__ means "field has a non-empty value"
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              whereConditions.push(`${alias}.value != ''`);
+            } else {
+              // For != we need LEFT JOIN to include notes without the field
+              joins.push(
+                `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+              );
+              joinParams.push(filter.key);
+              whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
+              whereParams.push(filter.value);
+            }
+          } else if (operator === '=' && isEmptyFilter) {
+            // = __empty__ means "field is empty or doesn't exist"
             joins.push(
               `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
             );
             joinParams.push(filter.key);
+            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
+          } else if (operator === 'IN') {
+            const values = filter.value.split(',').map((v) => v.trim());
+            const hasEmpty = values.includes(EMPTY_MARKER);
+            const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
 
-            // Match notes where field doesn't exist (NULL) OR value doesn't match
-            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-            whereParams.push(filter.value);
+            if (hasEmpty) {
+              joins.push(
+                `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+              );
+              joinParams.push(filter.key);
+
+              if (nonEmptyValues.length > 0) {
+                const placeholders = nonEmptyValues.map(() => '?').join(',');
+                whereConditions.push(
+                  `(${alias}.value IS NULL OR ${alias}.value = '' OR ${alias}.value IN (${placeholders}))`
+                );
+                whereParams.push(...nonEmptyValues);
+              } else {
+                whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
+              }
+            } else {
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              const placeholders = values.map(() => '?').join(',');
+              whereConditions.push(`${alias}.value IN (${placeholders})`);
+              whereParams.push(...values);
+            }
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
             whereConditions.push(`${alias}.key = ?`);
             whereParams.push(filter.key);
 
-            if (operator === 'IN') {
-              const values = filter.value.split(',').map((v) => v.trim());
-              const placeholders = values.map(() => '?').join(',');
-              whereConditions.push(`${alias}.value IN (${placeholders})`);
-              whereParams.push(...values);
-            } else if (operator === 'LIKE') {
-              // Wrap value with % for "contains" matching unless user provided their own wildcards
+            if (operator === 'LIKE') {
               whereConditions.push(`${alias}.value LIKE ?`);
               const likeValue = filter.value.includes('%')
                 ? filter.value
@@ -684,34 +722,82 @@ export class HybridSearchManager {
       }
 
       // Metadata filters
+      // Special marker for filtering on empty/null values
+      const EMPTY_MARKER = '__empty__';
+
       if (options.metadata_filters && options.metadata_filters.length > 0) {
         options.metadata_filters.forEach((filter, index) => {
           const alias = `m${index}`;
           const operator = filter.operator || '=';
+          const isEmptyFilter = filter.value === EMPTY_MARKER;
 
           if (operator === '!=') {
-            // For != we need LEFT JOIN to include notes without the field
-            // Move key condition to ON clause so unmatched notes still appear
+            if (isEmptyFilter) {
+              // != __empty__ means "field has a non-empty value"
+              // Use regular JOIN (requires field to exist) and check value is not empty
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              whereConditions.push(`${alias}.value != ''`);
+            } else {
+              // For != we need LEFT JOIN to include notes without the field
+              // Move key condition to ON clause so unmatched notes still appear
+              joins.push(
+                `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+              );
+              joinParams.push(filter.key);
+
+              // Match notes where field doesn't exist (NULL) OR value doesn't match
+              whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
+              whereParams.push(filter.value);
+            }
+          } else if (operator === '=' && isEmptyFilter) {
+            // = __empty__ means "field is empty or doesn't exist"
+            // Use LEFT JOIN and check for NULL or empty string
             joins.push(
               `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
             );
             joinParams.push(filter.key);
+            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
+          } else if (operator === 'IN') {
+            const values = filter.value.split(',').map((v) => v.trim());
+            const hasEmpty = values.includes(EMPTY_MARKER);
+            const nonEmptyValues = values.filter((v) => v !== EMPTY_MARKER);
 
-            // Match notes where field doesn't exist (NULL) OR value doesn't match
-            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value != ?)`);
-            whereParams.push(filter.value);
+            if (hasEmpty) {
+              // IN with __empty__ means "field is empty/null OR matches one of the values"
+              // Use LEFT JOIN to include notes without the field
+              joins.push(
+                `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+              );
+              joinParams.push(filter.key);
+
+              if (nonEmptyValues.length > 0) {
+                const placeholders = nonEmptyValues.map(() => '?').join(',');
+                whereConditions.push(
+                  `(${alias}.value IS NULL OR ${alias}.value = '' OR ${alias}.value IN (${placeholders}))`
+                );
+                whereParams.push(...nonEmptyValues);
+              } else {
+                // Only __empty__ in the list
+                whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
+              }
+            } else {
+              // Regular IN without __empty__
+              joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
+              whereConditions.push(`${alias}.key = ?`);
+              whereParams.push(filter.key);
+              const placeholders = values.map(() => '?').join(',');
+              whereConditions.push(`${alias}.value IN (${placeholders})`);
+              whereParams.push(...values);
+            }
           } else {
             // For other operators, use regular JOIN (requires field to exist)
             joins.push(`JOIN note_metadata ${alias} ON n.id = ${alias}.note_id`);
             whereConditions.push(`${alias}.key = ?`);
             whereParams.push(filter.key);
 
-            if (operator === 'IN') {
-              const values = filter.value.split(',').map((v) => v.trim());
-              const placeholders = values.map(() => '?').join(',');
-              whereConditions.push(`${alias}.value IN (${placeholders})`);
-              whereParams.push(...values);
-            } else if (operator === 'LIKE') {
+            if (operator === 'LIKE') {
               // Wrap value with % for "contains" matching unless user provided their own wildcards
               whereConditions.push(`${alias}.value LIKE ?`);
               const likeValue = filter.value.includes('%')

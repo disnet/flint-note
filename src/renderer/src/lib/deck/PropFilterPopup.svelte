@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { DeckFilter, FilterOperator, FilterFieldInfo } from './types';
-  import { getOperatorsForType, getOperatorLabel } from './types';
+  import { getOperatorsForType, getOperatorLabel, EMPTY_FILTER_VALUE } from './types';
+
+  // Display text for the empty marker
+  const EMPTY_MARKER = EMPTY_FILTER_VALUE;
+  const EMPTY_DISPLAY = '<empty>';
 
   interface Props {
     /** Whether the popup is open */
@@ -185,6 +189,19 @@
       {#if showMultiSelect}
         <!-- Multi-select checkboxes for IN operator with options -->
         <div class="checkbox-list">
+          <!-- Empty option first -->
+          <label class="checkbox-item">
+            <input
+              type="checkbox"
+              checked={selectedValues.includes(EMPTY_MARKER)}
+              onchange={(e) =>
+                handleCheckboxChange(
+                  EMPTY_MARKER,
+                  (e.target as HTMLInputElement).checked
+                )}
+            />
+            <span class="checkbox-label empty-label">{EMPTY_DISPLAY}</span>
+          </label>
           {#each fieldInfo?.options || [] as option (option)}
             <label class="checkbox-item">
               <input
@@ -208,6 +225,7 @@
       {:else if fieldInfo?.options && fieldInfo.options.length > 0}
         <select class="value-input" value={currentValue} onchange={handleValueChange}>
           <option value="">Select...</option>
+          <option value={EMPTY_MARKER}>{EMPTY_DISPLAY}</option>
           {#each fieldInfo.options as option (option)}
             <option value={option}
               >{fieldInfo?.optionIcons
@@ -383,6 +401,11 @@
   .checkbox-label {
     font-size: 0.75rem;
     color: var(--text-primary);
+  }
+
+  .checkbox-label.empty-label {
+    font-style: italic;
+    color: var(--text-muted);
   }
 
   .option-icon {

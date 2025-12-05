@@ -13,7 +13,8 @@
     fieldDefToFilterInfo,
     SYSTEM_FIELDS,
     getActiveView,
-    createDefaultView
+    createDefaultView,
+    EMPTY_FILTER_VALUE
   } from './types';
   import { runDeckQuery } from './queryService.svelte';
   import { messageBus, type NoteEvent } from '../../services/messageBus.svelte';
@@ -387,8 +388,10 @@
           filter.field === 'type' ||
           filter.field === 'flint_type' ||
           filter.field.startsWith('flint_');
+        // Skip empty filter marker - it means "no value" not a literal string
+        const isEmptyMarker = filter.value === EMPTY_FILTER_VALUE;
 
-        if (isEquality && isSimpleValue && !isSystemField) {
+        if (isEquality && isSimpleValue && !isSystemField && !isEmptyMarker) {
           prefillMetadata[filter.field] = filter.value;
         }
       }

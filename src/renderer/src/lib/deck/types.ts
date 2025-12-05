@@ -106,6 +106,12 @@ export function getFormatLabel(format: ColumnFormat): string {
 export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
 
 /**
+ * Special marker value for filtering on empty/null values.
+ * When used as a filter value, matches notes where the field is empty or doesn't exist.
+ */
+export const EMPTY_FILTER_VALUE = '__empty__';
+
+/**
  * Field information for the filter builder UI
  */
 export interface FilterFieldInfo {

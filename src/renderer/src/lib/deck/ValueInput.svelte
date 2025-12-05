@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { FilterOperator } from './types';
+  import { EMPTY_FILTER_VALUE } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
 
   interface Props {
@@ -21,6 +22,9 @@
     onChange,
     placeholder = 'Value...'
   }: Props = $props();
+
+  // Alias for empty filter value marker
+  const EMPTY_MARKER = EMPTY_FILTER_VALUE;
 
   let showSuggestions = $state(false);
   let highlightedIndex = $state(0);
@@ -48,15 +52,38 @@
   // Filter suggestions based on input (use local textInput for real-time filtering)
   const filteredSuggestions = $derived.by(() => {
     const currentInput = isMultiValue ? tagInput : textInput;
-    if (!currentInput.trim()) return suggestions.slice(0, 10);
+    const source = effectiveSuggestions;
+    if (!currentInput.trim()) return source.slice(0, 10);
     const query = currentInput.toLowerCase();
-    return suggestions.filter((s) => s.toLowerCase().includes(query)).slice(0, 10);
+    return source
+      .filter((s) => {
+        // For the empty marker, also match on "empty" text
+        if (s === EMPTY_MARKER) {
+          return 'empty'.includes(query) || '<empty>'.includes(query);
+        }
+        return s.toLowerCase().includes(query);
+      })
+      .slice(0, 10);
   });
+
+  // Get display text for a value (handles the empty marker)
+  function getDisplayText(val: string): string {
+    return val === EMPTY_MARKER ? '<empty>' : val;
+  }
 
   // For select fields, use options
   const selectOptions = $derived(
     fieldType === 'select' && options.length > 0 ? options : null
   );
+
+  // For select fields, add <empty> option to suggestions
+  const effectiveSuggestions = $derived.by(() => {
+    if (fieldType === 'select' && options.length > 0) {
+      // Add <empty> at the start, then the select options
+      return [EMPTY_MARKER, ...options];
+    }
+    return suggestions;
+  });
 
   // Handle text input as user types (updates local state for filtering)
   function handleTextInput(event: Event): void {
@@ -208,6 +235,7 @@
     <!-- Select dropdown -->
     <select class="select-input" value={normalizedValue} onchange={handleSelectChange}>
       <option value="">Select...</option>
+      <option value={EMPTY_MARKER}>&lt;empty&gt;</option>
       {#each selectOptions as opt (opt)}
         <option value={opt}>{opt}</option>
       {/each}
@@ -218,12 +246,12 @@
       <div class="tags">
         {#each normalizedValue as tag, i (i)}
           <span class="tag">
-            {tag}
+            {getDisplayText(tag)}
             <button
               class="tag-remove"
               onclick={() => removeTag(i)}
               type="button"
-              aria-label="Remove {tag}"
+              aria-label="Remove {getDisplayText(tag)}"
             >
               &times;
             </button>
@@ -252,7 +280,7 @@
               onclick={() => selectSuggestion(suggestion)}
               type="button"
             >
-              {suggestion}
+              {getDisplayText(suggestion)}
             </button>
           {/each}
         </div>
