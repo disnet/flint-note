@@ -131,7 +131,8 @@
       const noteService = getChatService();
       await noteService.updateNote({
         identifier: activeNote.id,
-        content: noteContent
+        content: noteContent,
+        silent: true // Suppress note.updated event since the view already has the data
       });
     } catch (error) {
       console.error('Error saving note:', error);

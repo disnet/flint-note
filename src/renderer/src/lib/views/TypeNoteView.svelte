@@ -87,11 +87,21 @@
   let editedDefaultReviewMode = $state(false);
   let editedSuggestionsEnabled = $state(false);
   let editedEditorChips = $state<string[]>([]);
-  let hasUnsavedChanges = $state(false);
+  let isInitializing = $state(true);
+  let lastInitializedNoteId = $state<string | null>(null);
 
-  // Initialize edited state from definition
+  // Initialize edited state from definition - only when note ID changes
+  // This prevents resetting state when noteContent prop updates after our own saves
   $effect(() => {
+    const currentNoteId = noteId;
+    if (currentNoteId === lastInitializedNoteId) {
+      // Already initialized for this note, skip
+      return;
+    }
+
     const def = definition;
+    isInitializing = true;
+    lastInitializedNoteId = currentNoteId;
     editedPurpose = def.purpose || '';
     editedIcon = def.icon || '';
     // Ensure all instructions are strings (YAML parsing can produce non-strings)
@@ -104,30 +114,98 @@
     editedDefaultReviewMode = def.default_review_mode || false;
     editedSuggestionsEnabled = def.suggestions_config?.enabled || false;
     editedEditorChips = [...(def.editor_chips || [])];
-    hasUnsavedChanges = false;
+    // Use setTimeout to defer so state updates complete before allowing saves
+    setTimeout(() => {
+      isInitializing = false;
+    }, 0);
   });
 
   // Note title (from frontmatter)
   let noteTitle = $derived((metadata.flint_title as string) || 'Untitled Type');
 
-  function markDirty(): void {
-    hasUnsavedChanges = true;
+  // Debounce timer for saves
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  const SAVE_DEBOUNCE_MS = 300;
+
+  // Schedule a debounced save (unless initializing)
+  function saveNow(): void {
+    if (isInitializing) return;
+
+    // Clear any pending save
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    // Schedule the save
+    saveTimeout = setTimeout(() => {
+      saveTimeout = null;
+      performSave();
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  // Actually perform the save
+  function performSave(): void {
+    // Build the updated definition
+    const updatedDefinition: TypeDefinition = {
+      name: noteTitle,
+      purpose: editedPurpose
+    };
+
+    if (editedIcon) {
+      updatedDefinition.icon = editedIcon;
+    }
+
+    if (editedInstructions.length > 0) {
+      updatedDefinition.agent_instructions = editedInstructions.filter(
+        (i) => typeof i === 'string' && i.trim() !== ''
+      );
+    }
+
+    if (editedMetadataSchema && editedMetadataSchema.fields.length > 0) {
+      updatedDefinition.metadata_schema = {
+        fields: editedMetadataSchema.fields.filter((f) => f.name.trim() !== '')
+      };
+    }
+
+    if (editedDefaultReviewMode) {
+      updatedDefinition.default_review_mode = true;
+    }
+
+    if (editedEditorChips.length > 0) {
+      updatedDefinition.editor_chips = editedEditorChips;
+    }
+
+    // Handle suggestions config - preserve existing config but update enabled state
+    if (editedSuggestionsEnabled || definition.suggestions_config) {
+      updatedDefinition.suggestions_config = {
+        ...definition.suggestions_config,
+        enabled: editedSuggestionsEnabled,
+        prompt_guidance: definition.suggestions_config?.prompt_guidance || ''
+      };
+    }
+
+    // Serialize and update content
+    const newContent = serializeDefinition(updatedDefinition);
+    onContentChange(newContent);
+
+    // Trigger save
+    onSave();
   }
 
   function addInstruction(): void {
     editedInstructions = [...editedInstructions, ''];
-    markDirty();
+    saveNow();
   }
 
   function removeInstruction(index: number): void {
     editedInstructions = editedInstructions.filter((_, i) => i !== index);
-    markDirty();
+    saveNow();
   }
 
   function updateInstruction(index: number, value: string): void {
     editedInstructions[index] = value;
     editedInstructions = [...editedInstructions];
-    markDirty();
+    saveNow();
   }
 
   function addSchemaField(): void {
@@ -141,14 +219,14 @@
       required: false
     });
     editedMetadataSchema = { ...editedMetadataSchema };
-    markDirty();
+    saveNow();
   }
 
   function removeSchemaField(index: number): void {
     if (!editedMetadataSchema) return;
     editedMetadataSchema.fields.splice(index, 1);
     editedMetadataSchema = { ...editedMetadataSchema };
-    markDirty();
+    saveNow();
   }
 
   function updateSchemaField(
@@ -179,7 +257,7 @@
       }
     }
     editedMetadataSchema = { ...editedMetadataSchema };
-    markDirty();
+    saveNow();
   }
 
   function toggleEditorChip(fieldName: string): void {
@@ -189,7 +267,7 @@
     } else {
       editedEditorChips = [...editedEditorChips, fieldName];
     }
-    markDirty();
+    saveNow();
   }
 
   function isEditorChip(fieldName: string): boolean {
@@ -207,7 +285,7 @@
     }
     field.constraints.options.push('');
     editedMetadataSchema = { ...editedMetadataSchema };
-    markDirty();
+    saveNow();
   }
 
   function removeSelectOption(fieldIndex: number, optionIndex: number): void {
@@ -216,7 +294,7 @@
     if (field.constraints?.options) {
       field.constraints.options.splice(optionIndex, 1);
       editedMetadataSchema = { ...editedMetadataSchema };
-      markDirty();
+      saveNow();
     }
   }
 
@@ -230,7 +308,7 @@
     if (field.constraints?.options) {
       field.constraints.options[optionIndex] = value;
       editedMetadataSchema = { ...editedMetadataSchema };
-      markDirty();
+      saveNow();
     }
   }
 
@@ -250,25 +328,25 @@
       field.constraints[key] = value || undefined;
     }
     editedMetadataSchema = { ...editedMetadataSchema };
-    markDirty();
+    saveNow();
   }
 
   function handlePurposeChange(event: Event): void {
     const target = event.target as HTMLTextAreaElement;
     editedPurpose = target.value;
-    markDirty();
+    saveNow();
   }
 
   function handleDefaultReviewModeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     editedDefaultReviewMode = target.checked;
-    markDirty();
+    saveNow();
   }
 
   function handleSuggestionsEnabledChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     editedSuggestionsEnabled = target.checked;
-    markDirty();
+    saveNow();
   }
 
   // Action menu handlers
@@ -325,55 +403,6 @@
     } catch (err) {
       console.error('Error unarchiving note:', err);
     }
-  }
-
-  function saveChanges(): void {
-    // Build the updated definition
-    const updatedDefinition: TypeDefinition = {
-      name: noteTitle,
-      purpose: editedPurpose
-    };
-
-    if (editedIcon) {
-      updatedDefinition.icon = editedIcon;
-    }
-
-    if (editedInstructions.length > 0) {
-      updatedDefinition.agent_instructions = editedInstructions.filter(
-        (i) => typeof i === 'string' && i.trim() !== ''
-      );
-    }
-
-    if (editedMetadataSchema && editedMetadataSchema.fields.length > 0) {
-      updatedDefinition.metadata_schema = {
-        fields: editedMetadataSchema.fields.filter((f) => f.name.trim() !== '')
-      };
-    }
-
-    if (editedDefaultReviewMode) {
-      updatedDefinition.default_review_mode = true;
-    }
-
-    if (editedEditorChips.length > 0) {
-      updatedDefinition.editor_chips = editedEditorChips;
-    }
-
-    // Handle suggestions config - preserve existing config but update enabled state
-    if (editedSuggestionsEnabled || definition.suggestions_config) {
-      updatedDefinition.suggestions_config = {
-        ...definition.suggestions_config,
-        enabled: editedSuggestionsEnabled,
-        prompt_guidance: definition.suggestions_config?.prompt_guidance || ''
-      };
-    }
-
-    // Serialize and update content
-    const newContent = serializeDefinition(updatedDefinition);
-    onContentChange(newContent);
-    hasUnsavedChanges = false;
-
-    // Trigger save
-    onSave();
   }
 
   const fieldTypes: MetadataFieldType[] = [
@@ -446,7 +475,7 @@
         bind:value={editedIcon}
         onselect={(emoji) => {
           editedIcon = emoji;
-          markDirty();
+          saveNow();
         }}
       />
     </section>
@@ -455,11 +484,10 @@
     <section class="section">
       <h3 class="section-label">Purpose</h3>
       <textarea
-        class="text-input"
+        class="text-input purpose-textarea"
         value={editedPurpose}
         oninput={handlePurposeChange}
         placeholder="What is this note type used for?"
-        rows="2"
       ></textarea>
     </section>
 
@@ -743,16 +771,6 @@
         <span>Enable AI suggestions</span>
       </label>
     </section>
-
-    <!-- Save -->
-    <div class="save-area">
-      {#if hasUnsavedChanges}
-        <span class="unsaved-dot"></span>
-      {/if}
-      <button class="save-btn" onclick={saveChanges} disabled={!hasUnsavedChanges}>
-        Save
-      </button>
-    </div>
   </div>
 </div>
 
@@ -802,6 +820,11 @@
 
   .text-input::placeholder {
     color: var(--text-muted);
+  }
+
+  .purpose-textarea {
+    field-sizing: content;
+    min-height: 2.5rem;
   }
 
   .list-items {
@@ -1046,43 +1069,6 @@
     width: 16px;
     height: 16px;
     margin: 0;
-  }
-
-  .save-area {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding-top: 1rem;
-    margin-top: 0.5rem;
-  }
-
-  .unsaved-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent-primary);
-  }
-
-  .save-btn {
-    padding: 0.375rem 1rem;
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-
-  .save-btn:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .save-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 
   .archived-banner {
