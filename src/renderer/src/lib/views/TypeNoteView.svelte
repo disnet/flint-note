@@ -12,6 +12,7 @@
   import { workspacesStore } from '../../stores/workspacesStore.svelte';
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte';
   import { sidebarState } from '../../stores/sidebarState.svelte';
+  import { notesStore } from '../../services/noteStore.svelte';
 
   let { noteContent, metadata, onContentChange, onSave }: NoteViewProps = $props();
 
@@ -22,6 +23,12 @@
 
   // Get note ID from metadata
   const noteId = $derived((metadata.flint_id as string) || (metadata.id as string) || '');
+
+  // Check if note is archived - reactively look up from store to ensure immediate updates
+  const isArchived = $derived.by(() => {
+    const latestNote = notesStore.allNotes.find((n) => n.id === noteId);
+    return latestNote?.archived === true;
+  });
 
   // Type definition interface matching server's TypeNoteDefinition
   interface TypeDefinition {
@@ -314,6 +321,23 @@
     showArchiveConfirmation = false;
   }
 
+  async function handleUnarchiveNote(): Promise<void> {
+    try {
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+      await noteService.unarchiveNote({
+        vaultId: vault.id,
+        identifier: noteId
+      });
+      // Note will automatically update via event system
+    } catch (err) {
+      console.error('Error unarchiving note:', err);
+    }
+  }
+
   function saveChanges(): void {
     // Build the updated definition
     const updatedDefinition: TypeDefinition = {
@@ -414,6 +438,16 @@
     onAddToShelf={handleAddToShelf}
     onArchiveNote={handleArchiveNote}
   />
+
+  {#if isArchived}
+    <div class="archived-banner">
+      <span class="archived-icon">🗄️</span>
+      <span class="archived-text">This type is archived (read-only)</span>
+      <button class="unarchive-btn" onclick={handleUnarchiveNote} type="button">
+        Unarchive Type
+      </button>
+    </div>
+  {/if}
 
   <div class="type-content">
     <!-- Icon -->
@@ -746,6 +780,7 @@
 <style>
   .type-note-view {
     display: flex;
+    gap: 1rem;
     flex-direction: column;
     min-width: 30ch;
     max-width: 75ch;
@@ -1069,5 +1104,41 @@
   .save-btn:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+
+  .archived-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .archived-icon {
+    font-size: 1.25rem;
+  }
+
+  .archived-text {
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .unarchive-btn {
+    padding: 0.375rem 0.75rem;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: opacity 0.15s ease;
+  }
+
+  .unarchive-btn:hover {
+    opacity: 0.85;
   }
 </style>

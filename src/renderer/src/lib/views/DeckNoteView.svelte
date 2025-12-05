@@ -317,6 +317,7 @@
   .deck-note-view {
     display: flex;
     flex-direction: column;
+    gap: 1rem;
     min-width: 30ch;
     max-width: 75ch;
     width: 100%;
@@ -324,6 +325,6 @@
 
   /* Deck content */
   .deck-content {
-    padding: 0 0.75rem;
+    padding: 0;
   }
 </style>

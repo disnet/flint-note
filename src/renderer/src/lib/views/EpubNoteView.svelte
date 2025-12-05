@@ -895,6 +895,7 @@
 <style>
   .epub-note-view {
     display: flex;
+    gap: 1rem;
     flex-direction: column;
     height: 100%;
     background: var(--bg-primary, #fff);
@@ -905,7 +906,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0;
     border-bottom: 1px solid var(--border-light, #e0e0e0);
     gap: 0.5rem;
   }
