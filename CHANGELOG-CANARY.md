@@ -4,6 +4,27 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-canary.6]
+
+### Added
+
+- ability to filter on blank props in decks
+
+### Fixed
+
+- fix confusing naming of props in editor chips
+- fix != for select props
+- various fixes to type notes
+- fix positioning of emoji picker in new workspace dialog
+- fix styling of deck view switcher
+- fix decks forgetting selected views
+
+## [0.13.0-canary.5]
+
+### Fixed
+
+- handle more yaml parsing for note types
+
 ## [0.13.0-canary.4]
 
 ### Changed
