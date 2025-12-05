@@ -1,8 +1,16 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
   import { messageBus } from '../services/messageBus.svelte';
+  import { wikilinkService } from '../services/wikilinkService.svelte';
   import type { NoteDocument } from '../stores/noteDocumentRegistry.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
+  import DeckWidget from '../lib/deck/DeckWidget.svelte';
+  import type { DeckConfig } from '../lib/deck/types';
+  import {
+    parseDeckYaml,
+    serializeDeckConfig,
+    createEmptyDeckConfig
+  } from '../lib/deck/yaml-utils';
 
   interface Props {
     doc: NoteDocument;
@@ -39,6 +47,30 @@
     const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
     return note?.archived === true;
   });
+
+  // Check if note is a deck
+  const isDeck = $derived.by(() => {
+    const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
+    return note?.flint_kind === 'deck';
+  });
+
+  // Parse deck config from content (only used for deck notes)
+  const deckConfig = $derived.by((): DeckConfig => {
+    if (!isDeck || !doc.content) return createEmptyDeckConfig();
+    const parsed = parseDeckYaml(doc.content);
+    return parsed || createEmptyDeckConfig();
+  });
+
+  // Handle deck config changes
+  function handleDeckConfigChange(newConfig: DeckConfig): void {
+    const yamlContent = serializeDeckConfig(newConfig);
+    onContentChange(yamlContent);
+  }
+
+  // Handle note open from DeckWidget
+  function handleDeckNoteOpen(noteId: string): void {
+    wikilinkService.handleWikilinkClick(noteId, '', false, false);
+  }
 
   // Watch for changes in notes store and refresh wikilinks
   // This is the same pattern as NoteEditor.svelte lines 94-109
@@ -175,15 +207,25 @@
 
   {#if isExpanded}
     <div class="note-content">
-      <CodeMirrorEditor
-        bind:this={editorRef}
-        content={doc.content}
-        {onContentChange}
-        {onWikilinkClick}
-        placeholder="Note content..."
-        variant="shelf-note"
-        readOnly={isArchived}
-      />
+      {#if isDeck}
+        <div class="deck-content">
+          <DeckWidget
+            config={deckConfig}
+            onConfigChange={handleDeckConfigChange}
+            onNoteOpen={handleDeckNoteOpen}
+          />
+        </div>
+      {:else}
+        <CodeMirrorEditor
+          bind:this={editorRef}
+          content={doc.content}
+          {onContentChange}
+          {onWikilinkClick}
+          placeholder="Note content..."
+          variant="shelf-note"
+          readOnly={isArchived}
+        />
+      {/if}
     </div>
   {/if}
 </div>
@@ -293,6 +335,12 @@
 
   .note-content :global(.editor-content) {
     min-height: 0;
+  }
+
+  .deck-content {
+    padding: 0.5rem;
+    max-height: 400px;
+    overflow-y: auto;
   }
 
   .note-icon {
