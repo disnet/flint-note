@@ -788,6 +788,7 @@
   class="deck-widget"
   onmousedown={(e) => e.stopPropagation()}
   onclick={(e) => e.stopPropagation()}
+  onkeydown={(e) => e.stopPropagation()}
 >
   <!-- Header -->
   <div class="deck-header">

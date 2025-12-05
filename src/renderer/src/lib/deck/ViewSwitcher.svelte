@@ -242,6 +242,12 @@
             class="view-item"
             class:active={index === activeViewIndex}
             onclick={() => handleViewClick(index)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleViewClick(index);
+              }
+            }}
           >
             <span class="view-item-name">{view.name}</span>
             {#if index === activeViewIndex}
@@ -282,6 +288,7 @@
           class="context-menu"
           style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
           onclick={(e) => e.stopPropagation()}
+          onkeydown={(e) => e.stopPropagation()}
         >
           <button
             class="context-item"

@@ -305,6 +305,7 @@
             title={constraintViolation || ''}
             onmousedown={(e) => e.stopPropagation()}
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
           >
             <span class="prop-name">{getColumnLabel(column)}</span>
             <span class="prop-divider"></span>
