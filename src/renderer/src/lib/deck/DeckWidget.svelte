@@ -291,16 +291,17 @@
       return true;
     }
 
-    // Skip events for notes we just created (already added optimistically)
+    // Skip ALL events for notes we just created (already added optimistically)
+    // This prevents re-sorting while the user is still editing the new note
     if (newlyCreatedNoteId) {
-      if (event.type === 'note.created' && event.note.id === newlyCreatedNoteId) {
-        return false;
-      }
-      if (
-        event.type === 'note.updated' &&
-        'noteId' in event &&
-        event.noteId === newlyCreatedNoteId
-      ) {
+      // Check all possible ID fields in the event
+      const eventNoteId =
+        ('noteId' in event && event.noteId) ||
+        ('oldId' in event && event.oldId) ||
+        ('newId' in event && event.newId) ||
+        (event.type === 'note.created' && event.note?.id);
+
+      if (eventNoteId === newlyCreatedNoteId) {
         return false;
       }
     }
@@ -865,15 +866,21 @@
             {schemaFields}
             {fieldsByType}
             autoFocus={result.id === newlyCreatedNoteId}
-            onTitleSave={(newTitle) => {
-              saveTitleValue(result.id, newTitle);
-              if (result.id === newlyCreatedNoteId) {
-                newlyCreatedNoteId = null;
-              }
-            }}
+            isHighlighted={result.id === newlyCreatedNoteId}
+            onTitleSave={(newTitle) => saveTitleValue(result.id, newTitle)}
             onTypeChange={(newType) => saveTypeValue(result.id, newType)}
             onFieldSave={(field, value) => saveFieldValue(result.id, field, value)}
             onOpen={() => onNoteOpen?.(result.id)}
+            onRowBlur={() => {
+              if (result.id === newlyCreatedNoteId) {
+                newlyCreatedNoteId = null;
+                // Schedule a refresh to re-sort the list after a short delay
+                // This gives time for any pending saves to complete
+                setTimeout(() => {
+                  executeQuery();
+                }, 200);
+              }
+            }}
           />
         {/each}
       </div>

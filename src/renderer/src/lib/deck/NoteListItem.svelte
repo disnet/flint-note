@@ -25,6 +25,8 @@
     fieldsByType?: Map<string, Set<string>>;
     /** Whether to auto-focus the title input on mount */
     autoFocus?: boolean;
+    /** Whether this row should be visually highlighted (e.g., newly created) */
+    isHighlighted?: boolean;
     /** Called when title is renamed inline */
     onTitleSave?: (newTitle: string) => void;
     /** Called when note type is changed */
@@ -33,6 +35,8 @@
     onFieldSave?: (field: string, value: unknown) => void;
     /** Called when open button is clicked */
     onOpen?: () => void;
+    /** Called when focus leaves the entire row (all inputs blurred) */
+    onRowBlur?: () => void;
   }
 
   let {
@@ -41,11 +45,42 @@
     schemaFields,
     fieldsByType,
     autoFocus = false,
+    isHighlighted = false,
     onTitleSave,
     onTypeChange,
     onFieldSave,
-    onOpen
+    onOpen,
+    onRowBlur
   }: Props = $props();
+
+  // Reference to the row element for focus checking
+  let rowRef = $state<HTMLDivElement | null>(null);
+  // Pending blur timeout - cleared if focus returns to the row
+  let blurTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function handleRowFocusIn(): void {
+    // Cancel any pending blur when focus returns to the row
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+      blurTimeout = null;
+    }
+  }
+
+  function handleRowFocusOut(): void {
+    // Clear any existing timeout
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+    }
+
+    // Schedule a check after focus has settled
+    // If focus returns to the row (via focusin), this will be cancelled
+    blurTimeout = setTimeout(() => {
+      blurTimeout = null;
+      if (rowRef && !rowRef.contains(document.activeElement)) {
+        onRowBlur?.();
+      }
+    }, 150);
+  }
 
   // Check if a field is in the note's type schema
   function isFieldInTypeSchema(field: string): boolean {
@@ -344,7 +379,14 @@
   }
 </script>
 
-<div class="note-list-item" role="listitem">
+<div
+  bind:this={rowRef}
+  class="note-list-item"
+  class:highlighted={isHighlighted}
+  role="listitem"
+  onfocusin={handleRowFocusIn}
+  onfocusout={handleRowFocusOut}
+>
   <div class="note-display">
     <div class="note-title-row">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -477,6 +519,19 @@
 
   .note-list-item:last-child {
     border-bottom: none;
+  }
+
+  .note-list-item.highlighted {
+    background: var(
+      --bg-accent-subtle,
+      color-mix(in srgb, var(--accent-primary, #3b82f6) 8%, transparent)
+    );
+    border-radius: 0.375rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-left: 2px solid var(--accent-primary, #3b82f6);
   }
 
   .note-display {
