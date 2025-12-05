@@ -1164,12 +1164,16 @@ export class HybridSearchManager {
         const flintKind =
           typeof metadata.flint_kind === 'string' ? metadata.flint_kind : 'markdown';
 
+        // Get archived status from metadata (handles both boolean and string 'true')
+        const archivedValue = metadata.flint_archived as unknown;
+        const isArchived = archivedValue === true || archivedValue === 'true' ? 1 : 0;
+
         if (contentChanged) {
           // Content has changed, update with new timestamp
           await connection.run(
             `UPDATE notes SET
              title = ?, content = ?, type = ?, flint_kind = ?, filename = ?, path = ?,
-             updated = ?, size = ?, content_hash = ?, file_mtime = ?
+             updated = ?, size = ?, content_hash = ?, file_mtime = ?, archived = ?
              WHERE id = ?`,
             [
               title,
@@ -1182,6 +1186,7 @@ export class HybridSearchManager {
               stats.size,
               contentHash,
               stats.mtimeMs,
+              isArchived,
               id
             ]
           );
@@ -1190,7 +1195,7 @@ export class HybridSearchManager {
           await connection.run(
             `UPDATE notes SET
              title = ?, content = ?, type = ?, flint_kind = ?, filename = ?, path = ?,
-             size = ?, content_hash = ?, file_mtime = ?
+             size = ?, content_hash = ?, file_mtime = ?, archived = ?
              WHERE id = ?`,
             [
               title,
@@ -1202,6 +1207,7 @@ export class HybridSearchManager {
               stats.size,
               contentHash,
               stats.mtimeMs,
+              isArchived,
               id
             ]
           );
@@ -1211,11 +1217,15 @@ export class HybridSearchManager {
         const flintKind =
           typeof metadata.flint_kind === 'string' ? metadata.flint_kind : 'markdown';
 
+        // Get archived status from metadata (handles both boolean and string 'true')
+        const archivedValue = metadata.flint_archived as unknown;
+        const isArchived = archivedValue === true || archivedValue === 'true' ? 1 : 0;
+
         // Insert new note
         await connection.run(
           `INSERT INTO notes
-           (id, title, content, type, flint_kind, filename, path, created, updated, size, content_hash, file_mtime)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, title, content, type, flint_kind, filename, path, created, updated, size, content_hash, file_mtime, archived)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             title,
@@ -1228,7 +1238,8 @@ export class HybridSearchManager {
             now,
             stats.size,
             contentHash,
-            stats.mtimeMs
+            stats.mtimeMs,
+            isArchived
           ]
         );
       }

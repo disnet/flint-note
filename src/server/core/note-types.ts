@@ -79,6 +79,8 @@ export interface NoteTypeListItem {
   isSystemType?: boolean;
   /** The ID of the type note file (for file-based types) */
   noteId?: string;
+  /** True if the type note is archived */
+  archived?: boolean;
 }
 
 export interface NoteTypeUpdateRequest {
@@ -760,6 +762,8 @@ export class NoteTypeManager {
     try {
       const workspaceRoot = this.workspace.rootPath;
       const noteTypeMap = new Map<string, NoteTypeListItem>();
+      // Track all type notes found (including archived) so we don't add them from DB fallback
+      const typeNotesFound = new Set<string>();
 
       // 1. First scan the type/ folder for type notes
       const typeFolderPath = this.getTypeFolderPath();
@@ -773,6 +777,32 @@ export class NoteTypeManager {
 
             const typeNote = await this.readTypeNote(typeName);
             if (typeNote) {
+              // Track that this type note exists (regardless of archived status)
+              typeNotesFound.add(typeName);
+
+              // Check archived status from frontmatter and database
+              // Handle both boolean true and string 'true' for robustness
+              const archivedValue = typeNote.frontmatter.flint_archived as unknown;
+              let isArchived = archivedValue === true || archivedValue === 'true';
+
+              // Also check database for archived status (handles batched file writes)
+              const noteId = typeNote.frontmatter.flint_id as string | undefined;
+              if (!isArchived && noteId && this.dbManager) {
+                const db = await this.dbManager.connect();
+                const noteRow = await db.get<{ archived: number }>(
+                  'SELECT archived FROM notes WHERE id = ?',
+                  [noteId]
+                );
+                if (noteRow?.archived === 1) {
+                  isArchived = true;
+                }
+              }
+
+              // Skip archived type notes
+              if (isArchived) {
+                continue;
+              }
+
               const typePath = this.workspace.getNoteTypePath(typeName);
               let noteCount = 0;
               try {
@@ -797,7 +827,8 @@ export class NoteTypeManager {
                   new Date().toISOString(),
                 icon: typeNote.definition.icon,
                 isSystemType,
-                noteId: typeNote.frontmatter.flint_id as string | undefined
+                noteId: typeNote.frontmatter.flint_id as string | undefined,
+                archived: isArchived
               });
             }
           }
@@ -817,8 +848,8 @@ export class NoteTypeManager {
         );
 
         for (const row of rows) {
-          // Skip if already found as type note
-          if (noteTypeMap.has(row.type_name)) continue;
+          // Skip if already found as type note (including archived ones)
+          if (typeNotesFound.has(row.type_name)) continue;
 
           const instructions = JSON.parse(row.agent_instructions || '[]') as string[];
 

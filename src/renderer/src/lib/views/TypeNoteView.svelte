@@ -6,12 +6,19 @@
   } from '../../../../server/core/metadata-schema';
   import EditorHeader from '../../components/EditorHeader.svelte';
   import EmojiPicker from '../../components/EmojiPicker.svelte';
+  import ConfirmationModal from '../../components/ConfirmationModal.svelte';
+  import { getChatService } from '../../services/chatService';
   import yaml from 'js-yaml';
   import { workspacesStore } from '../../stores/workspacesStore.svelte';
   import { notesShelfStore } from '../../stores/notesShelfStore.svelte';
   import { sidebarState } from '../../stores/sidebarState.svelte';
 
   let { noteContent, metadata, onContentChange, onSave }: NoteViewProps = $props();
+
+  const noteService = getChatService();
+
+  // Archive confirmation modal state
+  let showArchiveConfirmation = $state(false);
 
   // Get note ID from metadata
   const noteId = $derived((metadata.flint_id as string) || (metadata.id as string) || '');
@@ -281,6 +288,32 @@
     }
   }
 
+  async function handleArchiveNote(): Promise<void> {
+    showArchiveConfirmation = true;
+  }
+
+  async function confirmArchiveNote(): Promise<void> {
+    try {
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+      await noteService.archiveNote({
+        vaultId: vault.id,
+        identifier: noteId
+      });
+      showArchiveConfirmation = false;
+    } catch (err) {
+      console.error('Error archiving note:', err);
+      showArchiveConfirmation = false;
+    }
+  }
+
+  function cancelArchiveNote(): void {
+    showArchiveConfirmation = false;
+  }
+
   function saveChanges(): void {
     // Build the updated definition
     const updatedDefinition: TypeDefinition = {
@@ -379,6 +412,7 @@
     isOnShelf={notesShelfStore.isOnShelf(noteId)}
     onPinToggle={handlePinToggle}
     onAddToShelf={handleAddToShelf}
+    onArchiveNote={handleArchiveNote}
   />
 
   <div class="type-content">
@@ -698,6 +732,16 @@
     </div>
   </div>
 </div>
+
+<ConfirmationModal
+  isOpen={showArchiveConfirmation}
+  title="Archive Type"
+  message="Archive this type definition? Notes of this type will remain, but the type will no longer appear in the type list. You can unarchive it later."
+  confirmText="Archive"
+  cancelText="Cancel"
+  onConfirm={confirmArchiveNote}
+  onCancel={cancelArchiveNote}
+/>
 
 <style>
   .type-note-view {

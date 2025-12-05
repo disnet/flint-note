@@ -90,14 +90,17 @@ function createNotesStore(): {
 
     try {
       const result = await noteService.listNoteTypes();
-      const noteTypes = result.map((typeItem) => ({
-        name: typeItem.name,
-        count: typeItem.noteCount,
-        purpose: typeItem.purpose || '',
-        icon: typeItem.icon,
-        isSystemType: typeItem.isSystemType,
-        noteId: typeItem.noteId
-      }));
+      // Filter out archived types (double-check in case server filtering fails)
+      const noteTypes = result
+        .filter((typeItem) => !typeItem.archived)
+        .map((typeItem) => ({
+          name: typeItem.name,
+          count: typeItem.noteCount,
+          purpose: typeItem.purpose || '',
+          icon: typeItem.icon,
+          isSystemType: typeItem.isSystemType,
+          noteId: typeItem.noteId
+        }));
       state.noteTypes = noteTypes;
       state.loading = false;
       return;
@@ -224,6 +227,24 @@ function createNotesStore(): {
   // NOTE: vault.switched listener removed to prevent duplicate initialization
   // VaultSwitcher now explicitly calls notesStore.initialize() in the correct sequence
   // This prevents race conditions between event-driven and explicit initialization paths
+
+  // Listen for note archive/unarchive events to refresh note types
+  // When a type note is archived/unarchived, the types list needs to be updated
+  messageBus.subscribe('note.archived', (event) => {
+    // Check if the archived note is a type note by looking up its noteId in the current noteTypes
+    const isTypeNote = state.noteTypes.some((t) => t.noteId === event.noteId);
+    if (isTypeNote) {
+      logger.debug('[noteStore] Type note archived, refreshing note types');
+      loadNoteTypes();
+    }
+  });
+
+  messageBus.subscribe('note.unarchived', (_event) => {
+    // When any note is unarchived, refresh types in case it was a type note
+    // We don't know the type from the event, so refresh to be safe
+    logger.debug('[noteStore] Note unarchived, refreshing note types');
+    loadNoteTypes();
+  });
 
   // Defer initial load to next tick to ensure all modules are initialized
   // This prevents race conditions where events are published before subscribers are ready

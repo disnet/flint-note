@@ -397,8 +397,8 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
   // Inject CSS for note type icons
   injectNoteTypeCompletionStyles();
 
-  // Get current notes from store
-  const notes = notesStore.allNotes;
+  // Get current notes from store, excluding archived notes for autocomplete suggestions
+  const notes = notesStore.allNotes.filter((note) => !note.archived);
 
   // Filter and sort notes based on query
   const filteredNotes = query.trim()
