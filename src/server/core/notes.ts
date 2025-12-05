@@ -617,6 +617,14 @@ export class NoteManager {
         throw new Error(`Invalid note type name: ${typeName}`);
       }
 
+      // Enforce flint_kind: 'type' for notes in the type/ folder
+      if (typeName === 'type' && kind !== 'type') {
+        throw new Error(
+          "Notes in the 'type/' folder must have flint_kind: 'type'. " +
+            'Use the dedicated type creation API to create new types.'
+        );
+      }
+
       const typePath = await this.#workspace.ensureNoteType(typeName);
 
       // Generate filename from title and ensure uniqueness
@@ -2279,6 +2287,14 @@ export class NoteManager {
         throw new Error(`Note '${identifier}' not found`);
       }
 
+      // Block rename for type notes
+      if (currentNote.kind === 'type' || currentNote.type === 'type') {
+        throw new Error(
+          'Type definition notes cannot be renamed. ' +
+            "The type name is determined by the note's filename."
+        );
+      }
+
       // Generate new filename from title
       const newFilenameWithExt = this.generateFilename(trimmedTitle);
 
@@ -2457,6 +2473,22 @@ export class NoteManager {
     const currentNote = await this.getNote(identifier);
     if (!currentNote) {
       throw new Error(`Note '${identifier}' not found`);
+    }
+
+    // Block move for type notes
+    if (currentNote.kind === 'type' || currentNote.type === 'type') {
+      throw new Error(
+        'Type definition notes cannot be moved. ' +
+          "They must remain in the 'type/' folder."
+      );
+    }
+
+    // Block moving notes INTO the type/ folder (except via type creation API)
+    if (newType === 'type') {
+      throw new Error(
+        "Cannot move notes into the 'type/' folder. " +
+          'Use the dedicated type creation API to create new types.'
+      );
     }
 
     // Validate content hash to prevent conflicts

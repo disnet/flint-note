@@ -22,10 +22,18 @@
  * - pdf: PDF document reader notes
  * - webpage: Web article reader notes
  * - deck: Queryable note list (deck) notes
+ * - type: Note type definition notes (stored in type/ folder)
  */
-export type NoteKind = 'markdown' | 'epub' | 'pdf' | 'webpage' | 'deck';
+export type NoteKind = 'markdown' | 'epub' | 'pdf' | 'webpage' | 'deck' | 'type';
 
-export const NOTE_KINDS: NoteKind[] = ['markdown', 'epub', 'pdf', 'webpage', 'deck'];
+export const NOTE_KINDS: NoteKind[] = [
+  'markdown',
+  'epub',
+  'pdf',
+  'webpage',
+  'deck',
+  'type'
+];
 export const DEFAULT_NOTE_KIND: NoteKind = 'markdown';
 
 /**

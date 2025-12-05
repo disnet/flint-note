@@ -1056,7 +1056,10 @@ export class HybridSearchManager {
       results.push({
         id: row.id,
         title: row.title,
-        snippet
+        snippet,
+        type: row.type,
+        filename: row.filename,
+        flint_kind: row.flint_kind
       });
     }
 

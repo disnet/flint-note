@@ -12,6 +12,7 @@ import EpubNoteView from './EpubNoteView.svelte';
 import PdfNoteView from './PdfNoteView.svelte';
 import WebpageNoteView from './WebpageNoteView.svelte';
 import DeckNoteView from './DeckNoteView.svelte';
+import TypeNoteView from './TypeNoteView.svelte';
 
 // Register the ImageNoteView for 'image' content kind
 ViewRegistry.registerView('image', {
@@ -54,6 +55,15 @@ ViewRegistry.registerView('deck', {
   component: DeckNoteView,
   modes: ['hybrid', 'view'],
   supportedKinds: ['deck'],
+  priority: 1
+});
+
+// Register the TypeNoteView for 'type' content kind
+// This view handles type definition notes - stored in type/ folder
+ViewRegistry.registerView('type', {
+  component: TypeNoteView,
+  modes: ['hybrid', 'edit', 'view'],
+  supportedKinds: ['type'],
   priority: 1
 });
 

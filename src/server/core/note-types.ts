@@ -8,6 +8,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
+import yaml from 'js-yaml';
 import { Workspace } from './workspace.js';
 import { MetadataSchemaParser, MetadataValidator } from './metadata-schema.js';
 import type { MetadataSchema } from './metadata-schema.js';
@@ -16,13 +17,28 @@ import type {
   DeletionAction,
   NoteTypeDeleteResult,
   DeletionValidation,
-  BackupInfo
+  BackupInfo,
+  NoteTypeSuggestionConfig
 } from '../types/index.js';
 import {
   generateContentHash,
   createNoteTypeHashableContent
 } from '../utils/content-hash.js';
 import type { DatabaseManager, NoteTypeDescriptionRow } from '../database/schema.js';
+
+/**
+ * Type note definition stored as YAML in note body
+ */
+export interface TypeNoteDefinition {
+  name: string;
+  icon?: string;
+  purpose: string;
+  agent_instructions?: string[];
+  metadata_schema?: MetadataSchema;
+  suggestions_config?: NoteTypeSuggestionConfig;
+  default_review_mode?: boolean;
+  editor_chips?: string[];
+}
 
 export interface NoteTypeInfo {
   name: string;
@@ -59,6 +75,8 @@ export interface NoteTypeListItem {
   noteCount: number;
   lastModified: string;
   icon?: string;
+  /** True for system types like 'type' that users cannot create notes of */
+  isSystemType?: boolean;
 }
 
 export interface NoteTypeUpdateRequest {
@@ -108,7 +126,204 @@ export class NoteTypeManager {
   }
 
   /**
+   * Get path to the type/ folder where type notes are stored
+   */
+  getTypeFolderPath(): string {
+    return path.join(this.workspace.rootPath, 'type');
+  }
+
+  /**
+   * Get path to a specific type note
+   */
+  getTypeNotePath(typeName: string): string {
+    return path.join(this.getTypeFolderPath(), `${typeName}.md`);
+  }
+
+  /**
+   * Check if a type note exists
+   */
+  async typeNoteExists(typeName: string): Promise<boolean> {
+    try {
+      await fs.access(this.getTypeNotePath(typeName));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Parse type note content to extract definition from YAML body
+   */
+  parseTypeNoteContent(content: string): {
+    frontmatter: Record<string, unknown>;
+    definition: TypeNoteDefinition | null;
+  } {
+    // Match frontmatter
+    const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+    const match = content.match(frontmatterRegex);
+
+    let frontmatter: Record<string, unknown> = {};
+    let body = content;
+
+    if (match) {
+      try {
+        const parsed = yaml.load(match[1]);
+        if (parsed && typeof parsed === 'object') {
+          frontmatter = parsed as Record<string, unknown>;
+        }
+      } catch (error) {
+        console.warn('Failed to parse type note frontmatter:', error);
+      }
+      body = match[2].trim();
+    }
+
+    // Parse YAML body as type definition
+    let definition: TypeNoteDefinition | null = null;
+    if (body) {
+      try {
+        const parsed = yaml.load(body);
+        if (parsed && typeof parsed === 'object') {
+          definition = parsed as TypeNoteDefinition;
+        }
+      } catch (error) {
+        console.warn('Failed to parse type note body as YAML:', error);
+      }
+    }
+
+    return { frontmatter, definition };
+  }
+
+  /**
+   * Format type note content with frontmatter and YAML body
+   */
+  formatTypeNoteContent(
+    typeName: string,
+    definition: TypeNoteDefinition,
+    noteId?: string,
+    existingFrontmatter?: Record<string, unknown>
+  ): string {
+    const timestamp = new Date().toISOString();
+    const id = noteId || 'n-' + crypto.randomBytes(4).toString('hex');
+
+    // Build frontmatter
+    const frontmatter: Record<string, unknown> = {
+      flint_id: existingFrontmatter?.flint_id || id,
+      flint_title: typeName,
+      flint_filename: typeName,
+      flint_type: 'type',
+      flint_kind: 'type',
+      flint_created: existingFrontmatter?.flint_created || timestamp,
+      flint_updated: timestamp
+    };
+
+    // Serialize frontmatter
+    const frontmatterYaml = yaml.dump(frontmatter, {
+      lineWidth: -1,
+      noRefs: true,
+      sortKeys: false
+    });
+
+    // Serialize definition body
+    const definitionYaml = yaml.dump(definition, {
+      lineWidth: 80,
+      noRefs: true,
+      sortKeys: false
+    });
+
+    return `---\n${frontmatterYaml}---\n${definitionYaml}`;
+  }
+
+  /**
+   * Read and parse a type note from the type/ folder
+   * Returns null if the type note doesn't exist
+   */
+  async readTypeNote(typeName: string): Promise<{
+    definition: TypeNoteDefinition;
+    frontmatter: Record<string, unknown>;
+    path: string;
+  } | null> {
+    const typeNotePath = this.getTypeNotePath(typeName);
+
+    try {
+      const content = await fs.readFile(typeNotePath, 'utf-8');
+      const { frontmatter, definition } = this.parseTypeNoteContent(content);
+
+      if (!definition) {
+        console.warn(`Type note ${typeName} has no valid definition`);
+        return null;
+      }
+
+      return {
+        definition,
+        frontmatter,
+        path: typeNotePath
+      };
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure the type/ folder exists
+   */
+  async ensureTypeFolderExists(): Promise<void> {
+    const typeFolderPath = this.getTypeFolderPath();
+    try {
+      await fs.access(typeFolderPath);
+    } catch {
+      await fs.mkdir(typeFolderPath, { recursive: true });
+    }
+  }
+
+  /**
+   * Create the meta-type (type/type.md) if it doesn't exist
+   * This is the self-referential type that defines what types look like
+   */
+  async ensureMetaTypeExists(): Promise<void> {
+    const metaTypePath = this.getTypeNotePath('type');
+
+    try {
+      await fs.access(metaTypePath);
+      return; // Already exists
+    } catch {
+      // Create the meta-type
+    }
+
+    await this.ensureTypeFolderExists();
+
+    const metaTypeDefinition: TypeNoteDefinition = {
+      name: 'type',
+      icon: '📋',
+      purpose:
+        'Defines the structure and behavior of note types in this vault. This is a system type that describes other types.',
+      agent_instructions: [
+        'Help users define clear, actionable type descriptions',
+        'Suggest appropriate metadata fields for the use case',
+        'Ensure type names follow naming conventions (lowercase, hyphens, no spaces)'
+      ],
+      metadata_schema: {
+        fields: [
+          {
+            name: 'icon',
+            type: 'string',
+            description: 'Emoji icon for the type',
+            required: false
+          }
+        ]
+      },
+      default_review_mode: false
+    };
+
+    const content = this.formatTypeNoteContent('type', metaTypeDefinition);
+    await this.#writeFileWithTracking(metaTypePath, content);
+  }
+
+  /**
    * Create a new note type with description
+   * Creates a type note file in the type/ folder with YAML body definition
    */
   async createNoteType(
     name: string,
@@ -134,30 +349,56 @@ export class NoteTypeManager {
         }
       }
 
-      // Ensure the note type directory exists (but don't create _description.md)
+      // Ensure the type/ folder and meta-type exist
+      await this.ensureMetaTypeExists();
+
+      // Ensure the note type directory exists (for notes of this type)
       const typePath = await this.workspace.ensureNoteType(name);
 
-      // Store in database if available
+      // Check if type note already exists
+      if (await this.typeNoteExists(name)) {
+        throw new Error(`Note type '${name}' already exists`);
+      }
+
+      // Prepare instructions and schema
+      const instructions = agentInstructions || [
+        'Ask clarifying questions to understand the context and purpose of this note',
+        'Suggest relevant tags and connections to existing notes in the knowledge base',
+        'Help organize content with clear headings and logical structure',
+        'Identify and extract actionable items, deadlines, or follow-up tasks',
+        'Recommend when this note might benefit from linking to other note types',
+        'Offer to enhance content with additional context, examples, or details',
+        'Suggest follow-up questions or areas that could be expanded upon',
+        'Help maintain consistency with similar notes of this type'
+      ];
+
+      const schema = metadataSchema || { fields: [] };
+
+      // Create type note definition
+      const definition: TypeNoteDefinition = {
+        name,
+        purpose: description,
+        agent_instructions: instructions,
+        metadata_schema: schema,
+        default_review_mode: false
+      };
+
+      if (icon) {
+        definition.icon = icon;
+      }
+
+      // Create the type note file
+      const content = this.formatTypeNoteContent(name, definition);
+      const typeNotePath = this.getTypeNotePath(name);
+      await this.#writeFileWithTracking(typeNotePath, content);
+
+      // Also store in database for backward compatibility during transition
       if (this.dbManager) {
         const db = await this.dbManager.connect();
 
-        // Generate unique ID
+        // Generate unique ID for DB record
         const id = 'nt-' + crypto.randomBytes(4).toString('hex');
         const vaultId = this.workspace.rootPath;
-
-        // Prepare instructions and schema for storage
-        const instructions = agentInstructions || [
-          'Ask clarifying questions to understand the context and purpose of this note',
-          'Suggest relevant tags and connections to existing notes in the knowledge base',
-          'Help organize content with clear headings and logical structure',
-          'Identify and extract actionable items, deadlines, or follow-up tasks',
-          'Recommend when this note might benefit from linking to other note types',
-          'Offer to enhance content with additional context, examples, or details',
-          'Suggest follow-up questions or areas that could be expanded upon',
-          'Help maintain consistency with similar notes of this type'
-        ];
-
-        const schema = metadataSchema || { fields: [] };
 
         // Calculate content hash
         const descriptionContent = this.formatNoteTypeDescription(
@@ -173,9 +414,9 @@ export class NoteTypeManager {
         });
         const contentHash = generateContentHash(hashableContent);
 
-        // Insert into database
+        // Insert into database (ignore if already exists)
         await db.run(
-          `INSERT INTO note_type_descriptions
+          `INSERT OR IGNORE INTO note_type_descriptions
            (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash, icon)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
@@ -277,19 +518,64 @@ export class NoteTypeManager {
 
   /**
    * Get note type description and metadata
+   * Reads from type note first, then falls back to DB, then legacy files
    */
   async getNoteTypeDescription(typeName: string): Promise<NoteTypeDescription> {
     try {
       const typePath = this.workspace.getNoteTypePath(typeName);
 
-      // Check if note type exists
+      // Check if note type directory exists (for notes of this type)
       try {
         await fs.access(typePath);
       } catch {
-        throw new Error(`Note type '${typeName}' does not exist`);
+        // Type directory doesn't exist - check if it's a type note without a directory yet
+        const typeNote = await this.readTypeNote(typeName);
+        if (!typeNote) {
+          throw new Error(`Note type '${typeName}' does not exist`);
+        }
       }
 
-      // Try to read from database first
+      // 1. First try to read from type note file (type/{typeName}.md)
+      const typeNote = await this.readTypeNote(typeName);
+      if (typeNote) {
+        const { definition } = typeNote;
+
+        // Build parsed description from type note definition
+        const instructions = definition.agent_instructions || [];
+        const schema = definition.metadata_schema || { fields: [] };
+
+        const description = this.formatNoteTypeDescription(
+          typeName,
+          definition.purpose,
+          instructions,
+          schema
+        );
+
+        const parsed = this.parseNoteTypeDescription(description);
+
+        // Generate content hash for optimistic locking
+        const hashableContent = createNoteTypeHashableContent({
+          description,
+          agent_instructions: instructions.join('\n'),
+          metadata_schema: schema
+        });
+        const contentHash = generateContentHash(hashableContent);
+
+        return {
+          name: typeName,
+          path: typePath,
+          description,
+          parsed,
+          metadataSchema: schema,
+          content_hash: contentHash,
+          icon: definition.icon,
+          suggestions_config: definition.suggestions_config,
+          default_review_mode: definition.default_review_mode,
+          editor_chips: definition.editor_chips
+        };
+      }
+
+      // 2. Fall back to database
       if (this.dbManager) {
         const db = await this.dbManager.connect();
         const vaultId = this.workspace.rootPath;
@@ -350,7 +636,7 @@ export class NoteTypeManager {
         }
       }
 
-      // Fallback to file-based reading (for legacy support)
+      // 3. Fallback to legacy _description.md file reading
       const descriptionPath = path.join(typePath, '_description.md');
       let description = '';
       try {
@@ -466,16 +752,58 @@ export class NoteTypeManager {
 
   /**
    * List all available note types
+   * Reads from type notes first, then falls back to DB, then legacy files
    */
   async listNoteTypes(): Promise<NoteTypeListItem[]> {
     try {
       const workspaceRoot = this.workspace.rootPath;
-      const entries = await fs.readdir(workspaceRoot, { withFileTypes: true });
-
-      const noteTypes: NoteTypeListItem[] = [];
       const noteTypeMap = new Map<string, NoteTypeListItem>();
 
-      // If database is available, read from it first
+      // 1. First scan the type/ folder for type notes
+      const typeFolderPath = this.getTypeFolderPath();
+      try {
+        const typeNoteEntries = await fs.readdir(typeFolderPath);
+        for (const entry of typeNoteEntries) {
+          if (entry.endsWith('.md') && !entry.startsWith('.')) {
+            const typeName = entry.replace(/\.md$/, '');
+            // Mark 'type' as a system type (users can't create notes of this type)
+            const isSystemType = typeName === 'type';
+
+            const typeNote = await this.readTypeNote(typeName);
+            if (typeNote) {
+              const typePath = this.workspace.getNoteTypePath(typeName);
+              let noteCount = 0;
+              try {
+                const typeEntries = await fs.readdir(typePath);
+                noteCount = typeEntries.filter(
+                  (file) =>
+                    file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
+                ).length;
+              } catch {
+                // Directory might not exist yet
+              }
+
+              noteTypeMap.set(typeName, {
+                name: typeName,
+                path: typePath,
+                purpose: typeNote.definition.purpose || `Notes of type '${typeName}'`,
+                agentInstructions: typeNote.definition.agent_instructions || [],
+                hasDescription: true,
+                noteCount,
+                lastModified:
+                  (typeNote.frontmatter.flint_updated as string) ||
+                  new Date().toISOString(),
+                icon: typeNote.definition.icon,
+                isSystemType
+              });
+            }
+          }
+        }
+      } catch {
+        // type/ folder might not exist yet
+      }
+
+      // 2. Fall back to database for types not found as type notes
       if (this.dbManager) {
         const db = await this.dbManager.connect();
         const vaultId = this.workspace.rootPath;
@@ -486,6 +814,9 @@ export class NoteTypeManager {
         );
 
         for (const row of rows) {
+          // Skip if already found as type note
+          if (noteTypeMap.has(row.type_name)) continue;
+
           const instructions = JSON.parse(row.agent_instructions || '[]') as string[];
 
           noteTypeMap.set(row.type_name, {
@@ -501,12 +832,14 @@ export class NoteTypeManager {
         }
       }
 
-      // Scan filesystem for note types and note counts
+      // 3. Scan filesystem for note types and note counts
+      const entries = await fs.readdir(workspaceRoot, { withFileTypes: true });
       for (const entry of entries) {
         if (
           entry.isDirectory() &&
           !entry.name.startsWith('.') &&
-          entry.name !== 'node_modules'
+          entry.name !== 'node_modules' &&
+          entry.name !== 'type' // Skip the type/ folder itself
         ) {
           const typePath = path.join(workspaceRoot, entry.name);
 
@@ -519,67 +852,46 @@ export class NoteTypeManager {
 
           const hasNotes = noteCount > 0;
 
-          // Check if description exists in database or file
-          const hasDbEntry = noteTypeMap.has(entry.name);
+          // Check if already in map
+          let existing = noteTypeMap.get(entry.name);
 
-          // Check if description file exists (for legacy support)
-          const descriptionPath = path.join(typePath, '_description.md');
-          let hasDescriptionFile = false;
-          try {
-            await fs.access(descriptionPath);
-            hasDescriptionFile = true;
-          } catch {
-            hasDescriptionFile = false;
-          }
+          if (existing) {
+            // Update note count from filesystem
+            existing.noteCount = noteCount;
+          } else if (hasNotes) {
+            // Not in type notes or database - check for legacy _description.md
+            const descriptionPath = path.join(typePath, '_description.md');
+            let purpose = '';
+            let agentInstructions: string[] = [];
+            let hasDescriptionFile = false;
 
-          const hasDescription = hasDbEntry || hasDescriptionFile;
-
-          if (hasNotes || hasDescription) {
-            let existing = noteTypeMap.get(entry.name);
-
-            if (existing) {
-              // Update note count from filesystem
-              existing.noteCount = noteCount;
-            } else {
-              // Not in database, read from file if available
-              let purpose = '';
-              let agentInstructions: string[] = [];
-
-              if (hasDescriptionFile) {
-                try {
-                  const description = await fs.readFile(descriptionPath, 'utf-8');
-                  const parsed = this.parseNoteTypeDescription(description);
-                  purpose = parsed.purpose;
-                  agentInstructions = parsed.agentInstructions;
-                } catch {
-                  // Ignore errors for individual entries
-                }
-              }
-
-              existing = {
-                name: entry.name,
-                path: typePath,
-                purpose: purpose || `Notes of type '${entry.name}'`,
-                agentInstructions,
-                hasDescription: hasDescriptionFile,
-                noteCount,
-                lastModified: (await fs.stat(typePath)).mtime.toISOString()
-              };
-
-              noteTypeMap.set(entry.name, existing);
+            try {
+              const description = await fs.readFile(descriptionPath, 'utf-8');
+              const parsed = this.parseNoteTypeDescription(description);
+              purpose = parsed.purpose;
+              agentInstructions = parsed.agentInstructions;
+              hasDescriptionFile = true;
+            } catch {
+              // No description file
             }
+
+            existing = {
+              name: entry.name,
+              path: typePath,
+              purpose: purpose || `Notes of type '${entry.name}'`,
+              agentInstructions,
+              hasDescription: hasDescriptionFile,
+              noteCount,
+              lastModified: (await fs.stat(typePath)).mtime.toISOString()
+            };
+
+            noteTypeMap.set(entry.name, existing);
           }
         }
       }
 
-      // Add all items from noteTypeMap to noteTypes array (handles DB entries without directories)
-      for (const item of noteTypeMap.values()) {
-        if (!noteTypes.find((nt) => nt.name === item.name)) {
-          noteTypes.push(item);
-        }
-      }
-
-      // Sort by name
+      // Convert map to array and sort by name
+      const noteTypes = Array.from(noteTypeMap.values());
       noteTypes.sort((a, b) => a.name.localeCompare(b.name));
 
       return noteTypes;
@@ -696,6 +1008,14 @@ export class NoteTypeManager {
 
       // Remove the directory and all its contents
       await fs.rm(typePath, { recursive: true, force: true });
+
+      // Remove the type note file if it exists
+      const typeNotePath = this.getTypeNotePath(typeName);
+      try {
+        await fs.unlink(typeNotePath);
+      } catch {
+        // Type note might not exist
+      }
 
       // Remove from database if available
       if (this.dbManager) {
@@ -1037,6 +1357,7 @@ export class NoteTypeManager {
 
   /**
    * Update an existing note type
+   * Updates type note file first, then falls back to DB for backward compatibility
    */
   async updateNoteType(
     typeName: string,
@@ -1053,6 +1374,7 @@ export class NoteTypeManager {
       const newDescription = updates.description ?? noteType.parsed.purpose;
       const newInstructions = updates.instructions ?? noteType.parsed.agentInstructions;
       const newSchema = updates.metadata_schema ?? noteType.metadataSchema;
+      const newIcon = updates.icon ?? noteType.icon;
 
       // Only validate schema if it's explicitly provided (not reusing existing)
       if (updates.metadata_schema) {
@@ -1064,6 +1386,42 @@ export class NoteTypeManager {
         this.#validateNoProtectedFieldsInSchema(newSchema);
       }
 
+      // 1. Try to update type note first
+      const existingTypeNote = await this.readTypeNote(typeName);
+      if (existingTypeNote) {
+        // Update the type note file
+        const definition: TypeNoteDefinition = {
+          name: typeName,
+          purpose: newDescription,
+          agent_instructions: newInstructions,
+          metadata_schema: newSchema
+        };
+
+        if (newIcon) {
+          definition.icon = newIcon;
+        }
+
+        // Preserve other fields from existing definition
+        if (existingTypeNote.definition.suggestions_config) {
+          definition.suggestions_config = existingTypeNote.definition.suggestions_config;
+        }
+        if (existingTypeNote.definition.default_review_mode !== undefined) {
+          definition.default_review_mode =
+            existingTypeNote.definition.default_review_mode;
+        }
+        if (existingTypeNote.definition.editor_chips) {
+          definition.editor_chips = existingTypeNote.definition.editor_chips;
+        }
+
+        const content = this.formatTypeNoteContent(
+          typeName,
+          definition,
+          undefined,
+          existingTypeNote.frontmatter
+        );
+        await this.#writeFileWithTracking(this.getTypeNotePath(typeName), content);
+      }
+
       const newContent = this.formatNoteTypeDescription(
         typeName,
         newDescription,
@@ -1071,7 +1429,7 @@ export class NoteTypeManager {
         newSchema
       );
 
-      // Update in database if available
+      // 2. Also update in database for backward compatibility
       if (this.dbManager) {
         const db = await this.dbManager.connect();
         const vaultId = this.workspace.rootPath;
@@ -1134,19 +1492,36 @@ export class NoteTypeManager {
     defaultReviewMode: boolean
   ): Promise<void> {
     try {
-      if (!this.dbManager) {
-        throw new Error('Database manager not available');
+      // 1. Update type note file
+      const typeNote = await this.readTypeNote(typeName);
+      if (typeNote) {
+        const { frontmatter, definition } = typeNote;
+        const updatedDefinition: TypeNoteDefinition = {
+          ...definition,
+          default_review_mode: defaultReviewMode
+        };
+        const content = this.formatTypeNoteContent(
+          typeName,
+          updatedDefinition,
+          undefined,
+          frontmatter
+        );
+        const typeNotePath = this.getTypeNotePath(typeName);
+        await this.#writeFileWithTracking(typeNotePath, content);
       }
 
-      const db = await this.dbManager.connect();
-      const vaultId = this.workspace.rootPath;
+      // 2. Also update database for backward compatibility
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
 
-      await db.run(
-        `UPDATE note_type_descriptions
-         SET default_review_mode = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE vault_id = ? AND type_name = ?`,
-        [defaultReviewMode ? 1 : 0, vaultId, typeName]
-      );
+        await db.run(
+          `UPDATE note_type_descriptions
+           SET default_review_mode = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE vault_id = ? AND type_name = ?`,
+          [defaultReviewMode ? 1 : 0, vaultId, typeName]
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(

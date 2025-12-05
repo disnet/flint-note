@@ -5,7 +5,7 @@
  * migration execution, and automatic rebuilds when necessary.
  */
 
-import type { DatabaseConnection } from './schema.js';
+import type { DatabaseConnection, NoteTypeDescriptionRow } from './schema.js';
 import type { DatabaseManager } from './schema.js';
 import type { WikiLink } from '../types/index.js';
 import { LinkExtractor } from '../core/link-extractor.js';
@@ -2246,8 +2246,223 @@ async function migrateToV2_16_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.17.0: Migrate note types from database to note files
+ * Creates type notes in the type/ folder for each type in note_type_descriptions
+ */
+async function migrateToV2_17_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
+  logger.info('Migrating to v2.17.0: Converting note types to type note files');
+
+  const path = await import('path');
+  const fsPromises = await import('fs/promises');
+  const crypto = await import('crypto');
+
+  try {
+    // 1. Ensure type/ folder exists
+    const typeFolderPath = path.join(workspacePath, 'type');
+    try {
+      await fsPromises.mkdir(typeFolderPath, { recursive: true });
+    } catch {
+      // May already exist
+    }
+
+    // 2. Create the meta-type (type/type.md) if it doesn't exist
+    const metaTypePath = path.join(typeFolderPath, 'type.md');
+    let metaTypeExists = false;
+    try {
+      await fsPromises.access(metaTypePath);
+      metaTypeExists = true;
+    } catch {
+      // Doesn't exist, we'll create it
+    }
+
+    if (!metaTypeExists) {
+      const timestamp = new Date().toISOString();
+      const metaTypeId = 'n-' + crypto.randomBytes(4).toString('hex');
+      const metaTypeContent = `---
+flint_id: ${metaTypeId}
+flint_title: type
+flint_filename: type
+flint_type: type
+flint_kind: type
+flint_created: ${timestamp}
+flint_updated: ${timestamp}
+---
+name: type
+icon: "📋"
+purpose: >-
+  Defines the structure and behavior of note types in this vault. This is a
+  system type that describes other types.
+agent_instructions:
+  - Help users define clear, actionable type descriptions
+  - Suggest appropriate metadata fields for the use case
+  - Ensure type names follow naming conventions (lowercase, hyphens, no spaces)
+metadata_schema:
+  fields:
+    - name: icon
+      type: string
+      description: Emoji icon for the type
+      required: false
+default_review_mode: false
+`;
+      await fsPromises.writeFile(metaTypePath, metaTypeContent, 'utf-8');
+      logger.info('Created meta-type (type/type.md)');
+    }
+
+    // Check if note_type_descriptions table exists
+    const tableExists = await db.get<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='note_type_descriptions'"
+    );
+    if (!tableExists) {
+      logger.info('note_type_descriptions table does not exist, skipping type migration');
+      return;
+    }
+
+    // 3. Read all existing types from note_type_descriptions
+    const rows = await db.all<NoteTypeDescriptionRow>(
+      'SELECT * FROM note_type_descriptions WHERE vault_id = ?',
+      [workspacePath]
+    );
+
+    if (rows.length === 0) {
+      logger.info('No existing types to migrate');
+      return;
+    }
+
+    logger.info(`Migrating ${rows.length} types to type note files...`);
+
+    // 4. For each type, create a note file in type/ folder
+    for (const row of rows) {
+      const typeName = row.type_name;
+      const typeNotePath = path.join(typeFolderPath, `${typeName}.md`);
+
+      // Skip if file already exists (idempotency)
+      let exists = false;
+      try {
+        await fsPromises.access(typeNotePath);
+        exists = true;
+      } catch {
+        // Doesn't exist
+      }
+
+      if (exists) {
+        logger.info(`Type note already exists for '${typeName}', skipping`);
+        continue;
+      }
+
+      // Parse stored JSON fields
+      let instructions: string[] = [];
+      let schema = { fields: [] };
+      let suggestionsConfig = null;
+      let editorChips: string[] | null = null;
+
+      try {
+        if (row.agent_instructions) {
+          instructions = JSON.parse(row.agent_instructions);
+        }
+      } catch {
+        // Use empty array
+      }
+
+      try {
+        if (row.metadata_schema) {
+          schema = JSON.parse(row.metadata_schema);
+        }
+      } catch {
+        // Use empty schema
+      }
+
+      try {
+        if (row.suggestions_config) {
+          suggestionsConfig = JSON.parse(row.suggestions_config);
+        }
+      } catch {
+        // Skip
+      }
+
+      try {
+        if (row.editor_chips) {
+          editorChips = JSON.parse(row.editor_chips);
+        }
+      } catch {
+        // Skip
+      }
+
+      // Generate the type note content
+      const timestamp = new Date().toISOString();
+      const noteId = 'n-' + crypto.randomBytes(4).toString('hex');
+
+      // Build YAML for the definition body
+      let definitionYaml = `name: ${typeName}\n`;
+      if (row.icon) {
+        definitionYaml += `icon: "${row.icon}"\n`;
+      }
+      definitionYaml += `purpose: |\n  ${(row.purpose || '').replace(/\n/g, '\n  ')}\n`;
+
+      if (instructions.length > 0) {
+        definitionYaml += `agent_instructions:\n`;
+        for (const instr of instructions) {
+          definitionYaml += `  - ${instr}\n`;
+        }
+      }
+
+      if (schema.fields && schema.fields.length > 0) {
+        definitionYaml += `metadata_schema:\n  fields:\n`;
+        for (const field of schema.fields as Array<Record<string, unknown>>) {
+          definitionYaml += `    - name: ${field.name}\n`;
+          definitionYaml += `      type: ${field.type || 'string'}\n`;
+          if (field.description) {
+            definitionYaml += `      description: ${field.description}\n`;
+          }
+          if (field.required) {
+            definitionYaml += `      required: true\n`;
+          }
+        }
+      }
+
+      if (suggestionsConfig !== null) {
+        definitionYaml += `suggestions_config: ${JSON.stringify(suggestionsConfig)}\n`;
+      }
+
+      if (row.default_review_mode !== null) {
+        definitionYaml += `default_review_mode: ${row.default_review_mode === 1}\n`;
+      }
+
+      if (editorChips !== null) {
+        definitionYaml += `editor_chips:\n`;
+        for (const chip of editorChips) {
+          definitionYaml += `  - ${chip}\n`;
+        }
+      }
+
+      const noteContent = `---
+flint_id: ${noteId}
+flint_title: ${typeName}
+flint_filename: ${typeName}
+flint_type: type
+flint_kind: type
+flint_created: ${row.created_at || timestamp}
+flint_updated: ${row.updated_at || timestamp}
+---
+${definitionYaml}`;
+
+      await fsPromises.writeFile(typeNotePath, noteContent, 'utf-8');
+      logger.info(`Migrated type '${typeName}' to type note file`);
+    }
+
+    logger.info('Type migration completed successfully');
+  } catch (error) {
+    console.error('Failed to migrate types to note files:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.16.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.17.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2383,6 +2598,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_16_0
+    },
+    {
+      version: '2.17.0',
+      description: 'Migrate note types from database to type note files',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_17_0
     }
   ];
 

@@ -16,6 +16,7 @@
     snippet: string;
     type?: string;
     filename?: string;
+    flint_kind?: string;
   }
 
   // Mode switcher items for keyboard navigation
@@ -338,12 +339,14 @@
               snippet: string;
               type?: string;
               filename?: string;
+              flint_kind?: string;
             }) => ({
               id: r.id,
               title: r.title || 'Untitled',
               snippet: r.snippet || '',
               type: r.type,
-              filename: r.filename
+              filename: r.filename,
+              flint_kind: r.flint_kind
             })
           );
         } else {
@@ -570,6 +573,22 @@
       clearInput();
       blurInput();
       onNoteSelect?.(note);
+    } else {
+      // Note not in store (e.g., type notes) - construct minimal metadata from search result
+      const minimalNote: NoteMetadata = {
+        id: result.id,
+        title: result.title,
+        type: result.type || 'unknown',
+        filename: result.filename || `${result.id}.md`,
+        created: new Date().toISOString(),
+        modified: new Date().toISOString(),
+        size: 0,
+        path: '',
+        flint_kind: result.flint_kind
+      };
+      clearInput();
+      blurInput();
+      onNoteSelect?.(minimalNote);
     }
   }
 

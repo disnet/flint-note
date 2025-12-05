@@ -3,13 +3,25 @@
 
   interface Props {
     currentType: string;
+    /** The current note's kind (markdown, epub, type, etc.) */
+    currentKind?: string;
     onTypeChange: (newType: string) => Promise<void>;
     disabled?: boolean;
     /** When true, shows only the type icon (no name or dropdown arrow) */
     compact?: boolean;
   }
 
-  let { currentType, onTypeChange, disabled = false, compact = false }: Props = $props();
+  let {
+    currentType,
+    currentKind,
+    onTypeChange,
+    disabled = false,
+    compact = false
+  }: Props = $props();
+
+  // Disable type switching for type notes (kind === 'type' or type === 'type')
+  const isTypeNote = $derived(currentKind === 'type' || currentType === 'type');
+  const effectivelyDisabled = $derived(disabled || isTypeNote);
 
   let isOpen = $state(false);
   let isSaving = $state(false);
@@ -20,8 +32,11 @@
   let highlightedIndex = $state(0);
   let menuPosition = $state({ top: 0, left: 0 });
 
-  // Get available note types from the store
-  let availableTypes = $derived(notesStore.noteTypes);
+  // Get available note types from the store (all types for icon lookup)
+  let allTypes = $derived(notesStore.noteTypes);
+
+  // Exclude system types from dropdown options (users can't create notes of these types)
+  let availableTypes = $derived(allTypes.filter((t) => !t.isSystemType));
 
   const filteredTypes = $derived.by(() => {
     if (!searchQuery.trim()) {
@@ -72,7 +87,7 @@
   // Listen for menu event to open dropdown
   $effect(() => {
     function handleMenuChangeType(): void {
-      if (!disabled && !isSaving) {
+      if (!effectivelyDisabled && !isSaving) {
         isOpen = true;
       }
     }
@@ -94,7 +109,7 @@
   }
 
   function toggleDropdown(): void {
-    if (!disabled && !isSaving) {
+    if (!effectivelyDisabled && !isSaving) {
       if (!isOpen) {
         updateMenuPosition();
       }
@@ -164,7 +179,7 @@
 <div
   bind:this={dropdownRef}
   class="note-type-dropdown"
-  class:disabled
+  class:disabled={effectivelyDisabled}
   class:saving={isSaving}
   class:compact
 >
@@ -173,13 +188,13 @@
     class="type-button"
     onclick={toggleDropdown}
     type="button"
-    title="Change note type"
-    {disabled}
+    title={isTypeNote ? 'Type notes cannot change type' : 'Change note type'}
+    disabled={effectivelyDisabled}
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
     <span class="type-icon"
-      >{availableTypes.find((t) => t.name === currentType)?.icon || '📄'}</span
+      >{allTypes.find((t) => t.name === currentType)?.icon || '📄'}</span
     >
     {#if !compact}
       <span class="type-name">{currentType}</span>

@@ -164,11 +164,16 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
+        // Skip note type info lookup for type notes (type notes use TypeNoteView)
+        const isTypeNote = note.type === 'type' || note.flint_kind === 'type';
+
         // Load full note data, cursor position, and note type info
         const [noteResult, cursorPosition, noteTypeInfoResult] = await Promise.all([
           noteService.getNote({ identifier: note.id }),
           cursorManager.getCursorPosition(note.id),
-          window.api?.getNoteTypeInfo({ typeName: note.type })
+          isTypeNote
+            ? Promise.resolve(null)
+            : window.api?.getNoteTypeInfo({ typeName: note.type })
         ]);
 
         noteData = noteResult;

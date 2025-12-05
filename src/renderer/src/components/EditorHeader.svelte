@@ -15,10 +15,14 @@
   interface Props {
     title: string;
     noteType: string;
+    /** The note's content kind (markdown, epub, type, etc.) */
+    noteKind?: string;
     onTitleChange: (newTitle: string) => Promise<void>;
     onTypeChange: (newType: string) => Promise<void>;
     onTabToContent?: () => void;
     disabled?: boolean;
+    /** When true, disables type change (used for type notes) */
+    disableTypeChange?: boolean;
     // Chips props
     note?: NoteData;
     metadataSchema?: MetadataSchema;
@@ -44,10 +48,12 @@
   let {
     title,
     noteType,
+    noteKind,
     onTitleChange,
     onTypeChange,
     onTabToContent,
     disabled = false,
+    disableTypeChange = false,
     note,
     metadataSchema,
     editorChips,
@@ -335,7 +341,13 @@
     </div>
 
     <div class="title-area">
-      <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} compact={true} />
+      <NoteTypeDropdown
+        currentType={noteType}
+        currentKind={noteKind}
+        {onTypeChange}
+        disabled={disabled || disableTypeChange}
+        compact={true}
+      />
       <NoteTitle
         bind:this={titleComponent}
         value={title}

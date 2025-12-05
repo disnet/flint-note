@@ -21,6 +21,8 @@ export type NoteType = {
   count: number;
   purpose: string;
   icon?: string;
+  /** True for system types like 'type' that users cannot create notes of */
+  isSystemType?: boolean;
 };
 
 interface NotesStoreState {
@@ -89,7 +91,8 @@ function createNotesStore(): {
         name: typeItem.name,
         count: typeItem.noteCount,
         purpose: typeItem.purpose || '',
-        icon: typeItem.icon
+        icon: typeItem.icon,
+        isSystemType: typeItem.isSystemType
       }));
       state.noteTypes = noteTypes;
       state.loading = false;
@@ -164,7 +167,7 @@ function createNotesStore(): {
         await loadNoteTypes();
         const loadedNotes: NoteMetadata[] = [];
 
-        // Load notes for each type
+        // Load notes for each type (including 'type' which is marked as isSystemType)
         for (const noteType of state.noteTypes) {
           const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
           loadedNotes.push(...notesOfType);
