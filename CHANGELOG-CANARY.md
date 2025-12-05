@@ -4,6 +4,22 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-canary.7]
+
+### Added
+
+- pagination to decks
+- agent support for decks
+
+### Changed
+
+- only allow single prop filter and support "not in" list
+
+### Fixed
+
+- fix sorting in decks
+- fix yaml parsing bugs
+
 ## [0.13.0-canary.6]
 
 ### Added
