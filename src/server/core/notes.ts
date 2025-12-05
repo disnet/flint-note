@@ -811,12 +811,16 @@ export class NoteManager {
 
     let formattedContent = '---\n';
 
+    // Helper to escape YAML string values (quotes and backslashes)
+    const escapeYamlString = (value: string): string =>
+      value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
     // Write new flint_* prefixed system fields first
     formattedContent += `flint_id: ${id}\n`;
     if (title && title.trim().length > 0) {
-      formattedContent += `flint_title: "${title}"\n`;
+      formattedContent += `flint_title: "${escapeYamlString(title)}"\n`;
     }
-    formattedContent += `flint_filename: "${baseFilename}"\n`;
+    formattedContent += `flint_filename: "${escapeYamlString(baseFilename)}"\n`;
     formattedContent += `flint_type: ${typeName}\n`;
     formattedContent += `flint_kind: ${kind}\n`;
     formattedContent += `flint_created: ${timestamp}\n`;

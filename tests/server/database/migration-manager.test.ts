@@ -2591,4 +2591,474 @@ metadata:
       ).resolves.toBeDefined();
     });
   });
+
+  describe('v2.17.0 migration - File-based type notes', () => {
+    it('should create type folder and meta-type during migration', async () => {
+      const db = await dbManager.connect();
+
+      // Create minimal v2.16.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          icon TEXT,
+          suggestions_config TEXT,
+          default_review_mode INTEGER DEFAULT 0,
+          editor_chips TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+      expect(result.executedMigrations).toContain('2.17.0');
+
+      // Verify type folder was created
+      const typeFolderExists = await fs
+        .access(path.join(workspacePath, 'type'))
+        .then(() => true)
+        .catch(() => false);
+      expect(typeFolderExists).toBe(true);
+
+      // Verify meta-type was created
+      const metaTypePath = path.join(workspacePath, 'type', 'type.md');
+      const metaTypeExists = await fs
+        .access(metaTypePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(metaTypeExists).toBe(true);
+
+      // Verify meta-type content is valid YAML
+      const metaTypeContent = await fs.readFile(metaTypePath, 'utf-8');
+      expect(metaTypeContent).toContain('flint_id:');
+      expect(metaTypeContent).toContain('flint_kind: type');
+      expect(metaTypeContent).toContain('name: type');
+    });
+
+    it('should migrate types from database to type note files', async () => {
+      const db = await dbManager.connect();
+
+      // Create schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          icon TEXT,
+          suggestions_config TEXT,
+          default_review_mode INTEGER DEFAULT 0,
+          editor_chips TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      // Insert test type
+      await db.run(
+        `INSERT INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, icon, default_review_mode)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'type-meeting-1',
+          workspacePath,
+          'meeting',
+          'Notes for recording meetings',
+          JSON.stringify(['Extract action items', 'Note decisions']),
+          JSON.stringify({ fields: [{ name: 'attendees', type: 'array' }] }),
+          '📅',
+          0
+        ]
+      );
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Verify type note file was created
+      const typeNotePath = path.join(workspacePath, 'type', 'meeting.md');
+      const typeNoteExists = await fs
+        .access(typeNotePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(typeNoteExists).toBe(true);
+
+      // Verify content is valid YAML
+      const content = await fs.readFile(typeNotePath, 'utf-8');
+      expect(content).toContain('name: meeting');
+      expect(content).toContain('📅'); // yaml.dump may or may not quote the emoji
+      expect(content).toContain('purpose:');
+      expect(content).toContain('Notes for recording meetings');
+      expect(content).toContain('agent_instructions:');
+      expect(content).toContain('Extract action items');
+      expect(content).toContain('metadata_schema:');
+      expect(content).toContain('attendees');
+    });
+
+    it('should handle migration with empty note_type_descriptions table', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration - should succeed with empty table
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Meta-type should still be created
+      const metaTypePath = path.join(workspacePath, 'type', 'type.md');
+      const metaTypeExists = await fs
+        .access(metaTypePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(metaTypeExists).toBe(true);
+    });
+
+    it('should be idempotent - skip existing type note files', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      // Insert type
+      await db.run(
+        `INSERT INTO note_type_descriptions (id, vault_id, type_name, purpose) VALUES (?, ?, ?, ?)`,
+        ['type-1', workspacePath, 'existing', 'Existing type']
+      );
+
+      // Pre-create the type folder and file
+      await fs.mkdir(path.join(workspacePath, 'type'), { recursive: true });
+      const existingContent = `---
+flint_id: n-preexist
+flint_title: existing
+flint_kind: type
+---
+name: existing
+purpose: Original content - should not be overwritten
+`;
+      await fs.writeFile(
+        path.join(workspacePath, 'type', 'existing.md'),
+        existingContent
+      );
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Verify file was NOT overwritten
+      const content = await fs.readFile(
+        path.join(workspacePath, 'type', 'existing.md'),
+        'utf-8'
+      );
+      expect(content).toContain('Original content - should not be overwritten');
+      expect(content).toContain('n-preexist');
+    });
+
+    it('should handle type with editor_chips', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          editor_chips TEXT,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      await db.run(
+        `INSERT INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, editor_chips)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          'type-chips',
+          workspacePath,
+          'withchips',
+          'Type with chips',
+          JSON.stringify(['field1', 'field2', 'field3'])
+        ]
+      );
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      const content = await fs.readFile(
+        path.join(workspacePath, 'type', 'withchips.md'),
+        'utf-8'
+      );
+      expect(content).toContain('editor_chips:');
+      expect(content).toContain('field1');
+      expect(content).toContain('field2');
+      expect(content).toContain('field3');
+    });
+
+    it('should handle type with multiline purpose', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      const multilinePurpose = 'Line one.\nLine two.\nLine three.';
+      await db.run(
+        `INSERT INTO note_type_descriptions (id, vault_id, type_name, purpose) VALUES (?, ?, ?, ?)`,
+        ['type-ml', workspacePath, 'multiline', multilinePurpose]
+      );
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.16.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      const content = await fs.readFile(
+        path.join(workspacePath, 'type', 'multiline.md'),
+        'utf-8'
+      );
+
+      // Should use block scalar syntax for multiline
+      expect(content).toContain('purpose: |');
+      expect(content).toContain('Line one.');
+    });
+
+    it('should handle invalid JSON in database gracefully', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      // Insert type with invalid JSON
+      await db.run(
+        `INSERT INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, agent_instructions, metadata_schema)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          'type-invalid',
+          workspacePath,
+          'invalidjson',
+          'Type with invalid JSON',
+          'not valid json',
+          '{ broken json }'
+        ]
+      );
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.16.0',
+        new Date().toISOString()
+      ]);
+
+      // Migration should not throw
+      await expect(
+        DatabaseMigrationManager.checkAndMigrate(
+          '2.16.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        )
+      ).resolves.toBeDefined();
+
+      // File should still be created with fallback values
+      const typeNotePath = path.join(workspacePath, 'type', 'invalidjson.md');
+      const exists = await fs
+        .access(typeNotePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(typeNotePath, 'utf-8');
+      expect(content).toContain('name: invalidjson');
+      expect(content).toContain('Type with invalid JSON');
+    });
+  });
 });

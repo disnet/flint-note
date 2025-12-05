@@ -2396,59 +2396,62 @@ default_review_mode: false
       const timestamp = new Date().toISOString();
       const noteId = 'n-' + crypto.randomBytes(4).toString('hex');
 
-      // Build YAML for the definition body
-      let definitionYaml = `name: ${typeName}\n`;
+      // Build frontmatter object
+      const frontmatter: Record<string, unknown> = {
+        flint_id: noteId,
+        flint_title: typeName,
+        flint_filename: typeName,
+        flint_type: 'type',
+        flint_kind: 'type',
+        flint_created: row.created_at || timestamp,
+        flint_updated: row.updated_at || timestamp
+      };
+
+      // Build definition object for YAML body
+      const definition: Record<string, unknown> = {
+        name: typeName
+      };
+
       if (row.icon) {
-        definitionYaml += `icon: "${row.icon}"\n`;
+        definition.icon = row.icon;
       }
-      definitionYaml += `purpose: |\n  ${(row.purpose || '').replace(/\n/g, '\n  ')}\n`;
+
+      definition.purpose = row.purpose || '';
 
       if (instructions.length > 0) {
-        definitionYaml += `agent_instructions:\n`;
-        for (const instr of instructions) {
-          definitionYaml += `  - ${instr}\n`;
-        }
+        definition.agent_instructions = instructions;
       }
 
       if (schema.fields && schema.fields.length > 0) {
-        definitionYaml += `metadata_schema:\n  fields:\n`;
-        for (const field of schema.fields as Array<Record<string, unknown>>) {
-          definitionYaml += `    - name: ${field.name}\n`;
-          definitionYaml += `      type: ${field.type || 'string'}\n`;
-          if (field.description) {
-            definitionYaml += `      description: ${field.description}\n`;
-          }
-          if (field.required) {
-            definitionYaml += `      required: true\n`;
-          }
-        }
+        definition.metadata_schema = schema;
       }
 
       if (suggestionsConfig !== null) {
-        definitionYaml += `suggestions_config: ${JSON.stringify(suggestionsConfig)}\n`;
+        definition.suggestions_config = suggestionsConfig;
       }
 
       if (row.default_review_mode !== null) {
-        definitionYaml += `default_review_mode: ${row.default_review_mode === 1}\n`;
+        definition.default_review_mode = row.default_review_mode === 1;
       }
 
       if (editorChips !== null) {
-        definitionYaml += `editor_chips:\n`;
-        for (const chip of editorChips) {
-          definitionYaml += `  - ${chip}\n`;
-        }
+        definition.editor_chips = editorChips;
       }
 
-      const noteContent = `---
-flint_id: ${noteId}
-flint_title: ${typeName}
-flint_filename: ${typeName}
-flint_type: type
-flint_kind: type
-flint_created: ${row.created_at || timestamp}
-flint_updated: ${row.updated_at || timestamp}
----
-${definitionYaml}`;
+      // Use yaml.dump for proper serialization (handles special chars, quoting, etc.)
+      const frontmatterYaml = yaml.dump(frontmatter, {
+        lineWidth: -1,
+        noRefs: true,
+        sortKeys: false
+      });
+
+      const definitionYaml = yaml.dump(definition, {
+        lineWidth: -1,
+        noRefs: true,
+        sortKeys: false
+      });
+
+      const noteContent = `---\n${frontmatterYaml}---\n${definitionYaml}`;
 
       await fsPromises.writeFile(typeNotePath, noteContent, 'utf-8');
       logger.info(`Migrated type '${typeName}' to type note file`);

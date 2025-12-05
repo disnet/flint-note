@@ -82,6 +82,78 @@ describe('FlintNoteApi - Note Operations', () => {
       expect(createdNote).toBeDefined();
       expect(createdNote.title).toBe(noteOptions.title);
     });
+
+    it('should handle double quotes in note title (YAML escaping)', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'My "Awesome" Note',
+        content: 'Testing double quotes in title.',
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+
+      expect(createdNote).toBeDefined();
+      expect(createdNote.title).toBe(noteOptions.title);
+
+      // Verify the note can be retrieved and parsed correctly
+      const retrievedNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(retrievedNote?.title).toBe(noteOptions.title);
+    });
+
+    it('should handle backslashes in note title (YAML escaping)', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'Path\\to\\file',
+        content: 'Testing backslashes in title.',
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+
+      expect(createdNote).toBeDefined();
+      expect(createdNote.title).toBe(noteOptions.title);
+
+      // Verify the note can be retrieved and parsed correctly
+      const retrievedNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(retrievedNote?.title).toBe(noteOptions.title);
+    });
+
+    it('should handle mixed quotes and backslashes in title', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'He said "Hello\\World"',
+        content: 'Testing mixed special characters.',
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+
+      expect(createdNote).toBeDefined();
+      expect(createdNote.title).toBe(noteOptions.title);
+
+      // Verify roundtrip
+      const retrievedNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(retrievedNote?.title).toBe(noteOptions.title);
+    });
+
+    it('should handle colons in note title (YAML special char)', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'Meeting: 2024-01-15: Planning Session',
+        content: 'Testing colons in title.',
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+
+      expect(createdNote).toBeDefined();
+      expect(createdNote.title).toBe(noteOptions.title);
+
+      // Verify roundtrip
+      const retrievedNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(retrievedNote?.title).toBe(noteOptions.title);
+    });
   });
 
   describe('getNote', () => {
@@ -191,6 +263,83 @@ describe('FlintNoteApi - Note Operations', () => {
       expect(updatedNote?.metadata?.tags).toEqual(['updated', 'test']);
       expect(updatedNote?.metadata?.priority).toBe('high');
       expect(updatedNote?.metadata?.status).toBe('in-progress');
+    });
+
+    it('should handle metadata with double quotes (YAML escaping)', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'Note for Quote Metadata',
+        content: 'Testing metadata escaping',
+        metadata: {
+          description: 'He said "Hello World"',
+          author: 'John "The Dev" Doe'
+        },
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+      const fullNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+
+      // Update with more special chars in metadata
+      const updateOptions = {
+        identifier: createdNote.id,
+        content: 'Updated content',
+        contentHash: fullNote!.content_hash,
+        metadata: {
+          description: 'She replied "Nice to meet you"',
+          notes: 'Contains "nested" quotes'
+        },
+        vaultId: testVaultId
+      };
+
+      await testSetup.api.updateNote(updateOptions);
+
+      // Verify roundtrip
+      const updatedNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(updatedNote?.metadata?.description).toBe('She replied "Nice to meet you"');
+      expect(updatedNote?.metadata?.notes).toBe('Contains "nested" quotes');
+    });
+
+    it('should handle metadata with backslashes (YAML escaping)', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'Note for Backslash Metadata',
+        content: 'Testing backslash escaping',
+        metadata: {
+          file_location: 'C:\\Users\\Documents\\file.txt',
+          regex_pattern: 'regex\\d+pattern'
+        },
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+      const fullNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+      expect(fullNote).toBeDefined();
+
+      // Verify the metadata was stored correctly
+      expect(fullNote?.metadata?.file_location).toBe('C:\\Users\\Documents\\file.txt');
+      expect(fullNote?.metadata?.regex_pattern).toBe('regex\\d+pattern');
+    });
+
+    it('should handle tags array with special characters', async () => {
+      const noteOptions = {
+        type: 'general',
+        title: 'Note with Special Tags',
+        content: 'Testing tag escaping',
+        metadata: {
+          tags: ['tag-with-"quotes"', 'tag\\with\\backslash', 'normal-tag']
+        },
+        vaultId: testVaultId
+      };
+
+      const createdNote = await testSetup.api.createNote(noteOptions);
+      const fullNote = await testSetup.api.getNote(testVaultId, createdNote.id);
+
+      expect(fullNote?.metadata?.tags).toEqual([
+        'tag-with-"quotes"',
+        'tag\\with\\backslash',
+        'normal-tag'
+      ]);
     });
   });
 
