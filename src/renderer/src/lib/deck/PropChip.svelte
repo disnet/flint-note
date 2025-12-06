@@ -176,6 +176,10 @@
     border-color: var(--border-medium);
   }
 
+  .prop-chip-wrapper:has(.sorted) {
+    border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  }
+
   .prop-chip-wrapper.dragging {
     visibility: hidden;
   }
@@ -208,14 +212,13 @@
   }
 
   .drag-handle.sorted {
-    background: var(--accent-primary);
-    color: white;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .drag-handle.sorted:hover {
-    background: var(--accent-primary);
-    color: white;
-    opacity: 0.9;
+    background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+    color: var(--accent-primary);
   }
 
   .prop-chip {
@@ -236,8 +239,8 @@
   }
 
   .prop-chip.sorted {
-    background: var(--accent-primary);
-    color: white;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .prop-label {
@@ -264,8 +267,8 @@
   }
 
   .sort-btn.active {
-    background: var(--accent-primary);
-    color: white;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .visibility-btn {
@@ -292,13 +295,13 @@
   }
 
   .visibility-btn.sorted {
-    background: var(--accent-primary);
-    color: white;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .visibility-btn.sorted.hidden {
-    opacity: 1;
-    color: rgba(255, 255, 255, 0.7);
+    opacity: 0.7;
+    color: var(--accent-primary);
   }
 
   .visibility-btn svg {
@@ -320,6 +323,6 @@
   }
 
   .prop-chip-wrapper.hidden .prop-chip.sorted {
-    color: white;
+    color: var(--accent-primary);
   }
 </style>
