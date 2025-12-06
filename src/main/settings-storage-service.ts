@@ -1,4 +1,18 @@
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join } from 'path';
 import { BaseStorageService } from './storage-service';
+import { logger } from './logger';
+
+/**
+ * Window state for persistence across app restarts
+ */
+export interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
 
 /**
  * Storage service for global application settings that are not vault-specific.
@@ -71,5 +85,39 @@ export class SettingsStorageService extends BaseStorageService {
   async saveSidebarState(collapsed: boolean): Promise<void> {
     const filePath = this.getStoragePath('settings', 'sidebar-state.json');
     await this.writeJsonFile(filePath, { collapsed });
+  }
+
+  /**
+   * Load window state from file
+   */
+  async loadWindowState(): Promise<WindowState | null> {
+    const filePath = this.getStoragePath('settings', 'window-state.json');
+    return await this.readJsonFile<WindowState | null>(filePath, null);
+  }
+
+  /**
+   * Save window state to file
+   */
+  async saveWindowState(state: WindowState): Promise<void> {
+    const filePath = this.getStoragePath('settings', 'window-state.json');
+    await this.writeJsonFile(filePath, state);
+  }
+
+  /**
+   * Save window state synchronously (for use in close handlers where async may not complete)
+   */
+  saveWindowStateSync(state: WindowState): void {
+    const filePath = this.getStoragePath('settings', 'window-state.json');
+    try {
+      // Ensure directory exists
+      const parentDir = join(filePath, '..');
+      if (!existsSync(parentDir)) {
+        mkdirSync(parentDir, { recursive: true });
+      }
+      writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
+      logger.debug('Saved window state synchronously', { filePath });
+    } catch (error) {
+      logger.error('Failed to save window state synchronously', { error });
+    }
   }
 }

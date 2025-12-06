@@ -16,7 +16,7 @@ type AIServiceWithPrivateProps = {
 import { NoteService } from './note-service';
 import { WorkflowService } from './workflow-service';
 import { SecureStorageService } from './secure-storage-service';
-import { SettingsStorageService } from './settings-storage-service';
+import { SettingsStorageService, type WindowState } from './settings-storage-service';
 import {
   VaultDataStorageService,
   type CursorPosition
@@ -196,14 +196,28 @@ async function convertImagesToDataUris(
   return dom.serialize();
 }
 
-function createWindow(): void {
+async function createWindow(
+  settingsStorageService: SettingsStorageService
+): Promise<void> {
+  // Load saved window state
+  const savedState = await settingsStorageService.loadWindowState();
+  const defaultWidth = 1600;
+  const defaultHeight = 900;
+
+  logger.info('Creating window with state', {
+    savedState,
+    usingDefaults: !savedState
+  });
+
   // Create the browser window.
   // Frameless window on all platforms - custom title bar handles menu and window controls
   // On macOS: hiddenInset shows traffic lights
   // On Windows/Linux: custom window controls and menu bar rendered in title bar
   const mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 900,
+    width: savedState?.width ?? defaultWidth,
+    height: savedState?.height ?? defaultHeight,
+    x: savedState?.x,
+    y: savedState?.y,
     show: false,
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
@@ -213,6 +227,59 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false
     }
+  });
+
+  // Restore maximized state if it was saved
+  if (savedState?.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  // Track window state for persistence
+  let windowState: WindowState = {
+    width: savedState?.width ?? defaultWidth,
+    height: savedState?.height ?? defaultHeight,
+    x: savedState?.x,
+    y: savedState?.y,
+    isMaximized: savedState?.isMaximized ?? false
+  };
+
+  // Debounce timer for saving window state
+  let saveTimeout: NodeJS.Timeout | null = null;
+
+  // Save state with debouncing to avoid excessive writes
+  const saveWindowStateDebounced = (): void => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+      settingsStorageService.saveWindowStateSync(windowState);
+    }, 500); // Save 500ms after last change
+  };
+
+  // Update state when window is resized or moved (but not when maximized)
+  const updateWindowState = (): void => {
+    if (!mainWindow.isMaximized() && !mainWindow.isMinimized()) {
+      const bounds = mainWindow.getBounds();
+      windowState = {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        isMaximized: false
+      };
+      saveWindowStateDebounced();
+    }
+  };
+
+  mainWindow.on('resize', updateWindowState);
+  mainWindow.on('move', updateWindowState);
+  mainWindow.on('maximize', () => {
+    windowState.isMaximized = true;
+    saveWindowStateDebounced();
+  });
+  mainWindow.on('unmaximize', () => {
+    windowState.isMaximized = false;
+    updateWindowState();
   });
 
   mainWindow.on('ready-to-show', () => {
@@ -3521,7 +3588,7 @@ app.whenReady().then(async () => {
     }
   );
 
-  createWindow();
+  await createWindow(settingsStorageService);
   logger.info('Main window created and IPC handlers registered');
 
   // Set main window for auto-updater
@@ -3548,12 +3615,12 @@ app.whenReady().then(async () => {
     logger.info(`Theme changed, updated window background to: ${newBackgroundColor}`);
   });
 
-  app.on('activate', function () {
+  app.on('activate', async function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       logger.info('Reactivating application, creating new window');
-      createWindow();
+      await createWindow(settingsStorageService);
     }
   });
 });
