@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import type { DeckSort, ColumnConfig, FilterFieldInfo } from './types';
   import { SYSTEM_FIELDS } from './types';
   import PropChip from './PropChip.svelte';
@@ -42,7 +43,7 @@
   let ghostElement = $state<HTMLElement | null>(null);
   let initialY = $state<number>(0);
   let grabOffsetX = $state<number>(0); // Offset from cursor to left edge of chip
-  let chipRects = $state<Map<number, DOMRect>>(new Map());
+  let chipRects = new SvelteMap<number, DOMRect>();
   let draggedWidth = $state<number>(0);
 
   // Calculate which direction each item should shift
@@ -82,7 +83,7 @@
     const toolbar = chipWrapper.closest('.deck-toolbar');
     if (toolbar) {
       const chips = toolbar.querySelectorAll('.prop-chip-wrapper');
-      chipRects = new Map();
+      chipRects = new SvelteMap();
       chips.forEach((chip, idx) => {
         chipRects.set(idx, chip.getBoundingClientRect());
       });
@@ -181,7 +182,7 @@
 
     draggedIndex = null;
     targetIndex = null;
-    chipRects = new Map();
+    chipRects = new SvelteMap();
   }
 
   // Get label for a column field
