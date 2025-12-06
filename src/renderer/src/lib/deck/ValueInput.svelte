@@ -89,14 +89,14 @@
   }
 
   // Check if we have options available (for select fields or fields with suggestions)
-  const hasOptions = $derived(options.length > 0);
+  const hasOptions = $derived(options && options.length > 0);
 
   // For multi-value operators with available options, show checkboxes
   const isMultiSelectCheckbox = $derived(isMultiValue && hasOptions);
 
   // For single-value select dropdown (only when fieldType is 'select' and has options)
   const selectOptions = $derived(
-    fieldType === 'select' && options.length > 0 ? options : null
+    fieldType === 'select' && options && options.length > 0 ? options : null
   );
 
   // Handle checkbox toggle for multi-select
@@ -113,7 +113,7 @@
 
   // For select fields, add <empty> option to suggestions
   const effectiveSuggestions = $derived.by(() => {
-    if (fieldType === 'select' && options.length > 0) {
+    if (fieldType === 'select' && options && options.length > 0) {
       // Add <empty> at the start, then the select options
       return [EMPTY_MARKER, ...options];
     }

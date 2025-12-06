@@ -342,6 +342,7 @@ declare global {
           id: string;
           title: string;
           type: string;
+          flint_kind?: string;
           created: string;
           updated: string;
           metadata: Record<string, unknown>;

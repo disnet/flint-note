@@ -127,6 +127,7 @@ export async function runDeckQuery(
       id: note.id,
       title: note.title,
       type: note.type,
+      kind: note.flint_kind,
       created: note.created,
       updated: note.updated,
       metadata: extractUserMetadata(note.metadata)

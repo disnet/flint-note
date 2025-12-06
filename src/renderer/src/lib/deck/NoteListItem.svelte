@@ -287,6 +287,7 @@
       return note.title || '';
     }
     if (field === 'type' || field === 'flint_type') return note.type;
+    if (field === 'kind' || field === 'flint_kind') return note.kind || '';
     if (field === 'created' || field === 'flint_created') {
       return formatDate(note.created);
     }
@@ -323,6 +324,7 @@
       field === 'flint_type'
     )
       return 'system';
+    if (field === 'kind' || field === 'flint_kind') return 'select';
     if (
       field === 'created' ||
       field === 'updated' ||
@@ -336,6 +338,9 @@
 
   // Get field options for select fields
   function getFieldOptions(field: string): string[] {
+    if (field === 'kind' || field === 'flint_kind') {
+      return ['markdown', 'epub', 'pdf', 'webpage', 'deck', 'type'];
+    }
     return schemaFields.get(field)?.options ?? [];
   }
 
@@ -349,6 +354,7 @@
   function isEditable(field: string): boolean {
     // System fields (except title) are not editable
     if (field === 'type' || field === 'flint_type') return false;
+    if (field === 'kind' || field === 'flint_kind') return false;
     if (field === 'created' || field === 'updated') return false;
     if (field === 'flint_created' || field === 'flint_updated') return false;
     return true;
@@ -358,6 +364,7 @@
   function getRawValue(field: string): unknown {
     if (field === 'title' || field === 'flint_title') return note.title || '';
     if (field === 'type' || field === 'flint_type') return note.type;
+    if (field === 'kind' || field === 'flint_kind') return note.kind || '';
     if (field === 'created' || field === 'flint_created') return note.created;
     if (field === 'updated' || field === 'flint_updated') return note.updated;
     return note.metadata[field] ?? '';

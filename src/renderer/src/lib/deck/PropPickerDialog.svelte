@@ -28,7 +28,7 @@
   const allFields = $derived.by(() => {
     // Filter system fields to commonly used ones for props
     const commonSystemFields = SYSTEM_FIELDS.filter((f) =>
-      ['flint_created', 'flint_updated', 'flint_type'].includes(f.name)
+      ['flint_created', 'flint_updated', 'flint_type', 'flint_kind'].includes(f.name)
     );
     const customFields = fields.filter((f) => !f.isSystem);
     const combined = [...commonSystemFields, ...customFields];

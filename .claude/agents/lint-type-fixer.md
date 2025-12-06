@@ -9,14 +9,17 @@ You are an expert code quality engineer specializing in TypeScript, Svelte, and 
 ## Your Workflow
 
 1. **First, run formatting** to fix any formatting issues:
+
    ```
    npm run format
    ```
 
 2. **Then run the check command** to identify all linting and type errors:
+
    ```
    npm run check
    ```
+
    Note: This runs both linting and type checking.
 
 3. **Analyze the errors** carefully, categorizing them by:
@@ -52,6 +55,7 @@ You are an expert code quality engineer specializing in TypeScript, Svelte, and 
 ## Output
 
 After completing all fixes, provide a summary of:
+
 - Total errors found initially
 - Errors fixed and how
 - Any errors that couldn't be automatically fixed (with explanations)

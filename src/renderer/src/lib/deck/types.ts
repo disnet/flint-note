@@ -159,6 +159,14 @@ export const OPERATORS_BY_TYPE: Record<MetadataFieldType | 'system', FilterOpera
  */
 export const SYSTEM_FIELDS: FilterFieldInfo[] = [
   { name: 'flint_type', label: 'Type', type: 'system', isSystem: true },
+  {
+    name: 'flint_kind',
+    label: 'Kind',
+    type: 'select',
+    isSystem: true,
+    options: ['markdown', 'epub', 'pdf', 'webpage', 'deck', 'type'],
+    description: 'Content rendering type (markdown, pdf, epub, etc.)'
+  },
   { name: 'flint_title', label: 'Title', type: 'system', isSystem: true },
   { name: 'flint_created', label: 'Created', type: 'date', isSystem: true },
   { name: 'flint_updated', label: 'Updated', type: 'date', isSystem: true },
@@ -317,6 +325,7 @@ export interface DeckResultNote {
   id: string;
   title: string;
   type: string;
+  kind?: string;
   created: string;
   updated: string;
   /** User-defined metadata fields */

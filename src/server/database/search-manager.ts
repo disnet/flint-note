@@ -175,6 +175,7 @@ export interface DataviewNote {
   id: string;
   title: string;
   type: string;
+  flint_kind?: string;
   created: string;
   updated: string;
   metadata: Record<string, unknown>;
@@ -759,7 +760,7 @@ export class HybridSearchManager {
       const offset = options.offset ?? 0;
 
       // Base SELECT - we'll add sort columns dynamically
-      let sql = 'SELECT n.id, n.title, n.type, n.created, n.updated';
+      let sql = 'SELECT n.id, n.title, n.type, n.flint_kind, n.created, n.updated';
       const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
       let fromClause = ' FROM notes n';
       const whereConditions: string[] = [];
@@ -805,6 +806,38 @@ export class HybridSearchManager {
           const alias = `m${index}`;
           const operator = filter.operator || '=';
           const isEmptyFilter = filter.value === EMPTY_MARKER;
+
+          // Handle flint_kind specially - it's a column on the notes table, not in note_metadata
+          if (filter.key === 'flint_kind') {
+            const filterValue = Array.isArray(filter.value)
+              ? filter.value[0]
+              : filter.value;
+            if (operator === '=' && !isEmptyFilter) {
+              whereConditions.push('n.flint_kind = ?');
+              whereParams.push(filterValue);
+            } else if (operator === '!=') {
+              if (isEmptyFilter) {
+                whereConditions.push("(n.flint_kind IS NOT NULL AND n.flint_kind != '')");
+              } else {
+                whereConditions.push('(n.flint_kind IS NULL OR n.flint_kind != ?)');
+                whereParams.push(filterValue);
+              }
+            } else if (operator === 'IN') {
+              const values = Array.isArray(filter.value)
+                ? filter.value
+                : filter.value.split(',').map((v) => v.trim());
+              const placeholders = values.map(() => '?').join(',');
+              whereConditions.push(`n.flint_kind IN (${placeholders})`);
+              whereParams.push(...values);
+            } else if (isEmptyFilter) {
+              whereConditions.push("(n.flint_kind IS NULL OR n.flint_kind = '')");
+            } else {
+              // Fallback: treat as equals
+              whereConditions.push('n.flint_kind = ?');
+              whereParams.push(filterValue);
+            }
+            return; // Skip normal metadata filter processing
+          }
 
           if (operator === '!=') {
             if (isEmptyFilter) {
@@ -1014,6 +1047,7 @@ export class HybridSearchManager {
         id: string;
         title: string;
         type: string;
+        flint_kind: string | null;
         created: string;
         updated: string;
       }>(mainSql, [...params, limit, offset]);
@@ -1027,6 +1061,7 @@ export class HybridSearchManager {
         id: row.id,
         title: row.title || '',
         type: row.type,
+        flint_kind: row.flint_kind || undefined,
         created: row.created,
         updated: row.updated,
         metadata: metadataMap.get(row.id) || {}
