@@ -847,6 +847,10 @@
     updateActiveView({ columns: newColumns });
   }
 
+  function handleColumnsReorder(newColumns: ColumnConfig[]): void {
+    updateActiveView({ columns: newColumns });
+  }
+
   // ========================================
   // Pagination Handlers
   // ========================================
@@ -926,6 +930,7 @@
     onAddProp={handleAddPropClick}
     onVisibilityToggle={handleVisibilityToggle}
     onSort={handleSort}
+    onReorder={handleColumnsReorder}
   />
 
   <!-- Prop Picker Dialog -->

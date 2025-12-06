@@ -609,10 +609,7 @@ views:
           {
             name: 'Test',
             filters: [],
-            columns: [
-              { field: 'status', visible: false },
-              { field: 'title' }
-            ]
+            columns: [{ field: 'status', visible: false }, { field: 'title' }]
           }
         ],
         activeView: 0
@@ -639,7 +636,12 @@ views:
             name: 'Test',
             filters: [],
             columns: [
-              { field: 'created', label: 'Created At', format: 'relative', visible: false }
+              {
+                field: 'created',
+                label: 'Created At',
+                format: 'relative',
+                visible: false
+              }
             ]
           }
         ],

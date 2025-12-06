@@ -16,6 +16,14 @@
     onVisibilityToggle?: (field: string, visible: boolean) => void;
     /** Called when sort is toggled */
     onSort?: (field: string, order: 'asc' | 'desc') => void;
+    /** Whether this chip is currently being dragged */
+    isDragging?: boolean;
+    /** Direction this chip should shift to make room for dragged item */
+    shiftDirection?: 'left' | 'right' | null;
+    /** Amount to shift in pixels (width of dragged item + gap) */
+    shiftAmount?: number;
+    /** Called when pointer down on drag handle */
+    onDragHandlePointerDown?: (event: PointerEvent) => void;
   }
 
   let {
@@ -25,11 +33,27 @@
     sort,
     onClick,
     onVisibilityToggle,
-    onSort
+    onSort,
+    isDragging = false,
+    shiftDirection = null,
+    shiftAmount = 0,
+    onDragHandlePointerDown
   }: Props = $props();
 
   const isSorted = $derived(sort?.field === field);
   const sortOrder = $derived(isSorted ? sort?.order : null);
+
+  // Calculate transform based on shift direction
+  const shiftTransform = $derived.by(() => {
+    if (!shiftDirection || !shiftAmount) return 'none';
+    // Add gap (8px = 0.5rem) to the shift amount
+    const totalShift = shiftAmount + 8;
+    if (shiftDirection === 'left') {
+      return `translateX(-${totalShift}px)`;
+    } else {
+      return `translateX(${totalShift}px)`;
+    }
+  });
 
   function handleVisibilityToggle(event: MouseEvent): void {
     event.stopPropagation();
@@ -45,7 +69,32 @@
   }
 </script>
 
-<div class="prop-chip-wrapper" class:hidden={!visible}>
+<div
+  class="prop-chip-wrapper"
+  class:hidden={!visible}
+  class:dragging={isDragging}
+  class:shifting={shiftDirection !== null}
+  role="listitem"
+  style:transform={shiftTransform}
+>
+  <!-- Drag handle -->
+  <button
+    class="drag-handle"
+    class:sorted={isSorted}
+    type="button"
+    aria-label="Drag to reorder"
+    title="Drag to reorder"
+    onpointerdown={onDragHandlePointerDown}
+  >
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="9" cy="5" r="1.5" />
+      <circle cx="15" cy="5" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="19" r="1.5" />
+      <circle cx="15" cy="19" r="1.5" />
+    </svg>
+  </button>
   <button
     class="prop-chip"
     class:sorted={isSorted}
@@ -117,11 +166,56 @@
     border-radius: 1rem;
     background: var(--bg-secondary);
     overflow: hidden;
-    transition: border-color 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+    position: relative;
   }
 
   .prop-chip-wrapper:hover {
     border-color: var(--border-medium);
+  }
+
+  .prop-chip-wrapper.dragging {
+    visibility: hidden;
+  }
+
+  .prop-chip-wrapper.shifting {
+    /* Smooth animation when shifting to make room */
+    z-index: 1;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.25rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: grab;
+    transition: all 0.15s ease;
+    touch-action: none; /* Prevent scrolling while dragging on touch */
+  }
+
+  .drag-handle:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .drag-handle.sorted {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .drag-handle.sorted:hover {
+    background: var(--accent-primary);
+    color: white;
+    opacity: 0.9;
   }
 
   .prop-chip {
