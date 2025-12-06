@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SvelteMap } from 'svelte/reactivity';
+  import { onDestroy } from 'svelte';
   import type { DeckSort, ColumnConfig, FilterFieldInfo } from './types';
   import { SYSTEM_FIELDS } from './types';
   import PropChip from './PropChip.svelte';
@@ -41,35 +41,51 @@
   let draggedIndex = $state<number | null>(null);
   let targetIndex = $state<number | null>(null);
   let ghostElement = $state<HTMLElement | null>(null);
-  let initialY = $state<number>(0);
-  let grabOffsetX = $state<number>(0); // Offset from cursor to left edge of chip
-  let chipRects = new SvelteMap<number, DOMRect>();
-  let draggedWidth = $state<number>(0);
+  let grabOffsetX = $state<number>(0);
+  let grabOffsetY = $state<number>(0);
+  let chipRects = $state<Map<number, DOMRect>>(new Map());
+  let activePointerId = $state<number | null>(null);
 
-  // Calculate which direction each item should shift
-  function getShiftDirection(index: number): 'left' | 'right' | null {
+  // Calculate the transform offset for each item to animate to its new position
+  function getShiftOffset(index: number): { x: number; y: number } | null {
     if (draggedIndex === null || targetIndex === null) return null;
     if (index === draggedIndex) return null;
+    if (draggedIndex === targetIndex) return null;
 
-    // If dragging right (to higher index)
+    const currentRect = chipRects.get(index);
+    if (!currentRect) return null;
+
+    // Determine the visual index this item should move to
+    let visualIndex: number;
+
     if (targetIndex > draggedIndex) {
-      // Items between draggedIndex and targetIndex shift left
+      // Dragging right: items between dragged+1 and target shift left (to previous index)
       if (index > draggedIndex && index <= targetIndex) {
-        return 'left';
+        visualIndex = index - 1;
+      } else {
+        return null;
       }
-    }
-    // If dragging left (to lower index)
-    else if (targetIndex < draggedIndex) {
-      // Items between targetIndex and draggedIndex shift right
+    } else {
+      // Dragging left: items between target and dragged-1 shift right (to next index)
       if (index >= targetIndex && index < draggedIndex) {
-        return 'right';
+        visualIndex = index + 1;
+      } else {
+        return null;
       }
     }
-    return null;
+
+    // Get the rect of the position this item should move to
+    const targetRect = chipRects.get(visualIndex);
+    if (!targetRect) return null;
+
+    // Calculate offset from current position to target position
+    return {
+      x: targetRect.left - currentRect.left,
+      y: targetRect.top - currentRect.top
+    };
   }
 
   function handleDragHandlePointerDown(event: PointerEvent, index: number): void {
-    // Only handle left mouse button
     if (event.button !== 0) return;
 
     const target = event.currentTarget as HTMLElement;
@@ -83,19 +99,18 @@
     const toolbar = chipWrapper.closest('.deck-toolbar');
     if (toolbar) {
       const chips = toolbar.querySelectorAll('.prop-chip-wrapper');
-      chipRects = new SvelteMap();
+      const newRects = new Map<number, DOMRect>();
       chips.forEach((chip, idx) => {
-        chipRects.set(idx, chip.getBoundingClientRect());
+        newRects.set(idx, chip.getBoundingClientRect());
       });
+      chipRects = newRects;
     }
 
     draggedIndex = index;
     targetIndex = index;
-    draggedWidth = chipWrapper.offsetWidth;
     const rect = chipWrapper.getBoundingClientRect();
-    initialY = rect.top;
-    // Calculate offset from cursor to left edge of chip (so ghost stays where grabbed)
     grabOffsetX = event.clientX - rect.left;
+    grabOffsetY = event.clientY - rect.top;
 
     // Create ghost element
     const ghost = chipWrapper.cloneNode(true) as HTMLElement;
@@ -105,7 +120,7 @@
       pointer-events: none;
       z-index: 10000;
       width: ${chipWrapper.offsetWidth}px;
-      top: ${initialY}px;
+      top: ${rect.top}px;
       left: ${rect.left}px;
       opacity: 0.95;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -115,37 +130,41 @@
     document.body.appendChild(ghost);
     ghostElement = ghost;
 
-    // Capture pointer on the handle
+    activePointerId = event.pointerId;
     target.setPointerCapture(event.pointerId);
 
-    // Add move and up listeners to the handle
-    target.addEventListener('pointermove', handlePointerMove);
-    target.addEventListener('pointerup', handlePointerUp);
-    target.addEventListener('pointercancel', handlePointerUp);
+    // Use document-level listeners for more reliable cleanup
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('pointercancel', handlePointerUp);
   }
 
   function handlePointerMove(event: PointerEvent): void {
     if (draggedIndex === null || !ghostElement) return;
+    if (event.pointerId !== activePointerId) return;
 
-    // Update ghost position (locked to initial Y, follows X using grab offset)
+    // Update ghost position (follows cursor with grab offset)
     ghostElement.style.left = `${event.clientX - grabOffsetX}px`;
+    ghostElement.style.top = `${event.clientY - grabOffsetY}px`;
 
-    // Find which position we should move to based on X
-    const centerX = event.clientX;
-    const currentDraggedIndex = draggedIndex; // Store to satisfy TypeScript in forEach
+    // Find closest chip position based on cursor
+    const cursorX = event.clientX;
+    const cursorY = event.clientY;
+    const currentDraggedIndex = draggedIndex;
     let newTargetIndex = currentDraggedIndex;
+    let minDistance = Infinity;
 
     chipRects.forEach((rect, idx) => {
-      if (idx === currentDraggedIndex) return;
+      // Calculate distance to chip center
       const chipCenterX = rect.left + rect.width / 2;
+      const chipCenterY = rect.top + rect.height / 2;
+      const distance = Math.sqrt(
+        Math.pow(cursorX - chipCenterX, 2) + Math.pow(cursorY - chipCenterY, 2)
+      );
 
-      // When moving right, check if we've passed the center of items to the right
-      if (idx > currentDraggedIndex && centerX > chipCenterX) {
-        newTargetIndex = Math.max(newTargetIndex, idx);
-      }
-      // When moving left, check if we've passed the center of items to the left
-      else if (idx < currentDraggedIndex && centerX < chipCenterX) {
-        newTargetIndex = Math.min(newTargetIndex, idx);
+      if (distance < minDistance) {
+        minDistance = distance;
+        newTargetIndex = idx;
       }
     });
 
@@ -153,21 +172,10 @@
   }
 
   function handlePointerUp(event: PointerEvent): void {
-    const target = event.currentTarget as HTMLElement;
+    if (event.pointerId !== activePointerId) return;
 
-    // Remove listeners
-    target.removeEventListener('pointermove', handlePointerMove);
-    target.removeEventListener('pointerup', handlePointerUp);
-    target.removeEventListener('pointercancel', handlePointerUp);
-    target.releasePointerCapture(event.pointerId);
+    cleanupDrag();
 
-    // Remove ghost
-    if (ghostElement) {
-      ghostElement.remove();
-      ghostElement = null;
-    }
-
-    // Perform reorder if target changed
     if (
       draggedIndex !== null &&
       targetIndex !== null &&
@@ -182,13 +190,29 @@
 
     draggedIndex = null;
     targetIndex = null;
-    chipRects = new SvelteMap();
+    chipRects = new Map();
+    activePointerId = null;
   }
+
+  function cleanupDrag(): void {
+    document.removeEventListener('pointermove', handlePointerMove);
+    document.removeEventListener('pointerup', handlePointerUp);
+    document.removeEventListener('pointercancel', handlePointerUp);
+
+    if (ghostElement) {
+      ghostElement.remove();
+      ghostElement = null;
+    }
+  }
+
+  // Clean up on component destroy
+  onDestroy(() => {
+    cleanupDrag();
+  });
 
   // Get label for a column field
   function getColumnLabel(column: ColumnConfig): string {
     if (column.label) return column.label;
-    // Check system fields first
     const systemField = SYSTEM_FIELDS.find(
       (f) =>
         f.name === column.field ||
@@ -196,10 +220,8 @@
         column.field === f.name.replace('flint_', '')
     );
     if (systemField) return systemField.label;
-    // Check available fields from schema
     const schemaField = availableFields.find((f) => f.name === column.field);
     if (schemaField) return schemaField.label;
-    // Fallback
     return column.field.replace(/^flint_/, '').replace(/_/g, ' ');
   }
 </script>
@@ -235,8 +257,7 @@
       {onVisibilityToggle}
       {onSort}
       isDragging={draggedIndex === index}
-      shiftDirection={getShiftDirection(index)}
-      shiftAmount={draggedWidth}
+      shiftOffset={getShiftOffset(index)}
       onDragHandlePointerDown={(event) => handleDragHandlePointerDown(event, index)}
     />
   {/each}

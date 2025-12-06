@@ -18,10 +18,8 @@
     onSort?: (field: string, order: 'asc' | 'desc') => void;
     /** Whether this chip is currently being dragged */
     isDragging?: boolean;
-    /** Direction this chip should shift to make room for dragged item */
-    shiftDirection?: 'left' | 'right' | null;
-    /** Amount to shift in pixels (width of dragged item + gap) */
-    shiftAmount?: number;
+    /** Offset to shift this chip to make room for dragged item (supports wrapping) */
+    shiftOffset?: { x: number; y: number } | null;
     /** Called when pointer down on drag handle */
     onDragHandlePointerDown?: (event: PointerEvent) => void;
   }
@@ -35,24 +33,17 @@
     onVisibilityToggle,
     onSort,
     isDragging = false,
-    shiftDirection = null,
-    shiftAmount = 0,
+    shiftOffset = null,
     onDragHandlePointerDown
   }: Props = $props();
 
   const isSorted = $derived(sort?.field === field);
   const sortOrder = $derived(isSorted ? sort?.order : null);
 
-  // Calculate transform based on shift direction
+  // Calculate transform based on shift offset
   const shiftTransform = $derived.by(() => {
-    if (!shiftDirection || !shiftAmount) return 'none';
-    // Add gap (8px = 0.5rem) to the shift amount
-    const totalShift = shiftAmount + 8;
-    if (shiftDirection === 'left') {
-      return `translateX(-${totalShift}px)`;
-    } else {
-      return `translateX(${totalShift}px)`;
-    }
+    if (!shiftOffset) return 'none';
+    return `translate(${shiftOffset.x}px, ${shiftOffset.y}px)`;
   });
 
   function handleVisibilityToggle(event: MouseEvent): void {
@@ -73,7 +64,7 @@
   class="prop-chip-wrapper"
   class:hidden={!visible}
   class:dragging={isDragging}
-  class:shifting={shiftDirection !== null}
+  class:shifting={shiftOffset !== null}
   role="listitem"
   style:transform={shiftTransform}
 >
@@ -170,6 +161,7 @@
       border-color 0.15s ease,
       transform 0.2s cubic-bezier(0.2, 0, 0, 1);
     position: relative;
+    z-index: 0;
   }
 
   .prop-chip-wrapper:hover {
@@ -185,8 +177,8 @@
   }
 
   .prop-chip-wrapper.shifting {
-    /* Smooth animation when shifting to make room */
-    z-index: 1;
+    /* Elevate shifting chips above non-shifting ones */
+    z-index: 10;
   }
 
   .drag-handle {
