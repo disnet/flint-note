@@ -2237,7 +2237,7 @@
     align-items: center;
     gap: 0.75rem;
     flex-shrink: 0;
-    -webkit-app-region: no-drag;
+    /* Inherits drag from parent - individual controls opt out */
   }
 
   .hamburger-wrapper {
@@ -2245,6 +2245,7 @@
     display: flex;
     align-items: center;
     height: 100%;
+    -webkit-app-region: no-drag;
   }
 
   .hamburger-button {
@@ -2268,6 +2269,16 @@
   /* Add padding around hamburger menu on Windows */
   :global(html[data-platform='other']) .hamburger-wrapper {
     margin-left: 0.5rem;
+  }
+
+  /* Make VaultSwitcher non-draggable */
+  .title-bar-left :global(.vault-switcher) {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Make UpdateIndicator non-draggable */
+  .title-bar-controls :global(.update-indicator) {
+    -webkit-app-region: no-drag;
   }
 
   .title-bar-center {
@@ -2325,7 +2336,7 @@
     justify-content: flex-end;
     gap: 0.75rem;
     padding-right: 0.75rem;
-    -webkit-app-region: no-drag;
+    /* Inherits drag from parent - individual controls opt out */
   }
 
   .pillbox-controls {
@@ -2335,6 +2346,7 @@
     border-radius: 0.5rem;
     background: var(--bg-primary);
     overflow: hidden;
+    -webkit-app-region: no-drag;
   }
 
   .pillbox-btn {
@@ -2376,6 +2388,7 @@
     display: flex;
     align-items: center;
     gap: 0;
+    -webkit-app-region: no-drag;
   }
 
   :global(html[data-platform='macos']) .window-controls {
