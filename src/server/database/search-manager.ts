@@ -107,6 +107,8 @@ export interface AdvancedSearchOptions {
       | 'IN'
       | 'NOT IN'
       | 'BETWEEN';
+    /** Field type hint - used for special handling (e.g., boolean false includes missing fields) */
+    value_type?: 'boolean';
   }>;
   updated_within?: string; // e.g., '7d', '1w', '2m'
   updated_before?: string;
@@ -162,6 +164,8 @@ export interface DataviewQueryOptions {
       | 'IN'
       | 'NOT IN'
       | 'BETWEEN';
+    /** Field type hint - used for special handling (e.g., boolean false includes missing fields) */
+    value_type?: 'boolean';
   }>;
   sort?: Array<{
     field: string;
@@ -870,6 +874,19 @@ export class HybridSearchManager {
             );
             joinParams.push(filter.key);
             whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = '')`);
+          } else if (
+            operator === '=' &&
+            filter.value_type === 'boolean' &&
+            filter.value === 'false'
+          ) {
+            // For boolean fields, = false should also match notes where the field doesn't exist
+            // Use LEFT JOIN to include notes without the field
+            joins.push(
+              `LEFT JOIN note_metadata ${alias} ON n.id = ${alias}.note_id AND ${alias}.key = ?`
+            );
+            joinParams.push(filter.key);
+            // Match notes where field doesn't exist (NULL) OR value is 'false'
+            whereConditions.push(`(${alias}.value IS NULL OR ${alias}.value = 'false')`);
           } else if (operator === 'IN') {
             const values = Array.isArray(filter.value)
               ? filter.value

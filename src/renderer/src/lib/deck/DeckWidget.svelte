@@ -382,7 +382,8 @@
 
     try {
       // Use effectiveConfig to include pending filter changes
-      const queryResult = await runDeckQuery(effectiveConfig, { offset });
+      // Pass schemaFields so boolean fields can have special handling (false = missing OR false)
+      const queryResult = await runDeckQuery(effectiveConfig, { offset, schemaFields });
       results = queryResult.notes;
       total = queryResult.total;
 

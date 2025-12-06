@@ -45,11 +45,20 @@ const SYSTEM_FIELDS = new Set([
 ]);
 
 /**
+ * Schema field info for type-aware query building
+ */
+export interface SchemaFieldInfo {
+  type: string;
+}
+
+/**
  * Options for running a deck query
  */
 export interface DeckQueryOptions {
   /** Offset for pagination (default: 0) */
   offset?: number;
+  /** Schema fields for type-aware filtering (e.g., boolean false handling) */
+  schemaFields?: Map<string, SchemaFieldInfo>;
 }
 
 /**
@@ -60,7 +69,7 @@ export async function runDeckQuery(
   config: DeckConfig,
   options: DeckQueryOptions = {}
 ): Promise<DeckQueryResult> {
-  const { offset = 0 } = options;
+  const { offset = 0, schemaFields } = options;
   const filters = config.filters ?? [];
   // Extract type filter if present (supports single value or array via IN operator)
   const typeFilter = filters.find((f) => f.field === 'flint_type');
@@ -85,13 +94,20 @@ export async function runDeckQuery(
   }
 
   // Get metadata filters (everything except flint_type)
+  // Include value_type hint for boolean fields to enable special handling
   const metadataFilters = filters
     .filter((f) => f.field !== 'flint_type')
-    .map((f) => ({
-      key: f.field,
-      value: Array.isArray(f.value) ? f.value.join(',') : String(f.value),
-      operator: f.operator || ('=' as const)
-    }));
+    .map((f) => {
+      const fieldSchema = schemaFields?.get(f.field);
+      const isBooleanField = fieldSchema?.type === 'boolean';
+      return {
+        key: f.field,
+        value: Array.isArray(f.value) ? f.value.join(',') : String(f.value),
+        operator: f.operator || ('=' as const),
+        // Include value_type for boolean fields so server can handle false specially
+        ...(isBooleanField ? { value_type: 'boolean' as const } : {})
+      };
+    });
 
   // Build sort configuration
   const sort = config.sort
@@ -280,7 +296,11 @@ function matchesMetadataFilters(
 
     if (noteValue === undefined || noteValue === null) {
       // For !=, notes without the field should match (they don't equal any value)
-      return operator === '!=';
+      if (operator === '!=') return true;
+      // For boolean fields filtering on 'false', treat missing field as false
+      // This matches the server-side behavior for boolean fields
+      if (operator === '=' && filterValue === 'false') return true;
+      return false;
     }
 
     const noteStr = Array.isArray(noteValue) ? noteValue.join(',') : String(noteValue);
