@@ -40,6 +40,7 @@ export interface ColumnConfig {
   field: string;
   label?: string;
   format?: ColumnFormat;
+  visible?: boolean;
 }
 
 export type ColumnDefinition = string | ColumnConfig;
@@ -137,7 +138,7 @@ function deduplicateFilters(filters: DeckFilter[]): {
  * Check if a column has custom settings (needs enhanced YAML format)
  */
 export function columnHasCustomSettings(col: ColumnConfig): boolean {
-  return !!(col.label || col.format);
+  return !!(col.label || col.format || col.visible === false);
 }
 
 /**
@@ -203,6 +204,7 @@ function serializeColumns(
       const colObj: Record<string, unknown> = { field: col.field };
       if (col.label) colObj.label = col.label;
       if (col.format && col.format !== 'default') colObj.format = col.format;
+      if (col.visible === false) colObj.visible = false;
       return colObj;
     }
     // Otherwise just use the field name
@@ -586,6 +588,11 @@ function validateColumn(col: unknown): ColumnDefinition | null {
       } else {
         result.format = c.format as ColumnFormat;
       }
+    }
+
+    // Optional visible
+    if (c.visible === false) {
+      result.visible = false;
     }
 
     return result;

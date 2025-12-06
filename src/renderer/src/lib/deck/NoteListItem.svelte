@@ -102,6 +102,9 @@
     return typeFields.has(field);
   }
 
+  // Filter columns to only show visible ones in the list
+  const visibleColumns = $derived(columns.filter((col) => col.visible !== false));
+
   // Check if a field value violates any constraints
   // Returns error message if violated, null if valid
   function getConstraintViolation(field: string, value: unknown): string | null {
@@ -443,9 +446,9 @@
         Open
       </button>
     </div>
-    {#if columns.length > 0}
+    {#if visibleColumns.length > 0}
       <div class="note-props">
-        {#each columns as column (column.field)}
+        {#each visibleColumns as column (column.field)}
           {@const fieldType = getFieldType(column.field)}
           {@const rawValue = getRawValue(column.field)}
           {@const options = getFieldOptions(column.field)}
@@ -524,7 +527,6 @@
                   multiple={false}
                   onSelect={(val) => handleFieldChange(column.field, val)}
                   placeholder=""
-                  compact={true}
                 />
               </div>
             {:else if editable && fieldType === 'notelinks'}
@@ -534,7 +536,6 @@
                   multiple={true}
                   onSelect={(val) => handleFieldChange(column.field, val)}
                   placeholder=""
-                  compact={true}
                 />
               </div>
             {:else if editable}

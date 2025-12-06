@@ -31,6 +31,8 @@ export interface ColumnConfig {
   label?: string;
   /** Type-specific formatting option (optional) */
   format?: ColumnFormat;
+  /** Whether this column is visible in the list (default: true) */
+  visible?: boolean;
 }
 
 /**
@@ -52,7 +54,7 @@ export function normalizeColumn(col: ColumnDefinition): ColumnConfig {
  * Check if a column has custom settings (needs enhanced YAML format)
  */
 export function columnHasCustomSettings(col: ColumnConfig): boolean {
-  return !!(col.label || col.format);
+  return !!(col.label || col.format || col.visible === false);
 }
 
 /**

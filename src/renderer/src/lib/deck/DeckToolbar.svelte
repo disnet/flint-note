@@ -16,6 +16,8 @@
     onPropClick: (field: string, position: { top: number; left: number }) => void;
     /** Called when Add Prop is clicked */
     onAddProp: (event: MouseEvent) => void;
+    /** Called when visibility is toggled on a prop */
+    onVisibilityToggle?: (field: string, visible: boolean) => void;
     /** Called when sort is toggled on a prop */
     onSort?: (field: string, order: 'asc' | 'desc') => void;
   }
@@ -27,6 +29,7 @@
     onNewNote,
     onPropClick,
     onAddProp,
+    onVisibilityToggle,
     onSort
   }: Props = $props();
 
@@ -70,12 +73,14 @@
     <PropChip
       field={column.field}
       label={getColumnLabel(column)}
+      visible={column.visible !== false}
       {sort}
       onClick={(event: MouseEvent) => {
         const target = event.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
         onPropClick(column.field, { top: rect.bottom + 4, left: rect.left });
       }}
+      {onVisibilityToggle}
       {onSort}
     />
   {/each}

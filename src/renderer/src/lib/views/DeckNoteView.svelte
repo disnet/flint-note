@@ -33,12 +33,30 @@
     const parsed = parseDeckYamlWithWarnings(noteContent);
     return parsed || { config: createEmptyDeckConfig(), warnings: [] };
   });
-  let config = $derived(configResult.config);
   let validationWarnings: DeckValidationWarning[] = $derived(configResult.warnings);
+
+  // Local config state that updates immediately on changes
+  let config = $state<DeckConfig>(createEmptyDeckConfig());
+  // Track the last content we sent to prevent effect from reverting local changes
+  let lastSentContent = $state<string | null>(null);
+
+  // Sync local config with parsed config when noteContent changes externally
+  $effect(() => {
+    // Only sync if noteContent is different from what we last sent
+    // This prevents the effect from overwriting local changes before they're saved
+    if (noteContent !== lastSentContent) {
+      config = configResult.config;
+    }
+  });
 
   // Handle config changes from DeckWidget
   function handleConfigChange(newConfig: DeckConfig): void {
+    // Update local state immediately for responsive UI
+    config = newConfig;
+    // Serialize and save to note content
     const yamlContent = serializeDeckConfig(newConfig);
+    // Track what we sent so the effect doesn't revert it
+    lastSentContent = yamlContent;
     onContentChange(yamlContent);
   }
 

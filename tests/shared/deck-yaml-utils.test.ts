@@ -582,4 +582,84 @@ views:
       expect(parsed!.views![0].filters[0].field).toBe('valid');
     });
   });
+
+  describe('column visibility', () => {
+    it('should parse visible: false from YAML', () => {
+      const yaml = `
+views:
+  - name: Test
+    filters: []
+    columns:
+      - field: status
+        visible: false
+      - title
+`;
+      const result = parseDeckYaml(yaml);
+
+      expect(result).not.toBeNull();
+      expect(result!.views![0].columns).toHaveLength(2);
+      const statusCol = result!.views![0].columns![0];
+      expect(typeof statusCol).toBe('object');
+      expect((statusCol as { field: string; visible?: boolean }).visible).toBe(false);
+    });
+
+    it('should round-trip visible: false correctly', () => {
+      const config: DeckConfig = {
+        views: [
+          {
+            name: 'Test',
+            filters: [],
+            columns: [
+              { field: 'status', visible: false },
+              { field: 'title' }
+            ]
+          }
+        ],
+        activeView: 0
+      };
+
+      const yaml = serializeDeckConfig(config);
+      const parsed = parseDeckYaml(yaml);
+
+      expect(parsed).not.toBeNull();
+      expect(parsed!.views![0].columns).toHaveLength(2);
+
+      const statusCol = parsed!.views![0].columns![0];
+      expect(typeof statusCol).toBe('object');
+      expect((statusCol as { field: string; visible?: boolean }).visible).toBe(false);
+
+      // Second column should be simplified to string since it has no custom settings
+      expect(parsed!.views![0].columns![1]).toBe('title');
+    });
+
+    it('should preserve visible: false alongside other column settings', () => {
+      const config: DeckConfig = {
+        views: [
+          {
+            name: 'Test',
+            filters: [],
+            columns: [
+              { field: 'created', label: 'Created At', format: 'relative', visible: false }
+            ]
+          }
+        ],
+        activeView: 0
+      };
+
+      const yaml = serializeDeckConfig(config);
+      const parsed = parseDeckYaml(yaml);
+
+      expect(parsed).not.toBeNull();
+      const col = parsed!.views![0].columns![0] as {
+        field: string;
+        label?: string;
+        format?: string;
+        visible?: boolean;
+      };
+      expect(col.field).toBe('created');
+      expect(col.label).toBe('Created At');
+      expect(col.format).toBe('relative');
+      expect(col.visible).toBe(false);
+    });
+  });
 });

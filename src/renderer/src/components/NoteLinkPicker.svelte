@@ -10,8 +10,6 @@
     onSelect: (value: string | string[] | null) => void;
     /** Optional placeholder text */
     placeholder?: string;
-    /** Compact mode - simpler dropdown with just icon + title */
-    compact?: boolean;
     /** Callback when a selected note is clicked (to open it) */
     onNoteClick?: (noteId: string) => void;
   }
@@ -21,7 +19,6 @@
     multiple = false,
     onSelect,
     placeholder = 'Select a note...',
-    compact = false,
     onNoteClick
   }: Props = $props();
 
@@ -321,7 +318,6 @@
           <div
             class="dropdown-option"
             class:selected={index === selectedIndex}
-            class:compact
             onmousedown={(e) => {
               e.preventDefault();
               selectNote(index);
@@ -331,18 +327,8 @@
             aria-selected={index === selectedIndex}
             tabindex="-1"
           >
-            {#if compact}
-              <span class="option-icon">{getNoteIcon(note.type)}</span>
-              <span class="option-title">{note.title || 'Untitled'}</span>
-            {:else}
-              <div class="option-main">
-                <span class="option-title">{note.title || 'Untitled'}</span>
-                <span class="option-id">{note.id}</span>
-              </div>
-              {#if note.type}
-                <span class="option-type">{note.type}</span>
-              {/if}
-            {/if}
+            <span class="option-icon">{getNoteIcon(note.type)}</span>
+            <span class="option-title">{note.title || 'Untitled'}</span>
           </div>
         {/each}
       {/if}
@@ -523,11 +509,11 @@
   .dropdown-option {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.75rem;
+    justify-content: flex-start;
+    padding: 0.375rem 0.5rem;
     cursor: pointer;
     border-bottom: 1px solid var(--border-lighter);
-    gap: 0.5rem;
+    gap: 0.375rem;
   }
 
   .dropdown-option:last-child {
@@ -539,50 +525,17 @@
     background: var(--bg-hover);
   }
 
-  .option-main {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-    gap: 0.125rem;
-  }
-
-  .option-title {
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .option-id {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-family: var(--font-mono, monospace);
-  }
-
-  .option-type {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    flex-shrink: 0;
-  }
-
-  .dropdown-option.compact {
-    padding: 0.375rem 0.5rem;
-    gap: 0.375rem;
-    justify-content: flex-start;
-  }
-
   .option-icon {
     flex-shrink: 0;
     font-size: 0.875rem;
   }
 
-  .dropdown-option.compact .option-title {
+  .option-title {
     font-size: 0.8125rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* Scrollbar styling */

@@ -748,12 +748,21 @@
    * Update the active view with partial changes
    */
   function updateActiveView(viewUpdate: Partial<DeckView>): void {
+    console.log('updateActiveView called:', { viewUpdate, configViews: config.views });
     const views = [...(config.views || [])];
     const activeIndex = config.activeView || 0;
 
     if (views[activeIndex]) {
+      // Multi-view format: update existing view
+      console.log('updateActiveView: multi-view path');
       views[activeIndex] = { ...views[activeIndex], ...viewUpdate };
       updateConfig({ ...config, views });
+    } else {
+      // Legacy format or empty views: create first view from current state
+      console.log('updateActiveView: legacy path');
+      const currentView = getActiveView(config);
+      const newView: DeckView = { ...currentView, ...viewUpdate };
+      updateConfig({ ...config, views: [newView], activeView: 0 });
     }
   }
 
@@ -829,6 +838,13 @@
     updateActiveView({
       sort: { field, order }
     });
+  }
+
+  function handleVisibilityToggle(field: string, visible: boolean): void {
+    const newColumns = activeColumns.map((col) =>
+      col.field === field ? { ...col, visible } : col
+    );
+    updateActiveView({ columns: newColumns });
   }
 
   // ========================================
@@ -908,6 +924,7 @@
     onNewNote={handleNewNoteClick}
     onPropClick={handlePropClick}
     onAddProp={handleAddPropClick}
+    onVisibilityToggle={handleVisibilityToggle}
     onSort={handleSort}
   />
 

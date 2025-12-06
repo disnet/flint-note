@@ -470,10 +470,6 @@
     width: 100%;
   }
 
-  .notelink-input :global(.dropdown) {
-    z-index: 1000;
-  }
-
   .text-input-container,
   .tag-input-container {
     position: relative;

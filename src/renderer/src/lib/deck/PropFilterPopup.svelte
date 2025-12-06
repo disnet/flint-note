@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DeckFilter, FilterOperator, FilterFieldInfo } from './types';
   import { getOperatorsForType, getOperatorLabel, EMPTY_FILTER_VALUE } from './types';
+  import NoteLinkPicker from '../../components/NoteLinkPicker.svelte';
 
   // Display text for the empty marker
   const EMPTY_MARKER = EMPTY_FILTER_VALUE;
@@ -126,6 +127,17 @@
     });
   }
 
+  function handleNotelinkChange(value: string | string[] | null): void {
+    if (!filter) return;
+    // Convert null to empty string/array as needed
+    const newValue =
+      value ?? (currentOperator === 'IN' || currentOperator === 'NOT IN' ? [] : '');
+    onUpdate({
+      ...filter,
+      value: newValue
+    });
+  }
+
   function handleRemove(): void {
     onRemove();
     onClose();
@@ -190,7 +202,47 @@
 
     <!-- Value row -->
     <div class="value-row">
-      {#if showMultiSelect}
+      {#if fieldInfo?.type === 'notelink' && (currentOperator === 'IN' || currentOperator === 'NOT IN')}
+        <!-- Multiple notelinks for IN/NOT IN -->
+        <div class="notelink-input">
+          <NoteLinkPicker
+            value={Array.isArray(filter.value)
+              ? filter.value
+              : filter.value
+                ? [filter.value]
+                : []}
+            multiple={true}
+            onSelect={handleNotelinkChange}
+            placeholder="Select notes..."
+          />
+        </div>
+      {:else if fieldInfo?.type === 'notelink'}
+        <!-- Single notelink picker -->
+        <div class="notelink-input">
+          <NoteLinkPicker
+            value={Array.isArray(filter.value)
+              ? filter.value[0] || null
+              : filter.value || null}
+            multiple={false}
+            onSelect={handleNotelinkChange}
+            placeholder="Select note..."
+          />
+        </div>
+      {:else if fieldInfo?.type === 'notelinks'}
+        <!-- Notelinks (always multi-select) -->
+        <div class="notelink-input">
+          <NoteLinkPicker
+            value={Array.isArray(filter.value)
+              ? filter.value
+              : filter.value
+                ? [filter.value]
+                : []}
+            multiple={true}
+            onSelect={handleNotelinkChange}
+            placeholder="Select notes..."
+          />
+        </div>
+      {:else if showMultiSelect}
         <!-- Multi-select checkboxes for IN operator with options -->
         <div class="checkbox-list">
           <!-- Empty option first -->
@@ -429,5 +481,21 @@
 
   input[type='date'].value-input::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
+  }
+
+  /* Notelink picker styling */
+  .notelink-input {
+    width: 100%;
+  }
+
+  .notelink-input :global(.picker-input) {
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    background: var(--bg-secondary);
+    min-height: 2rem;
+  }
+
+  .notelink-input :global(.dropdown) {
+    font-size: 0.75rem;
   }
 </style>

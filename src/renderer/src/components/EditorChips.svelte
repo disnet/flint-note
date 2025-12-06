@@ -231,7 +231,6 @@
             multiple={false}
             onSelect={(value) => handleFieldChange(field, value)}
             placeholder=""
-            compact={true}
             {onNoteClick}
           />
         </div>
@@ -242,7 +241,6 @@
             multiple={true}
             onSelect={(value) => handleFieldChange(field, value)}
             placeholder=""
-            compact={true}
             {onNoteClick}
           />
         </div>
