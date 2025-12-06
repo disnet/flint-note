@@ -2224,7 +2224,7 @@
     width: 80px;
     height: 100%;
     flex-shrink: 0;
-    -webkit-app-region: no-drag;
+    /* Keep this as part of the drag region - the traffic lights are handled by macOS */
   }
 
   /* Windows: hide traffic light spacer */
