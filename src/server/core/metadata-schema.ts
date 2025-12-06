@@ -11,7 +11,9 @@ export type MetadataFieldType =
   | 'boolean'
   | 'date'
   | 'array'
-  | 'select';
+  | 'select'
+  | 'notelink' // Single note reference (stored as n-xxxxxxxx)
+  | 'notelinks'; // Array of note references
 
 export interface MetadataFieldConstraints {
   min?: number;
@@ -103,7 +105,9 @@ export class MetadataSchemaParser {
     if (typeMatch) {
       const typeInfo = typeMatch[1].toLowerCase();
 
-      if (typeInfo.includes('string')) field.type = 'string';
+      if (typeInfo.includes('notelinks')) field.type = 'notelinks';
+      else if (typeInfo.includes('notelink')) field.type = 'notelink';
+      else if (typeInfo.includes('string')) field.type = 'string';
       else if (typeInfo.includes('number')) field.type = 'number';
       else if (typeInfo.includes('boolean')) field.type = 'boolean';
       else if (typeInfo.includes('date')) field.type = 'date';
@@ -334,6 +338,44 @@ export class MetadataValidator {
           }
         }
         break;
+
+      case 'notelink':
+        // Single note reference - must be a valid note ID (n-xxxxxxxx format)
+        if (typeof value !== 'string') {
+          return {
+            field: fieldName,
+            message: `Field '${fieldName}' must be a note ID string`,
+            value
+          };
+        }
+        if (!/^n-[0-9a-f]{8}$/.test(value)) {
+          return {
+            field: fieldName,
+            message: `Field '${fieldName}' must be a valid note ID (format: n-xxxxxxxx)`,
+            value
+          };
+        }
+        break;
+
+      case 'notelinks':
+        // Array of note references
+        if (!Array.isArray(value)) {
+          return {
+            field: fieldName,
+            message: `Field '${fieldName}' must be an array of note IDs`,
+            value
+          };
+        }
+        for (const item of value) {
+          if (typeof item !== 'string' || !/^n-[0-9a-f]{8}$/.test(item)) {
+            return {
+              field: fieldName,
+              message: `Field '${fieldName}' contains invalid note ID: ${item}`,
+              value
+            };
+          }
+        }
+        break;
     }
 
     // Constraint validation
@@ -434,7 +476,9 @@ export class MetadataValidator {
         'boolean',
         'date',
         'array',
-        'select'
+        'select',
+        'notelink',
+        'notelinks'
       ];
       if (!validTypes.includes(field.type)) {
         errors.push(
@@ -485,6 +529,12 @@ export class MetadataValidator {
             break;
           case 'select':
             defaults[field.name] = field.constraints?.options?.[0] ?? '';
+            break;
+          case 'notelink':
+            // No default for single note link
+            break;
+          case 'notelinks':
+            defaults[field.name] = [];
             break;
         }
       }

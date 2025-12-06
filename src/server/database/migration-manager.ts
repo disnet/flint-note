@@ -2464,8 +2464,68 @@ default_review_mode: false
   }
 }
 
+/**
+ * Migration to add notelink and notelinks types to note_metadata value_type CHECK constraint
+ */
+async function migrateToV2_18_0(db: DatabaseConnection): Promise<void> {
+  logger.info(
+    'Migrating to v2.18.0: Adding notelink/notelinks types to note_metadata CHECK constraint'
+  );
+
+  try {
+    // Check if note_metadata table exists
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_metadata'
+    `);
+
+    if (!tableExists || tableExists.count === 0) {
+      logger.info('note_metadata table does not exist, skipping migration');
+      return;
+    }
+
+    // SQLite doesn't support ALTER TABLE for CHECK constraints, so we need to recreate the table
+    // Step 1: Create new table with updated constraint
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS note_metadata_new (
+        note_id TEXT,
+        key TEXT,
+        value TEXT,
+        value_type TEXT CHECK (value_type IN ('string', 'number', 'date', 'boolean', 'array', 'notelink', 'notelinks')),
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Step 2: Copy data from old table
+    await db.run(`
+      INSERT INTO note_metadata_new (note_id, key, value, value_type)
+      SELECT note_id, key, value, value_type FROM note_metadata
+    `);
+
+    // Step 3: Drop old table
+    await db.run('DROP TABLE note_metadata');
+
+    // Step 4: Rename new table
+    await db.run('ALTER TABLE note_metadata_new RENAME TO note_metadata');
+
+    // Step 5: Recreate indexes
+    await db.run('CREATE INDEX IF NOT EXISTS idx_metadata_key ON note_metadata(key)');
+    await db.run(
+      'CREATE INDEX IF NOT EXISTS idx_metadata_key_value ON note_metadata(key, value)'
+    );
+    await db.run(
+      'CREATE INDEX IF NOT EXISTS idx_metadata_note_id ON note_metadata(note_id)'
+    );
+
+    logger.info('Successfully migrated note_metadata table with new CHECK constraint');
+  } catch (error) {
+    logger.error('Failed to migrate note_metadata table:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.17.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.18.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2608,6 +2668,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_17_0
+    },
+    {
+      version: '2.18.0',
+      description: 'Add notelink and notelinks types to note_metadata CHECK constraint',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_18_0
     }
   ];
 

@@ -151,6 +151,8 @@ export const OPERATORS_BY_TYPE: Record<MetadataFieldType | 'system', FilterOpera
   date: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN'],
   array: ['IN', '=', '!=', 'NOT IN'],
   select: ['=', '!=', 'IN', 'NOT IN'],
+  notelink: ['=', '!=', 'IN', 'NOT IN'],
+  notelinks: ['IN', 'NOT IN', '=', '!='],
   system: ['=', '!=', 'LIKE', 'IN', 'NOT IN']
 };
 

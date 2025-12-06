@@ -3,6 +3,8 @@
     MetadataSchema,
     MetadataFieldDefinition
   } from '../../../server/core/metadata-schema';
+  import NoteLinkPicker from './NoteLinkPicker.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface NoteData {
     id: string;
@@ -23,6 +25,8 @@
     onMetadataChange?: (field: string, value: unknown) => void;
     /** Whether editing is disabled */
     disabled?: boolean;
+    /** Called when a linked note is clicked */
+    onNoteClick?: (noteId: string) => void;
   }
 
   let {
@@ -30,7 +34,8 @@
     metadataSchema,
     editorChips,
     onMetadataChange,
-    disabled = false
+    disabled = false,
+    onNoteClick
   }: Props = $props();
 
   // Track expanded state
@@ -143,6 +148,12 @@
     }
   }
 
+  // Get note title by ID
+  function getNoteTitleById(noteId: string): string {
+    const note = notesStore.notes.find((n) => n.id === noteId);
+    return note?.title || noteId;
+  }
+
   // Get display value for a field
   function getDisplayValue(field: string): string {
     const raw = getRawValue(field);
@@ -153,10 +164,21 @@
       return formatRelativeTime(String(raw));
     }
 
-    // Schema date fields
+    // Schema fields with special handling
     const def = getFieldDef(field);
     if (def?.type === 'date' && raw) {
       return formatRelativeTime(String(raw));
+    }
+
+    // Notelink - show title instead of ID
+    if (def?.type === 'notelink' && typeof raw === 'string') {
+      return getNoteTitleById(raw);
+    }
+
+    // Notelinks - show titles instead of IDs
+    if (def?.type === 'notelinks' && Array.isArray(raw)) {
+      if (raw.length === 0) return '—';
+      return raw.map((id) => getNoteTitleById(String(id))).join(', ');
     }
 
     // Arrays
@@ -195,10 +217,36 @@
     {@const rawValue = getRawValue(field)}
     {@const editable = isEditable(field)}
     {@const options = getFieldOptions(field)}
-    <div class="chip">
+    <div
+      class="chip"
+      class:chip-with-picker={editable &&
+        (def?.type === 'notelink' || def?.type === 'notelinks')}
+    >
       <span class="chip-label">{getFieldLabel(field)}</span>
       <span class="chip-divider"></span>
-      {#if editable && def?.type === 'select' && options.length > 0}
+      {#if editable && def?.type === 'notelink'}
+        <div class="chip-notelink">
+          <NoteLinkPicker
+            value={rawValue as string | null}
+            multiple={false}
+            onSelect={(value) => handleFieldChange(field, value)}
+            placeholder=""
+            compact={true}
+            {onNoteClick}
+          />
+        </div>
+      {:else if editable && def?.type === 'notelinks'}
+        <div class="chip-notelink">
+          <NoteLinkPicker
+            value={rawValue as string[] | null}
+            multiple={true}
+            onSelect={(value) => handleFieldChange(field, value)}
+            placeholder=""
+            compact={true}
+            {onNoteClick}
+          />
+        </div>
+      {:else if editable && def?.type === 'select' && options.length > 0}
         <select
           class="chip-select"
           value={String(rawValue || '')}
@@ -285,12 +333,18 @@
     overflow: hidden;
   }
 
+  .chip.chip-with-picker {
+    overflow: visible;
+    position: relative;
+  }
+
   .chip-label {
     display: flex;
     align-items: center;
     padding: 0.125rem 0.5rem 0.125rem 0.625rem;
     color: var(--text-muted);
     background: var(--bg-tertiary);
+    border-radius: 9999px 0 0 9999px;
   }
 
   .chip-divider {
@@ -335,6 +389,93 @@
 
   .chip-date {
     min-width: 7rem;
+  }
+
+  .chip-notelink {
+    min-width: 6rem;
+    position: relative;
+  }
+
+  .chip-notelink :global(.picker-input),
+  .chip-notelink :global(.single-selected),
+  .chip-notelink :global(.selected-notes) {
+    border-radius: 0 9999px 9999px 0;
+  }
+
+  .chip-notelink :global(.note-link-picker) {
+    width: 100%;
+  }
+
+  .chip-notelink :global(.picker-input) {
+    border: none;
+    border-radius: 0;
+    min-height: auto;
+    font-size: 0.7rem;
+    background: transparent;
+  }
+
+  .chip-notelink :global(.picker-input:focus-within) {
+    background: transparent;
+  }
+
+  .chip-notelink :global(.search-input) {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    background: transparent;
+  }
+
+  .chip-notelink :global(.search-input:focus) {
+    background: transparent;
+  }
+
+  .chip-notelink :global(.selected-notes) {
+    padding: 0.125rem 0.375rem;
+    gap: 0.5rem;
+    background: transparent;
+  }
+
+  .chip-notelink :global(.selected-tag) {
+    font-size: 0.65rem;
+    padding: 0 0.25rem;
+  }
+
+  .chip-notelink :global(.single-selected) {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    background: transparent;
+    gap: 0.25rem;
+  }
+
+  .chip-notelink :global(.selected-title) {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+  }
+
+  .chip-notelink :global(.clear-btn) {
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .chip-notelink :global(.selected-tag) {
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 0;
+    gap: 0.125rem;
+  }
+
+  .chip-notelink :global(.tag-title) {
+    color: var(--text-secondary);
+  }
+
+  .chip-notelink :global(.tag-remove) {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .chip-notelink :global(.dropdown) {
+    font-size: 0.8125rem;
   }
 
   .chip-input[type='text'] {

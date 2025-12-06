@@ -1915,8 +1915,20 @@ export class HybridSearchManager {
         // Don't use transaction here since this may be called during rebuild
         const { LinkExtractor } = await import('../core/link-extractor.js');
         const extractionResult = LinkExtractor.extractLinks(parsed.content);
+
+        // Also extract links from metadata (auto-detects note IDs)
+        const metadataLinks = LinkExtractor.extractLinksFromMetadata(
+          parsed.metadata as Record<string, unknown>
+        );
+
         const db = await this.getConnection();
-        await LinkExtractor.storeLinks(parsed.id, extractionResult, db, false);
+        await LinkExtractor.storeLinks(
+          parsed.id,
+          extractionResult,
+          db,
+          false,
+          metadataLinks
+        );
       }
     } catch (error) {
       throw new Error(

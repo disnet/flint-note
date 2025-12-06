@@ -215,7 +215,7 @@ export class DatabaseManager {
           note_id TEXT,
           key TEXT,
           value TEXT,
-          value_type TEXT CHECK (value_type IN ('string', 'number', 'date', 'boolean', 'array')),
+          value_type TEXT CHECK (value_type IN ('string', 'number', 'date', 'boolean', 'array', 'notelink', 'notelinks')),
           FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
         )
       `);
@@ -556,7 +556,14 @@ export interface MetadataRow {
   note_id: string;
   key: string;
   value: string;
-  value_type: 'string' | 'number' | 'date' | 'boolean' | 'array';
+  value_type:
+    | 'string'
+    | 'number'
+    | 'date'
+    | 'boolean'
+    | 'array'
+    | 'notelink'
+    | 'notelinks';
 }
 
 export interface SearchRow extends NoteRow {
@@ -669,7 +676,10 @@ export interface ReviewConfigRow {
 }
 
 // Helper functions for metadata type conversion
-export function serializeMetadataValue(value: unknown): {
+export function serializeMetadataValue(
+  value: unknown,
+  typeHint?: MetadataRow['value_type']
+): {
   value: string;
   type: MetadataRow['value_type'];
 } {
@@ -677,6 +687,27 @@ export function serializeMetadataValue(value: unknown): {
     return { value: '', type: 'string' };
   }
 
+  // If a type hint is provided, use it for serialization
+  if (typeHint) {
+    switch (typeHint) {
+      case 'notelink':
+        return { value: String(value), type: 'notelink' };
+      case 'notelinks':
+        return { value: JSON.stringify(value), type: 'notelinks' };
+      case 'array':
+        return { value: JSON.stringify(value), type: 'array' };
+      case 'boolean':
+        return { value: String(value), type: 'boolean' };
+      case 'number':
+        return { value: String(value), type: 'number' };
+      case 'date':
+        return { value: String(value), type: 'date' };
+      case 'string':
+        return { value: String(value), type: 'string' };
+    }
+  }
+
+  // Infer type from value (backward compatible behavior)
   if (Array.isArray(value)) {
     return { value: JSON.stringify(value), type: 'array' };
   }
@@ -716,6 +747,14 @@ export function deserializeMetadataValue(
       }
     case 'date':
       return value;
+    case 'notelink':
+      return value; // string note ID (n-xxxxxxxx)
+    case 'notelinks':
+      try {
+        return JSON.parse(value);
+      } catch {
+        return [];
+      }
     default:
       return value;
   }

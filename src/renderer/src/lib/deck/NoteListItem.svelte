@@ -5,6 +5,8 @@
     MetadataFieldConstraints
   } from '../../../../server/core/metadata-schema';
   import NoteTypeDropdown from '../../components/NoteTypeDropdown.svelte';
+  import NoteLinkPicker from '../../components/NoteLinkPicker.svelte';
+  import { notesStore } from '../../services/noteStore.svelte';
 
   interface SchemaFieldInfo {
     name: string;
@@ -281,6 +283,12 @@
     }
   }
 
+  // Get note title by ID
+  function getNoteTitleById(noteId: string): string {
+    const foundNote = notesStore.notes.find((n) => n.id === noteId);
+    return foundNote?.title || noteId;
+  }
+
   // Get display value for a field
   function getDisplayValue(field: string): string {
     if (field === 'title' || field === 'flint_title') {
@@ -296,6 +304,16 @@
     }
     const val = note.metadata[field];
     if (val === undefined || val === null) return '';
+
+    // Handle notelink/notelinks - show titles instead of IDs
+    const fieldType = getFieldType(field);
+    if (fieldType === 'notelink' && typeof val === 'string') {
+      return getNoteTitleById(val);
+    }
+    if (fieldType === 'notelinks' && Array.isArray(val)) {
+      return val.map((id) => getNoteTitleById(String(id))).join(', ');
+    }
+
     if (Array.isArray(val)) return val.join(', ');
     return String(val);
   }
@@ -439,6 +457,8 @@
             class="prop-chip-inline"
             class:muted={!inSchema}
             class:invalid={constraintViolation !== null}
+            class:chip-with-picker={editable &&
+              (fieldType === 'notelink' || fieldType === 'notelinks')}
             title={constraintViolation || ''}
             onmousedown={(e) => e.stopPropagation()}
             onclick={(e) => e.stopPropagation()}
@@ -497,6 +517,26 @@
                 onkeydown={(e) => handlePropKeydown(e, column.field)}
                 use:registerPropRef={column.field}
               />
+            {:else if editable && fieldType === 'notelink'}
+              <div class="prop-notelink">
+                <NoteLinkPicker
+                  value={rawValue as string | null}
+                  multiple={false}
+                  onSelect={(val) => handleFieldChange(column.field, val)}
+                  placeholder=""
+                  compact={true}
+                />
+              </div>
+            {:else if editable && fieldType === 'notelinks'}
+              <div class="prop-notelink">
+                <NoteLinkPicker
+                  value={rawValue as string[] | null}
+                  multiple={true}
+                  onSelect={(val) => handleFieldChange(column.field, val)}
+                  placeholder=""
+                  compact={true}
+                />
+              </div>
             {:else if editable}
               <input
                 type="text"
@@ -716,5 +756,99 @@
   .prop-inline-input[type='number'] {
     field-sizing: content;
     min-width: 3rem;
+  }
+
+  .prop-chip-inline.chip-with-picker {
+    overflow: visible;
+    position: relative;
+  }
+
+  .prop-notelink {
+    min-width: 6rem;
+    position: relative;
+  }
+
+  .prop-notelink :global(.picker-input),
+  .prop-notelink :global(.single-selected),
+  .prop-notelink :global(.selected-notes) {
+    border-radius: 0 9999px 9999px 0;
+  }
+
+  .prop-notelink :global(.note-link-picker) {
+    width: 100%;
+  }
+
+  .prop-notelink :global(.picker-input) {
+    border: none;
+    border-radius: 0;
+    min-height: auto;
+    font-size: 0.7rem;
+    background: transparent;
+  }
+
+  .prop-notelink :global(.picker-input:focus-within) {
+    background: transparent;
+  }
+
+  .prop-notelink :global(.search-input) {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    background: transparent;
+  }
+
+  .prop-notelink :global(.search-input:focus) {
+    background: transparent;
+  }
+
+  .prop-notelink :global(.selected-notes) {
+    padding: 0.125rem 0.375rem;
+    gap: 0.5rem;
+    background: transparent;
+  }
+
+  .prop-notelink :global(.selected-tag) {
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 0;
+    gap: 0.125rem;
+  }
+
+  .prop-notelink :global(.tag-title) {
+    color: var(--text-secondary);
+  }
+
+  .prop-notelink :global(.tag-remove) {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .prop-notelink :global(.single-selected) {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    background: transparent;
+    gap: 0.25rem;
+  }
+
+  .prop-notelink :global(.selected-title) {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+  }
+
+  .prop-notelink :global(.clear-btn) {
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .prop-notelink :global(.dropdown) {
+    font-size: 0.8125rem;
+  }
+
+  .prop-notelink :global(.expand-toggle) {
+    font-size: 0.65rem;
+    padding: 0 0.25rem;
+    height: auto;
+    min-width: auto;
   }
 </style>

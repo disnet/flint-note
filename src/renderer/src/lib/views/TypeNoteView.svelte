@@ -411,7 +411,9 @@
     'boolean',
     'date',
     'array',
-    'select'
+    'select',
+    'notelink',
+    'notelinks'
   ];
 
   // System fields that can be shown in the editor

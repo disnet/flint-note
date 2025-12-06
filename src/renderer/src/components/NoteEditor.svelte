@@ -684,6 +684,7 @@
       metadataSchema={noteTypeInfo?.metadata_schema}
       editorChips={noteTypeInfo?.editor_chips}
       onMetadataChange={handleChipMetadataChange}
+      onNoteClick={handlePreviewWikilinkClick}
       isPinned={workspacesStore.isPinned(note.id)}
       isOnShelf={notesShelfStore.isOnShelf(note.id)}
       {previewMode}

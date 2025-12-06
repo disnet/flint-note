@@ -30,6 +30,7 @@
     metadataSchema?: MetadataSchema;
     editorChips?: string[];
     onMetadataChange?: (field: string, value: unknown) => void;
+    onNoteClick?: (noteId: string) => void;
     // Action menu props
     isPinned?: boolean;
     isOnShelf?: boolean;
@@ -61,6 +62,7 @@
     metadataSchema,
     editorChips,
     onMetadataChange,
+    onNoteClick,
     isPinned = false,
     isOnShelf = false,
     previewMode = false,
@@ -366,6 +368,7 @@
           {metadataSchema}
           {editorChips}
           {onMetadataChange}
+          {onNoteClick}
           {disabled}
         />
       {/if}

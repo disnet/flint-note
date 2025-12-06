@@ -32,6 +32,11 @@ export interface LinkExtractionResult {
   rewritten_content?: string; // Optional: content with title-based links converted to ID-based
 }
 
+export interface MetadataLink {
+  field_name: string;
+  target_note_id: string;
+}
+
 export class LinkExtractor {
   // Regex for markdown links [title](url)
   private static readonly MARKDOWN_LINK_REGEX = /\[([^\]]*)\]\(([^)]+)\)/g;
@@ -74,6 +79,75 @@ export class LinkExtractor {
     }
 
     return { wikilinks, external_links };
+  }
+
+  /**
+   * Extract note links from metadata fields
+   * If fieldTypes is provided, only extracts from fields marked as notelink/notelinks.
+   * If fieldTypes is not provided, auto-detects by checking if values match note ID pattern.
+   * @param metadata - The note's metadata object
+   * @param fieldTypes - Optional mapping of field names to their types. If not provided, auto-detects note IDs.
+   */
+  static extractLinksFromMetadata(
+    metadata: Record<string, unknown>,
+    fieldTypes?: Record<string, string>
+  ): MetadataLink[] {
+    const links: MetadataLink[] = [];
+    const noteIdPattern = /^n-[0-9a-f]{8}$/;
+
+    for (const [fieldName, value] of Object.entries(metadata)) {
+      if (value === undefined || value === null) {
+        continue;
+      }
+
+      // Skip system fields
+      if (fieldName.startsWith('flint_')) {
+        continue;
+      }
+
+      const fieldType = fieldTypes?.[fieldName];
+
+      // If we have type information, use it
+      if (fieldType === 'notelink') {
+        if (typeof value === 'string' && noteIdPattern.test(value)) {
+          links.push({
+            field_name: fieldName,
+            target_note_id: value
+          });
+        }
+      } else if (fieldType === 'notelinks') {
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (typeof item === 'string' && noteIdPattern.test(item)) {
+              links.push({
+                field_name: fieldName,
+                target_note_id: item
+              });
+            }
+          }
+        }
+      } else if (!fieldTypes) {
+        // Auto-detect mode: check if value looks like note ID(s)
+        if (typeof value === 'string' && noteIdPattern.test(value)) {
+          links.push({
+            field_name: fieldName,
+            target_note_id: value
+          });
+        } else if (Array.isArray(value)) {
+          // Check if array contains note IDs
+          for (const item of value) {
+            if (typeof item === 'string' && noteIdPattern.test(item)) {
+              links.push({
+                field_name: fieldName,
+                target_note_id: item
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return links;
   }
 
   /**
@@ -318,12 +392,18 @@ export class LinkExtractor {
 
   /**
    * Store extracted links in the database
+   * @param noteId - The ID of the source note
+   * @param extractionResult - Links extracted from note content
+   * @param db - Database connection
+   * @param useTransaction - Whether to wrap in a transaction
+   * @param metadataLinks - Optional links extracted from metadata fields (stored with line_number = -1)
    */
   static async storeLinks(
     noteId: string,
     extractionResult: LinkExtractionResult,
     db: DatabaseConnection,
-    useTransaction: boolean = true
+    useTransaction: boolean = true,
+    metadataLinks?: MetadataLink[]
   ): Promise<void> {
     // Start transaction if requested
     if (useTransaction) {
@@ -341,7 +421,7 @@ export class LinkExtractor {
         db
       );
 
-      // Insert wikilinks
+      // Insert wikilinks from content
       for (const wikilink of resolvedWikilinks) {
         await db.run(
           `INSERT INTO note_links (source_note_id, target_note_id, target_title, link_text, line_number)
@@ -354,6 +434,28 @@ export class LinkExtractor {
             wikilink.line_number
           ]
         );
+      }
+
+      // Insert metadata links (with line_number = -1 to distinguish from content links)
+      if (metadataLinks && metadataLinks.length > 0) {
+        for (const link of metadataLinks) {
+          // Validate that the target note exists
+          const note = await db.get<{ id: string }>('SELECT id FROM notes WHERE id = ?', [
+            link.target_note_id
+          ]);
+
+          await db.run(
+            `INSERT INTO note_links (source_note_id, target_note_id, target_title, link_text, line_number)
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+              noteId,
+              note?.id || null, // null if note doesn't exist (broken link)
+              link.target_note_id, // Use note ID as target_title for metadata links
+              link.field_name, // Store field name in link_text for identification
+              -1 // Special value to indicate metadata link
+            ]
+          );
+        }
       }
 
       // Insert external links

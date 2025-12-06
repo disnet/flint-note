@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ColumnFormat } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
+  import { notesStore } from '../../services/noteStore.svelte';
 
   interface Props {
     value: unknown;
@@ -9,6 +10,8 @@
     isTitle?: boolean;
     onLinkClick?: (noteTitle: string) => void;
     onTitleClick?: (event: MouseEvent) => void;
+    /** Callback for notelink clicks (receives note ID) */
+    onNoteLinkClick?: (noteId: string) => void;
   }
 
   let {
@@ -17,7 +20,8 @@
     format = 'default',
     isTitle = false,
     onLinkClick,
-    onTitleClick
+    onTitleClick,
+    onNoteLinkClick
   }: Props = $props();
 
   // Determine effective format based on field type and explicit format
@@ -176,6 +180,43 @@
 
   // Boolean display (for checkbox format)
   const booleanValue = $derived(fieldType === 'boolean' && Boolean(value));
+
+  // Note ID pattern for validation
+  const noteIdPattern = /^n-[0-9a-f]{8}$/;
+
+  // Get note info for a single notelink
+  const noteLinkInfo = $derived.by(() => {
+    if (fieldType !== 'notelink' || typeof value !== 'string') return null;
+    if (!noteIdPattern.test(value)) return null;
+    const note = notesStore.notes.find((n) => n.id === value);
+    return {
+      id: value,
+      title: note?.title || null,
+      exists: !!note
+    };
+  });
+
+  // Get note info for notelinks array
+  const noteLinksInfo = $derived.by(() => {
+    if (fieldType !== 'notelinks' || !Array.isArray(value)) return [];
+    return value
+      .filter((v): v is string => typeof v === 'string' && noteIdPattern.test(v))
+      .map((id) => {
+        const note = notesStore.notes.find((n) => n.id === id);
+        return {
+          id,
+          title: note?.title || null,
+          exists: !!note
+        };
+      });
+  });
+
+  // Handle notelink click
+  function handleNoteLinkClick(noteId: string, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    onNoteLinkClick?.(noteId);
+  }
 </script>
 
 <span class="column-cell" class:title-cell={isTitle}>
@@ -194,6 +235,34 @@
           <polyline points="20 6 9 17 4 12" />
         </svg>
       {/if}
+    </span>
+  {:else if fieldType === 'notelink' && noteLinkInfo}
+    <!-- Single note link display -->
+    <button
+      class="notelink"
+      class:broken={!noteLinkInfo.exists}
+      onclick={(e) => handleNoteLinkClick(noteLinkInfo.id, e)}
+      type="button"
+      title={noteLinkInfo.exists
+        ? noteLinkInfo.title || 'Untitled'
+        : `Note not found: ${noteLinkInfo.id}`}
+    >
+      {noteLinkInfo.title || (noteLinkInfo.exists ? 'Untitled' : noteLinkInfo.id)}
+    </button>
+  {:else if fieldType === 'notelinks' && noteLinksInfo.length > 0}
+    <!-- Multiple note links display -->
+    <span class="notelinks">
+      {#each noteLinksInfo as link (link.id)}
+        <button
+          class="notelink-pill"
+          class:broken={!link.exists}
+          onclick={(e) => handleNoteLinkClick(link.id, e)}
+          type="button"
+          title={link.exists ? link.title || 'Untitled' : `Note not found: ${link.id}`}
+        >
+          {link.title || (link.exists ? 'Untitled' : link.id)}
+        </button>
+      {/each}
     </span>
   {:else if Array.isArray(value) && effectiveFormat === 'pills' && arrayItems.length > 0}
     <!-- Pill display for arrays -->
@@ -365,5 +434,69 @@
 
   .wikilink:hover {
     text-decoration-style: solid;
+  }
+
+  /* Note link styles */
+  .notelink {
+    display: inline;
+    padding: 0.125rem 0.25rem;
+    background: var(--accent-primary-alpha, rgba(0, 102, 204, 0.1));
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--accent-primary, #0066cc);
+    cursor: pointer;
+    font-size: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notelink:hover {
+    background: var(--accent-primary-alpha-hover, rgba(0, 102, 204, 0.2));
+  }
+
+  .notelink.broken {
+    color: var(--error-color, #dc3545);
+    background: var(--error-alpha, rgba(220, 53, 69, 0.1));
+    font-style: italic;
+    text-decoration: none;
+  }
+
+  .notelinks {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow: hidden;
+  }
+
+  .notelink-pill {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    background: var(--accent-primary-alpha, rgba(0, 102, 204, 0.1));
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--accent-primary, #0066cc);
+    white-space: nowrap;
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .notelink-pill:hover {
+    background: var(--accent-primary-alpha-hover, rgba(0, 102, 204, 0.2));
+  }
+
+  .notelink-pill.broken {
+    color: var(--error-color, #dc3545);
+    background: var(--error-alpha, rgba(220, 53, 69, 0.1));
+    font-style: italic;
+    text-decoration: none;
   }
 </style>

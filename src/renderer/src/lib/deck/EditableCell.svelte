@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
+  import NoteLinkPicker from '../../components/NoteLinkPicker.svelte';
 
   interface Props {
     value: unknown;
@@ -190,7 +191,25 @@
   onmousedown={(e) => e.stopPropagation()}
   onclick={(e) => e.stopPropagation()}
 >
-  {#if fieldType === 'boolean'}
+  {#if fieldType === 'notelink'}
+    <div class="cell-notelink">
+      <NoteLinkPicker
+        value={value as string | null}
+        multiple={false}
+        onSelect={(newValue) => onChange(newValue)}
+        placeholder="Select note..."
+      />
+    </div>
+  {:else if fieldType === 'notelinks'}
+    <div class="cell-notelink">
+      <NoteLinkPicker
+        value={value as string[] | null}
+        multiple={true}
+        onSelect={(newValue) => onChange(newValue)}
+        placeholder="Select notes..."
+      />
+    </div>
+  {:else if fieldType === 'boolean'}
     <input
       bind:this={inputRef}
       type="checkbox"
@@ -329,6 +348,24 @@
     width: 1rem;
     height: 1rem;
     cursor: pointer;
+  }
+
+  .cell-notelink {
+    width: 100%;
+    min-width: 120px;
+    position: relative;
+  }
+
+  .cell-notelink :global(.picker-input) {
+    border-color: var(--accent-primary, #2196f3);
+  }
+
+  .cell-notelink :global(.picker-input:focus-within) {
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  }
+
+  .cell-notelink :global(.dropdown) {
+    z-index: 1000;
   }
 
   /* Suggestions dropdown */

@@ -636,6 +636,8 @@
                           <option value="date">Date</option>
                           <option value="array">Array</option>
                           <option value="select">Select</option>
+                          <option value="notelink">Note Link</option>
+                          <option value="notelinks">Note Links</option>
                         </select>
                         <label class="checkbox-label">
                           <input

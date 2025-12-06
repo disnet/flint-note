@@ -2,6 +2,7 @@
   import type { FilterOperator } from './types';
   import { EMPTY_FILTER_VALUE } from './types';
   import type { MetadataFieldType } from '../../../../server/core/metadata-schema';
+  import NoteLinkPicker from '../../components/NoteLinkPicker.svelte';
 
   interface Props {
     fieldType: MetadataFieldType | 'system';
@@ -256,7 +257,37 @@
 </script>
 
 <div class="value-input">
-  {#if fieldType === 'boolean'}
+  {#if fieldType === 'notelink' && !isMultiValue}
+    <!-- Single notelink picker -->
+    <div class="notelink-input">
+      <NoteLinkPicker
+        value={normalizedValue as string | null}
+        multiple={false}
+        onSelect={(val) => onChange(val ?? '')}
+        placeholder="Select note..."
+      />
+    </div>
+  {:else if fieldType === 'notelink' && isMultiValue}
+    <!-- Multiple notelinks for IN/NOT IN -->
+    <div class="notelink-input">
+      <NoteLinkPicker
+        value={normalizedValue as string[] | null}
+        multiple={true}
+        onSelect={(val) => onChange(val ?? [])}
+        placeholder="Select notes..."
+      />
+    </div>
+  {:else if fieldType === 'notelinks'}
+    <!-- Notelinks (always multi-select) -->
+    <div class="notelink-input">
+      <NoteLinkPicker
+        value={normalizedValue as string[] | null}
+        multiple={true}
+        onSelect={(val) => onChange(val ?? [])}
+        placeholder="Select notes..."
+      />
+    </div>
+  {:else if fieldType === 'boolean'}
     <!-- Boolean toggle -->
     <label class="boolean-toggle">
       <input
@@ -433,6 +464,14 @@
   .value-input {
     flex: 1;
     min-width: 100px;
+  }
+
+  .notelink-input {
+    width: 100%;
+  }
+
+  .notelink-input :global(.dropdown) {
+    z-index: 1000;
   }
 
   .text-input-container,
