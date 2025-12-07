@@ -4,6 +4,65 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0]
+
+### Added
+
+**Decks**
+
+Decks are a powerful new way to query and view your notes. Create custom views of your vault by filtering, sorting, and displaying notes based on their properties.
+
+- Visual filter builder for creating complex queries without writing code
+- Choose which properties to display as columns
+- Sort by any property
+- Pagination for large result sets
+- Save multiple views per deck to quickly switch between different perspectives
+- Constraint highlighting shows which notes don't match your expected property requirements
+- Filter on blank/unset properties and use "not in" list matching
+- The agent can work with decks to help you organize and query your notes
+- Add decks to your shelf for quick access
+
+**Action Bar**
+
+The search bar has been redesigned into a unified action bar (Cmd-K):
+
+- Full text search across all notes
+- Quick access to commands and actions
+- Agent mode for starting conversations directly from the action bar
+
+**Properties as Chips**
+
+Note properties are now displayed as chips in the editor header, making them easier to see and edit at a glance.
+
+**File-based Note Type Definitions**
+
+Note types are now stored as markdown files in your vault, making them portable, linkable, and version-controllable. Type definitions support YAML frontmatter for configuration.
+
+**Notelinks Property Type**
+
+A new property type that stores links to other notes, making it easier to create structured relationships between notes.
+
+**Shelf Improvements**
+
+The shelf now supports more content types:
+
+- PDFs and EPUBs can be pinned to your shelf
+- Decks can be added for quick access to filtered views
+- Note type views can be pinned to the shelf
+
+**Other Improvements**
+
+- Window position is now remembered between sessions
+- Archive action no longer requires confirmation
+
+### Changed
+
+- Redesigned the "All Types" view with improved layout and organization
+
+### Fixed
+
+- Fixed emoji picker positioning in the new workspace dialog
+
 ## [0.12.1]
 
 ### Fixed
