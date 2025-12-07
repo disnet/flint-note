@@ -1751,7 +1751,12 @@ export class HybridSearchManager {
           filesToUpdate.push(path);
         } else {
           // Content unchanged, just mtime touched - update mtime only
-          await db.run('UPDATE notes SET file_mtime = ? WHERE path = ?', [fsMtime, path]);
+          // Use relative path since that's what's stored in the database
+          const relativePath = toRelativePath(path, this.workspacePath);
+          await db.run('UPDATE notes SET file_mtime = ? WHERE path = ?', [
+            fsMtime,
+            relativePath
+          ]);
         }
       } catch (error) {
         console.error(`Failed to check file ${path}:`, error);

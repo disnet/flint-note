@@ -3653,6 +3653,11 @@ app.on('before-quit', async (event) => {
       // Now flush all pending writes from the file write queue
       await api.flushPendingWrites();
       logger.info('All pending file writes flushed successfully');
+
+      // Close database connections to ensure WAL is properly checkpointed
+      logger.info('Closing database connections');
+      await api.cleanup();
+      logger.info('Database connections closed successfully');
     }
 
     // Mark cleanup as complete

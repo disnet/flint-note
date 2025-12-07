@@ -139,6 +139,17 @@ export class DatabaseManager {
         });
       },
       close: async () => {
+        // Checkpoint WAL before closing to ensure all changes are persisted
+        try {
+          await new Promise<void>((resolve, reject) => {
+            db.run('PRAGMA wal_checkpoint(TRUNCATE)', (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+        } catch {
+          // Ignore checkpoint errors - database may already be in an error state
+        }
         await close();
         if (this.db === db) {
           this.db = null;
@@ -188,6 +199,14 @@ export class DatabaseManager {
     await connection.run('PRAGMA synchronous = NORMAL');
     await connection.run('PRAGMA cache_size = 10000');
     await connection.run('PRAGMA temp_store = MEMORY');
+
+    // Checkpoint WAL on startup to ensure all changes from previous session are applied
+    // This is critical for database consistency after an unclean shutdown
+    try {
+      await connection.run('PRAGMA wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Ignore checkpoint errors - database may be new
+    }
 
     // Create notes table
     await connection.run(`
@@ -514,6 +533,10 @@ export class DatabaseManager {
       await connection.run('DELETE FROM ui_state');
       await connection.run('COMMIT');
 
+      // Checkpoint WAL to ensure all changes are written to the main database
+      // This is critical before VACUUM to prevent database corruption
+      await connection.run('PRAGMA wal_checkpoint(TRUNCATE)');
+
       // Optimize database after bulk operations
       await connection.run('VACUUM');
       await connection.run('ANALYZE');
@@ -526,6 +549,12 @@ export class DatabaseManager {
   async close(): Promise<void> {
     if (this.db) {
       const connection = this.createConnection(this.db);
+      // Checkpoint WAL before closing to ensure all changes are persisted
+      try {
+        await connection.run('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch {
+        // Ignore checkpoint errors during close - database may already be in an error state
+      }
       await connection.close();
     }
     if (this.readOnlyDb) {

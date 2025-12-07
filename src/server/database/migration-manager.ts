@@ -2686,8 +2686,27 @@ export class DatabaseMigrationManager {
     dbManager: DatabaseManager,
     workspacePath: string
   ): Promise<MigrationResult> {
-    const fromVersion = currentSchemaVersion || '1.0.0';
     const toVersion = this.CURRENT_SCHEMA_VERSION;
+
+    // For brand new vaults (no schema version), create fresh database at current version
+    // This avoids running all historical migrations unnecessarily
+    if (currentSchemaVersion === undefined) {
+      logger.info(
+        `New vault detected - creating fresh database at schema version ${toVersion}`
+      );
+      const db = await dbManager.connect();
+      await initializeFreshDatabase(db);
+      return {
+        migrated: true,
+        rebuiltDatabase: false,
+        migratedLinks: false,
+        fromVersion: toVersion,
+        toVersion,
+        executedMigrations: []
+      };
+    }
+
+    const fromVersion = currentSchemaVersion;
 
     const result: MigrationResult = {
       migrated: false,
