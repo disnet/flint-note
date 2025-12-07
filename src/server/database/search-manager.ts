@@ -193,6 +193,59 @@ export interface DataviewQueryResponse {
 }
 
 export class HybridSearchManager {
+  /**
+   * Static cache of HybridSearchManager instances by canonical path.
+   * This prevents multiple instances being created for the same vault path,
+   * which would cause inefficiency and potential SQLite WAL mode cache inconsistencies.
+   */
+  private static instanceCache = new Map<string, HybridSearchManager>();
+
+  /**
+   * Get a cached HybridSearchManager instance for the given workspace path.
+   * Creates a new instance if one doesn't exist in the cache.
+   * This should be the preferred way to get a HybridSearchManager instance.
+   */
+  static getInstance(workspacePath: string): HybridSearchManager {
+    const canonicalPath = path.resolve(workspacePath);
+    let instance = HybridSearchManager.instanceCache.get(canonicalPath);
+    if (!instance) {
+      instance = new HybridSearchManager(workspacePath);
+      HybridSearchManager.instanceCache.set(canonicalPath, instance);
+    }
+    return instance;
+  }
+
+  /**
+   * Close and remove a cached instance for the given workspace path.
+   * Use this when a vault is deleted to clean up resources.
+   */
+  static async closeInstance(workspacePath: string): Promise<void> {
+    const canonicalPath = path.resolve(workspacePath);
+    const instance = HybridSearchManager.instanceCache.get(canonicalPath);
+    if (instance) {
+      await instance.close();
+      HybridSearchManager.instanceCache.delete(canonicalPath);
+    }
+  }
+
+  /**
+   * Check if an instance exists in the cache for the given path.
+   */
+  static hasInstance(workspacePath: string): boolean {
+    const canonicalPath = path.resolve(workspacePath);
+    return HybridSearchManager.instanceCache.has(canonicalPath);
+  }
+
+  /**
+   * Clear all cached instances. Useful for testing.
+   */
+  static async clearAllInstances(): Promise<void> {
+    for (const instance of HybridSearchManager.instanceCache.values()) {
+      await instance.close();
+    }
+    HybridSearchManager.instanceCache.clear();
+  }
+
   private dbManager: DatabaseManager;
   private workspacePath: string;
   private connection: DatabaseConnection | null = null;

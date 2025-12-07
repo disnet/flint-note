@@ -174,7 +174,7 @@ export class FlintNoteApi {
         const workspacePath = this.config.workspacePath;
         logger.info('Initializing with workspace path', { workspacePath });
 
-        this.hybridSearchManager = new HybridSearchManager(workspacePath);
+        this.hybridSearchManager = HybridSearchManager.getInstance(workspacePath);
         this.workspace = new Workspace(
           workspacePath,
           this.hybridSearchManager.getDatabaseManager()
@@ -297,13 +297,12 @@ export class FlintNoteApi {
 
     const workspacePath = vault.path;
 
-    // CRITICAL FIX: Reuse the existing HybridSearchManager if we're working with the current vault
-    // Creating new instances causes multiple database connections which can lead to stale reads
-    // after database rebuilds due to SQLite WAL mode connection isolation
+    // Use cached HybridSearchManager to avoid creating multiple instances for the same vault.
+    // This prevents inefficiency and SQLite WAL mode cache inconsistencies.
     const isCurrentVault = this.workspace && this.workspace.rootPath === workspacePath;
     const hybridSearchManager = isCurrentVault
       ? this.hybridSearchManager
-      : new HybridSearchManager(workspacePath);
+      : HybridSearchManager.getInstance(workspacePath);
 
     const workspace = isCurrentVault
       ? this.workspace
@@ -1030,7 +1029,8 @@ export class FlintNoteApi {
 
       // For existing vaults, only do minimal initialization to preserve existing data
       if (args.initialize !== false) {
-        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
+        // Use cached instance to avoid creating multiple DatabaseManager instances
+        const tempHybridSearchManager = HybridSearchManager.getInstance(resolvedPath);
         const workspace = new Workspace(
           resolvedPath,
           tempHybridSearchManager.getDatabaseManager()
@@ -1052,7 +1052,7 @@ export class FlintNoteApi {
           );
         }
 
-        await tempHybridSearchManager.close();
+        // Don't close - instance is cached and will be reused
       }
     } else {
       // New vault or existing detection disabled - proceed with full initialization
@@ -1077,7 +1077,8 @@ export class FlintNoteApi {
 
       if (args.initialize !== false) {
         // Initialize the vault with default note types
-        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
+        // Use cached instance to avoid creating multiple DatabaseManager instances
+        const tempHybridSearchManager = HybridSearchManager.getInstance(resolvedPath);
         const workspace = new Workspace(
           resolvedPath,
           tempHybridSearchManager.getDatabaseManager()
@@ -1129,7 +1130,7 @@ export class FlintNoteApi {
           }
         }
 
-        await tempHybridSearchManager.close();
+        // Don't close - instance is cached and will be reused when switching to this vault
 
         // Handle vault switching
         if (args.switch_to !== false) {
@@ -1228,6 +1229,10 @@ export class FlintNoteApi {
     }
 
     const wasCurrentVault = this.globalConfig.getCurrentVault()?.path === vault.path;
+    const vaultPath = vault.path;
+
+    // Clean up cached HybridSearchManager instance for this vault
+    await HybridSearchManager.closeInstance(vaultPath);
 
     // Remove vault from registry
     await this.globalConfig.removeVault(args.id);
@@ -2934,9 +2939,10 @@ export class FlintNoteApi {
       }
     }
 
-    if (this.hybridSearchManager) {
+    // Close and remove from cache the HybridSearchManager for the current workspace
+    if (this.workspace) {
       try {
-        await this.hybridSearchManager.close();
+        await HybridSearchManager.closeInstance(this.workspace.rootPath);
       } catch (error) {
         console.warn('Error closing hybrid search manager:', error);
       }
