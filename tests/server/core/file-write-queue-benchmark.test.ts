@@ -18,6 +18,9 @@ import path from 'path';
 import os from 'os';
 import { FileWriteQueue } from '../../../src/server/core/notes.js';
 
+// Only log benchmark output when running in verbose/debug mode
+const verboseLog = process.env.DEBUG_TESTS === 'true' ? verboseLog : () => {};
+
 interface BenchmarkResult {
   operation: string;
   count: number;
@@ -112,7 +115,7 @@ describe('FileWriteQueue Performance Benchmarks', () => {
       }
 
       const result = analyzeTiming(measurements, 'Raw File Write (Baseline)');
-      console.log(formatResult(result));
+      verboseLog(formatResult(result));
 
       // Baseline expectations (these will vary by system)
       expect(result.avgMs).toBeLessThan(10); // Avg should be < 10ms
@@ -139,7 +142,7 @@ describe('FileWriteQueue Performance Benchmarks', () => {
       queue.destroy();
 
       const result = analyzeTiming(measurements, 'Phase 1: FileWriteQueue (0ms delay)');
-      console.log(formatResult(result));
+      verboseLog(formatResult(result));
 
       // Phase 1 should be nearly synchronous
       expect(result.avgMs).toBeLessThan(15); // Should be close to baseline
@@ -178,7 +181,7 @@ describe('FileWriteQueue Performance Benchmarks', () => {
 
       const reduction = ((baselineWrites - actualWrites) / baselineWrites) * 100;
 
-      console.log(`
+      verboseLog(`
 File I/O Reduction:
   Baseline writes:  ${baselineWrites}
   Actual writes:    ${actualWrites}
@@ -212,7 +215,7 @@ File I/O Reduction:
       }
 
       const result = analyzeTiming(measurements, 'Simulated DB Write (in-memory)');
-      console.log(formatResult(result));
+      verboseLog(formatResult(result));
 
       // DB writes should be very fast (target: p95 < 5ms)
       expect(result.p95Ms).toBeLessThan(5); // Target: p95 < 5ms
@@ -252,7 +255,7 @@ File I/O Reduction:
         measurements,
         'End-to-End Update (DB + File, Phase 1)'
       );
-      console.log(formatResult(result));
+      verboseLog(formatResult(result));
 
       // End-to-end should be fast with Phase 1
       expect(result.p95Ms).toBeLessThan(25); // Should be reasonable
@@ -297,8 +300,8 @@ File I/O Reduction:
       const result0ms = analyzeTiming(measurements0ms, 'Phase 1 (0ms delay)');
       const result1000ms = analyzeTiming(measurements1000ms, 'Phase 2 (1000ms delay)');
 
-      console.log(formatResult(result0ms));
-      console.log(formatResult(result1000ms));
+      verboseLog(formatResult(result0ms));
+      verboseLog(formatResult(result1000ms));
 
       // Phase 2 queue operations should be faster (not waiting for file I/O)
       expect(result1000ms.avgMs).toBeLessThan(result0ms.avgMs);
@@ -329,7 +332,7 @@ File I/O Reduction:
 
       queue.destroy();
 
-      console.log(`
+      verboseLog(`
 Stress Test (1000 writes):
   Queue time:  ${queueTime.toFixed(2)}ms
   Flush time:  ${flushTime.toFixed(2)}ms

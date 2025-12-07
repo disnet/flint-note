@@ -271,6 +271,9 @@ suggestions_config:
     });
 
     it('should return null definition for invalid YAML body', () => {
+      // Suppress expected console.warn from YAML parsing failure
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
       const content = `---
 flint_id: n-invalid
 flint_title: invalid
@@ -288,6 +291,8 @@ agent_instructions:
       expect(frontmatter.flint_id).toBe('n-invalid');
       // Definition should be null due to invalid YAML
       expect(definition).toBeNull();
+
+      warnSpy.mockRestore();
     });
 
     it('should handle content without frontmatter', () => {
@@ -1025,6 +1030,9 @@ describe('Error Handling', () => {
   });
 
   it('should handle corrupted frontmatter gracefully', () => {
+    // Suppress expected console.warn from YAML parsing failure
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const content = `---
 flint_id: unclosed quote
 flint_title: "missing end quote
@@ -1041,9 +1049,14 @@ purpose: Test
     // doesn't prevent body parsing
     expect(definition).not.toBeNull();
     expect(definition!.name).toBe('test');
+
+    warnSpy.mockRestore();
   });
 
   it('should handle frontmatter that causes body to be interpreted incorrectly', () => {
+    // Suppress expected console.warn from YAML parsing failure
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     // This tests when frontmatter corruption affects body parsing
     const content = `---
 flint_id: n-test
@@ -1056,6 +1069,8 @@ name: [invalid array start`;
     expect(frontmatter.flint_id).toBe('n-test');
     // Body should fail to parse due to unclosed array
     expect(definition).toBeNull();
+
+    warnSpy.mockRestore();
   });
 
   it('should handle completely invalid content', () => {
@@ -1090,6 +1105,9 @@ flint_title: frontonly
   });
 
   it('should handle body with tabs instead of spaces', () => {
+    // Suppress expected console.warn from YAML parsing failure
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     // YAML is sensitive to indentation - tabs vs spaces
     const content = `---
 flint_id: n-tabs
@@ -1111,5 +1129,7 @@ agent_instructions:
     } catch {
       // Tab parsing failure is acceptable, as long as it's handled
     }
+
+    warnSpy.mockRestore();
   });
 });

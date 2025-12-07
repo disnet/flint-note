@@ -5,7 +5,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    setupFiles: []
+    setupFiles: [],
+    // Isolate each test file to prevent process.env conflicts between parallel tests
+    isolate: true,
+    // Use forks instead of threads to ensure complete process isolation
+    pool: 'forks'
   },
   resolve: {
     alias: {

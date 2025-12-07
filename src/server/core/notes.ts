@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import { Workspace } from './workspace.js';
 import { NoteTypeManager } from './note-types.js';
+import { logger } from '../../main/logger.js';
 
 import { HybridSearchManager } from '../database/search-manager.js';
 import { MetadataValidator } from './metadata-schema.js';
@@ -257,9 +258,9 @@ export class FileWriteQueue {
         const retryDelay = this.retryDelays[pending.retryCount];
         pending.retryCount++;
 
-        console.warn(
+        logger.warn(
           `[FileWriteQueue] Write failed for ${normalizedPath}, retry ${pending.retryCount}/${this.maxRetries} in ${retryDelay}ms`,
-          error
+          { error }
         );
 
         // Schedule retry with exponential backoff
@@ -270,9 +271,9 @@ export class FileWriteQueue {
         this.pendingWrites.set(normalizedPath, pending);
       } else {
         // Max retries exceeded - log error and remove from queue
-        console.error(
+        logger.error(
           `[FileWriteQueue] Write failed for ${normalizedPath} after ${this.maxRetries} retries`,
-          error
+          { error }
         );
 
         this.pendingWrites.delete(normalizedPath);
@@ -322,6 +323,25 @@ export class FileWriteQueue {
     if (this.expectedContent.has(normalizedPath)) {
       this.expectedContent.delete(normalizedPath);
     }
+  }
+
+  /**
+   * Cancel a pending write without flushing to disk.
+   * Used when deleting a note - we don't need to write content we're about to delete.
+   *
+   * @param filePath Path to cancel write for
+   */
+  cancelWrite(filePath: string): void {
+    const normalizedPath = path.resolve(filePath);
+
+    const pending = this.pendingWrites.get(normalizedPath);
+    if (pending) {
+      clearTimeout(pending.timeout);
+      this.pendingWrites.delete(normalizedPath);
+    }
+
+    // Also clear any expected content hashes
+    this.expectedContent.delete(normalizedPath);
   }
 
   /**
@@ -535,7 +555,7 @@ export class NoteManager {
     try {
       const currentNote = await this.getNote(noteId);
       if (!currentNote) {
-        console.warn(`Note not found when syncing hierarchy: ${noteId}`);
+        logger.warn(`Note not found when syncing hierarchy: ${noteId}`);
         return;
       }
 
@@ -556,7 +576,7 @@ export class NoteManager {
       );
     } catch (error) {
       // If we can't update the note, just log the error and continue
-      console.warn(`Failed to sync hierarchy to frontmatter for ${noteId}:`, error);
+      logger.warn(`Failed to sync hierarchy to frontmatter for ${noteId}:`, { error });
     }
   }
 
@@ -586,7 +606,7 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail deletion if hierarchy cleanup fails, but log it
-      console.warn(`Failed to clean up hierarchy for deleted note ${noteId}:`, error);
+      logger.warn(`Failed to clean up hierarchy for deleted note ${noteId}:`, { error });
     }
   }
 
@@ -971,10 +991,9 @@ export class NoteManager {
           }
         } catch (error) {
           // Log but don't fail - fall through to file system fallback
-          console.warn(
-            `Failed to read note from database, falling back to file system:`,
+          logger.warn(`Failed to read note from database, falling back to file system:`, {
             error
-          );
+          });
         }
       }
 
@@ -1109,10 +1128,9 @@ export class NoteManager {
           }
         } catch (error) {
           // Log but don't fail - fall through to file system fallback
-          console.warn(
-            `Failed to read note from database, falling back to file system:`,
+          logger.warn(`Failed to read note from database, falling back to file system:`, {
             error
-          );
+          });
         }
       }
 
@@ -1519,6 +1537,9 @@ export class NoteManager {
 
   /**
    * Delete a note
+   *
+   * With DB-first architecture, the database is the source of truth.
+   * The file may not exist yet if the write is still pending.
    */
   async deleteNote(
     identifier: string,
@@ -1527,7 +1548,7 @@ export class NoteManager {
     try {
       const config = this.#workspace.getConfig();
 
-      // Validate deletion
+      // Validate deletion (checks database, not file system)
       const validation = await this.validateNoteDeletion(identifier);
       if (!validation.can_delete) {
         throw new Error(`Cannot delete note: ${validation.errors.join(', ')}`);
@@ -1540,22 +1561,37 @@ export class NoteManager {
 
       const { notePath } = await this.parseNoteIdentifier(identifier);
 
+      // Cancel any pending file write - no need to write content we're about to delete
+      this.#fileWriteQueue.cancelWrite(notePath);
+
       let backupPath: string | undefined;
 
-      // Create backup if enabled
+      // Create backup if enabled and file exists
       if (config?.deletion?.create_backups) {
-        const backup = await this.createNoteBackup(notePath);
-        backupPath = backup.path;
+        try {
+          await fs.access(notePath);
+          const backup = await this.createNoteBackup(notePath);
+          backupPath = backup.path;
+        } catch {
+          // File doesn't exist (write was pending), skip backup
+        }
       }
 
-      // Remove from search index first
+      // Remove from search index first (database)
       await this.removeFromSearchIndex(notePath);
 
       // Clean up hierarchy relationships
       await this.#cleanupHierarchyOnDelete(identifier);
 
-      // Delete the file
-      await fs.unlink(notePath);
+      // Delete the file if it exists
+      try {
+        await fs.unlink(notePath);
+      } catch (error) {
+        // File might not exist if write was pending - that's OK with DB-first architecture
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error; // Re-throw if it's not a "file not found" error
+        }
+      }
 
       return {
         id: identifier,
@@ -1572,6 +1608,9 @@ export class NoteManager {
 
   /**
    * Validate if a note can be deleted
+   *
+   * With DB-first architecture, we validate against the database, not the file system.
+   * The file may not exist yet if the write is still pending.
    */
   async validateNoteDeletion(identifier: string): Promise<DeletionValidation> {
     const validation: DeletionValidation = {
@@ -1581,15 +1620,23 @@ export class NoteManager {
     };
 
     try {
-      const { notePath } = await this.parseNoteIdentifier(identifier);
+      // Parse the identifier to get type and filename
+      const { typeName, filename } = await this.parseNoteIdentifier(identifier);
 
-      // Check if note exists
-      try {
-        await fs.access(notePath);
-      } catch {
-        validation.can_delete = false;
-        validation.errors.push(`Note '${identifier}' does not exist`);
-        return validation;
+      // For n- style IDs, parseNoteIdentifier already validates database existence
+      // For path-based identifiers, we need to verify the note exists in database
+      if (!identifier.startsWith('n-') && this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        const dbNote = await db.get<{ id: string }>(
+          'SELECT id FROM notes WHERE type = ? AND filename = ?',
+          [typeName, filename]
+        );
+
+        if (!dbNote) {
+          validation.can_delete = false;
+          validation.errors.push(`Note '${identifier}' does not exist`);
+          return validation;
+        }
       }
 
       // Check for incoming links from other notes
@@ -1647,9 +1694,9 @@ export class NoteManager {
 
           return links.map((link) => `${link.type}/${link.filename}`);
         } catch (error) {
-          console.warn(
+          logger.warn(
             `Failed to query incoming links from database, falling back to file scan:`,
-            error
+            { error }
           );
         }
       }
@@ -1809,9 +1856,9 @@ export class NoteManager {
           return dbNotes;
         } catch (error) {
           // Log but don't fail - fall through to file system fallback
-          console.warn(
+          logger.warn(
             `Failed to list notes from database, falling back to file system:`,
-            error
+            { error }
           );
         }
       }
@@ -1964,10 +2011,9 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail note operations if search index update fails
-      console.error(
-        'Failed to update search index:',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.error('Failed to update search index:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
     return content;
   }
@@ -1986,10 +2032,9 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail note operations if link conversion fails
-      console.error(
-        'Failed to convert title-based links:',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.error('Failed to convert title-based links:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
     return content;
   }
@@ -2006,10 +2051,9 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail note operations if link extraction fails
-      console.error(
-        'Failed to extract and store links:',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.error('Failed to extract and store links:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -2094,20 +2138,18 @@ export class NoteManager {
             notesUpdated++;
           }
         } catch (error) {
-          console.warn(
-            `Failed to rewrite links in note ${sourceNoteId}:`,
-            error instanceof Error ? error.message : 'Unknown error'
-          );
+          logger.warn(`Failed to rewrite links in note ${sourceNoteId}:`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
           // Continue with other notes
         }
       }
 
       return { notesUpdated, linksUpdated };
     } catch (error) {
-      console.error(
-        'Failed to rewrite broken links after note creation:',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.error('Failed to rewrite broken links after note creation:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return { notesUpdated: 0, linksUpdated: 0 };
     }
   }
@@ -2137,7 +2179,7 @@ export class NoteManager {
                 : this.generateNoteId();
           } catch {
             // Can't read file either - skip removal
-            console.warn(`Could not determine note ID for removal: ${notePath}`);
+            logger.warn(`Could not determine note ID for removal: ${notePath}`);
             return;
           }
         }
@@ -2150,10 +2192,9 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail note operations if search index update fails
-      console.error(
-        'Failed to remove from search index:',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.error('Failed to remove from search index:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -2192,10 +2233,9 @@ export class NoteManager {
       return MetadataValidator.validate(metadata, schema, enforceRequiredFields);
     } catch (error) {
       // If schema retrieval fails, allow the operation but log warning
-      console.warn(
-        `Failed to get metadata schema for type '${typeName}':`,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      logger.warn(`Failed to get metadata schema for type '${typeName}':`, {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return { valid: true, errors: [], warnings: [] };
     }
   }
@@ -2419,7 +2459,7 @@ export class NoteManager {
             db
           );
         } catch (error) {
-          console.warn('Failed to update broken links:', error);
+          logger.warn('Failed to update broken links:', { error });
           // Continue with operation - broken link updates are not critical
         }
       }
@@ -2438,7 +2478,7 @@ export class NoteManager {
           try {
             await fs.rename(finalPath, originalPath);
           } catch (rollbackError) {
-            console.error('Failed to rollback file rename:', rollbackError);
+            logger.error('Failed to rollback file rename:', { error: rollbackError });
           }
         }
 
@@ -2448,11 +2488,13 @@ export class NoteManager {
             const originalContent = await fs.readFile(originalPath, 'utf-8');
             await this.updateSearchIndex(originalPath, originalContent);
           } catch (rollbackError) {
-            console.error('Failed to rollback search index removal:', rollbackError);
+            logger.error('Failed to rollback search index removal:', {
+              error: rollbackError
+            });
           }
         }
       } catch (rollbackError) {
-        console.error('Error during rollback operations:', rollbackError);
+        logger.error('Error during rollback operations:', { error: rollbackError });
       }
 
       // Re-throw the original error

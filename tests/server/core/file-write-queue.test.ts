@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { FileWriteQueue } from '../../../src/server/core/notes.js';
+import { logger } from '../../../src/main/logger.js';
 
 describe('FileWriteQueue', () => {
   let tempDir: string;
@@ -217,9 +218,9 @@ describe('FileWriteQueue', () => {
       const queue = new FileWriteQueue(0);
       const badPath = '/nonexistent/directory/file.txt';
 
-      // Mock console.warn and console.error to avoid test output noise
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // Mock logger.warn and logger.error to track retry behavior
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
 
       await queue.queueWrite(badPath, 'This will fail');
 
@@ -250,7 +251,7 @@ describe('FileWriteQueue', () => {
       // Make it read-only temporarily
       await fs.chmod(filePath, 0o444);
 
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
       // Queue write (will fail initially)
       await queue.queueWrite(filePath, 'Should eventually succeed');

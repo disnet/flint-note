@@ -24,13 +24,15 @@ export class TestApiSetup {
       path.join(os.tmpdir(), `flint-test-${uniqueId}-`)
     );
 
-    // Set up isolated global config directory for this test instance
+    // Create isolated global config directory for this test instance
+    // Pass it directly to FlintNoteApi instead of using process.env
+    // to avoid race conditions when tests run in parallel
     const testConfigDir = path.join(this.testWorkspacePath, 'config');
-    process.env.XDG_CONFIG_HOME = testConfigDir;
 
-    // Initialize API with the test workspace path
+    // Initialize API with the test workspace path and isolated config directory
     this.api = new FlintNoteApi({
-      workspacePath: this.testWorkspacePath
+      workspacePath: this.testWorkspacePath,
+      configDir: testConfigDir
     });
 
     // Initialize the API - this should set up database schema
@@ -51,13 +53,15 @@ export class TestApiSetup {
       path.join(os.tmpdir(), `flint-test-${uniqueId}-`)
     );
 
-    // Set up isolated global config directory for this test instance
+    // Create isolated global config directory for this test instance
+    // Pass it directly to FlintNoteApi instead of using process.env
+    // to avoid race conditions when tests run in parallel
     const testConfigDir = path.join(this.testWorkspacePath, 'config');
-    process.env.XDG_CONFIG_HOME = testConfigDir;
 
-    // Initialize API with the vault path directly (single-vault mode)
+    // Initialize API with the vault path directly (single-vault mode) and isolated config directory
     this.api = new FlintNoteApi({
-      workspacePath: this.testWorkspacePath
+      workspacePath: this.testWorkspacePath,
+      configDir: testConfigDir
     });
 
     // Initialize the API - this sets up the database and file watcher for this vault
@@ -133,9 +137,6 @@ export class TestApiSetup {
         // Ignore cleanup errors in tests
       }
     }
-
-    // Clean up environment variable
-    delete process.env.XDG_CONFIG_HOME;
 
     // Clean up temporary directory
     try {

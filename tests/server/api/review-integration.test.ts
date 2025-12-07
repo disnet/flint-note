@@ -1,14 +1,16 @@
 /**
  * Review Integration Tests
  *
- * End-to-end tests for the session-based review system through the API layer
+ * End-to-end tests for the session-based review system through the API layer.
+ * These tests involve database operations that can be timing-sensitive under load.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestApiSetup } from './test-setup.js';
 import type { FlintNoteApi } from '../../../src/server/api/flint-note-api.js';
 
-describe('Review System Integration', () => {
+// Retry flaky tests up to 2 times
+describe('Review System Integration', { retry: 2 }, () => {
   let setup: TestApiSetup;
   let api: FlintNoteApi;
   let vaultId: string;

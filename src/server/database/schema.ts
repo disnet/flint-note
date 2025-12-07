@@ -340,6 +340,8 @@ export class DatabaseManager {
           content_hash TEXT,
           icon TEXT,
           suggestions_config TEXT,
+          default_review_mode INTEGER DEFAULT 0,
+          editor_chips TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(vault_id, type_name)

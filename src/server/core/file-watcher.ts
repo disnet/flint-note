@@ -102,7 +102,7 @@ export class VaultFileWatcher {
       try {
         handler(event);
       } catch (error) {
-        console.error('Error in file watcher event handler:', error);
+        logger.error('Error in file watcher event handler:', { error });
       }
     }
   }
@@ -112,7 +112,7 @@ export class VaultFileWatcher {
    */
   async start(): Promise<void> {
     if (this.watcher) {
-      console.warn('File watcher already started');
+      logger.warn('File watcher already started');
       return;
     }
 
@@ -214,10 +214,9 @@ export class VaultFileWatcher {
           return { isInternal: true, isConflict: false };
         }
       } catch (error) {
-        console.warn(
-          `[FileWatcher] Error reading ${absolutePath}:`,
-          error instanceof Error ? error.message : 'Unknown error'
-        );
+        logger.warn(`[FileWatcher] Error reading ${absolutePath}:`, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
 
@@ -314,7 +313,9 @@ export class VaultFileWatcher {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
           return;
         }
-        console.error(`[FileWatcher] Error processing file addition: ${filePath}`, error);
+        logger.error(`[FileWatcher] Error processing file addition: ${filePath}`, {
+          error
+        });
       }
     });
   }
@@ -363,7 +364,9 @@ export class VaultFileWatcher {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
           return;
         }
-        console.error(`[FileWatcher] Error processing file change: ${filePath}`, error);
+        logger.error(`[FileWatcher] Error processing file change: ${filePath}`, {
+          error
+        });
       }
     });
   }
@@ -414,7 +417,7 @@ export class VaultFileWatcher {
               }, this.RENAME_DETECTION_WINDOW_MS);
             }
           } catch (error) {
-            console.error('[FileWatcher] Error storing recent deletion:', error);
+            logger.error('[FileWatcher] Error storing recent deletion:', { error });
           }
         }
 
@@ -431,7 +434,9 @@ export class VaultFileWatcher {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
           return;
         }
-        console.error(`[FileWatcher] Error processing file deletion: ${filePath}`, error);
+        logger.error(`[FileWatcher] Error processing file deletion: ${filePath}`, {
+          error
+        });
       }
     });
   }
@@ -440,7 +445,7 @@ export class VaultFileWatcher {
    * Handle watcher errors
    */
   private onError(error: unknown): void {
-    console.error('[FileWatcher] Watcher error:', error);
+    logger.error('[FileWatcher] Watcher error:', { error });
   }
 
   /**
@@ -476,7 +481,7 @@ export class VaultFileWatcher {
 
       return note?.id || null;
     } catch (error) {
-      console.error('[FileWatcher] Error getting note ID from path:', error);
+      logger.error('[FileWatcher] Error getting note ID from path:', { error });
       return null;
     }
   }

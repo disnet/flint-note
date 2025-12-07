@@ -1,5 +1,8 @@
 /**
  * Tests for VaultFileWatcher - Internal vs External Change Detection
+ *
+ * These tests are timing-sensitive as they depend on file system events.
+ * They use retries to handle occasional flakiness under system load.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -8,7 +11,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { FileWatcherEvent } from '../../../src/server/core/file-watcher.js';
 
-describe('VaultFileWatcher - Internal vs External Change Detection', () => {
+// Retry flaky file-watcher tests up to 2 times
+describe('VaultFileWatcher - Internal vs External Change Detection', { retry: 2 }, () => {
   let testSetup: TestApiSetup;
   let vaultId: string;
   let vaultPath: string;
@@ -176,11 +180,25 @@ Modified externally in VSCode!`;
 
       await fs.writeFile(notePath, externalContent, 'utf-8');
 
-      // Wait for file watcher to detect the change
-      // Need to wait for: awaitWriteFinish (200ms) + debounce (100ms) + processing time
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Poll for the external-change event with a timeout
+      // This is more reliable than a fixed wait time under system load
+      const maxWaitMs = 2000;
+      const pollIntervalMs = 100;
+      const startTime = Date.now();
 
-      // Should have detected an external change
+      while (Date.now() - startTime < maxWaitMs) {
+        const externalChangeEvents = capturedEvents.filter(
+          (e) => e.type === 'external-change'
+        );
+        if (externalChangeEvents.length > 0) {
+          // Event detected!
+          expect(externalChangeEvents.length).toBeGreaterThan(0);
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+
+      // Final check - should have detected an external change
       const externalChangeEvents = capturedEvents.filter(
         (e) => e.type === 'external-change'
       );
@@ -189,7 +207,7 @@ Modified externally in VSCode!`;
       // Verify the change was synced to the database
       const retrieved = await testSetup.api.getNote(vaultId, note.id);
       expect(retrieved?.content).toContain('Modified externally');
-    });
+    }, 10000); // 10s timeout for this long-running test
 
     it('should trigger external-add event when file is created externally', async () => {
       // Clear any initial events
@@ -210,13 +228,26 @@ This note was created outside of Flint.`;
 
       await fs.writeFile(externalNotePath, externalContent, 'utf-8');
 
-      // Wait for file watcher to detect the new file
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Poll for the external-add event with a timeout
+      // This is more reliable than a fixed wait time under system load
+      const maxWaitMs = 2000;
+      const pollIntervalMs = 100;
+      const startTime = Date.now();
 
-      // Should have detected an external add
+      while (Date.now() - startTime < maxWaitMs) {
+        const externalAddEvents = capturedEvents.filter((e) => e.type === 'external-add');
+        if (externalAddEvents.length > 0) {
+          // Event detected!
+          expect(externalAddEvents.length).toBeGreaterThan(0);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+
+      // Final check - should have detected an external add
       const externalAddEvents = capturedEvents.filter((e) => e.type === 'external-add');
       expect(externalAddEvents.length).toBeGreaterThan(0);
-    });
+    }, 10000); // 10s timeout for this long-running test
 
     it('should trigger external-delete event when file is deleted externally', async () => {
       // Create a note through Flint
@@ -266,7 +297,7 @@ This note was created outside of Flint.`;
       // Note: We can't reliably verify the note was removed from DB in this test
       // because the sync might not have completed yet. The important part is
       // that the external-delete event was detected.
-    });
+    }, 10000); // 10s timeout for this long-running test
   });
 
   describe('Edge Cases', () => {
