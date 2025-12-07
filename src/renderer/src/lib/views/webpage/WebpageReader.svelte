@@ -23,7 +23,7 @@
   } = $props();
 
   // State
-  let container: HTMLDivElement;
+  let container: HTMLDivElement | undefined = $state(undefined);
   let shadowRoot: ShadowRoot | null = null;
   let contentContainer: HTMLElement | null = null;
   let isMounted = $state(false);
@@ -34,6 +34,35 @@
   let fullText = ''; // Plain text content for offset calculations
   let selectionCheckInterval: ReturnType<typeof setInterval> | null = null;
   let baseUrl: string | null = null; // Original webpage URL for resolving relative links
+  let scrollAncestor: HTMLElement | null = $state(null);
+
+  // Find the nearest scrollable ancestor element
+  function findScrollableAncestor(element: HTMLElement | null): HTMLElement | null {
+    if (!element) return null;
+
+    let current = element.parentElement;
+    while (current) {
+      const style = getComputedStyle(current);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  // Find scrollable ancestor when container is available
+  $effect(() => {
+    if (container && isMounted) {
+      scrollAncestor = findScrollableAncestor(container);
+    }
+  });
+
+  // Use found scroll ancestor for scroll tracking
+  function getEffectiveScrollContainer(): HTMLElement | null {
+    return scrollAncestor || container || null;
+  }
 
   // Check if dark mode is active
   function checkDarkMode(): boolean {
@@ -54,8 +83,6 @@
       :host {
         display: block;
         width: 100%;
-        height: 100%;
-        overflow-y: auto;
         background: ${bg};
         color: ${text};
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -286,8 +313,8 @@
       // Set up selection checking
       startSelectionChecking();
 
-      // Set up scroll position tracking
-      container.addEventListener('scroll', handleScroll);
+      // Set up scroll position tracking on the effective container
+      getEffectiveScrollContainer()?.addEventListener('scroll', handleScroll);
 
       // Try to load metadata from the meta.json file
       try {
@@ -315,11 +342,19 @@
   }
 
   function handleScroll(): void {
-    if (!container || !contentContainer) return;
+    const scrollEl = getEffectiveScrollContainer();
+    if (!scrollEl || !contentContainer || !container) return;
 
-    const scrollTop = container.scrollTop;
-    const scrollHeight = contentContainer.scrollHeight - container.clientHeight;
-    const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    // Calculate how far through the webpage content we've scrolled
+    const containerRect = container.getBoundingClientRect();
+    const scrollElRect = scrollEl.getBoundingClientRect();
+
+    // How much of the content is above the viewport
+    const scrolledPast = scrollElRect.top - containerRect.top;
+    // Total scrollable distance (content height - viewport height)
+    const totalScrollable = containerRect.height - scrollElRect.height;
+
+    const progress = totalScrollable > 0 ? (scrolledPast / totalScrollable) * 100 : 0;
 
     onRelocate(Math.min(100, Math.max(0, progress)));
   }
@@ -430,9 +465,11 @@
             endOffset
           );
 
-          // Calculate position for popup
+          // Calculate position for popup (use scroll container if provided)
           const rangeRect = range.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
+          const positionContainer = getEffectiveScrollContainer() || container;
+          if (!positionContainer) return;
+          const containerRect = positionContainer.getBoundingClientRect();
 
           const selectionInfo: WebpageSelectionInfo = {
             text,
@@ -547,17 +584,26 @@
 
   // Public methods
   export function scrollToTop(): void {
-    if (container) {
-      container.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollEl = getEffectiveScrollContainer();
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
   export function scrollToProgress(progress: number): void {
-    if (!container || !contentContainer) return;
+    const scrollEl = getEffectiveScrollContainer();
+    if (!scrollEl || !container) return;
 
-    const scrollHeight = contentContainer.scrollHeight - container.clientHeight;
-    const targetScroll = (progress / 100) * scrollHeight;
-    container.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    // Calculate the target scroll position based on progress percentage
+    const containerRect = container.getBoundingClientRect();
+    const scrollElRect = scrollEl.getBoundingClientRect();
+    const totalScrollable = containerRect.height - scrollElRect.height;
+
+    // Calculate current offset of container from scroll element's scroll position
+    const containerOffsetTop = container.offsetTop;
+    const targetScroll = containerOffsetTop + (progress / 100) * totalScrollable;
+
+    scrollEl.scrollTo({ top: targetScroll, behavior: 'smooth' });
   }
 
   export function clearSelection(): void {
@@ -615,7 +661,7 @@
     stopSelectionChecking();
     themeObserver?.disconnect();
     mediaQueryList?.removeEventListener('change', handleThemeChange);
-    container?.removeEventListener('scroll', handleScroll);
+    getEffectiveScrollContainer()?.removeEventListener('scroll', handleScroll);
     contentContainer?.removeEventListener('click', handleLinkClick);
   });
 </script>
@@ -638,8 +684,6 @@
 <style>
   .webpage-reader {
     width: 100%;
-    height: 100%;
-    overflow-y: auto;
     background: var(--bg-primary, #fff);
     position: relative;
   }
