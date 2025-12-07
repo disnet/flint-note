@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import type { DeckSort, ColumnConfig, FilterFieldInfo } from './types';
   import { SYSTEM_FIELDS } from './types';
   import PropChip from './PropChip.svelte';
@@ -43,7 +44,7 @@
   let ghostElement = $state<HTMLElement | null>(null);
   let grabOffsetX = $state<number>(0);
   let grabOffsetY = $state<number>(0);
-  let chipRects = $state<Map<number, DOMRect>>(new Map());
+  let chipRects = new SvelteMap<number, DOMRect>();
   let activePointerId = $state<number | null>(null);
 
   // Calculate the transform offset for each item to animate to its new position
@@ -99,11 +100,10 @@
     const toolbar = chipWrapper.closest('.deck-toolbar');
     if (toolbar) {
       const chips = toolbar.querySelectorAll('.prop-chip-wrapper');
-      const newRects = new Map<number, DOMRect>();
+      chipRects.clear();
       chips.forEach((chip, idx) => {
-        newRects.set(idx, chip.getBoundingClientRect());
+        chipRects.set(idx, chip.getBoundingClientRect());
       });
-      chipRects = newRects;
     }
 
     draggedIndex = index;
@@ -190,7 +190,7 @@
 
     draggedIndex = null;
     targetIndex = null;
-    chipRects = new Map();
+    chipRects.clear();
     activePointerId = null;
   }
 
