@@ -19,11 +19,42 @@ export function getBuildType(): BuildType {
   if (!app.isPackaged) {
     return 'dev';
   }
-  // Canary builds have a different productName set in electron-builder.canary.yml
-  if (app.name === 'Flint Canary') {
+  // Canary builds can be detected by:
+  // 1. productName set to 'Flint Canary' in electron-builder.canary.yml
+  // 2. Executable name containing 'canary' (e.g., flint-canary.exe on Windows)
+  // 3. App path containing 'Canary' (e.g., /Applications/Flint Canary.app on macOS)
+  if (isCanaryBuild()) {
     return 'canary';
   }
   return 'production';
+}
+
+/**
+ * Check if this is a canary build using multiple detection methods.
+ */
+function isCanaryBuild(): boolean {
+  // Method 1: Check app.name (productName from electron-builder)
+  if (app.name === 'Flint Canary') {
+    return true;
+  }
+
+  // Method 2: Check executable path for 'canary' (case-insensitive)
+  const execPath = process.execPath.toLowerCase();
+  if (execPath.includes('canary')) {
+    return true;
+  }
+
+  // Method 3: Check app path for 'Canary'
+  try {
+    const appPath = app.getAppPath().toLowerCase();
+    if (appPath.includes('canary')) {
+      return true;
+    }
+  } catch {
+    // getAppPath might not be available in all contexts
+  }
+
+  return false;
 }
 
 /**
@@ -42,41 +73,51 @@ export function getAppUserModelId(): string {
 }
 
 /**
- * Override the userData path for dev builds to isolate them from production.
+ * Override the userData path for dev and canary builds to isolate them from production.
  *
  * On macOS, the case-insensitive filesystem causes 'flint' (from package.json)
  * and 'Flint' (from electron-builder productName) to resolve to the same directory.
  * This function redirects dev builds to a distinct 'Flint Dev' directory.
  *
+ * For canary builds, we also need to explicitly set the path because Electron
+ * might use the package.json 'name' field rather than electron-builder's productName.
+ *
  * IMPORTANT: Must be called very early in main process initialization,
  * before any code calls app.getPath('userData').
  */
-export function setupDevUserDataPath(): void {
+export function setupUserDataPath(): void {
+  const platform = os.platform();
+  const homeDir = os.homedir();
+
+  // Determine the directory name based on build type
+  let dirName: string;
   if (!app.isPackaged) {
-    const platform = os.platform();
-    const homeDir = os.homedir();
-    let devUserDataPath: string;
-
-    switch (platform) {
-      case 'darwin':
-        devUserDataPath = path.join(
-          homeDir,
-          'Library',
-          'Application Support',
-          'Flint Dev'
-        );
-        break;
-      case 'win32':
-        devUserDataPath = path.join(
-          process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'),
-          'Flint Dev'
-        );
-        break;
-      default:
-        // Linux and other Unix-like systems
-        devUserDataPath = path.join(homeDir, '.config', 'Flint Dev');
-    }
-
-    app.setPath('userData', devUserDataPath);
+    dirName = 'Flint Dev';
+  } else if (isCanaryBuild()) {
+    dirName = 'Flint Canary';
+  } else {
+    // Production build - use default 'Flint' (let Electron handle it)
+    return;
   }
+
+  let userDataPath: string;
+  switch (platform) {
+    case 'darwin':
+      userDataPath = path.join(homeDir, 'Library', 'Application Support', dirName);
+      break;
+    case 'win32':
+      userDataPath = path.join(
+        process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'),
+        dirName
+      );
+      break;
+    default:
+      // Linux and other Unix-like systems
+      userDataPath = path.join(homeDir, '.config', dirName);
+  }
+
+  app.setPath('userData', userDataPath);
 }
+
+// Keep the old name as an alias for backwards compatibility
+export const setupDevUserDataPath = setupUserDataPath;
