@@ -1114,6 +1114,11 @@ export class FlintNoteApi {
               tempNoteTypeManager
             );
 
+            // Flush all pending file writes to disk before continuing
+            // This ensures the file watcher can properly identify these as internal writes
+            // and prevents race conditions causing SQLITE_CONSTRAINT errors
+            await tempNoteManager.getFileWriteQueue().flushAll();
+
             // Capture the initial note ID from template application
             initialNoteId = result.initialNoteId;
 

@@ -1754,19 +1754,27 @@
       if (result?.success) {
         logger.debug('Note service reinitialized successfully');
 
-        // Publish vault switched event - noteStore will automatically reinitialize
+        // Publish vault switched event for other listeners
         messageBus.publish({
           type: 'vault.switched',
           vaultId: vault.id
         });
         logger.debug('Vault switched event published for vault:', vault.id);
 
+        // IMPORTANT: Explicitly initialize noteStore - the vault.switched listener was removed
+        // to prevent race conditions, so we must call initialize() directly
+        await notesStore.initialize();
+        logger.debug('Notes store initialized after vault creation');
+
+        // Wait for Svelte's reactivity to propagate the notes to all derived values
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
         // Reinitialize the daily view store now that a vault is available
         await dailyViewStore.reinitialize();
         logger.debug('Daily view store reinitialized after vault creation');
 
         // NOW add initial note tab AFTER vault switching is complete
-        // This ensures we have the correct vault ID in temporary tabs store
+        // This ensures we have the correct vault ID and notes are loaded
         logger.debug('App.svelte: Checking if should add initial note...');
         logger.debug('App.svelte: vault.isNewVault =', vault.isNewVault);
         logger.debug('App.svelte: vault.initialNoteId =', vault.initialNoteId);

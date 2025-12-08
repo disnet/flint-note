@@ -1,4 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog, nativeTheme } from 'electron';
+import { setupDevUserDataPath, getAppUserModelId } from './build-type';
+
+// Must be called before app.whenReady() and before any code uses app.getPath('userData')
+// This isolates dev builds from production on case-insensitive filesystems (macOS)
+setupDevUserDataPath();
+
 import { join, basename } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { promises as fsPromises } from 'fs';
@@ -377,8 +383,8 @@ async function createWindow(
 app.whenReady().then(async () => {
   logger.info('Application ready, initializing main process');
 
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.flintnote.flint');
+  // Set app user model id for windows (varies by build type: dev, canary, production)
+  electronApp.setAppUserModelId(getAppUserModelId());
 
   // Set up About panel
   app.setAboutPanelOptions({
@@ -477,13 +483,17 @@ app.whenReady().then(async () => {
 
   // Initialize Workflow service
   let workflowService: WorkflowService | null = null;
-  try {
-    const db = noteService ? await noteService.getDatabaseConnection() : null;
-    workflowService = new WorkflowService(noteService, db);
-    logger.info('Workflow Service initialized successfully');
-  } catch (error) {
-    logger.error('Failed to initialize Workflow Service', { error });
-    logger.warn('Workflow operations will not be available');
+  if (noteService && noteService.isReady()) {
+    try {
+      const db = await noteService.getDatabaseConnection();
+      workflowService = new WorkflowService(noteService, db);
+      logger.info('Workflow Service initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize Workflow Service', { error });
+      logger.warn('Workflow operations will not be available');
+    }
+  } else {
+    logger.info('Workflow Service not initialized - no vault configured yet');
   }
 
   // Initialize AI service
@@ -1563,12 +1573,14 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-review-stats', async () => {
     if (!noteService) {
-      throw new Error('Note service not available');
+      // No vault configured yet - return empty stats
+      return { totalNotes: 0, dueNotes: 0, reviewedToday: 0 };
     }
     const flintApi = noteService.getFlintNoteApi();
     const vault = await noteService.getCurrentVault();
     if (!vault) {
-      throw new Error('No active vault');
+      // No active vault - return empty stats
+      return { totalNotes: 0, dueNotes: 0, reviewedToday: 0 };
     }
     return await flintApi.getReviewStats({ vaultId: vault.id });
   });
@@ -1712,36 +1724,42 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('is-new-session-available', async () => {
     if (!noteService) {
-      throw new Error('Note service not available');
+      // No vault configured - no session available
+      return false;
     }
     const flintApi = noteService.getFlintNoteApi();
     const vault = await noteService.getCurrentVault();
     if (!vault) {
-      throw new Error('No active vault');
+      // No active vault - no session available
+      return false;
     }
     return await flintApi.isNewSessionAvailable({ vaultId: vault.id });
   });
 
   ipcMain.handle('get-next-session-available-at', async () => {
     if (!noteService) {
-      throw new Error('Note service not available');
+      // No vault configured - no session info available
+      return null;
     }
     const flintApi = noteService.getFlintNoteApi();
     const vault = await noteService.getCurrentVault();
     if (!vault) {
-      throw new Error('No active vault');
+      // No active vault - no session info available
+      return null;
     }
     return await flintApi.getNextSessionAvailableAt({ vaultId: vault.id });
   });
 
   ipcMain.handle('get-review-config', async () => {
     if (!noteService) {
-      throw new Error('Note service not available');
+      // No vault configured - return default config
+      return { sessionSize: 10, cooldownMinutes: 240 };
     }
     const flintApi = noteService.getFlintNoteApi();
     const vault = await noteService.getCurrentVault();
     if (!vault) {
-      throw new Error('No active vault');
+      // No active vault - return default config
+      return { sessionSize: 10, cooldownMinutes: 240 };
     }
     return await flintApi.getReviewConfig({ vaultId: vault.id });
   });
@@ -2247,10 +2265,20 @@ app.whenReady().then(async () => {
   ipcMain.handle(
     'load-ui-state',
     async (_event, params: { vaultId: string; stateKey: string }) => {
-      if (!noteService) {
-        throw new Error('Note service not available');
+      if (!noteService || !noteService.isReady()) {
+        // No vault configured yet - return null (no saved state)
+        return null;
       }
-      return await noteService.loadUIState(params.vaultId, params.stateKey);
+      try {
+        return await noteService.loadUIState(params.vaultId, params.stateKey);
+      } catch (error) {
+        // Vault may not exist (e.g., stale state from different environment)
+        logger.debug('Failed to load UI state - vault may not exist', {
+          vaultId: params.vaultId,
+          stateKey: params.stateKey
+        });
+        return null;
+      }
     }
   );
 
@@ -2260,20 +2288,32 @@ app.whenReady().then(async () => {
       _event,
       params: { vaultId: string; stateKey: string; stateValue: unknown }
     ) => {
-      if (!noteService) {
-        throw new Error('Note service not available');
+      if (!noteService || !noteService.isReady()) {
+        // No vault configured yet - silently succeed (state will be lost but that's expected)
+        return { success: true };
       }
-      return await noteService.saveUIState(
-        params.vaultId,
-        params.stateKey,
-        params.stateValue
-      );
+      try {
+        return await noteService.saveUIState(
+          params.vaultId,
+          params.stateKey,
+          params.stateValue
+        );
+      } catch (error) {
+        // Vault may not exist (e.g., stale state from different environment)
+        // Silently succeed rather than failing
+        logger.debug('Failed to save UI state - vault may not exist', {
+          vaultId: params.vaultId,
+          stateKey: params.stateKey
+        });
+        return { success: true };
+      }
     }
   );
 
   ipcMain.handle('clear-ui-state', async (_event, params: { vaultId: string }) => {
-    if (!noteService) {
-      throw new Error('Note service not available');
+    if (!noteService || !noteService.isReady()) {
+      // No vault configured yet - nothing to clear
+      return { success: true };
     }
     return await noteService.clearUIState(params.vaultId);
   });
@@ -2776,7 +2816,8 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('workflow:list', async (_event, input?) => {
     if (!workflowService) {
-      throw new Error('Workflow service not available');
+      // Workflow service not initialized (no vault at startup) - return empty list
+      return [];
     }
     try {
       return await workflowService.listWorkflows(input);
