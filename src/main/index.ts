@@ -2271,7 +2271,7 @@ app.whenReady().then(async () => {
       }
       try {
         return await noteService.loadUIState(params.vaultId, params.stateKey);
-      } catch (error) {
+      } catch {
         // Vault may not exist (e.g., stale state from different environment)
         logger.debug('Failed to load UI state - vault may not exist', {
           vaultId: params.vaultId,
@@ -2298,7 +2298,7 @@ app.whenReady().then(async () => {
           params.stateKey,
           params.stateValue
         );
-      } catch (error) {
+      } catch {
         // Vault may not exist (e.g., stale state from different environment)
         // Silently succeed rather than failing
         logger.debug('Failed to save UI state - vault may not exist', {
