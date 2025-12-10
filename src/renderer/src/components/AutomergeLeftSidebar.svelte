@@ -5,8 +5,7 @@
    */
   import { fly } from 'svelte/transition';
   import AutomergeSystemViews from './AutomergeSystemViews.svelte';
-  import AutomergePinnedNotes from './AutomergePinnedNotes.svelte';
-  import AutomergeRecentNotes from './AutomergeRecentNotes.svelte';
+  import AutomergeSidebarNotes from './AutomergeSidebarNotes.svelte';
   import AutomergeWorkspaceBar from './AutomergeWorkspaceBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -104,8 +103,7 @@
           in:fly={{ x: slideDirection * 50, duration: 150, delay: 75 }}
           out:fly={{ x: slideDirection * -50, duration: 75 }}
         >
-          <AutomergePinnedNotes {onNoteSelect} />
-          <AutomergeRecentNotes {onNoteSelect} />
+          <AutomergeSidebarNotes {onNoteSelect} />
         </div>
       {/key}
     </div>
