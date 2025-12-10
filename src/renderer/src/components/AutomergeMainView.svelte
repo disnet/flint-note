@@ -25,6 +25,7 @@
   import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
+  import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -42,10 +43,11 @@
 
   // UI state
   let searchQuery = $state('');
-  let activeSystemView = $state<'notes' | 'settings' | 'search' | null>(null);
+  let activeSystemView = $state<'notes' | 'settings' | 'search' | 'types' | null>(null);
   let showCreateVaultModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
+  let selectedNoteTypeId = $state<string | null>(null);
 
   // Enhanced search results with highlighting
   const searchResults: SearchResult[] = $derived(
@@ -101,11 +103,26 @@
     archiveNote(noteId);
   }
 
-  function handleSystemViewSelect(view: 'notes' | 'settings' | null): void {
+  function handleSystemViewSelect(view: 'notes' | 'settings' | 'types' | null): void {
     activeSystemView = view;
     if (view) {
       setActiveNoteId(null); // Clear active note when viewing system views
     }
+    // Reset selected note type when leaving types view
+    if (view !== 'types') {
+      selectedNoteTypeId = null;
+    }
+  }
+
+  function handleNoteTypeSelect(typeId: string | null): void {
+    selectedNoteTypeId = typeId;
+  }
+
+  function handleNoteSelectFromTypes(_noteId: string): void {
+    // Navigate to the note from the types view
+    // The note is already selected via setActiveNoteId in the NoteTypesView
+    activeSystemView = null;
+    selectedNoteTypeId = null;
   }
 
   async function handleVaultSelect(vaultId: string): Promise<void> {
@@ -311,6 +328,13 @@
             />
           </div>
         </div>
+      {:else if activeSystemView === 'types'}
+        <!-- Note Types View -->
+        <AutomergeNoteTypesView
+          selectedTypeId={selectedNoteTypeId}
+          onTypeSelect={handleNoteTypeSelect}
+          onNoteSelect={handleNoteSelectFromTypes}
+        />
       {:else if activeSystemView === 'notes'}
         <!-- All Notes View -->
         <div class="all-notes-view">

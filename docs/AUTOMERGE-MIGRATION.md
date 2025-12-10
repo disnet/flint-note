@@ -301,7 +301,7 @@ After Phase 1 is stable:
 
 1. **Search Improvements**: Full-text search with highlighting ✅
 2. **Multiple Workspaces**: Full workspace management UI ✅
-3. **Note Types**: UI for creating and managing custom note types
+3. **Note Types**: UI for creating and managing custom note types ✅
 4. **Wikilink hover popovers**: Action popover on hover (currently simplified)
 5. **Inline images**: Support for images in notes (requires IPC)
 
@@ -351,6 +351,36 @@ Implemented enhanced search functionality with:
   - `src/renderer/src/lib/automerge/search.svelte.ts` - Search engine with ranking/highlighting
   - `src/renderer/src/components/AutomergeSearchResults.svelte` - Enhanced results component
 
+#### Note Types Management (Complete)
+
+Full note type management UI with:
+
+- **Note Types View** (`AutomergeNoteTypesView.svelte`):
+  - List all note types with icons and note counts
+  - Create new note types with name, icon, and purpose
+  - Edit existing note types
+  - Archive note types (soft delete, prevents deletion of default type)
+  - View all notes of a specific type
+  - Create new notes directly from type detail view
+
+- **Note Type Dropdown** (`AutomergeNoteTypeDropdown.svelte`):
+  - Integrated into note editor header
+  - Search/filter available types
+  - Keyboard navigation (arrow keys, Enter, Escape)
+  - Shows current type icon and name
+
+- **System Navigation**:
+  - Added "Note Types" to sidebar system views
+  - Accessible from left sidebar alongside "All Notes" and "Settings"
+
+- **State Management** (already in `state.svelte.ts`):
+  - `getNoteTypes()` - Get all non-archived types
+  - `getNoteType(id)` - Get single type by ID
+  - `createNoteType()` - Create new type
+  - `updateNoteType()` - Edit type properties
+  - `archiveNoteType()` - Soft delete type
+  - `setNoteType()` - Change a note's type
+
 ### Phase 3: Sync
 
 Future work for multi-device sync:
@@ -382,6 +412,8 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeRecentNotes.svelte`
 - `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
 - `src/renderer/src/components/AutomergeSearchResults.svelte`
+- `src/renderer/src/components/AutomergeNoteTypesView.svelte` (note types management view)
+- `src/renderer/src/components/AutomergeNoteTypeDropdown.svelte` (type selector dropdown)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 

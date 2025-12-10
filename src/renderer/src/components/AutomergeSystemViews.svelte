@@ -1,17 +1,17 @@
 <script lang="ts">
   /**
    * System navigation views for the Automerge sidebar
-   * Simplified version for Phase 1 - just Notes and Settings
+   * Includes Notes, Note Types, and Settings
    */
 
   interface Props {
-    activeSystemView: 'notes' | 'settings' | 'search' | null;
-    onSystemViewSelect: (view: 'notes' | 'settings' | null) => void;
+    activeSystemView: 'notes' | 'settings' | 'search' | 'types' | null;
+    onSystemViewSelect: (view: 'notes' | 'settings' | 'types' | null) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
-  function setActiveView(view: 'notes' | 'settings'): void {
+  function setActiveView(view: 'notes' | 'settings' | 'types'): void {
     onSystemViewSelect(view);
   }
 </script>
@@ -35,6 +35,26 @@
         <polyline points="14,2 14,8 20,8"></polyline>
       </svg>
       All Notes
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'types'}
+      onclick={() => setActiveView('types')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"
+        ></path>
+      </svg>
+      Note Types
     </button>
 
     <button

@@ -16,6 +16,7 @@
     forceWikilinkRefresh
   } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
+  import AutomergeNoteTypeDropdown from './AutomergeNoteTypeDropdown.svelte';
 
   interface Props {
     note: Note;
@@ -214,13 +215,16 @@
 <div class="note-editor" onkeydown={handleKeyDown}>
   <!-- Header -->
   <div class="editor-header">
-    <input
-      type="text"
-      class="title-input"
-      value={note.title}
-      oninput={handleTitleInput}
-      placeholder="Untitled"
-    />
+    <div class="header-left">
+      <AutomergeNoteTypeDropdown noteId={note.id} currentTypeId={note.type} />
+      <input
+        type="text"
+        class="title-input"
+        value={note.title}
+        oninput={handleTitleInput}
+        placeholder="Untitled"
+      />
+    </div>
     <div class="header-actions">
       <span class="last-modified" title="Last modified">
         {formatDate(note.updated)}
@@ -278,6 +282,15 @@
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
+    gap: 1rem;
+  }
+
+  .header-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
   }
 
   .title-input {
@@ -289,6 +302,7 @@
     color: var(--text-primary);
     outline: none;
     padding: 0;
+    min-width: 0;
   }
 
   .title-input::placeholder {

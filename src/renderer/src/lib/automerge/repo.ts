@@ -6,6 +6,7 @@ import { Repo, type DocHandle, type AutomergeUrl } from '@automerge/automerge-re
 import { IndexedDBStorageAdapter } from '@automerge/automerge-repo-storage-indexeddb';
 import type { NotesDocument, Vault } from './types';
 import { generateVaultId, nowISO } from './utils';
+// Note: generateWorkspaceId and generateNoteTypeId are used in state.svelte.ts for runtime creation
 
 // Singleton repo instance
 let repo: Repo | null = null;
