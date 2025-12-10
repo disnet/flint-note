@@ -1,7 +1,7 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
-// Note: Renderer is built separately using vite.renderer.config.ts
-// to properly handle WASM bundling with vite-plugin-wasm
+// electron-vite config for main and preload only
+// Renderer is built separately using vite.renderer.config.ts
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -29,14 +29,6 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: ['typescript', /^typescript\//]
-      }
-    }
-  },
-  renderer: {
-    // Minimal config - actual build done by vite.renderer.config.ts
-    build: {
-      rollupOptions: {
-        input: {}
       }
     }
   }
