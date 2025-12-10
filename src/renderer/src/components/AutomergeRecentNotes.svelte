@@ -1,10 +1,10 @@
 <script lang="ts">
   /**
-   * Temporary/Open notes tabs for the Automerge sidebar
-   * Shows notes that are open in the active workspace but not pinned
+   * Recent notes list for the Automerge sidebar
+   * Shows notes that are recently accessed in the active workspace but not pinned
    */
   import {
-    getOpenNotes,
+    getRecentNotes,
     removeNoteFromWorkspace,
     pinNote,
     archiveNote,
@@ -20,7 +20,7 @@
   let { onNoteSelect }: Props = $props();
 
   // Reactive state
-  const openNotes = $derived(getOpenNotes());
+  const recentNotes = $derived(getRecentNotes());
   const activeNoteId = $derived(getActiveNoteId());
   const noteTypes = $derived(getNoteTypes());
 
@@ -39,8 +39,8 @@
   }
 
   function handleClearAll(): void {
-    // Close all open notes
-    for (const note of openNotes) {
+    // Close all recent notes
+    for (const note of recentNotes) {
       removeNoteFromWorkspace(note.id);
     }
   }
@@ -128,10 +128,10 @@
 
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
-<div class="temporary-tabs">
-  <div class="tabs-header">
+<div class="recent-notes">
+  <div class="notes-header">
     <div class="separator"></div>
-    {#if openNotes.length > 0}
+    {#if recentNotes.length > 0}
       <button class="clear-all" onclick={handleClearAll}>
         <svg
           width="12"
@@ -150,11 +150,11 @@
     {/if}
   </div>
 
-  {#if openNotes.length > 0}
-    <div class="tabs-list">
-      {#each openNotes as note (note.id)}
+  {#if recentNotes.length > 0}
+    <div class="notes-list">
+      {#each recentNotes as note (note.id)}
         <div
-          class="tab-item"
+          class="note-item"
           class:active={activeNoteId === note.id}
           onclick={() => handleTabClick(note)}
           oncontextmenu={(e) => handleContextMenu(e, note.id)}
@@ -162,21 +162,21 @@
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(note)}
         >
-          <div class="tab-content">
-            <div class="tab-icon">
+          <div class="note-content">
+            <div class="note-icon">
               <span class="emoji-icon">{getNoteIcon(note)}</span>
             </div>
             <span
-              class="tab-title"
+              class="note-title"
               class:untitled-text={getTabDisplayText(note).isPreview}
             >
               {getTabDisplayText(note).text}
             </span>
           </div>
           <button
-            class="close-tab"
+            class="close-note"
             onclick={(e) => handleCloseTab(note.id, e)}
-            aria-label="Close tab"
+            aria-label="Remove from recent"
           >
             <svg
               width="14"
@@ -252,7 +252,7 @@
 {/if}
 
 <style>
-  .temporary-tabs {
+  .recent-notes {
     display: flex;
     flex-direction: column;
     padding-bottom: 0.5rem;
@@ -270,7 +270,7 @@
     width: 100%;
   }
 
-  .tabs-header {
+  .notes-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -301,11 +301,11 @@
     flex-shrink: 0;
   }
 
-  .tabs-list {
+  .notes-list {
     padding: 0 0.75rem;
   }
 
-  .tab-item {
+  .note-item {
     width: 100%;
     display: flex;
     align-items: center;
@@ -322,15 +322,15 @@
     text-align: left;
   }
 
-  .tab-item:hover {
+  .note-item:hover {
     background: var(--bg-hover);
   }
 
-  .tab-item.active {
+  .note-item.active {
     background: var(--accent-light);
   }
 
-  .tab-content {
+  .note-content {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -339,7 +339,7 @@
     min-width: 0;
   }
 
-  .tab-icon {
+  .note-icon {
     display: flex;
     align-items: center;
     color: var(--text-secondary);
@@ -351,7 +351,7 @@
     line-height: 1;
   }
 
-  .tab-title {
+  .note-title {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -364,7 +364,7 @@
     font-style: italic;
   }
 
-  .close-tab {
+  .close-note {
     display: none;
     align-items: center;
     justify-content: center;
@@ -378,11 +378,11 @@
     flex-shrink: 0;
   }
 
-  .tab-item:hover .close-tab {
+  .note-item:hover .close-note {
     display: flex;
   }
 
-  .close-tab:hover {
+  .close-note:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }

@@ -1,12 +1,12 @@
 <script lang="ts">
   /**
    * Left sidebar component for the Automerge app
-   * Contains system views, pinned notes, temporary tabs, and workspace bar
+   * Contains system views, pinned notes, recent notes, and workspace bar
    */
   import { fly } from 'svelte/transition';
   import AutomergeSystemViews from './AutomergeSystemViews.svelte';
   import AutomergePinnedNotes from './AutomergePinnedNotes.svelte';
-  import AutomergeTemporaryTabs from './AutomergeTemporaryTabs.svelte';
+  import AutomergeRecentNotes from './AutomergeRecentNotes.svelte';
   import AutomergeWorkspaceBar from './AutomergeWorkspaceBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -105,7 +105,7 @@
           out:fly={{ x: slideDirection * -50, duration: 75 }}
         >
           <AutomergePinnedNotes {onNoteSelect} />
-          <AutomergeTemporaryTabs {onNoteSelect} />
+          <AutomergeRecentNotes {onNoteSelect} />
         </div>
       {/key}
     </div>

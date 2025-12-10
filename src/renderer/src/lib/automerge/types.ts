@@ -23,7 +23,7 @@ export interface Note {
 }
 
 /**
- * A workspace containing open notes
+ * A workspace containing notes
  */
 export interface Workspace {
   /** Unique identifier, format: "ws-xxxxxxxx" */
@@ -34,8 +34,8 @@ export interface Workspace {
   icon: string;
   /** Ordered list of pinned note IDs (always visible) */
   pinnedNoteIds: string[];
-  /** Ordered list of temporary/open note IDs (can be closed) */
-  openNoteIds: string[];
+  /** Ordered list of recent note IDs (can be closed) */
+  recentNoteIds: string[];
   /** ISO timestamp of creation */
   created: string;
 }

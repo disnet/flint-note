@@ -42,8 +42,8 @@ export {
   // Workspace getters
   getWorkspaces,
   getActiveWorkspace,
-  getOpenNotes,
-  isNoteOpen,
+  getRecentNotes,
+  isNoteRecent,
 
   // Workspace mutations
   createWorkspace,

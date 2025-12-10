@@ -46,7 +46,7 @@ interface Workspace {
   name: string;
   icon: string;
   pinnedNoteIds: string[]; // Notes pinned to this workspace (always visible)
-  openNoteIds: string[]; // Temporary/open notes (can be closed)
+  recentNoteIds: string[]; // Recent notes (can be closed)
   created: string;
 }
 
@@ -109,7 +109,7 @@ Unified reactive state module (~800 lines) providing:
 
 **Workspace Operations:**
 
-- `getWorkspaces()`, `getActiveWorkspace()`, `getOpenNotes()`, `isNoteOpen()`
+- `getWorkspaces()`, `getActiveWorkspace()`, `getRecentNotes()`, `isNoteRecent()`
 - `createWorkspace()`, `updateWorkspace()`, `deleteWorkspace()`
 - `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`
 
@@ -169,7 +169,7 @@ Resizable left sidebar containing:
 
 - System views navigation (All Notes, Settings)
 - Pinned notes list for active workspace
-- Temporary/open notes tabs
+- Recent notes list
 - Workspace bar at bottom
 - Slide animations when switching workspaces
 
@@ -185,9 +185,9 @@ Pinned notes list for active workspace:
 - Context menu for unpin/archive
 - Display of note type icons
 
-#### `AutomergeTemporaryTabs.svelte`
+#### `AutomergeRecentNotes.svelte`
 
-Open/temporary notes in active workspace:
+Recent notes in active workspace:
 
 - "Close all" button
 - Context menu for pin/close/archive
@@ -228,7 +228,7 @@ Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the o
 │          ├── AutomergeLeftSidebar.svelte                    │
 │          │     ├── AutomergeSystemViews.svelte              │
 │          │     ├── AutomergePinnedNotes.svelte              │
-│          │     ├── AutomergeTemporaryTabs.svelte            │
+│          │     ├── AutomergeRecentNotes.svelte              │
 │          │     └── AutomergeWorkspaceBar.svelte             │
 │          └── AutomergeNoteEditor.svelte                     │
 ├─────────────────────────────────────────────────────────────┤
@@ -273,9 +273,10 @@ The following tasks from the original plan:
 - [ ] Remove deprecated stores and services
 
 **Completed:** Left sidebar migration with full feature parity including:
+
 - System views (All Notes, Settings)
 - Pinned notes with workspace-specific storage
-- Temporary tabs for open notes
+- Recent notes list
 - Workspace bar with create/edit/delete
 - Resizable sidebar with persistence
 - Context menus for note management
@@ -315,7 +316,7 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeLeftSidebar.svelte`
 - `src/renderer/src/components/AutomergeSystemViews.svelte`
 - `src/renderer/src/components/AutomergePinnedNotes.svelte`
-- `src/renderer/src/components/AutomergeTemporaryTabs.svelte`
+- `src/renderer/src/components/AutomergeRecentNotes.svelte`
 - `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`

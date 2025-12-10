@@ -307,10 +307,10 @@ export function createNote(params: {
       archived: false
     };
 
-    // Auto-open in active workspace
+    // Auto-add to recent notes in active workspace
     const workspaceId = doc.activeWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
-      doc.workspaces[workspaceId].openNoteIds.unshift(id);
+      doc.workspaces[workspaceId].recentNoteIds.unshift(id);
     }
   });
 
@@ -353,9 +353,9 @@ export function archiveNote(id: string): void {
     // Remove from all workspaces when archived
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      const index = ws.openNoteIds.indexOf(id);
+      const index = ws.recentNoteIds.indexOf(id);
       if (index !== -1) {
-        ws.openNoteIds.splice(index, 1);
+        ws.recentNoteIds.splice(index, 1);
       }
     }
   });
@@ -378,9 +378,9 @@ export function deleteNote(id: string): void {
     // Remove from all workspaces
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      const index = ws.openNoteIds.indexOf(id);
+      const index = ws.recentNoteIds.indexOf(id);
       if (index !== -1) {
-        ws.openNoteIds.splice(index, 1);
+        ws.recentNoteIds.splice(index, 1);
       }
     }
   });
@@ -409,23 +409,23 @@ export function getActiveWorkspace(): Workspace | undefined {
 }
 
 /**
- * Get open notes in the active workspace
+ * Get recent notes in the active workspace
  */
-export function getOpenNotes(): Note[] {
+export function getRecentNotes(): Note[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  return workspace.openNoteIds
+  return workspace.recentNoteIds
     .map((id) => currentDoc.notes[id])
     .filter((note): note is Note => note !== undefined && !note.archived);
 }
 
 /**
- * Check if a note is open in the active workspace
+ * Check if a note is in the recent notes of the active workspace
  */
-export function isNoteOpen(noteId: string): boolean {
+export function isNoteRecent(noteId: string): boolean {
   const workspace = getActiveWorkspace();
-  return workspace?.openNoteIds.includes(noteId) ?? false;
+  return workspace?.recentNoteIds.includes(noteId) ?? false;
 }
 
 // --- Workspace mutations ---
@@ -445,7 +445,7 @@ export function createWorkspace(params: { name: string; icon: string }): string 
       name: params.name,
       icon: params.icon,
       pinnedNoteIds: [],
-      openNoteIds: [],
+      recentNoteIds: [],
       created: nowISO()
     };
   });
@@ -510,7 +510,7 @@ export function setActiveWorkspace(workspaceId: string): void {
 }
 
 /**
- * Add a note to the active workspace's open notes
+ * Add a note to the active workspace's recent notes
  */
 export function addNoteToWorkspace(noteId: string): void {
   if (!docHandle) throw new Error('Not initialized');
@@ -519,18 +519,18 @@ export function addNoteToWorkspace(noteId: string): void {
   if (!workspace) return;
 
   // Don't add duplicates
-  if (workspace.openNoteIds.includes(noteId)) return;
+  if (workspace.recentNoteIds.includes(noteId)) return;
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
-    if (ws && !ws.openNoteIds.includes(noteId)) {
-      ws.openNoteIds.unshift(noteId);
+    if (ws && !ws.recentNoteIds.includes(noteId)) {
+      ws.recentNoteIds.unshift(noteId);
     }
   });
 }
 
 /**
- * Remove a note from the active workspace's open notes
+ * Remove a note from the active workspace's recent notes
  * @returns The ID of the note to select next, or null if none
  */
 export function removeNoteFromWorkspace(noteId: string): string | null {
@@ -539,30 +539,30 @@ export function removeNoteFromWorkspace(noteId: string): string | null {
   const workspace = getActiveWorkspace();
   if (!workspace) return null;
 
-  const index = workspace.openNoteIds.indexOf(noteId);
+  const index = workspace.recentNoteIds.indexOf(noteId);
   if (index === -1) return null;
 
   // Determine next note to select
   let nextNoteId: string | null = null;
-  if (workspace.openNoteIds.length > 1) {
-    if (index < workspace.openNoteIds.length - 1) {
-      nextNoteId = workspace.openNoteIds[index + 1];
+  if (workspace.recentNoteIds.length > 1) {
+    if (index < workspace.recentNoteIds.length - 1) {
+      nextNoteId = workspace.recentNoteIds[index + 1];
     } else {
-      nextNoteId = workspace.openNoteIds[index - 1];
+      nextNoteId = workspace.recentNoteIds[index - 1];
     }
   }
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (ws) {
-      const idx = ws.openNoteIds.indexOf(noteId);
+      const idx = ws.recentNoteIds.indexOf(noteId);
       if (idx !== -1) {
-        ws.openNoteIds.splice(idx, 1);
+        ws.recentNoteIds.splice(idx, 1);
       }
     }
   });
 
-  // Clear active note if it was closed
+  // Clear active note if it was removed
   if (activeNoteId === noteId) {
     activeNoteId = nextNoteId;
   }
@@ -571,7 +571,7 @@ export function removeNoteFromWorkspace(noteId: string): string | null {
 }
 
 /**
- * Reorder notes in the active workspace
+ * Reorder recent notes in the active workspace
  */
 export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void {
   if (!docHandle) throw new Error('Not initialized');
@@ -583,8 +583,8 @@ export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void 
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (!ws) return;
 
-    const [removed] = ws.openNoteIds.splice(fromIndex, 1);
-    ws.openNoteIds.splice(toIndex, 0, removed);
+    const [removed] = ws.recentNoteIds.splice(fromIndex, 1);
+    ws.recentNoteIds.splice(toIndex, 0, removed);
   });
 }
 
@@ -631,10 +631,10 @@ export function pinNote(noteId: string): void {
       ws.pinnedNoteIds.push(noteId);
     }
 
-    // Remove from open notes (pinned notes replace open notes)
-    const openIndex = ws.openNoteIds.indexOf(noteId);
-    if (openIndex !== -1) {
-      ws.openNoteIds.splice(openIndex, 1);
+    // Remove from recent notes (pinned notes replace recent notes)
+    const recentIndex = ws.recentNoteIds.indexOf(noteId);
+    if (recentIndex !== -1) {
+      ws.recentNoteIds.splice(recentIndex, 1);
     }
   });
 }
@@ -656,9 +656,9 @@ export function unpinNote(noteId: string): void {
     if (index !== -1) {
       ws.pinnedNoteIds.splice(index, 1);
 
-      // Add to open notes when unpinned (at the start)
-      if (!ws.openNoteIds.includes(noteId)) {
-        ws.openNoteIds.unshift(noteId);
+      // Add to recent notes when unpinned (at the start)
+      if (!ws.recentNoteIds.includes(noteId)) {
+        ws.recentNoteIds.unshift(noteId);
       }
     }
   });
