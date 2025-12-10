@@ -444,6 +444,7 @@ export function createWorkspace(params: { name: string; icon: string }): string 
       id,
       name: params.name,
       icon: params.icon,
+      pinnedNoteIds: [],
       openNoteIds: [],
       created: nowISO()
     };
@@ -584,6 +585,108 @@ export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void 
 
     const [removed] = ws.openNoteIds.splice(fromIndex, 1);
     ws.openNoteIds.splice(toIndex, 0, removed);
+  });
+}
+
+// --- Pinned notes ---
+
+/**
+ * Get pinned notes in the active workspace
+ */
+export function getPinnedNotes(): Note[] {
+  const workspace = getActiveWorkspace();
+  if (!workspace) return [];
+
+  // Handle old workspaces that don't have pinnedNoteIds
+  const pinnedIds = workspace.pinnedNoteIds ?? [];
+
+  return pinnedIds
+    .map((id) => currentDoc.notes[id])
+    .filter((note): note is Note => note !== undefined && !note.archived);
+}
+
+/**
+ * Pin a note to the active workspace
+ */
+export function pinNote(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const workspace = getActiveWorkspace();
+  if (!workspace) return;
+
+  // Don't pin if already pinned
+  if (workspace.pinnedNoteIds?.includes(noteId)) return;
+
+  docHandle.change((doc) => {
+    const ws = doc.workspaces[doc.activeWorkspaceId];
+    if (!ws) return;
+
+    // Initialize pinnedNoteIds if it doesn't exist
+    if (!ws.pinnedNoteIds) {
+      ws.pinnedNoteIds = [];
+    }
+
+    // Add to pinned if not already there
+    if (!ws.pinnedNoteIds.includes(noteId)) {
+      ws.pinnedNoteIds.push(noteId);
+    }
+
+    // Remove from open notes (pinned notes replace open notes)
+    const openIndex = ws.openNoteIds.indexOf(noteId);
+    if (openIndex !== -1) {
+      ws.openNoteIds.splice(openIndex, 1);
+    }
+  });
+}
+
+/**
+ * Unpin a note from the active workspace
+ */
+export function unpinNote(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const workspace = getActiveWorkspace();
+  if (!workspace) return;
+
+  docHandle.change((doc) => {
+    const ws = doc.workspaces[doc.activeWorkspaceId];
+    if (!ws || !ws.pinnedNoteIds) return;
+
+    const index = ws.pinnedNoteIds.indexOf(noteId);
+    if (index !== -1) {
+      ws.pinnedNoteIds.splice(index, 1);
+
+      // Add to open notes when unpinned (at the start)
+      if (!ws.openNoteIds.includes(noteId)) {
+        ws.openNoteIds.unshift(noteId);
+      }
+    }
+  });
+}
+
+/**
+ * Check if a note is pinned in the active workspace
+ */
+export function isNotePinned(noteId: string): boolean {
+  const workspace = getActiveWorkspace();
+  return workspace?.pinnedNoteIds?.includes(noteId) ?? false;
+}
+
+/**
+ * Reorder pinned notes in the active workspace
+ */
+export function reorderPinnedNotes(fromIndex: number, toIndex: number): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const workspace = getActiveWorkspace();
+  if (!workspace) return;
+
+  docHandle.change((doc) => {
+    const ws = doc.workspaces[doc.activeWorkspaceId];
+    if (!ws || !ws.pinnedNoteIds) return;
+
+    const [removed] = ws.pinnedNoteIds.splice(fromIndex, 1);
+    ws.pinnedNoteIds.splice(toIndex, 0, removed);
   });
 }
 

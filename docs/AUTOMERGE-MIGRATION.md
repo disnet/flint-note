@@ -45,7 +45,8 @@ interface Workspace {
   id: string; // "ws-xxxxxxxx"
   name: string;
   icon: string;
-  openNoteIds: string[];
+  pinnedNoteIds: string[]; // Notes pinned to this workspace (always visible)
+  openNoteIds: string[]; // Temporary/open notes (can be closed)
   created: string;
 }
 
@@ -112,6 +113,10 @@ Unified reactive state module (~800 lines) providing:
 - `createWorkspace()`, `updateWorkspace()`, `deleteWorkspace()`
 - `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`
 
+**Pinned Notes Operations:**
+
+- `getPinnedNotes()`, `pinNote()`, `unpinNote()`, `isNotePinned()`, `reorderPinnedNotes()`
+
 **Note Type Operations:**
 
 - `getNoteTypes()`, `getAllNoteTypes()`, `getNoteType(id)`
@@ -151,11 +156,51 @@ First-time vault creation flow:
 
 Main interface with:
 
-- Sidebar with workspace list
-- Note list (filtered by search or showing all)
+- Left sidebar (via `AutomergeLeftSidebar`)
+- Title bar with search and vault switcher
+- "All Notes" grid view when system view selected
 - Note editor for selected note
-- Settings modal
-- Create note functionality
+- Settings panel
+- Keyboard shortcuts (⌘N, ⌘K, ⌘B)
+
+#### `AutomergeLeftSidebar.svelte`
+
+Resizable left sidebar containing:
+
+- System views navigation (All Notes, Settings)
+- Pinned notes list for active workspace
+- Temporary/open notes tabs
+- Workspace bar at bottom
+- Slide animations when switching workspaces
+
+#### `AutomergeSystemViews.svelte`
+
+Navigation component with "All Notes" and "Settings" options.
+
+#### `AutomergePinnedNotes.svelte`
+
+Pinned notes list for active workspace:
+
+- Collapsible section
+- Context menu for unpin/archive
+- Display of note type icons
+
+#### `AutomergeTemporaryTabs.svelte`
+
+Open/temporary notes in active workspace:
+
+- "Close all" button
+- Context menu for pin/close/archive
+- Close button on hover
+
+#### `AutomergeWorkspaceBar.svelte`
+
+Workspace management at sidebar bottom:
+
+- Workspace icons with tooltips
+- Add workspace popover with form
+- Context menu for edit/delete
+- Quick action to create notes
 
 #### `AutomergeNoteEditor.svelte`
 
@@ -180,6 +225,11 @@ Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the o
 │  AutomergeApp.svelte                                        │
 │    ├── AutomergeFirstTimeExperience.svelte                  │
 │    └── AutomergeMainView.svelte                             │
+│          ├── AutomergeLeftSidebar.svelte                    │
+│          │     ├── AutomergeSystemViews.svelte              │
+│          │     ├── AutomergePinnedNotes.svelte              │
+│          │     ├── AutomergeTemporaryTabs.svelte            │
+│          │     └── AutomergeWorkspaceBar.svelte             │
 │          └── AutomergeNoteEditor.svelte                     │
 ├─────────────────────────────────────────────────────────────┤
 │  lib/automerge/                                             │
@@ -214,15 +264,21 @@ Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the o
 
 ### Phase 1 Completion
 
-The following tasks from the original plan can be considered optional for Phase 1, as we now have a working standalone implementation:
+The following tasks from the original plan:
 
-- [ ] Migrate existing note list components (NotesView, LeftSidebar)
-- [ ] Migrate workspace components (WorkspaceBar, PinnedNotes, TemporaryTabs)
+- [x] Migrate existing note list components (NotesView, LeftSidebar)
+- [x] Migrate workspace components (WorkspaceBar, PinnedNotes, TemporaryTabs)
 - [ ] Migrate note editor components (NoteEditor with CodeMirror)
 - [ ] Migrate navigation services
 - [ ] Remove deprecated stores and services
 
-These migrations would bring feature parity with the old system but aren't strictly necessary if the new simplified UI meets needs.
+**Completed:** Left sidebar migration with full feature parity including:
+- System views (All Notes, Settings)
+- Pinned notes with workspace-specific storage
+- Temporary tabs for open notes
+- Workspace bar with create/edit/delete
+- Resizable sidebar with persistence
+- Context menus for note management
 
 ### Phase 2: Enhanced Features
 
@@ -256,6 +312,11 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeFirstTimeExperience.svelte`
 - `src/renderer/src/components/AutomergeMainView.svelte`
 - `src/renderer/src/components/AutomergeNoteEditor.svelte`
+- `src/renderer/src/components/AutomergeLeftSidebar.svelte`
+- `src/renderer/src/components/AutomergeSystemViews.svelte`
+- `src/renderer/src/components/AutomergePinnedNotes.svelte`
+- `src/renderer/src/components/AutomergeTemporaryTabs.svelte`
+- `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 

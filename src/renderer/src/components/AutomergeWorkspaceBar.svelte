@@ -1,0 +1,590 @@
+<script lang="ts">
+  /**
+   * Workspace bar for the Automerge sidebar
+   * Shows workspace icons and allows switching/creating workspaces
+   */
+  import {
+    getWorkspaces,
+    getActiveWorkspace,
+    setActiveWorkspace,
+    createWorkspace,
+    deleteWorkspace,
+    updateWorkspace
+  } from '../lib/automerge';
+
+  interface Props {
+    onCreateNote?: () => void;
+    showShadow?: boolean;
+  }
+
+  let { onCreateNote, showShadow = false }: Props = $props();
+
+  // Reactive state
+  const workspaces = $derived(getWorkspaces());
+  const activeWorkspace = $derived(getActiveWorkspace());
+
+  // UI state
+  let isPopoverOpen = $state(false);
+  let editingWorkspaceId = $state<string | null>(null);
+  let newWorkspaceName = $state('');
+  let newWorkspaceIcon = $state('');
+
+  // Context menu state
+  let contextMenuOpen = $state(false);
+  let contextMenuWorkspaceId = $state<string | null>(null);
+  let contextMenuPosition = $state({ x: 0, y: 0 });
+
+  function getWorkspaceTooltip(name: string, index: number): string {
+    if (index < 9) {
+      return `${name} (Ctrl+${index + 1})`;
+    }
+    return name;
+  }
+
+  function handleWorkspaceClick(workspaceId: string): void {
+    if (activeWorkspace?.id === workspaceId) {
+      // Clicking active workspace could open a popover/menu in the future
+      return;
+    }
+    setActiveWorkspace(workspaceId);
+  }
+
+  function handleAddClick(): void {
+    isPopoverOpen = !isPopoverOpen;
+    editingWorkspaceId = null;
+    newWorkspaceName = '';
+    newWorkspaceIcon = '📋';
+  }
+
+  function closePopover(): void {
+    isPopoverOpen = false;
+    editingWorkspaceId = null;
+    newWorkspaceName = '';
+    newWorkspaceIcon = '';
+  }
+
+  function handleCreateWorkspace(): void {
+    if (!newWorkspaceName.trim()) return;
+
+    createWorkspace({
+      name: newWorkspaceName.trim(),
+      icon: newWorkspaceIcon || '📋'
+    });
+
+    closePopover();
+  }
+
+  function handleUpdateWorkspace(): void {
+    if (!editingWorkspaceId || !newWorkspaceName.trim()) return;
+
+    updateWorkspace(editingWorkspaceId, {
+      name: newWorkspaceName.trim(),
+      icon: newWorkspaceIcon || '📋'
+    });
+
+    closePopover();
+  }
+
+  // Context menu handlers
+  function handleContextMenu(event: MouseEvent, workspaceId: string): void {
+    event.preventDefault();
+    contextMenuWorkspaceId = workspaceId;
+
+    const menuWidth = 120;
+    const menuHeight = 80;
+    const padding = 8;
+
+    let x = event.clientX;
+    let y = event.clientY;
+
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  function closeContextMenu(): void {
+    contextMenuOpen = false;
+    contextMenuWorkspaceId = null;
+  }
+
+  function handleEditWorkspace(): void {
+    if (!contextMenuWorkspaceId) return;
+
+    const workspace = workspaces.find((w) => w.id === contextMenuWorkspaceId);
+    if (workspace) {
+      editingWorkspaceId = workspace.id;
+      newWorkspaceName = workspace.name;
+      newWorkspaceIcon = workspace.icon;
+      isPopoverOpen = true;
+    }
+    closeContextMenu();
+  }
+
+  function handleDeleteWorkspace(): void {
+    if (!contextMenuWorkspaceId) return;
+
+    if (workspaces.length > 1) {
+      deleteWorkspace(contextMenuWorkspaceId);
+    }
+    closeContextMenu();
+  }
+
+  function handleGlobalClick(event: MouseEvent): void {
+    if (contextMenuOpen) {
+      const target = event.target as Element;
+      if (!target.closest('.context-menu')) {
+        closeContextMenu();
+      }
+    }
+    if (isPopoverOpen) {
+      const target = event.target as Element;
+      if (
+        !target.closest('.workspace-popover') &&
+        !target.closest('.add-workspace-button')
+      ) {
+        closePopover();
+      }
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (contextMenuOpen) closeContextMenu();
+      if (isPopoverOpen) closePopover();
+    }
+  }
+</script>
+
+<svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
+
+<div class="workspace-bar" class:shadow={showShadow}>
+  <div class="workspace-icons">
+    {#each workspaces as workspace, index (workspace.id)}
+      <button
+        class="workspace-icon"
+        class:active={activeWorkspace?.id === workspace.id}
+        onclick={() => handleWorkspaceClick(workspace.id)}
+        oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
+        title={getWorkspaceTooltip(workspace.name, index)}
+      >
+        {workspace.icon}
+        <span class="tooltip">{getWorkspaceTooltip(workspace.name, index)}</span>
+      </button>
+    {/each}
+    <button
+      class="add-workspace-button"
+      onclick={handleAddClick}
+      title="New workspace"
+      aria-label="New workspace"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+
+  {#if isPopoverOpen}
+    <div class="workspace-popover">
+      <h4>{editingWorkspaceId ? 'Edit Workspace' : 'New Workspace'}</h4>
+      <div class="popover-form">
+        <div class="form-row">
+          <input
+            type="text"
+            class="icon-input"
+            placeholder="Icon"
+            bind:value={newWorkspaceIcon}
+            maxlength="2"
+          />
+          <input
+            type="text"
+            class="name-input"
+            placeholder="Workspace name"
+            bind:value={newWorkspaceName}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') {
+                editingWorkspaceId ? handleUpdateWorkspace() : handleCreateWorkspace();
+              }
+            }}
+          />
+        </div>
+        <div class="form-actions">
+          <button class="cancel-btn" onclick={closePopover}>Cancel</button>
+          <button
+            class="create-btn"
+            onclick={editingWorkspaceId ? handleUpdateWorkspace : handleCreateWorkspace}
+            disabled={!newWorkspaceName.trim()}
+          >
+            {editingWorkspaceId ? 'Save' : 'Create'}
+          </button>
+        </div>
+      </div>
+      {#if onCreateNote}
+        <div class="popover-divider"></div>
+        <button class="quick-action" onclick={onCreateNote}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          New Note
+        </button>
+      {/if}
+    </div>
+  {/if}
+
+  {#if contextMenuOpen}
+    <div
+      class="context-menu"
+      style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+      role="menu"
+    >
+      <button class="context-menu-item" onclick={handleEditWorkspace} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit
+      </button>
+      <button
+        class="context-menu-item danger"
+        onclick={handleDeleteWorkspace}
+        role="menuitem"
+        disabled={workspaces.length <= 1}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path
+            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+          ></path>
+        </svg>
+        Delete
+      </button>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .workspace-bar {
+    border-top: 1px solid var(--border-light);
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    position: relative;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .workspace-bar.shadow {
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .workspace-bar.shadow {
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  .workspace-icons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .workspace-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .workspace-icon:hover {
+    background: var(--bg-primary);
+    border-color: var(--border-medium);
+  }
+
+  .workspace-icon.active {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+  }
+
+  .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.375rem 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    margin-bottom: 0.5rem;
+    z-index: 1000;
+  }
+
+  .workspace-icon:first-child .tooltip {
+    left: 0;
+    transform: translateX(0);
+  }
+
+  .workspace-icon:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .add-workspace-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px dashed var(--border-medium);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: auto;
+  }
+
+  .add-workspace-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  /* Popover styles */
+  .workspace-popover {
+    position: absolute;
+    bottom: 100%;
+    left: 0.5rem;
+    right: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 1rem;
+    z-index: 100;
+  }
+
+  .workspace-popover h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .popover-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .icon-input {
+    width: 3rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .name-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .icon-input:focus,
+  .name-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .cancel-btn,
+  .create-btn {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .cancel-btn {
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .cancel-btn:hover {
+    background: var(--bg-hover);
+  }
+
+  .create-btn {
+    border: none;
+    background: var(--accent-primary);
+    color: var(--accent-text, white);
+  }
+
+  .create-btn:hover:not(:disabled) {
+    background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  .create-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .popover-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.75rem 0;
+  }
+
+  .quick-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-align: left;
+  }
+
+  .quick-action:hover {
+    background: var(--bg-hover);
+  }
+
+  .quick-action svg {
+    color: var(--text-secondary);
+  }
+
+  /* Context menu styles */
+  .context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px var(--shadow-medium, rgba(0, 0, 0, 0.15));
+    padding: 0.25rem;
+    min-width: 120px;
+  }
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-align: left;
+  }
+
+  .context-menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .context-menu-item.danger {
+    color: var(--error);
+  }
+
+  .context-menu-item.danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .context-menu-item:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .context-menu-item svg {
+    opacity: 0.7;
+  }
+</style>

@@ -49,6 +49,7 @@ function createDefaultWorkspace(): {
   id: string;
   name: string;
   icon: string;
+  pinnedNoteIds: string[];
   openNoteIds: string[];
   created: string;
 } {
@@ -56,6 +57,7 @@ function createDefaultWorkspace(): {
     id: DEFAULT_WORKSPACE_ID,
     name: 'Default',
     icon: '📋',
+    pinnedNoteIds: [] as string[],
     openNoteIds: [] as string[],
     created: nowISO()
   };

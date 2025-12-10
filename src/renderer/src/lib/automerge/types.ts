@@ -32,7 +32,9 @@ export interface Workspace {
   name: string;
   /** Emoji icon */
   icon: string;
-  /** Ordered list of open note IDs */
+  /** Ordered list of pinned note IDs (always visible) */
+  pinnedNoteIds: string[];
+  /** Ordered list of temporary/open note IDs (can be closed) */
   openNoteIds: string[];
   /** ISO timestamp of creation */
   created: string;

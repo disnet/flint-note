@@ -54,6 +54,13 @@ export {
   removeNoteFromWorkspace,
   reorderWorkspaceNotes,
 
+  // Pinned notes
+  getPinnedNotes,
+  pinNote,
+  unpinNote,
+  isNotePinned,
+  reorderPinnedNotes,
+
   // Note type getters
   getNoteTypes,
   getAllNoteTypes,

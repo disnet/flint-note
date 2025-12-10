@@ -1,14 +1,11 @@
 <script lang="ts">
   /**
    * Main view component using Automerge for data storage
-   * Contains the sidebar, note list, editor, and workspace management
+   * Contains the left sidebar, note list/editor, and workspace management
    */
   import {
     getNotes,
     getNoteTypes,
-    getWorkspaces,
-    getActiveWorkspace,
-    getOpenNotes,
     getActiveNoteId,
     getActiveNote,
     setActiveNoteId,
@@ -16,9 +13,6 @@
     updateNote,
     archiveNote,
     addNoteToWorkspace,
-    removeNoteFromWorkspace,
-    setActiveWorkspace,
-    createWorkspace,
     searchNotes,
     getNonArchivedVaults,
     getActiveVault,
@@ -26,14 +20,13 @@
     switchVault,
     type Note
   } from '../lib/automerge';
+  import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
+  import { sidebarState } from '../stores/sidebarState.svelte';
 
   // Derived state
   const notes = $derived(getNotes());
-  const workspaces = $derived(getWorkspaces());
-  const activeWorkspace = $derived(getActiveWorkspace());
-  const openNotes = $derived(getOpenNotes());
   const activeNoteId = $derived(getActiveNoteId());
   const activeNote = $derived(getActiveNote());
   const vaults = $derived(getNonArchivedVaults());
@@ -41,11 +34,9 @@
 
   // UI state
   let searchQuery = $state('');
-  let showSettings = $state(false);
+  let activeSystemView = $state<'notes' | 'settings' | null>(null);
   let showCreateVaultModal = $state(false);
-  let showCreateWorkspaceModal = $state(false);
   let newVaultName = $state('');
-  let newWorkspaceName = $state('');
 
   // Search results
   const searchResults = $derived(searchQuery.trim() ? searchNotes(searchQuery) : []);
@@ -54,39 +45,23 @@
   function handleNoteSelect(note: Note): void {
     setActiveNoteId(note.id);
     addNoteToWorkspace(note.id);
+    activeSystemView = null; // Clear system view when selecting a note
   }
 
   function handleCreateNote(): void {
     const id = createNote({ title: '', content: '' });
     setActiveNoteId(id);
-  }
-
-  function handleCloseNote(noteId: string): void {
-    const nextId = removeNoteFromWorkspace(noteId);
-    if (activeNoteId === noteId) {
-      setActiveNoteId(nextId);
-    }
+    activeSystemView = null;
   }
 
   function handleArchiveNote(noteId: string): void {
     archiveNote(noteId);
   }
 
-  function handleWorkspaceSelect(workspaceId: string): void {
-    setActiveWorkspace(workspaceId);
-    setActiveNoteId(null);
-  }
-
-  function handleCreateWorkspace(): void {
-    newWorkspaceName = '';
-    showCreateWorkspaceModal = true;
-  }
-
-  function submitCreateWorkspace(): void {
-    if (newWorkspaceName.trim()) {
-      createWorkspace({ name: newWorkspaceName.trim(), icon: '📋' });
-      showCreateWorkspaceModal = false;
-      newWorkspaceName = '';
+  function handleSystemViewSelect(view: 'notes' | 'settings' | null): void {
+    activeSystemView = view;
+    if (view) {
+      setActiveNoteId(null); // Clear active note when viewing system views
     }
   }
 
@@ -108,6 +83,10 @@
     }
   }
 
+  function toggleLeftSidebar(): void {
+    sidebarState.toggleLeftSidebar();
+  }
+
   // Keyboard shortcuts
   function handleKeyDown(event: KeyboardEvent): void {
     // Cmd/Ctrl + N: New note
@@ -121,6 +100,11 @@
       const searchInput = document.getElementById('search-input');
       searchInput?.focus();
     }
+    // Cmd/Ctrl + B: Toggle sidebar
+    if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+      event.preventDefault();
+      toggleLeftSidebar();
+    }
   }
 </script>
 
@@ -131,6 +115,23 @@
   <div class="title-bar">
     <div class="title-bar-content">
       <div class="title-bar-left">
+        <button
+          class="sidebar-toggle"
+          onclick={toggleLeftSidebar}
+          title="Toggle sidebar (⌘B)"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+          </svg>
+        </button>
         <span class="app-title">Flint</span>
       </div>
       <div class="title-bar-center">
@@ -164,12 +165,32 @@
         </div>
       </div>
       <div class="title-bar-right">
-        <button
-          class="settings-btn"
-          onclick={() => (showSettings = !showSettings)}
-          title="Settings"
-        >
-          ⚙️
+        <!-- Vault Switcher -->
+        {#if vaults.length > 1}
+          <div class="vault-switcher">
+            <select
+              class="vault-select"
+              value={activeVault?.id}
+              onchange={(e) => handleVaultSelect((e.target as HTMLSelectElement).value)}
+            >
+              {#each vaults as vault (vault.id)}
+                <option value={vault.id}>{vault.name}</option>
+              {/each}
+            </select>
+          </div>
+        {/if}
+        <button class="add-vault-btn" onclick={handleCreateVault} title="New vault">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
         </button>
       </div>
     </div>
@@ -178,102 +199,16 @@
   <!-- Main Layout -->
   <div class="app-layout">
     <!-- Left Sidebar -->
-    <div class="left-sidebar">
-      <!-- Vault Switcher -->
-      <div class="vault-section">
-        <div class="section-header">
-          <span>Vaults</span>
-          <button class="add-btn" onclick={handleCreateVault} title="New vault">+</button>
-        </div>
-        <div class="vault-list">
-          {#each vaults as vault (vault.id)}
-            <button
-              class="vault-item"
-              class:active={activeVault?.id === vault.id}
-              onclick={() => handleVaultSelect(vault.id)}
-            >
-              <span class="vault-icon">📚</span>
-              <span class="vault-name">{vault.name}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <!-- Workspaces -->
-      <div class="workspaces-section">
-        <div class="section-header">
-          <span>Workspaces</span>
-          <button class="add-btn" onclick={handleCreateWorkspace} title="New workspace"
-            >+</button
-          >
-        </div>
-        <div class="workspace-list">
-          {#each workspaces as workspace (workspace.id)}
-            <button
-              class="workspace-item"
-              class:active={activeWorkspace?.id === workspace.id}
-              onclick={() => handleWorkspaceSelect(workspace.id)}
-            >
-              <span class="workspace-icon">{workspace.icon}</span>
-              <span class="workspace-name">{workspace.name}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <!-- Open Notes -->
-      <div class="open-notes-section">
-        <div class="section-header">
-          <span>Open Notes</span>
-          <button class="add-btn" onclick={handleCreateNote} title="New note">+</button>
-        </div>
-        <div class="note-list">
-          {#each openNotes as note (note.id)}
-            <div class="note-item" class:active={activeNoteId === note.id}>
-              <button class="note-item-button" onclick={() => setActiveNoteId(note.id)}>
-                {note.title || 'Untitled'}
-              </button>
-              <button
-                class="close-note-btn"
-                onclick={() => handleCloseNote(note.id)}
-                title="Close note"
-              >
-                ×
-              </button>
-            </div>
-          {/each}
-          {#if openNotes.length === 0}
-            <div class="empty-state">No open notes</div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- All Notes -->
-      <div class="all-notes-section">
-        <div class="section-header">
-          <span>All Notes ({notes.length})</span>
-        </div>
-        <div class="note-list scrollable">
-          {#each notes.slice(0, 50) as note (note.id)}
-            <button
-              class="note-item-button"
-              class:active={activeNoteId === note.id}
-              onclick={() => handleNoteSelect(note)}
-            >
-              <span class="note-title">{note.title || 'Untitled'}</span>
-              <span class="note-date">{new Date(note.updated).toLocaleDateString()}</span>
-            </button>
-          {/each}
-          {#if notes.length === 0}
-            <div class="empty-state">No notes yet. Create your first note!</div>
-          {/if}
-        </div>
-      </div>
-    </div>
+    <AutomergeLeftSidebar
+      {activeSystemView}
+      onNoteSelect={handleNoteSelect}
+      onSystemViewSelect={handleSystemViewSelect}
+      onCreateNote={handleCreateNote}
+    />
 
     <!-- Main Content -->
     <div class="main-content">
-      {#if showSettings}
+      {#if activeSystemView === 'settings'}
         <div class="settings-panel">
           <h2>Settings</h2>
           <div class="settings-group">
@@ -286,9 +221,60 @@
               </select>
             </label>
           </div>
-          <button class="close-settings" onclick={() => (showSettings = false)}
+          <button class="close-settings" onclick={() => (activeSystemView = null)}
             >Close</button
           >
+        </div>
+      {:else if activeSystemView === 'notes'}
+        <!-- All Notes View -->
+        <div class="all-notes-view">
+          <div class="all-notes-header">
+            <h2>All Notes ({notes.length})</h2>
+            <button class="create-btn" onclick={handleCreateNote}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              New Note
+            </button>
+          </div>
+          <div class="notes-grid">
+            {#each notes as note (note.id)}
+              <button
+                class="note-card"
+                class:active={activeNoteId === note.id}
+                onclick={() => handleNoteSelect(note)}
+              >
+                <div class="note-card-icon">
+                  {getNoteTypes().find((t) => t.id === note.type)?.icon || '📝'}
+                </div>
+                <div class="note-card-content">
+                  <span class="note-card-title">{note.title || 'Untitled'}</span>
+                  <span class="note-card-preview"
+                    >{note.content.slice(0, 100) || 'No content'}</span
+                  >
+                  <span class="note-card-date"
+                    >{new Date(note.updated).toLocaleDateString()}</span
+                  >
+                </div>
+              </button>
+            {/each}
+            {#if notes.length === 0}
+              <div class="empty-notes">
+                <p>No notes yet</p>
+                <button class="create-first-btn" onclick={handleCreateNote}>
+                  Create your first note
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
       {:else if activeNote}
         <AutomergeNoteEditor
@@ -340,35 +326,6 @@
   </div>
 {/if}
 
-<!-- Create Workspace Modal -->
-{#if showCreateWorkspaceModal}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="modal-overlay"
-    onclick={() => (showCreateWorkspaceModal = false)}
-    onkeydown={(e) => e.key === 'Escape' && (showCreateWorkspaceModal = false)}
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="modal" onclick={(e) => e.stopPropagation()}>
-      <h3>Create New Workspace</h3>
-      <input
-        type="text"
-        class="modal-input"
-        placeholder="Workspace name"
-        bind:value={newWorkspaceName}
-        onkeydown={(e) => e.key === 'Enter' && submitCreateWorkspace()}
-      />
-      <div class="modal-actions">
-        <button
-          class="modal-btn cancel"
-          onclick={() => (showCreateWorkspaceModal = false)}>Cancel</button
-        >
-        <button class="modal-btn primary" onclick={submitCreateWorkspace}>Create</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
 <style>
   .main-view {
     height: 100vh;
@@ -401,6 +358,7 @@
     flex: 1;
     display: flex;
     align-items: center;
+    gap: 0.5rem;
   }
 
   .title-bar-right {
@@ -414,10 +372,28 @@
     -webkit-app-region: no-drag;
   }
 
+  .sidebar-toggle {
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 70px; /* Space for traffic lights on macOS */
+  }
+
+  .sidebar-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
   .app-title {
     font-weight: 600;
     color: var(--text-primary);
-    margin-left: 80px; /* Space for traffic lights on macOS */
   }
 
   .search-container {
@@ -482,13 +458,36 @@
     color: var(--text-muted);
   }
 
-  .settings-btn {
+  .vault-switcher {
+    -webkit-app-region: no-drag;
+  }
+
+  .vault-select {
     padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .add-vault-btn {
+    padding: 0.25rem;
     border: none;
     background: none;
+    color: var(--text-secondary);
     cursor: pointer;
-    font-size: 1rem;
+    border-radius: 0.25rem;
     -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .add-vault-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 
   /* App Layout */
@@ -498,233 +497,13 @@
     min-height: 0;
   }
 
-  /* Left Sidebar */
-  .left-sidebar {
-    width: 260px;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .add-btn {
-    padding: 0.125rem 0.375rem;
-    border: none;
-    background: var(--bg-tertiary);
-    border-radius: 0.25rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 0.875rem;
-  }
-
-  .add-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  /* Vault Section */
-  .vault-section {
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .vault-list {
-    padding: 0 0.5rem 0.5rem;
-  }
-
-  .vault-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    border-radius: 0.375rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .vault-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .vault-item.active {
-    background: var(--bg-tertiary, var(--bg-hover));
-    color: var(--text-primary);
-    font-weight: 500;
-  }
-
-  .vault-icon {
-    font-size: 1rem;
-  }
-
-  .vault-name {
-    font-size: 0.875rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Workspaces Section */
-  .workspaces-section {
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .workspace-list {
-    padding: 0 0.5rem 0.5rem;
-  }
-
-  .workspace-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    border-radius: 0.375rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .workspace-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .workspace-item.active {
-    background: var(--accent-primary);
-    color: var(--accent-text);
-  }
-
-  .workspace-icon {
-    font-size: 1rem;
-  }
-
-  .workspace-name {
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .open-notes-section {
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border-light);
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .all-notes-section {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .note-list {
-    padding: 0 0.5rem 0.5rem;
-  }
-
-  .note-list.scrollable {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .note-item {
-    display: flex;
-    align-items: center;
-    border-radius: 0.375rem;
-  }
-
-  .note-item.active {
-    background: var(--bg-tertiary);
-  }
-
-  .note-item-button {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    border-radius: 0.375rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    text-align: left;
-    font-size: 0.875rem;
-  }
-
-  .note-item-button:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .note-item-button.active {
-    color: var(--text-primary);
-  }
-
-  .note-title {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .note-date {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  .close-note-btn {
-    padding: 0.25rem 0.5rem;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 1rem;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .note-item:hover .close-note-btn {
-    opacity: 1;
-  }
-
-  .close-note-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .empty-state {
-    padding: 1rem;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-  }
-
   /* Main Content */
   .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: hidden;
   }
 
   .empty-editor {
@@ -752,7 +531,7 @@
   .create-note-btn {
     padding: 0.75rem 1.5rem;
     background: var(--accent-primary);
-    color: var(--accent-text);
+    color: var(--accent-text, white);
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
@@ -761,7 +540,140 @@
   }
 
   .create-note-btn:hover {
-    background: var(--accent-primary-hover);
+    background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* All Notes View */
+  .all-notes-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 1.5rem;
+  }
+
+  .all-notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+
+  .all-notes-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .create-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: var(--accent-primary);
+    color: var(--accent-text, white);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .create-btn:hover {
+    background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  .notes-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    align-content: start;
+  }
+
+  .note-card {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+  }
+
+  .note-card:hover {
+    border-color: var(--border-medium);
+    background: var(--bg-hover);
+  }
+
+  .note-card.active {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+  }
+
+  .note-card-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .note-card-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .note-card-title {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .note-card-preview {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .note-card-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+
+  .empty-notes {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+  }
+
+  .empty-notes p {
+    margin: 0 0 1rem;
+  }
+
+  .create-first-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .create-first-btn:hover {
+    background: var(--bg-hover);
   }
 
   /* Settings Panel */
@@ -799,7 +711,7 @@
   .close-settings {
     margin-top: 1rem;
     padding: 0.5rem 1rem;
-    background: var(--bg-tertiary);
+    background: var(--bg-tertiary, var(--bg-hover));
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     color: var(--text-primary);
@@ -875,7 +787,7 @@
 
   .modal-btn.primary {
     background: var(--accent-primary);
-    color: var(--accent-text);
+    color: var(--accent-text, white);
   }
 
   .modal-btn.primary:hover {
