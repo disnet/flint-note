@@ -70,6 +70,8 @@ export interface NotesDocument {
   activeWorkspaceId: string;
   /** All note types keyed by ID */
   noteTypes: Record<string, NoteType>;
+  /** Ordered list of workspace IDs for display order */
+  workspaceOrder?: string[];
 }
 
 /**

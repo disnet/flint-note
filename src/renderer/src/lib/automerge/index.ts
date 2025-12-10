@@ -53,6 +53,7 @@ export {
   addNoteToWorkspace,
   removeNoteFromWorkspace,
   reorderWorkspaceNotes,
+  reorderWorkspaces,
 
   // Pinned notes
   getPinnedNotes,

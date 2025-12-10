@@ -394,10 +394,34 @@ export function deleteNote(id: string): void {
 // --- Workspace getters (reactive) ---
 
 /**
- * Get all workspaces
+ * Get all workspaces in display order
  */
 export function getWorkspaces(): Workspace[] {
-  return Object.values(currentDoc.workspaces);
+  const workspaces = currentDoc.workspaces;
+  const order = currentDoc.workspaceOrder;
+
+  // If we have an order array, use it to sort workspaces
+  if (order && order.length > 0) {
+    const orderedWorkspaces: Workspace[] = [];
+    for (const id of order) {
+      if (workspaces[id]) {
+        orderedWorkspaces.push(workspaces[id]);
+      }
+    }
+    // Add any workspaces not in the order array (for backwards compatibility)
+    for (const workspace of Object.values(workspaces)) {
+      if (!order.includes(workspace.id)) {
+        orderedWorkspaces.push(workspace);
+      }
+    }
+    return orderedWorkspaces;
+  }
+
+  // Fallback: sort by created time for backwards compatibility
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+  return Object.values(workspaces).sort(
+    (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()
+  );
 }
 
 /**
@@ -448,6 +472,12 @@ export function createWorkspace(params: { name: string; icon: string }): string 
       recentNoteIds: [],
       created: nowISO()
     };
+
+    // Add to workspace order
+    if (!doc.workspaceOrder) {
+      doc.workspaceOrder = [];
+    }
+    doc.workspaceOrder.push(id);
   });
 
   return id;
@@ -485,6 +515,14 @@ export function deleteWorkspace(id: string): boolean {
 
   docHandle.change((doc) => {
     delete doc.workspaces[id];
+
+    // Remove from workspace order
+    if (doc.workspaceOrder) {
+      const index = doc.workspaceOrder.indexOf(id);
+      if (index !== -1) {
+        doc.workspaceOrder.splice(index, 1);
+      }
+    }
 
     // If we deleted the active workspace, switch to another
     if (doc.activeWorkspaceId === id) {
@@ -585,6 +623,31 @@ export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void 
 
     const [removed] = ws.recentNoteIds.splice(fromIndex, 1);
     ws.recentNoteIds.splice(toIndex, 0, removed);
+  });
+}
+
+/**
+ * Reorder workspaces in the sidebar
+ */
+export function reorderWorkspaces(fromIndex: number, toIndex: number): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    // Initialize workspaceOrder if it doesn't exist
+    if (!doc.workspaceOrder) {
+      // Build order from existing workspaces sorted by created time
+      const workspaceValues = Object.values(doc.workspaces) as Workspace[];
+      doc.workspaceOrder = workspaceValues
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+        .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime())
+        .map((w) => w.id);
+    }
+
+    if (fromIndex < 0 || fromIndex >= doc.workspaceOrder.length) return;
+    if (toIndex < 0 || toIndex >= doc.workspaceOrder.length) return;
+
+    const [removed] = doc.workspaceOrder.splice(fromIndex, 1);
+    doc.workspaceOrder.splice(toIndex, 0, removed);
   });
 }
 

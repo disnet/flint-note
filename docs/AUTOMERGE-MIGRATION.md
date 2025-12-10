@@ -64,6 +64,7 @@ interface NotesDocument {
   workspaces: Record<string, Workspace>;
   activeWorkspaceId: string;
   noteTypes: Record<string, NoteType>;
+  workspaceOrder?: string[]; // Ordered list of workspace IDs for display order
 }
 
 interface Vault {
@@ -111,7 +112,7 @@ Unified reactive state module (~800 lines) providing:
 
 - `getWorkspaces()`, `getActiveWorkspace()`, `getRecentNotes()`, `isNoteRecent()`
 - `createWorkspace()`, `updateWorkspace()`, `deleteWorkspace()`
-- `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`
+- `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`, `reorderWorkspaces()`
 
 **Pinned Notes Operations:**
 
@@ -197,10 +198,11 @@ Recent notes in active workspace:
 
 Workspace management at sidebar bottom:
 
-- Workspace icons with tooltips
-- Add workspace popover with form
-- Context menu for edit/delete
-- Quick action to create notes
+- Workspace icons with tooltips and keyboard shortcuts (Ctrl+1-9)
+- Drag-and-drop reordering with horizontal lock and FLIP animations
+- Add menu with "New Note" and "New Workspace" options
+- Context menu for edit/delete workspace
+- Workspace order persisted in `workspaceOrder` array
 
 #### `AutomergeNoteEditor.svelte`
 
@@ -298,12 +300,26 @@ The following tasks from the original plan:
 After Phase 1 is stable:
 
 1. **Search Improvements**: Full-text search with highlighting ✅
-2. **Multiple Workspaces**: Full workspace management UI
+2. **Multiple Workspaces**: Full workspace management UI ✅
 3. **Note Types**: UI for creating and managing custom note types
 4. **Wikilink hover popovers**: Action popover on hover (currently simplified)
 5. **Inline images**: Support for images in notes (requires IPC)
 
 **Completed in Phase 2:**
+
+#### Workspace Management (Complete)
+
+Enhanced workspace bar with full management capabilities:
+
+- **Drag-and-drop reordering**: Workspaces can be reordered by dragging
+  - Horizontal movement only (locked vertically)
+  - FLIP animations for smooth transitions
+  - Persisted order in `workspaceOrder` array
+- **Add menu**: Plus button now shows a menu with:
+  - "New Note" option
+  - "New Workspace" option (opens creation form)
+- **Context menu**: Right-click workspace to edit or delete
+- **Edit functionality**: Opens form pre-filled with workspace name and icon
 
 #### Search Improvements (Complete)
 

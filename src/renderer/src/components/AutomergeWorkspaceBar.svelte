@@ -2,14 +2,17 @@
   /**
    * Workspace bar for the Automerge sidebar
    * Shows workspace icons and allows switching/creating workspaces
+   * Supports drag-and-drop reordering with horizontal lock
    */
+  import { tick } from 'svelte';
   import {
     getWorkspaces,
     getActiveWorkspace,
     setActiveWorkspace,
     createWorkspace,
     deleteWorkspace,
-    updateWorkspace
+    updateWorkspace,
+    reorderWorkspaces
   } from '../lib/automerge';
 
   interface Props {
@@ -23,16 +26,39 @@
   const workspaces = $derived(getWorkspaces());
   const activeWorkspace = $derived(getActiveWorkspace());
 
-  // UI state
-  let isPopoverOpen = $state(false);
+  // UI state for workspace form popover
+  let isFormPopoverOpen = $state(false);
   let editingWorkspaceId = $state<string | null>(null);
   let newWorkspaceName = $state('');
   let newWorkspaceIcon = $state('');
+
+  // UI state for add menu popover
+  let isAddMenuOpen = $state(false);
 
   // Context menu state
   let contextMenuOpen = $state(false);
   let contextMenuWorkspaceId = $state<string | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
+
+  // Drag state
+  let draggedIndex = $state<number | null>(null);
+  let draggedWorkspaceId = $state<string | null>(null);
+  let dropTargetIndex = $state<number | null>(null);
+  let dragOffsetX = $state(0);
+  let dragStartX = $state(0);
+  let itemWidth = $state(0);
+  let isAnimating = $state(false);
+
+  const ANIMATION_DURATION = 200;
+  const ITEM_GAP = 8; // 0.5rem in pixels
+
+  // List element ref
+  let listElement: HTMLDivElement | undefined = $state();
+
+  // Pre-create transparent drag image
+  const emptyDragImage = new Image();
+  emptyDragImage.src =
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
   function getWorkspaceTooltip(name: string, index: number): string {
     if (index < 9) {
@@ -43,21 +69,34 @@
 
   function handleWorkspaceClick(workspaceId: string): void {
     if (activeWorkspace?.id === workspaceId) {
-      // Clicking active workspace could open a popover/menu in the future
       return;
     }
     setActiveWorkspace(workspaceId);
   }
 
   function handleAddClick(): void {
-    isPopoverOpen = !isPopoverOpen;
+    isAddMenuOpen = !isAddMenuOpen;
+  }
+
+  function closeAddMenu(): void {
+    isAddMenuOpen = false;
+  }
+
+  function openNewWorkspaceForm(): void {
+    closeAddMenu();
     editingWorkspaceId = null;
     newWorkspaceName = '';
     newWorkspaceIcon = '📋';
+    isFormPopoverOpen = true;
   }
 
-  function closePopover(): void {
-    isPopoverOpen = false;
+  function handleNewNoteClick(): void {
+    closeAddMenu();
+    onCreateNote?.();
+  }
+
+  function closeFormPopover(): void {
+    isFormPopoverOpen = false;
     editingWorkspaceId = null;
     newWorkspaceName = '';
     newWorkspaceIcon = '';
@@ -71,7 +110,7 @@
       icon: newWorkspaceIcon || '📋'
     });
 
-    closePopover();
+    closeFormPopover();
   }
 
   function handleUpdateWorkspace(): void {
@@ -82,7 +121,7 @@
       icon: newWorkspaceIcon || '📋'
     });
 
-    closePopover();
+    closeFormPopover();
   }
 
   // Context menu handlers
@@ -124,7 +163,7 @@
       editingWorkspaceId = workspace.id;
       newWorkspaceName = workspace.name;
       newWorkspaceIcon = workspace.icon;
-      isPopoverOpen = true;
+      isFormPopoverOpen = true;
     }
     closeContextMenu();
   }
@@ -139,19 +178,26 @@
   }
 
   function handleGlobalClick(event: MouseEvent): void {
+    const target = event.target as Element;
+
     if (contextMenuOpen) {
-      const target = event.target as Element;
       if (!target.closest('.context-menu')) {
         closeContextMenu();
       }
     }
-    if (isPopoverOpen) {
-      const target = event.target as Element;
+    if (isFormPopoverOpen) {
       if (
         !target.closest('.workspace-popover') &&
-        !target.closest('.add-workspace-button')
+        !target.closest('.add-workspace-button') &&
+        !target.closest('.add-menu') &&
+        !target.closest('.context-menu')
       ) {
-        closePopover();
+        closeFormPopover();
+      }
+    }
+    if (isAddMenuOpen) {
+      if (!target.closest('.add-menu') && !target.closest('.add-workspace-button')) {
+        closeAddMenu();
       }
     }
   }
@@ -159,22 +205,228 @@
   function handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       if (contextMenuOpen) closeContextMenu();
-      if (isPopoverOpen) closePopover();
+      if (isFormPopoverOpen) closeFormPopover();
+      if (isAddMenuOpen) closeAddMenu();
     }
+  }
+
+  // Drag handlers
+  function handleDragStart(e: DragEvent, index: number, workspaceId: string): void {
+    draggedIndex = index;
+    draggedWorkspaceId = workspaceId;
+    dropTargetIndex = index;
+    dragOffsetX = 0;
+
+    const item = (e.target as HTMLElement).closest(
+      '[data-workspace-item]'
+    ) as HTMLElement;
+    if (item) {
+      itemWidth = item.offsetWidth + ITEM_GAP;
+    }
+
+    dragStartX = e.clientX;
+
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', workspaceId);
+      e.dataTransfer.setDragImage(emptyDragImage, 0, 0);
+    }
+  }
+
+  function handleDragOver(e: DragEvent): void {
+    e.preventDefault();
+    if (draggedIndex === null || !listElement) return;
+
+    // Update offset for visual feedback (horizontal only)
+    dragOffsetX = e.clientX - dragStartX;
+
+    // Determine target index based on X position
+    const listRect = listElement.getBoundingClientRect();
+    const x = e.clientX - listRect.left + listElement.scrollLeft;
+    let newTargetIndex = Math.floor(x / itemWidth);
+    newTargetIndex = Math.max(0, Math.min(workspaces.length - 1, newTargetIndex));
+
+    dropTargetIndex = newTargetIndex;
+  }
+
+  function handleDragEnd(): void {
+    finishDrag();
+  }
+
+  function handleDrop(e: DragEvent): void {
+    e.preventDefault();
+    finishDrag();
+  }
+
+  async function finishDrag(): Promise<void> {
+    if (
+      draggedIndex === null ||
+      dropTargetIndex === null ||
+      draggedWorkspaceId === null
+    ) {
+      resetDragState();
+      return;
+    }
+
+    const fromIndex = draggedIndex;
+    const toIndex = dropTargetIndex;
+
+    if (fromIndex === toIndex) {
+      resetDragState();
+      return;
+    }
+
+    // Save current visual positions for FLIP animation
+    const draggedItemOffset = dragOffsetX;
+
+    // Build a map of where each item visually appears right now
+    const visualPositions = new Map<string, number>();
+    for (let i = 0; i < workspaces.length; i++) {
+      const workspace = workspaces[i];
+      let visualIndex = i;
+      if (i === fromIndex) {
+        visualIndex = toIndex;
+      } else if (fromIndex < toIndex && i > fromIndex && i <= toIndex) {
+        visualIndex = i - 1;
+      } else if (fromIndex > toIndex && i >= toIndex && i < fromIndex) {
+        visualIndex = i + 1;
+      }
+      visualPositions.set(workspace.id, visualIndex);
+    }
+
+    // Enter animating state
+    isAnimating = true;
+
+    // Reset drag state
+    resetDragState();
+
+    // Perform the reorder
+    reorderWorkspaces(fromIndex, toIndex);
+
+    // Wait for DOM update
+    await tick();
+
+    if (!listElement) {
+      isAnimating = false;
+      return;
+    }
+
+    // Query fresh element references
+    const freshElements = listElement.querySelectorAll<HTMLElement>(
+      '[data-workspace-item]'
+    );
+
+    // Apply FLIP: position elements at their OLD visual position, then animate to new
+    freshElements.forEach((el) => {
+      const id = el.dataset.workspaceId;
+      if (!id) return;
+
+      // Find this element's new index
+      const newIndex = Array.from(freshElements).indexOf(el);
+
+      let deltaX: number;
+
+      if (id === draggedWorkspaceId) {
+        // The dragged item: calculate from its pixel position
+        deltaX = (fromIndex - newIndex) * itemWidth + draggedItemOffset;
+      } else {
+        const oldVisualIndex = visualPositions.get(id);
+        if (oldVisualIndex === undefined) return;
+        deltaX = (oldVisualIndex - newIndex) * itemWidth;
+      }
+
+      // Apply inverse transform immediately (no transition)
+      el.style.transition = 'none';
+      el.style.transform = deltaX !== 0 ? `translateX(${deltaX}px)` : '';
+    });
+
+    // Force reflow
+    void listElement.offsetHeight;
+
+    // Disable pointer events during animation
+    listElement.style.pointerEvents = 'none';
+
+    // Animate to final position
+    freshElements.forEach((el) => {
+      el.style.transition = `transform ${ANIMATION_DURATION}ms cubic-bezier(0.2, 0, 0, 1)`;
+      el.style.transform = '';
+    });
+
+    // Clean up after animation
+    setTimeout(() => {
+      freshElements.forEach((el) => {
+        el.style.transition = '';
+      });
+      if (listElement) {
+        listElement.style.pointerEvents = '';
+      }
+      isAnimating = false;
+    }, ANIMATION_DURATION);
+  }
+
+  function resetDragState(): void {
+    draggedIndex = null;
+    draggedWorkspaceId = null;
+    dropTargetIndex = null;
+    dragOffsetX = 0;
+  }
+
+  function getItemTransform(index: number): string | undefined {
+    // During FLIP animation, transforms are controlled directly via el.style
+    if (isAnimating) return undefined;
+
+    if (draggedIndex === null || dropTargetIndex === null) return undefined;
+
+    // The dragged item follows the cursor horizontally
+    if (index === draggedIndex) {
+      return `translateX(${dragOffsetX}px)`;
+    }
+
+    // Calculate shifts for other items
+    if (draggedIndex < dropTargetIndex) {
+      // Dragging right: items between drag and target shift left
+      if (index > draggedIndex && index <= dropTargetIndex) {
+        return `translateX(-${itemWidth}px)`;
+      }
+    } else {
+      // Dragging left: items between target and drag shift right
+      if (index >= dropTargetIndex && index < draggedIndex) {
+        return `translateX(${itemWidth}px)`;
+      }
+    }
+
+    return undefined;
+  }
+
+  function isDragging(index: number): boolean {
+    return draggedIndex === index;
   }
 </script>
 
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
 <div class="workspace-bar" class:shadow={showShadow}>
-  <div class="workspace-icons">
+  <div
+    class="workspace-icons"
+    bind:this={listElement}
+    ondragover={handleDragOver}
+    ondrop={handleDrop}
+    role="list"
+  >
     {#each workspaces as workspace, index (workspace.id)}
       <button
         class="workspace-icon"
         class:active={activeWorkspace?.id === workspace.id}
+        class:dragging={isDragging(index)}
+        style:transform={getItemTransform(index)}
         onclick={() => handleWorkspaceClick(workspace.id)}
         oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
         title={getWorkspaceTooltip(workspace.name, index)}
+        draggable="true"
+        ondragstart={(e) => handleDragStart(e, index, workspace.id)}
+        ondragend={handleDragEnd}
+        data-workspace-item
+        data-workspace-id={workspace.id}
       >
         {workspace.icon}
         <span class="tooltip">{getWorkspaceTooltip(workspace.name, index)}</span>
@@ -183,8 +435,8 @@
     <button
       class="add-workspace-button"
       onclick={handleAddClick}
-      title="New workspace"
-      aria-label="New workspace"
+      title="Add"
+      aria-label="Add"
     >
       <svg
         width="14"
@@ -200,7 +452,47 @@
     </button>
   </div>
 
-  {#if isPopoverOpen}
+  <!-- Add menu -->
+  {#if isAddMenuOpen}
+    <div class="add-menu">
+      {#if onCreateNote}
+        <button class="add-menu-item" onclick={handleNewNoteClick}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          New Note
+        </button>
+      {/if}
+      <button class="add-menu-item" onclick={openNewWorkspaceForm}>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        New Workspace
+      </button>
+    </div>
+  {/if}
+
+  <!-- Workspace form popover -->
+  {#if isFormPopoverOpen}
     <div class="workspace-popover">
       <h4>{editingWorkspaceId ? 'Edit Workspace' : 'New Workspace'}</h4>
       <div class="popover-form">
@@ -225,7 +517,7 @@
           />
         </div>
         <div class="form-actions">
-          <button class="cancel-btn" onclick={closePopover}>Cancel</button>
+          <button class="cancel-btn" onclick={closeFormPopover}>Cancel</button>
           <button
             class="create-btn"
             onclick={editingWorkspaceId ? handleUpdateWorkspace : handleCreateWorkspace}
@@ -235,25 +527,6 @@
           </button>
         </div>
       </div>
-      {#if onCreateNote}
-        <div class="popover-divider"></div>
-        <button class="quick-action" onclick={onCreateNote}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14,2 14,8 20,8"></polyline>
-            <line x1="12" y1="18" x2="12" y2="12"></line>
-            <line x1="9" y1="15" x2="15" y2="15"></line>
-          </svg>
-          New Note
-        </button>
-      {/if}
     </div>
   {/if}
 
@@ -341,8 +614,11 @@
     border-radius: 0.5rem;
     background: transparent;
     font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    cursor: grab;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+    user-select: none;
   }
 
   .workspace-icon:hover {
@@ -353,6 +629,17 @@
   .workspace-icon.active {
     border-color: var(--accent-primary);
     background: var(--accent-light);
+  }
+
+  .workspace-icon.dragging {
+    opacity: 0.9;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--bg-secondary);
+    cursor: grabbing;
+    transition:
+      opacity 0.15s,
+      box-shadow 0.15s;
   }
 
   .tooltip {
@@ -381,7 +668,7 @@
     transform: translateX(0);
   }
 
-  .workspace-icon:hover .tooltip {
+  .workspace-icon:hover:not(.dragging) .tooltip {
     opacity: 1;
     visibility: visible;
   }
@@ -406,6 +693,45 @@
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
+  }
+
+  /* Add menu styles */
+  .add-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 0.25rem;
+    min-width: 150px;
+    z-index: 100;
+  }
+
+  .add-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-align: left;
+  }
+
+  .add-menu-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .add-menu-item svg {
+    color: var(--text-secondary);
   }
 
   /* Popover styles */
@@ -506,36 +832,6 @@
   .create-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  .popover-divider {
-    height: 1px;
-    background: var(--border-light);
-    margin: 0.75rem 0;
-  }
-
-  .quick-action {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    border-radius: 0.375rem;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-    text-align: left;
-  }
-
-  .quick-action:hover {
-    background: var(--bg-hover);
-  }
-
-  .quick-action svg {
-    color: var(--text-secondary);
   }
 
   /* Context menu styles */
