@@ -297,11 +297,43 @@ The following tasks from the original plan:
 
 After Phase 1 is stable:
 
-1. **Search Improvements**: Full-text search with highlighting
+1. **Search Improvements**: Full-text search with highlighting ✅
 2. **Multiple Workspaces**: Full workspace management UI
 3. **Note Types**: UI for creating and managing custom note types
 4. **Wikilink hover popovers**: Action popover on hover (currently simplified)
 5. **Inline images**: Support for images in notes (requires IPC)
+
+**Completed in Phase 2:**
+
+#### Search Improvements (Complete)
+
+Implemented enhanced search functionality with:
+
+- **Ranking algorithm**: Multi-factor scoring based on:
+  - Title matches (worth more than content)
+  - Exact title matches (highest value)
+  - Title starting with search term
+  - Content match frequency (capped at 5)
+  - Note type name matches
+  - Recency boost (last 7 days)
+  - Bonus for matching both title and content
+
+- **Match highlighting**:
+  - Extract context around matches
+  - Highlight matched terms in search results
+  - Show line numbers for matches
+  - Support for multiple terms (tokenized search)
+
+- **Enhanced search UI**:
+  - Dropdown results with highlighted previews
+  - Dedicated search view (press Enter in search box)
+  - Results show note type icon, title, and preview
+  - Match count indicator for multiple matches
+  - Relevance score display
+
+- **New files**:
+  - `src/renderer/src/lib/automerge/search.svelte.ts` - Search engine with ranking/highlighting
+  - `src/renderer/src/components/AutomergeSearchResults.svelte` - Enhanced results component
 
 ### Phase 3: Sync
 
@@ -323,6 +355,7 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/index.ts`
 - `src/renderer/src/lib/automerge/wikilinks.svelte.ts` (automerge-specific wikilinks)
 - `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (CodeMirror config for automerge)
+- `src/renderer/src/lib/automerge/search.svelte.ts` (enhanced search with ranking/highlighting)
 - `src/renderer/src/AutomergeApp.svelte`
 - `src/renderer/src/components/AutomergeFirstTimeExperience.svelte`
 - `src/renderer/src/components/AutomergeMainView.svelte`
@@ -332,6 +365,7 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergePinnedNotes.svelte`
 - `src/renderer/src/components/AutomergeRecentNotes.svelte`
 - `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
+- `src/renderer/src/components/AutomergeSearchResults.svelte`
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 

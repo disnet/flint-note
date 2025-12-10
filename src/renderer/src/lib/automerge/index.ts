@@ -114,3 +114,12 @@ export type {
   WikilinkClickHandler,
   WikilinkHoverHandler
 } from './wikilinks.svelte';
+
+// Enhanced search
+export { searchNotesEnhanced, highlightMatch, getMatchPreview } from './search.svelte';
+export type {
+  SearchResult,
+  SearchMatch,
+  SearchOptions,
+  TextSegment
+} from './search.svelte';

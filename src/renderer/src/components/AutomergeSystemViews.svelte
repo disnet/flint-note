@@ -5,7 +5,7 @@
    */
 
   interface Props {
-    activeSystemView: 'notes' | 'settings' | null;
+    activeSystemView: 'notes' | 'settings' | 'search' | null;
     onSystemViewSelect: (view: 'notes' | 'settings' | null) => void;
   }
 

@@ -12,7 +12,7 @@
   import { getActiveWorkspace, type Note } from '../lib/automerge';
 
   interface Props {
-    activeSystemView: 'notes' | 'settings' | null;
+    activeSystemView: 'notes' | 'settings' | 'search' | null;
     onNoteSelect: (note: Note) => void;
     onSystemViewSelect: (view: 'notes' | 'settings' | null) => void;
     onCreateNote?: () => void;

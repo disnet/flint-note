@@ -5,6 +5,7 @@
    */
   import {
     getNotes,
+    getAllNotes,
     getNoteTypes,
     getActiveNoteId,
     getActiveNote,
@@ -13,39 +14,81 @@
     updateNote,
     archiveNote,
     addNoteToWorkspace,
-    searchNotes,
     getNonArchivedVaults,
     getActiveVault,
     createVault,
     switchVault,
-    type Note
+    searchNotesEnhanced,
+    type Note,
+    type SearchResult
   } from '../lib/automerge';
   import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
+  import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
   // Derived state
   const notes = $derived(getNotes());
+  const allNotes = $derived(getAllNotes());
+  const noteTypes = $derived(getNoteTypes());
   const activeNoteId = $derived(getActiveNoteId());
   const activeNote = $derived(getActiveNote());
   const vaults = $derived(getNonArchivedVaults());
   const activeVault = $derived(getActiveVault());
 
+  // Build note types record for search
+  const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
+
   // UI state
   let searchQuery = $state('');
-  let activeSystemView = $state<'notes' | 'settings' | null>(null);
+  let activeSystemView = $state<'notes' | 'settings' | 'search' | null>(null);
   let showCreateVaultModal = $state(false);
   let newVaultName = $state('');
+  let searchInputFocused = $state(false);
 
-  // Search results
-  const searchResults = $derived(searchQuery.trim() ? searchNotes(searchQuery) : []);
+  // Enhanced search results with highlighting
+  const searchResults: SearchResult[] = $derived(
+    searchQuery.trim()
+      ? searchNotesEnhanced(allNotes, searchQuery, { noteTypes: noteTypesRecord })
+      : []
+  );
 
   // Handlers
   function handleNoteSelect(note: Note): void {
     setActiveNoteId(note.id);
     addNoteToWorkspace(note.id);
     activeSystemView = null; // Clear system view when selecting a note
+    searchQuery = ''; // Clear search when selecting a note
+    searchInputFocused = false;
+  }
+
+  function handleSearchResultSelect(note: Note): void {
+    handleNoteSelect(note);
+  }
+
+  function handleSearchFocus(): void {
+    searchInputFocused = true;
+  }
+
+  function handleSearchBlur(): void {
+    // Delay to allow click events on results to fire
+    setTimeout(() => {
+      searchInputFocused = false;
+    }, 200);
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      searchQuery = '';
+      searchInputFocused = false;
+      (event.target as HTMLInputElement)?.blur();
+    }
+    // Enter opens the dedicated search view if there are results
+    if (event.key === 'Enter' && searchQuery.trim() && searchResults.length > 0) {
+      activeSystemView = 'search';
+      setActiveNoteId(null);
+    }
   }
 
   function handleCreateNote(): void {
@@ -140,26 +183,37 @@
             id="search-input"
             type="text"
             class="search-input"
+            class:active={searchInputFocused && searchQuery.trim()}
             placeholder="Search notes... (⌘K)"
             bind:value={searchQuery}
+            onfocus={handleSearchFocus}
+            onblur={handleSearchBlur}
+            onkeydown={handleSearchKeyDown}
           />
-          {#if searchQuery && searchResults.length > 0}
-            <div class="search-results">
-              {#each searchResults.slice(0, 10) as note (note.id)}
-                <button
-                  class="search-result-item"
-                  onclick={() => {
-                    handleNoteSelect(note);
-                    searchQuery = '';
-                  }}
-                >
-                  <span class="result-title">{note.title || 'Untitled'}</span>
-                  <span class="result-type"
-                    >{getNoteTypes().find((t) => t.id === note.type)?.name ||
-                      'Note'}</span
+          {#if searchInputFocused && searchQuery.trim()}
+            <div class="search-dropdown">
+              {#if searchResults.length > 0}
+                <AutomergeSearchResults
+                  results={searchResults}
+                  onSelect={handleSearchResultSelect}
+                  maxResults={8}
+                />
+                {#if searchResults.length > 8}
+                  <button
+                    class="view-all-btn"
+                    onclick={() => {
+                      activeSystemView = 'search';
+                      setActiveNoteId(null);
+                    }}
                   >
-                </button>
-              {/each}
+                    View all {searchResults.length} results (Enter)
+                  </button>
+                {/if}
+              {:else}
+                <div class="no-results-dropdown">
+                  No matching notes found for "{searchQuery}"
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
@@ -224,6 +278,38 @@
           <button class="close-settings" onclick={() => (activeSystemView = null)}
             >Close</button
           >
+        </div>
+      {:else if activeSystemView === 'search'}
+        <!-- Dedicated Search View -->
+        <div class="search-view">
+          <div class="search-view-header">
+            <h2>Search Results ({searchResults.length})</h2>
+            <span class="search-query-label">for "{searchQuery}"</span>
+            <button
+              class="close-search-btn"
+              onclick={() => (activeSystemView = null)}
+              aria-label="Close search"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="search-view-content">
+            <AutomergeSearchResults
+              results={searchResults}
+              onSelect={handleSearchResultSelect}
+              maxResults={50}
+            />
+          </div>
         </div>
       {:else if activeSystemView === 'notes'}
         <!-- All Notes View -->
@@ -417,45 +503,102 @@
     border-color: var(--accent-primary);
   }
 
-  .search-results {
+  .search-input.active {
+    border-color: var(--accent-primary);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .search-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
     background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    margin-top: 0.25rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--accent-primary);
+    border-top: none;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 100;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
   }
 
-  .search-result-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .view-all-btn {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem;
     border: none;
-    background: none;
-    color: var(--text-primary);
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
     cursor: pointer;
-    text-align: left;
+    text-align: center;
   }
 
-  .search-result-item:hover {
+  .view-all-btn:hover {
     background: var(--bg-hover);
   }
 
-  .result-title {
-    font-weight: 500;
+  .no-results-dropdown {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
   }
 
-  .result-type {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+  /* Search View */
+  .search-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .search-view-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+
+  .search-view-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .search-query-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .close-search-btn {
+    margin-left: auto;
+    padding: 0.375rem;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .close-search-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .search-view-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
   }
 
   .vault-switcher {

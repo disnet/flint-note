@@ -196,6 +196,7 @@ export function archiveVault(id: string): void {
  * Returns null for activeVault if no vaults exist (triggers first-time experience)
  */
 export async function initializeVaults(
+  // Repo parameter for future use (e.g., validating document exists)
   _r: Repo
 ): Promise<{ vaults: Vault[]; activeVault: Vault | null }> {
   const vaults = getVaults();
