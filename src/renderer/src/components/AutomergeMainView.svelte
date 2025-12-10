@@ -20,6 +20,10 @@
     setActiveWorkspace,
     createWorkspace,
     searchNotes,
+    getNonArchivedVaults,
+    getActiveVault,
+    createVault,
+    switchVault,
     type Note
   } from '../lib/automerge';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
@@ -32,10 +36,16 @@
   const openNotes = $derived(getOpenNotes());
   const activeNoteId = $derived(getActiveNoteId());
   const activeNote = $derived(getActiveNote());
+  const vaults = $derived(getNonArchivedVaults());
+  const activeVault = $derived(getActiveVault());
 
   // UI state
   let searchQuery = $state('');
   let showSettings = $state(false);
+  let showCreateVaultModal = $state(false);
+  let showCreateWorkspaceModal = $state(false);
+  let newVaultName = $state('');
+  let newWorkspaceName = $state('');
 
   // Search results
   const searchResults = $derived(searchQuery.trim() ? searchNotes(searchQuery) : []);
@@ -68,9 +78,33 @@
   }
 
   function handleCreateWorkspace(): void {
-    const name = prompt('Enter workspace name:');
-    if (name?.trim()) {
-      createWorkspace({ name: name.trim(), icon: '📋' });
+    newWorkspaceName = '';
+    showCreateWorkspaceModal = true;
+  }
+
+  function submitCreateWorkspace(): void {
+    if (newWorkspaceName.trim()) {
+      createWorkspace({ name: newWorkspaceName.trim(), icon: '📋' });
+      showCreateWorkspaceModal = false;
+      newWorkspaceName = '';
+    }
+  }
+
+  async function handleVaultSelect(vaultId: string): Promise<void> {
+    await switchVault(vaultId);
+    setActiveNoteId(null);
+  }
+
+  function handleCreateVault(): void {
+    newVaultName = '';
+    showCreateVaultModal = true;
+  }
+
+  function submitCreateVault(): void {
+    if (newVaultName.trim()) {
+      createVault(newVaultName.trim());
+      showCreateVaultModal = false;
+      newVaultName = '';
     }
   }
 
@@ -145,6 +179,26 @@
   <div class="app-layout">
     <!-- Left Sidebar -->
     <div class="left-sidebar">
+      <!-- Vault Switcher -->
+      <div class="vault-section">
+        <div class="section-header">
+          <span>Vaults</span>
+          <button class="add-btn" onclick={handleCreateVault} title="New vault">+</button>
+        </div>
+        <div class="vault-list">
+          {#each vaults as vault (vault.id)}
+            <button
+              class="vault-item"
+              class:active={activeVault?.id === vault.id}
+              onclick={() => handleVaultSelect(vault.id)}
+            >
+              <span class="vault-icon">📚</span>
+              <span class="vault-name">{vault.name}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+
       <!-- Workspaces -->
       <div class="workspaces-section">
         <div class="section-header">
@@ -257,6 +311,63 @@
     </div>
   </div>
 </div>
+
+<!-- Create Vault Modal -->
+{#if showCreateVaultModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (showCreateVaultModal = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showCreateVaultModal = false)}
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <h3>Create New Vault</h3>
+      <input
+        type="text"
+        class="modal-input"
+        placeholder="Vault name"
+        bind:value={newVaultName}
+        onkeydown={(e) => e.key === 'Enter' && submitCreateVault()}
+      />
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick={() => (showCreateVaultModal = false)}
+          >Cancel</button
+        >
+        <button class="modal-btn primary" onclick={submitCreateVault}>Create</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Create Workspace Modal -->
+{#if showCreateWorkspaceModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (showCreateWorkspaceModal = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showCreateWorkspaceModal = false)}
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <h3>Create New Workspace</h3>
+      <input
+        type="text"
+        class="modal-input"
+        placeholder="Workspace name"
+        bind:value={newWorkspaceName}
+        onkeydown={(e) => e.key === 'Enter' && submitCreateWorkspace()}
+      />
+      <div class="modal-actions">
+        <button
+          class="modal-btn cancel"
+          onclick={() => (showCreateWorkspaceModal = false)}>Cancel</button
+        >
+        <button class="modal-btn primary" onclick={submitCreateWorkspace}>Create</button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .main-view {
@@ -424,6 +535,53 @@
     color: var(--text-primary);
   }
 
+  /* Vault Section */
+  .vault-section {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .vault-list {
+    padding: 0 0.5rem 0.5rem;
+  }
+
+  .vault-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: none;
+    border-radius: 0.375rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .vault-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .vault-item.active {
+    background: var(--bg-tertiary, var(--bg-hover));
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .vault-icon {
+    font-size: 1rem;
+  }
+
+  .vault-name {
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Workspaces Section */
   .workspaces-section {
     flex-shrink: 0;
     border-bottom: 1px solid var(--border-light);
@@ -646,5 +804,81 @@
     border-radius: 0.375rem;
     color: var(--text-primary);
     cursor: pointer;
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal {
+    background: var(--bg-primary);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    min-width: 300px;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal h3 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .modal-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .modal-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+  }
+
+  .modal-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .modal-btn.cancel {
+    background: var(--bg-tertiary, var(--bg-hover));
+    color: var(--text-primary);
+  }
+
+  .modal-btn.cancel:hover {
+    background: var(--bg-hover);
+  }
+
+  .modal-btn.primary {
+    background: var(--accent-primary);
+    color: var(--accent-text);
+  }
+
+  .modal-btn.primary:hover {
+    background: var(--accent-primary-hover, var(--accent-primary));
   }
 </style>

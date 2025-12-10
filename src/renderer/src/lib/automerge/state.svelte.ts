@@ -50,6 +50,7 @@ const DEFAULT_NOTE_TYPE_ID = 'type-default';
 /**
  * Initialize the state system
  * Creates repo, loads vaults, and subscribes to document changes
+ * If no vaults exist, initializes in "no vault" state for first-time experience
  */
 export async function initializeState(vaultId?: string): Promise<void> {
   isLoading = true;
@@ -60,6 +61,13 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Initialize vaults
     const { vaults: loadedVaults, activeVault } = await initializeVaults(repo);
     vaults = loadedVaults;
+
+    // If no active vault, we're in first-time experience mode
+    if (!activeVault) {
+      activeVaultId = null;
+      isInitialized = true;
+      return;
+    }
 
     // Use provided vaultId or the active vault
     const targetVault = vaultId

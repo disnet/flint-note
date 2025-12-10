@@ -29,19 +29,20 @@ Key insight: electron-vite's bundler doesn't properly handle WASM ESM imports. S
 Created a complete automerge integration layer:
 
 #### `types.ts`
+
 ```typescript
 interface Note {
-  id: string;           // "n-xxxxxxxx"
+  id: string; // "n-xxxxxxxx"
   title: string;
   content: string;
-  type: string;         // Reference to NoteType.id
-  created: string;      // ISO timestamp
+  type: string; // Reference to NoteType.id
+  created: string; // ISO timestamp
   updated: string;
   archived: boolean;
 }
 
 interface Workspace {
-  id: string;           // "ws-xxxxxxxx"
+  id: string; // "ws-xxxxxxxx"
   name: string;
   icon: string;
   openNoteIds: string[];
@@ -49,7 +50,7 @@ interface Workspace {
 }
 
 interface NoteType {
-  id: string;           // "type-xxxxxxxx"
+  id: string; // "type-xxxxxxxx"
   name: string;
   purpose: string;
   icon: string;
@@ -67,51 +68,61 @@ interface NotesDocument {
 interface Vault {
   id: string;
   name: string;
-  docUrl: string;       // Automerge document URL
+  docUrl: string; // Automerge document URL
   archived: boolean;
   created: string;
 }
 ```
 
 #### `utils.ts`
+
 - ID generation functions: `generateNoteId()`, `generateWorkspaceId()`, `generateNoteTypeId()`, `generateVaultId()`
 - `nowISO()` for timestamp generation
 
 #### `repo.ts`
+
 - `createRepo()`: Creates Automerge repo with IndexedDB storage adapter
 - `getRepo()`: Returns singleton repo instance
 - Vault CRUD operations (stored in localStorage, not synced)
 - `createNewNotesDocument()`: Creates document with default workspace and note type
 
 #### `state.svelte.ts`
+
 Unified reactive state module (~800 lines) providing:
 
 **Reactive State:**
+
 - `currentDoc`: The automerge document (updated via subscription)
 - `activeNoteId`: Currently selected note (UI-only)
 - `isInitialized`, `isLoading`: Loading states
 - `vaults`: List of vaults
 
 **Initialization:**
+
 - `initializeState(vaultId?)`: Initialize repo, load vaults, subscribe to document changes
 
 **Note Operations:**
+
 - `getNotes()`, `getAllNotes()`, `getNote(id)`, `searchNotes(query)`, `getNotesByType(typeId)`
 - `createNote()`, `updateNote()`, `archiveNote()`, `deleteNote()`
 
 **Workspace Operations:**
+
 - `getWorkspaces()`, `getActiveWorkspace()`, `getOpenNotes()`, `isNoteOpen()`
 - `createWorkspace()`, `updateWorkspace()`, `deleteWorkspace()`
 - `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`
 
 **Note Type Operations:**
+
 - `getNoteTypes()`, `getAllNoteTypes()`, `getNoteType(id)`
 - `createNoteType()`, `updateNoteType()`, `archiveNoteType()`, `setNoteType()`
 
 **Backlinks:**
+
 - `getBacklinks(noteId)`: Returns notes that link to the given note with context
 
 #### `index.ts`
+
 Barrel exports for all automerge functionality.
 
 ### 3. UI Components
@@ -119,7 +130,9 @@ Barrel exports for all automerge functionality.
 Created simplified automerge-powered UI components:
 
 #### `AutomergeApp.svelte`
+
 Main app component that:
+
 - Initializes automerge state on mount
 - Shows loading state during initialization
 - Shows error state if initialization fails
@@ -127,13 +140,17 @@ Main app component that:
 - Applies theme and platform detection
 
 #### `AutomergeFirstTimeExperience.svelte`
+
 First-time vault creation flow:
+
 - Explains what a vault is
 - Form to name the vault
 - Creates vault and initializes state on submit
 
 #### `AutomergeMainView.svelte`
+
 Main interface with:
+
 - Sidebar with workspace list
 - Note list (filtered by search or showing all)
 - Note editor for selected note
@@ -141,7 +158,9 @@ Main interface with:
 - Create note functionality
 
 #### `AutomergeNoteEditor.svelte`
+
 Simple text-based note editor:
+
 - Title input
 - Content textarea with debounced updates
 - Last modified timestamp
@@ -227,6 +246,7 @@ Future work for multi-device sync:
 ## Files Reference
 
 ### New Files Created
+
 - `src/renderer/src/lib/automerge/types.ts`
 - `src/renderer/src/lib/automerge/utils.ts`
 - `src/renderer/src/lib/automerge/repo.ts`
@@ -240,11 +260,13 @@ Future work for multi-device sync:
 - `electron.vite.main-preload.config.ts`
 
 ### Files Modified
+
 - `src/renderer/src/main.ts` (entry point)
 - `src/renderer/index.html` (CSP for WASM)
 - `package.json` (build scripts, dependencies)
 
 ### Files to Eventually Remove (after full migration)
+
 - `src/renderer/src/App.svelte`
 - `src/renderer/src/stores/workspacesStore.svelte.ts`
 - `src/renderer/src/stores/activeNoteStore.svelte.ts`

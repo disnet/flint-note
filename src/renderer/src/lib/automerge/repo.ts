@@ -191,26 +191,29 @@ export function archiveVault(id: string): void {
 
 /**
  * Initialize the vault system
- * Creates a default vault if none exist
+ * Returns null for activeVault if no vaults exist (triggers first-time experience)
  */
 export async function initializeVaults(
-  r: Repo
-): Promise<{ vaults: Vault[]; activeVault: Vault }> {
-  let vaults = getVaults();
-  let activeVaultId = getActiveVaultId();
+  _r: Repo
+): Promise<{ vaults: Vault[]; activeVault: Vault | null }> {
+  const vaults = getVaults();
+  const activeVaultId = getActiveVaultId();
 
-  // No vaults - create default
+  // No vaults - return null to trigger first-time experience
   if (vaults.length === 0) {
-    const vault = createVault(r, 'My Notes');
-    vaults = [vault];
-    activeVaultId = vault.id;
-    setActiveVaultId(activeVaultId);
+    return { vaults: [], activeVault: null };
+  }
+
+  // Find non-archived vaults
+  const nonArchivedVaults = vaults.filter((v) => !v.archived);
+  if (nonArchivedVaults.length === 0) {
+    return { vaults, activeVault: null };
   }
 
   // Ensure we have a valid active vault
-  let activeVault = vaults.find((v) => v.id === activeVaultId && !v.archived);
+  let activeVault = nonArchivedVaults.find((v) => v.id === activeVaultId);
   if (!activeVault) {
-    activeVault = vaults.find((v) => !v.archived) || vaults[0];
+    activeVault = nonArchivedVaults[0];
     setActiveVaultId(activeVault.id);
   }
 
