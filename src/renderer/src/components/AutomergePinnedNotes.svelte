@@ -2,6 +2,7 @@
   /**
    * Pinned notes list for the Automerge sidebar
    * Shows notes that are pinned to the active workspace
+   * Supports drag-and-drop reordering with smooth animations
    */
   import {
     getPinnedNotes,
@@ -9,8 +10,10 @@
     archiveNote,
     getNoteTypes,
     getActiveNoteId,
+    reorderPinnedNotes,
     type Note
   } from '../lib/automerge';
+  import { useSortableList } from '../lib/useSortableList.svelte';
 
   interface Props {
     onNoteSelect: (note: Note) => void;
@@ -24,6 +27,19 @@
   const pinnedNotes = $derived(getPinnedNotes());
   const activeNoteId = $derived(getActiveNoteId());
   const noteTypes = $derived(getNoteTypes());
+
+  // Drag and drop
+  let listElement: HTMLDivElement | undefined = $state();
+  const sortable = useSortableList({
+    getItems: () => pinnedNotes,
+    onReorder: (from, to) => reorderPinnedNotes(from, to)
+  });
+
+  $effect(() => {
+    if (listElement) {
+      sortable.setListElement(listElement);
+    }
+  });
 
   // Context menu state
   let contextMenuOpen = $state(false);
@@ -141,16 +157,19 @@
   </div>
 
   {#if !isCollapsed}
-    <div class="pinned-list">
-      {#each pinnedNotes as note (note.id)}
+    <div class="pinned-list" bind:this={listElement} {...sortable.getListProps()}>
+      {#each pinnedNotes as note, index (note.id)}
         <div
           class="pinned-item"
           class:active={activeNoteId === note.id}
+          class:dragging={sortable.isDragging(index)}
+          style:transform={sortable.getItemTransform(index)}
           onclick={() => handleNoteClick(note)}
           oncontextmenu={(e) => handleContextMenu(e, note.id)}
           role="button"
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleNoteClick(note)}
+          {...sortable.getItemProps(index, note.id)}
         >
           <div class="note-icon">
             <span class="emoji-icon">{getNoteIcon(note)}</span>
@@ -274,8 +293,10 @@
     color: var(--text-primary);
     font-size: 0.875rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
     text-align: left;
+    position: relative;
+    z-index: 1;
   }
 
   .pinned-item:hover {
@@ -284,6 +305,17 @@
 
   .pinned-item.active {
     background: var(--accent-light);
+  }
+
+  .pinned-item.dragging {
+    opacity: 0.9;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--bg-secondary);
+    /* No transition on transform so it follows cursor immediately */
+    transition:
+      opacity 0.15s,
+      box-shadow 0.15s;
   }
 
   .note-icon {

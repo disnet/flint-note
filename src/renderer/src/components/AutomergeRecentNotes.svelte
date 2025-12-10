@@ -2,6 +2,7 @@
   /**
    * Recent notes list for the Automerge sidebar
    * Shows notes that are recently accessed in the active workspace but not pinned
+   * Supports drag-and-drop reordering with smooth animations
    */
   import {
     getRecentNotes,
@@ -10,8 +11,10 @@
     archiveNote,
     getNoteTypes,
     getActiveNoteId,
+    reorderWorkspaceNotes,
     type Note
   } from '../lib/automerge';
+  import { useSortableList } from '../lib/useSortableList.svelte';
 
   interface Props {
     onNoteSelect: (note: Note) => void;
@@ -23,6 +26,19 @@
   const recentNotes = $derived(getRecentNotes());
   const activeNoteId = $derived(getActiveNoteId());
   const noteTypes = $derived(getNoteTypes());
+
+  // Drag and drop
+  let listElement: HTMLDivElement | undefined = $state();
+  const sortable = useSortableList({
+    getItems: () => recentNotes,
+    onReorder: (from, to) => reorderWorkspaceNotes(from, to)
+  });
+
+  $effect(() => {
+    if (listElement) {
+      sortable.setListElement(listElement);
+    }
+  });
 
   // Context menu state
   let contextMenuOpen = $state(false);
@@ -151,16 +167,19 @@
   </div>
 
   {#if recentNotes.length > 0}
-    <div class="notes-list">
-      {#each recentNotes as note (note.id)}
+    <div class="notes-list" bind:this={listElement} {...sortable.getListProps()}>
+      {#each recentNotes as note, index (note.id)}
         <div
           class="note-item"
           class:active={activeNoteId === note.id}
+          class:dragging={sortable.isDragging(index)}
+          style:transform={sortable.getItemTransform(index)}
           onclick={() => handleTabClick(note)}
           oncontextmenu={(e) => handleContextMenu(e, note.id)}
           role="button"
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(note)}
+          {...sortable.getItemProps(index, note.id)}
         >
           <div class="note-content">
             <div class="note-icon">
@@ -318,8 +337,10 @@
     color: var(--text-primary);
     font-size: 0.875rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
     text-align: left;
+    position: relative;
+    z-index: 1;
   }
 
   .note-item:hover {
@@ -328,6 +349,17 @@
 
   .note-item.active {
     background: var(--accent-light);
+  }
+
+  .note-item.dragging {
+    opacity: 0.9;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--bg-secondary);
+    /* No transition on transform so it follows cursor immediately */
+    transition:
+      opacity 0.15s,
+      box-shadow 0.15s;
   }
 
   .note-content {
