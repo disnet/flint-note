@@ -99,3 +99,18 @@ export {
   generateVaultId,
   nowISO
 } from './utils';
+
+// Editor support
+export { AutomergeEditorConfig } from './editorConfig.svelte';
+export type { AutomergeEditorConfigOptions } from './editorConfig.svelte';
+export {
+  automergeWikilinksExtension,
+  forceWikilinkRefresh,
+  getSelectedWikilink,
+  parseWikilinks
+} from './wikilinks.svelte';
+export type {
+  WikilinkMatch,
+  WikilinkClickHandler,
+  WikilinkHoverHandler
+} from './wikilinks.svelte';

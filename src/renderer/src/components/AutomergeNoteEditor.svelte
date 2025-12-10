@@ -1,32 +1,51 @@
 <script lang="ts">
   /**
-   * Note editor component using Automerge for data storage
-   * Simple text-based editor (can be enhanced with CodeMirror later)
+   * Note editor component using Automerge for data storage with CodeMirror editor
    */
+  import { onMount } from 'svelte';
+  import { EditorView } from 'codemirror';
+  import { EditorState, StateEffect } from '@codemirror/state';
   import type { Note } from '../lib/automerge';
-  import { getBacklinks } from '../lib/automerge';
+  import {
+    getBacklinks,
+    getAllNotes,
+    createNote,
+    setActiveNoteId,
+    addNoteToWorkspace,
+    AutomergeEditorConfig,
+    forceWikilinkRefresh
+  } from '../lib/automerge';
+  import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
     note: Note;
     onTitleChange: (title: string) => void;
     onContentChange: (content: string) => void;
     onArchive: () => void;
+    onNavigate?: (noteId: string) => void;
   }
 
-  let { note, onTitleChange, onContentChange, onArchive }: Props = $props();
+  let { note, onTitleChange, onContentChange, onArchive, onNavigate }: Props = $props();
+
+  let editorContainer: HTMLElement | null = $state(null);
+  let editorView: EditorView | null = null;
 
   // Debounce content changes
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Editor config
+  const editorConfig = new AutomergeEditorConfig({
+    onWikilinkClick: handleWikilinkClick,
+    onContentChange: handleEditorContentChange,
+    placeholder: 'Start writing...'
+  });
 
   function handleTitleInput(event: Event): void {
     const target = event.target as HTMLInputElement;
     onTitleChange(target.value);
   }
 
-  function handleContentInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    const content = target.value;
-
+  function handleEditorContentChange(content: string): void {
     // Debounce content updates
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
@@ -34,6 +53,24 @@
     debounceTimeout = setTimeout(() => {
       onContentChange(content);
     }, 300);
+  }
+
+  function handleWikilinkClick(
+    noteId: string,
+    title: string,
+    shouldCreate?: boolean
+  ): void {
+    if (shouldCreate) {
+      // Create a new note with the given title
+      const newId = createNote({ title });
+      addNoteToWorkspace(newId);
+      setActiveNoteId(newId);
+      onNavigate?.(newId);
+    } else {
+      // Navigate to existing note
+      setActiveNoteId(noteId);
+      onNavigate?.(noteId);
+    }
   }
 
   // Get backlinks for this note
@@ -58,6 +95,119 @@
       event.preventDefault();
     }
   }
+
+  // Create the editor
+  function createEditor(): void {
+    if (!editorContainer || editorView) return;
+
+    const startState = EditorState.create({
+      doc: note.content,
+      extensions: editorConfig.getExtensions()
+    });
+
+    editorView = new EditorView({
+      state: startState,
+      parent: editorContainer
+    });
+
+    measureAndUpdateMarkerWidths();
+  }
+
+  function measureAndUpdateMarkerWidths(): void {
+    if (!editorView) return;
+
+    setTimeout(() => {
+      if (editorView) {
+        const widths = measureMarkerWidths(editorView.dom);
+        updateCSSCustomProperties(widths);
+      }
+    }, 10);
+  }
+
+  // Update editor content when note changes
+  function updateEditorContent(): void {
+    if (editorView && note.content !== undefined) {
+      const currentDoc = editorView.state.doc.toString();
+      if (currentDoc !== note.content) {
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: currentDoc.length,
+            insert: note.content
+          }
+        });
+      }
+    }
+  }
+
+  onMount(() => {
+    editorConfig.initializeTheme();
+    return () => {
+      if (editorView) {
+        editorView.destroy();
+        editorView = null;
+      }
+      editorConfig.destroy();
+    };
+  });
+
+  // Create editor when container is available
+  $effect(() => {
+    if (editorContainer && !editorView) {
+      createEditor();
+    }
+  });
+
+  // Reconfigure editor when theme changes
+  $effect(() => {
+    // Track isDarkMode to trigger on theme change
+    void editorConfig.isDarkMode;
+    if (editorView) {
+      editorView.dispatch({
+        effects: StateEffect.reconfigure.of(editorConfig.getExtensions())
+      });
+      measureAndUpdateMarkerWidths();
+    }
+  });
+
+  // Update editor content when note changes
+  $effect(() => {
+    // Track note.content to trigger on change
+    void note.content;
+    updateEditorContent();
+  });
+
+  // Refresh wikilinks when notes change
+  $effect(() => {
+    // Track all notes to trigger on changes
+    void getAllNotes();
+    if (editorView) {
+      setTimeout(() => {
+        if (editorView) {
+          forceWikilinkRefresh(editorView);
+        }
+      }, 50);
+    }
+  });
+
+  // Handle click on backlink
+  function handleBacklinkClick(backlinkNoteId: string): void {
+    setActiveNoteId(backlinkNoteId);
+    onNavigate?.(backlinkNoteId);
+  }
+
+  // Public API
+  export function focus(): void {
+    if (editorView) {
+      editorView.focus();
+    }
+  }
+
+  export function refreshWikilinks(): void {
+    if (editorView) {
+      forceWikilinkRefresh(editorView);
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -79,14 +229,9 @@
     </div>
   </div>
 
-  <!-- Content -->
+  <!-- Content - CodeMirror Editor -->
   <div class="editor-content">
-    <textarea
-      class="content-textarea"
-      value={note.content}
-      oninput={handleContentInput}
-      placeholder="Start writing..."
-    ></textarea>
+    <div class="editor-container editor-font" bind:this={editorContainer}></div>
   </div>
 
   <!-- Footer with backlinks -->
@@ -97,7 +242,11 @@
       </div>
       <div class="backlinks-list">
         {#each backlinks as backlink (backlink.note.id)}
-          <div class="backlink-item">
+          <button
+            type="button"
+            class="backlink-item"
+            onclick={() => handleBacklinkClick(backlink.note.id)}
+          >
             <span class="backlink-title">{backlink.note.title || 'Untitled'}</span>
             {#each backlink.contexts as context, contextIndex (contextIndex)}
               <div class="backlink-context">
@@ -106,7 +255,7 @@
                 {/each}
               </div>
             {/each}
-          </div>
+          </button>
         {/each}
       </div>
     </div>
@@ -177,26 +326,12 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
-  .content-textarea {
+  .editor-container {
     flex: 1;
-    width: 100%;
-    padding: 1.5rem;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    font-family:
-      ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
-      monospace;
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    resize: none;
-    outline: none;
-  }
-
-  .content-textarea::placeholder {
-    color: var(--text-muted);
+    overflow: hidden;
   }
 
   /* Backlinks */
@@ -223,9 +358,16 @@
   }
 
   .backlink-item {
+    display: block;
+    width: 100%;
+    text-align: left;
     padding: 0.5rem;
     border-radius: 0.375rem;
     margin-bottom: 0.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
 
   .backlink-item:hover {

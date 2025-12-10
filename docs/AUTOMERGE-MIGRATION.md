@@ -268,7 +268,7 @@ The following tasks from the original plan:
 
 - [x] Migrate existing note list components (NotesView, LeftSidebar)
 - [x] Migrate workspace components (WorkspaceBar, PinnedNotes, TemporaryTabs)
-- [ ] Migrate note editor components (NoteEditor with CodeMirror)
+- [x] Migrate note editor components (NoteEditor with CodeMirror)
 - [ ] Migrate navigation services
 - [ ] Remove deprecated stores and services
 
@@ -281,15 +281,27 @@ The following tasks from the original plan:
 - Resizable sidebar with persistence
 - Context menus for note management
 
+**Completed:** CodeMirror integration for note editing including:
+
+- Full CodeMirror 6 editor with markdown support
+- Automerge-specific wikilinks extension (`wikilinks.svelte.ts`)
+- Wikilink rendering as clickable widgets
+- Wikilink autocomplete when typing `[[`
+- Note navigation via wikilink clicks
+- Create new notes via broken wikilinks
+- Backlinks display at bottom of editor
+- Theme support (GitHub Light/Dark)
+- Markdown list styling
+
 ### Phase 2: Enhanced Features
 
 After Phase 1 is stable:
 
-1. **CodeMirror Integration**: Replace textarea with CodeMirror for proper markdown editing
-2. **Wikilink Support**: Parse and render `[[wikilinks]]` in editor
-3. **Search Improvements**: Full-text search with highlighting
-4. **Multiple Workspaces**: Full workspace management UI
-5. **Note Types**: UI for creating and managing custom note types
+1. **Search Improvements**: Full-text search with highlighting
+2. **Multiple Workspaces**: Full workspace management UI
+3. **Note Types**: UI for creating and managing custom note types
+4. **Wikilink hover popovers**: Action popover on hover (currently simplified)
+5. **Inline images**: Support for images in notes (requires IPC)
 
 ### Phase 3: Sync
 
@@ -309,6 +321,8 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/repo.ts`
 - `src/renderer/src/lib/automerge/state.svelte.ts`
 - `src/renderer/src/lib/automerge/index.ts`
+- `src/renderer/src/lib/automerge/wikilinks.svelte.ts` (automerge-specific wikilinks)
+- `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (CodeMirror config for automerge)
 - `src/renderer/src/AutomergeApp.svelte`
 - `src/renderer/src/components/AutomergeFirstTimeExperience.svelte`
 - `src/renderer/src/components/AutomergeMainView.svelte`
