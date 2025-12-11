@@ -429,9 +429,8 @@ export function getWorkspaces(): Workspace[] {
   }
 
   // Fallback: sort by created time for backwards compatibility
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
   return Object.values(workspaces).sort(
-    (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()
+    (a, b) => Date.parse(a.created) - Date.parse(b.created)
   );
 }
 

@@ -64,7 +64,9 @@ export function initializeVaultRepo(
 
   // Add the network adapter to the repo's network subsystem
   // and connect it with the main process peerId
-  repo.networkSubsystem.addNetworkAdapter(networkAdapter as unknown as import('@automerge/automerge-repo').NetworkAdapterInterface);
+  repo.networkSubsystem.addNetworkAdapter(
+    networkAdapter as unknown as import('@automerge/automerge-repo').NetworkAdapterInterface
+  );
   networkAdapter.connect(mainPeerId as unknown as string);
 
   // Find the document by URL to start syncing

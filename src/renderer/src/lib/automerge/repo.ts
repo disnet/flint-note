@@ -8,7 +8,6 @@ import type { NotesDocument, Vault } from './types';
 import { generateVaultId, nowISO } from './utils';
 import { IPCNetworkAdapterRenderer } from './ipc';
 import type { ElectronSyncAPI } from './ipc';
-// Note: generateWorkspaceId and generateNoteTypeId are used in state.svelte.ts for runtime creation
 
 // Check if running in Electron
 const isElectron =
@@ -218,7 +217,7 @@ export function archiveVault(id: string): void {
  * Returns null for activeVault if no vaults exist (triggers first-time experience)
  */
 export async function initializeVaults(
-  // Repo parameter for future use (e.g., validating document exists)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Repo parameter for future use (e.g., validating document exists)
   _r: Repo
 ): Promise<{ vaults: Vault[]; activeVault: Vault | null }> {
   const vaults = getVaults();

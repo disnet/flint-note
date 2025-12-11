@@ -211,6 +211,7 @@
     const draggedItemOffset = dragOffsetY;
 
     // Build a map of where each item visually appears right now
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map used only for local computation, not reactive state
     const visualPositions = new Map<string, number>();
     for (let i = 0; i < unifiedList.length; i++) {
       const item = unifiedList[i];

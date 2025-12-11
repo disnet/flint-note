@@ -17,7 +17,7 @@
   const syncDirectory = $derived(getSyncDirectory());
   const isSyncing = $derived(getIsSyncing());
 
-  async function handleEnableSync() {
+  async function handleEnableSync(): Promise<void> {
     if (isEnabling) return;
     isEnabling = true;
     try {
@@ -27,7 +27,7 @@
     }
   }
 
-  async function handleDisableSync() {
+  async function handleDisableSync(): Promise<void> {
     if (isDisabling) return;
     isDisabling = true;
     try {

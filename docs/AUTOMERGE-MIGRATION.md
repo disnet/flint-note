@@ -439,12 +439,14 @@ Implemented two-way sync between Automerge and markdown files on the filesystem:
 #### New Files
 
 **Renderer Side:**
+
 - `src/renderer/src/lib/automerge/ipc/types.ts` - IPC message types
 - `src/renderer/src/lib/automerge/ipc/IPCNetworkAdapterRenderer.ts` - Network adapter for renderer
 - `src/renderer/src/lib/automerge/ipc/index.ts` - Barrel exports
 - `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` - Sync settings UI
 
 **Main Process Side:**
+
 - `src/main/automerge-sync/IPCNetworkAdapterMain.ts` - Network adapter for main process
 - `src/main/automerge-sync/vault-manager.ts` - Vault repo management
 - `src/main/automerge-sync/markdown-sync.ts` - Two-way sync logic
@@ -467,7 +469,7 @@ interface Vault {
   id: string;
   name: string;
   docUrl: string;
-  baseDirectory?: string;  // NEW: Optional sync directory
+  baseDirectory?: string; // NEW: Optional sync directory
   archived: boolean;
   created: string;
 }

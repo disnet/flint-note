@@ -12,7 +12,8 @@
     archiveNoteType,
     createNote,
     setActiveNoteId,
-    addNoteToWorkspace
+    addNoteToWorkspace,
+    type Note
   } from '../lib/automerge';
   import EmojiPicker from './EmojiPicker.svelte';
 
@@ -35,7 +36,7 @@
   }
 
   // Get notes for a specific type
-  function getNotesForType(typeId: string) {
+  function getNotesForType(typeId: string): Note[] {
     return allNotes
       .filter((n) => !n.archived && n.type === typeId)
       .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());

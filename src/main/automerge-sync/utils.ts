@@ -66,6 +66,7 @@ export function toSafeFilename(title: string): string {
   // Replace invalid filename characters with safe alternatives
   let safe = title
     .replace(/[<>:"/\\|?*]/g, '-') // Invalid on Windows
+    // eslint-disable-next-line no-control-regex -- Intentionally matching control characters for filename sanitization
     .replace(/[\x00-\x1f]/g, '') // Control characters
     .replace(/\s+/g, ' ') // Normalize whitespace
     .trim();
