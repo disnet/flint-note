@@ -283,7 +283,16 @@ class WikilinkWidget extends WidgetType {
     const note = this.noteId ? notes.find((n) => n.id === this.noteId) : null;
     const isArchived = note?.archived ?? false;
 
-    span.className = `wikilink-widget ${this.exists ? 'exists' : 'broken'}${this.isSelected ? ' selected' : ''}${isArchived ? ' archived' : ''}`;
+    // Build class name - use wikilink- prefix for theme compatibility
+    const classes = ['wikilink'];
+    classes.push(this.exists ? 'wikilink-exists' : 'wikilink-broken');
+    if (this.isSelected) {
+      classes.push(this.exists ? 'wikilink-selected' : 'wikilink-selected-broken');
+    }
+    if (isArchived) {
+      classes.push('wikilink-archived');
+    }
+    span.className = classes.join(' ');
 
     // Add icon
     const iconSpan = document.createElement('span');
@@ -430,20 +439,24 @@ function createWikilinkDecorations(
       selectedWikilink.from === wikilink.from &&
       selectedWikilink.to === wikilink.to;
 
+    const widget = new WikilinkWidget(
+      wikilink.identifier,
+      wikilink.title,
+      wikilink.exists,
+      wikilink.noteId,
+      clickHandler,
+      hoverHandler,
+      wikilink.from,
+      wikilink.to,
+      isSelected,
+      noteIcon
+    );
+
     decorations.push(
       Decoration.replace({
-        widget: new WikilinkWidget(
-          wikilink.identifier,
-          wikilink.title,
-          wikilink.exists,
-          wikilink.noteId,
-          clickHandler,
-          hoverHandler,
-          wikilink.from,
-          wikilink.to,
-          isSelected,
-          noteIcon
-        )
+        widget,
+        inclusive: false,
+        block: false
       }).range(wikilink.from, wikilink.to)
     );
   }
@@ -548,16 +561,11 @@ export function automergeWikilinksExtension(
     ])
   );
 
-  // Initial effect to set handlers
-  const initialEffects = [
-    setWikilinkHandler.of(onWikilinkClick),
-    ...(onWikilinkHover ? [setWikilinkHoverHandler.of(onWikilinkHover)] : [])
-  ];
-
   return [
+    wikilinkTheme,
+    wikilinkHandlerField.init(() => onWikilinkClick),
+    wikilinkHoverHandlerField.init(() => onWikilinkHover || null),
     selectedWikilinkField,
-    wikilinkHandlerField,
-    wikilinkHoverHandlerField,
     wikilinkField,
     autocompletion({
       override: [wikilinkCompletion],
@@ -565,11 +573,30 @@ export function automergeWikilinksExtension(
       closeOnBlur: true
     }),
     wikilinkKeymap,
-    wikilinkTheme,
-    EditorView.updateListener.of((update) => {
-      // Apply initial effects on first update
-      if (update.view.state.field(wikilinkHandlerField) === null) {
-        update.view.dispatch({ effects: initialEffects });
+    // Add atomic ranges for proper cursor movement (cursor jumps over widget as unit)
+    EditorView.atomicRanges.of((view) => {
+      const decorations = view.state.field(wikilinkField, false);
+      if (!decorations) {
+        return RangeSet.empty;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ranges: Range<any>[] = [];
+
+      try {
+        decorations.between(0, view.state.doc.length, (from, to, value) => {
+          if (value.spec.widget instanceof WikilinkWidget) {
+            ranges.push({ from, to, value: true });
+          }
+        });
+
+        // Sort ranges by position before creating RangeSet
+        ranges.sort((a, b) => a.from - b.from);
+
+        return ranges.length > 0 ? RangeSet.of(ranges) : RangeSet.empty;
+      } catch (e) {
+        console.warn('Error creating atomic ranges:', e);
+        return RangeSet.empty;
       }
     })
   ];

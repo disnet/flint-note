@@ -2,7 +2,7 @@
   /**
    * Note editor component using Automerge for data storage with CodeMirror editor
    */
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { Note } from '../lib/automerge';
@@ -13,10 +13,13 @@
     setActiveNoteId,
     addNoteToWorkspace,
     AutomergeEditorConfig,
-    forceWikilinkRefresh
+    forceWikilinkRefresh,
+    getSelectedWikilink
   } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import AutomergeNoteTypeDropdown from './AutomergeNoteTypeDropdown.svelte';
+  import AutomergeWikilinkActionPopover from './AutomergeWikilinkActionPopover.svelte';
+  import AutomergeWikilinkEditPopover from './AutomergeWikilinkEditPopover.svelte';
 
   interface Props {
     note: Note;
@@ -34,9 +37,43 @@
   // Debounce content changes
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Edit popover state
+  let editPopoverVisible = $state(false);
+  let editPopoverX = $state(0);
+  let editPopoverY = $state(0);
+  let editPopoverIdentifier = $state('');
+  let editPopoverDisplayText = $state('');
+  let editPopoverFrom = $state(0);
+  let editPopoverTo = $state(0);
+  let editPopoverRef: AutomergeWikilinkEditPopover | undefined = $state();
+  let savedSelection: { anchor: number; head: number } | null = null;
+
+  // Action popover state
+  let actionPopoverVisible = $state(false);
+  let actionPopoverX = $state(0);
+  let actionPopoverY = $state(0);
+  let actionPopoverIsFromHover = $state(false);
+  let actionPopoverWikilinkData = $state<{
+    identifier: string;
+    title: string;
+    exists: boolean;
+    noteId?: string;
+  } | null>(null);
+  let linkRect = $state<{
+    top: number;
+    bottom: number;
+    height: number;
+    left: number;
+  } | null>(null);
+
+  // Hover timeouts
+  let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+  let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
   // Editor config
   const editorConfig = new AutomergeEditorConfig({
     onWikilinkClick: handleWikilinkClick,
+    onWikilinkHover: handleWikilinkHover,
     onContentChange: handleEditorContentChange,
     placeholder: 'Start writing...'
   });
@@ -197,6 +234,440 @@
     onNavigate?.(backlinkNoteId);
   }
 
+  // Wikilink hover handler
+  function handleWikilinkHover(
+    data: {
+      identifier: string;
+      displayText: string;
+      from: number;
+      to: number;
+      x: number;
+      y: number;
+      yTop: number;
+      exists: boolean;
+      noteId?: string;
+    } | null
+  ): void {
+    // Clear any pending leave timeout
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+
+    if (data) {
+      // Don't show action popover if edit popover is visible
+      if (editPopoverVisible) {
+        return;
+      }
+
+      // If already visible from hover, update immediately
+      if (actionPopoverVisible && actionPopoverIsFromHover) {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+
+        actionPopoverWikilinkData = {
+          identifier: data.identifier,
+          title: data.displayText,
+          exists: data.exists,
+          noteId: data.noteId
+        };
+        editPopoverFrom = data.from;
+        editPopoverTo = data.to;
+        editPopoverIdentifier = data.identifier;
+        editPopoverDisplayText = data.displayText;
+
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          200,
+          60
+        );
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
+        return;
+      }
+
+      // If visible from cursor position, don't interfere
+      if (actionPopoverVisible) {
+        return;
+      }
+
+      // Clear pending hover timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
+      // Delay before showing action popover
+      hoverTimeout = setTimeout(() => {
+        if (editPopoverVisible) {
+          return;
+        }
+
+        actionPopoverWikilinkData = {
+          identifier: data.identifier,
+          title: data.displayText,
+          exists: data.exists,
+          noteId: data.noteId
+        };
+        editPopoverFrom = data.from;
+        editPopoverTo = data.to;
+        editPopoverIdentifier = data.identifier;
+        editPopoverDisplayText = data.displayText;
+
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          200,
+          60
+        );
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
+
+        actionPopoverVisible = true;
+        actionPopoverIsFromHover = true;
+        hoverTimeout = null;
+      }, 300);
+    } else {
+      // Mouse left the wikilink
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+
+      // Start leave timeout only if popover is from hover
+      if (actionPopoverIsFromHover) {
+        leaveTimeout = setTimeout(() => {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+          leaveTimeout = null;
+        }, 200);
+      }
+    }
+  }
+
+  // Calculate popover position to avoid viewport edges
+  function calculatePopoverPosition(
+    linkLeft: number,
+    linkTop: number,
+    linkBottom: number,
+    popoverWidth: number,
+    popoverHeight: number
+  ): { x: number; y: number } {
+    const padding = 8;
+    const gap = 4;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let finalX = linkLeft;
+    let finalY: number;
+
+    // Horizontal positioning
+    if (finalX + popoverWidth + padding > viewportWidth) {
+      finalX = viewportWidth - popoverWidth - padding;
+    }
+    if (finalX < padding) {
+      finalX = padding;
+    }
+
+    // Vertical positioning
+    const spaceBelow = viewportHeight - linkBottom;
+    const canFitBelow = spaceBelow >= popoverHeight + padding + gap;
+
+    if (canFitBelow) {
+      finalY = linkBottom + gap;
+    } else {
+      finalY = linkTop - gap - popoverHeight;
+    }
+
+    // Final bounds check
+    if (finalY + popoverHeight > viewportHeight - padding) {
+      finalY = viewportHeight - popoverHeight - padding;
+    }
+    if (finalY < padding) {
+      finalY = padding;
+    }
+
+    return { x: finalX, y: finalY };
+  }
+
+  // Action popover handlers
+  function handleActionPopoverOpen(): void {
+    if (!actionPopoverWikilinkData) return;
+
+    const data = actionPopoverWikilinkData;
+    if (data.exists && data.noteId) {
+      handleWikilinkClick(data.noteId, data.title);
+    } else {
+      handleWikilinkClick(data.identifier, data.title, true);
+    }
+
+    actionPopoverVisible = false;
+    actionPopoverIsFromHover = false;
+  }
+
+  function handleActionPopoverEdit(): void {
+    if (!editorView || !actionPopoverWikilinkData || !linkRect) return;
+
+    // Save current selection
+    const selection = editorView.state.selection.main;
+    savedSelection = { anchor: selection.anchor, head: selection.head };
+
+    // Hide action popover
+    actionPopoverVisible = false;
+
+    // Set edit popover data
+    editPopoverIdentifier = actionPopoverWikilinkData.identifier;
+
+    // For ID-only links, show the note's title
+    if (actionPopoverWikilinkData.identifier === actionPopoverWikilinkData.title) {
+      if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
+        const notes = getAllNotes();
+        const linkedNote = notes.find((n) => n.id === actionPopoverWikilinkData!.noteId);
+        editPopoverDisplayText = linkedNote?.title || actionPopoverWikilinkData.title;
+      } else {
+        editPopoverDisplayText = actionPopoverWikilinkData.title;
+      }
+    } else {
+      editPopoverDisplayText = actionPopoverWikilinkData.title;
+    }
+
+    // Get wikilink position
+    const selected = getSelectedWikilink(editorView);
+    if (selected) {
+      editPopoverFrom = selected.from;
+      editPopoverTo = selected.to;
+    }
+
+    // Position edit popover
+    const position = calculatePopoverPosition(
+      linkRect.left,
+      linkRect.top,
+      linkRect.bottom,
+      400,
+      100
+    );
+    editPopoverX = position.x;
+    editPopoverY = position.y;
+
+    editPopoverVisible = true;
+  }
+
+  // Edit popover handlers
+  function handleEditPopoverSave(newDisplayText: string): void {
+    if (!editorView) return;
+
+    // Create new wikilink text with updated display
+    const newText = `[[${editPopoverIdentifier}|${newDisplayText}]]`;
+
+    // Calculate length difference
+    const oldLength = editPopoverTo - editPopoverFrom;
+    const newLength = newText.length;
+    const lengthDiff = newLength - oldLength;
+
+    // Replace old wikilink
+    editorView.dispatch({
+      changes: {
+        from: editPopoverFrom,
+        to: editPopoverTo,
+        insert: newText
+      }
+    });
+
+    // Update position for continued editing
+    editPopoverTo = editPopoverTo + lengthDiff;
+    editPopoverDisplayText = newDisplayText;
+  }
+
+  function handleEditPopoverCommit(): void {
+    editPopoverVisible = false;
+    restoreFocusAndSelection();
+  }
+
+  function handleEditPopoverCancel(): void {
+    editPopoverVisible = false;
+    restoreFocusAndSelection();
+  }
+
+  function restoreFocusAndSelection(): void {
+    if (!editorView) return;
+
+    editorView.focus();
+
+    if (savedSelection) {
+      editorView.dispatch({
+        selection: savedSelection,
+        scrollIntoView: true
+      });
+      savedSelection = null;
+    }
+  }
+
+  // Mouse handlers for popovers
+  function handleEditPopoverMouseEnter(): void {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+  }
+
+  function handleEditPopoverMouseLeave(): void {
+    leaveTimeout = setTimeout(() => {
+      if (editPopoverRef && editPopoverRef.hasFocus()) {
+        return;
+      }
+      editPopoverVisible = false;
+      leaveTimeout = null;
+    }, 200);
+  }
+
+  function handleActionPopoverMouseEnter(): void {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+  }
+
+  function handleActionPopoverMouseLeave(): void {
+    if (actionPopoverIsFromHover) {
+      leaveTimeout = setTimeout(() => {
+        actionPopoverVisible = false;
+        actionPopoverIsFromHover = false;
+        leaveTimeout = null;
+      }, 200);
+    }
+  }
+
+  // Track selected wikilink for cursor-based popup
+  $effect(() => {
+    if (!editorView) return;
+
+    const interval = setInterval(() => {
+      if (!editorView) return;
+
+      const selected = getSelectedWikilink(editorView);
+
+      // Hide if editor doesn't have focus
+      if (!editorView.hasFocus) {
+        if (!actionPopoverIsFromHover) {
+          actionPopoverVisible = false;
+        }
+        return;
+      }
+
+      if (selected && !editPopoverVisible && !actionPopoverIsFromHover) {
+        // Show action popup for cursor-adjacent wikilink
+        const coords = editorView.coordsAtPos(selected.from);
+        if (coords) {
+          actionPopoverWikilinkData = {
+            identifier: selected.identifier,
+            title: selected.title,
+            exists: selected.exists,
+            noteId: selected.noteId
+          };
+
+          linkRect = {
+            left: coords.left,
+            top: coords.top,
+            bottom: coords.bottom,
+            height: coords.bottom - coords.top
+          };
+
+          const position = calculatePopoverPosition(
+            linkRect.left,
+            linkRect.top,
+            linkRect.bottom,
+            200,
+            60
+          );
+          actionPopoverX = position.x;
+          actionPopoverY = position.y;
+          actionPopoverVisible = true;
+          actionPopoverIsFromHover = false;
+        }
+      } else if ((!selected || editPopoverVisible) && !actionPopoverIsFromHover) {
+        actionPopoverVisible = false;
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  });
+
+  // Close popovers when editor loses focus
+  $effect(() => {
+    if (!editorView) return;
+
+    const handleBlur = (): void => {
+      untrack(() => {
+        if (!editorView?.hasFocus) {
+          if (editPopoverVisible || (editPopoverRef && editPopoverRef.hasFocus())) {
+            setTimeout(() => {
+              if (editPopoverRef && editPopoverRef.hasFocus()) {
+                return;
+              }
+              if (!editorView?.hasFocus) {
+                actionPopoverVisible = false;
+                actionPopoverIsFromHover = false;
+                editPopoverVisible = false;
+              }
+            }, 50);
+            return;
+          }
+
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+          editPopoverVisible = false;
+
+          if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+            hoverTimeout = null;
+          }
+          if (leaveTimeout) {
+            clearTimeout(leaveTimeout);
+            leaveTimeout = null;
+          }
+        }
+      });
+    };
+
+    const handleFocus = (): void => {
+      untrack(() => {
+        if (editPopoverVisible && editPopoverRef && !editPopoverRef.hasFocus()) {
+          editPopoverVisible = false;
+        }
+        if (actionPopoverVisible) {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+        }
+      });
+    };
+
+    editorView.dom.addEventListener('blur', handleBlur, true);
+    editorView.dom.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      editorView?.dom.removeEventListener('blur', handleBlur, true);
+      editorView?.dom.removeEventListener('focus', handleFocus, true);
+    };
+  });
+
   // Public API
   export function focus(): void {
     if (editorView) {
@@ -264,6 +735,41 @@
       </div>
     </div>
   {/if}
+</div>
+
+<!-- Wikilink Edit Popover -->
+<div
+  role="tooltip"
+  onmouseenter={handleEditPopoverMouseEnter}
+  onmouseleave={handleEditPopoverMouseLeave}
+>
+  <AutomergeWikilinkEditPopover
+    bind:this={editPopoverRef}
+    bind:visible={editPopoverVisible}
+    x={editPopoverX}
+    y={editPopoverY}
+    displayText={editPopoverDisplayText}
+    {linkRect}
+    onSave={handleEditPopoverSave}
+    onCancel={handleEditPopoverCancel}
+    onCommit={handleEditPopoverCommit}
+  />
+</div>
+
+<!-- Wikilink Action Popover -->
+<div
+  role="tooltip"
+  onmouseenter={handleActionPopoverMouseEnter}
+  onmouseleave={handleActionPopoverMouseLeave}
+>
+  <AutomergeWikilinkActionPopover
+    bind:visible={actionPopoverVisible}
+    x={actionPopoverX}
+    y={actionPopoverY}
+    {linkRect}
+    onOpen={handleActionPopoverOpen}
+    onEdit={handleActionPopoverEdit}
+  />
 </div>
 
 <style>

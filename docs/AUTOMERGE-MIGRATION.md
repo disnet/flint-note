@@ -302,7 +302,7 @@ After Phase 1 is stable:
 1. **Search Improvements**: Full-text search with highlighting ✅
 2. **Multiple Workspaces**: Full workspace management UI ✅
 3. **Note Types**: UI for creating and managing custom note types ✅
-4. **Wikilink hover popovers**: Action popover on hover (currently simplified)
+4. **Wikilink hover popovers**: Action popover on hover ✅
 5. **Inline images**: Support for images in notes (requires IPC)
 
 **Completed in Phase 2:**
@@ -381,6 +381,30 @@ Full note type management UI with:
   - `archiveNoteType()` - Soft delete type
   - `setNoteType()` - Change a note's type
 
+#### Wikilink Hover Popovers (Complete)
+
+Action popover system for wikilinks with:
+
+- **Action Popover** (`AutomergeWikilinkActionPopover.svelte`):
+  - Appears on hover over wikilinks (300ms delay)
+  - Also appears when cursor is adjacent to a wikilink
+  - "Open" action to navigate to linked note (⌘Enter)
+  - "Edit Display Text" action to modify link text (⌥Enter)
+  - Viewport-aware positioning (avoids edges)
+  - Mouse-leave timeout to prevent flickering
+
+- **Edit Popover** (`AutomergeWikilinkEditPopover.svelte`):
+  - Text input for editing wikilink display text
+  - Auto-focuses and selects text on open
+  - Enter to commit, Escape to cancel
+  - Updates wikilink in editor in real-time
+
+- **Integration** (in `AutomergeNoteEditor.svelte`):
+  - Hover handler from wikilinks extension
+  - Cursor-based detection for keyboard navigation
+  - Proper focus management between editor and popovers
+  - Selection restoration after edit
+
 ### Phase 3: Sync
 
 Future work for multi-device sync:
@@ -414,6 +438,8 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeSearchResults.svelte`
 - `src/renderer/src/components/AutomergeNoteTypesView.svelte` (note types management view)
 - `src/renderer/src/components/AutomergeNoteTypeDropdown.svelte` (type selector dropdown)
+- `src/renderer/src/components/AutomergeWikilinkActionPopover.svelte` (wikilink action menu)
+- `src/renderer/src/components/AutomergeWikilinkEditPopover.svelte` (wikilink display text editor)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
