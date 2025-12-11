@@ -17,7 +17,13 @@ import {
   initializeVaults,
   saveVaults,
   setActiveVaultId as setActiveVaultIdStorage,
-  createVault as createVaultInRepo
+  createVault as createVaultInRepo,
+  updateVault as updateVaultInRepo,
+  connectVaultSync,
+  disconnectVaultSync,
+  getCurrentSyncedVaultId,
+  isFileSyncAvailable,
+  selectSyncDirectory
 } from './repo';
 
 // --- Private reactive state ---
@@ -93,6 +99,11 @@ export async function initializeState(vaultId?: string): Promise<void> {
     handle.on('change', ({ doc }) => {
       currentDoc = doc;
     });
+
+    // Connect file sync if vault has baseDirectory
+    if (targetVault.baseDirectory) {
+      await connectVaultSync(repo, targetVault);
+    }
 
     isInitialized = true;
   } finally {
@@ -963,3 +974,94 @@ export function getIsLoading(): boolean {
 
 // Note: State variables cannot be exported directly because they are reassigned.
 // Use the getter functions instead: getIsInitialized(), getIsLoading(), etc.
+
+// --- File Sync Functions ---
+
+/**
+ * Check if file sync is available (running in Electron with API)
+ */
+export function getIsFileSyncAvailable(): boolean {
+  return isFileSyncAvailable();
+}
+
+/**
+ * Check if the active vault has file sync enabled
+ */
+export function getIsFileSyncEnabled(): boolean {
+  const vault = getActiveVault();
+  return vault?.baseDirectory !== undefined;
+}
+
+/**
+ * Get the sync directory path for the active vault
+ */
+export function getSyncDirectory(): string | undefined {
+  const vault = getActiveVault();
+  return vault?.baseDirectory;
+}
+
+/**
+ * Check if the active vault is currently syncing
+ */
+export function getIsSyncing(): boolean {
+  const vault = getActiveVault();
+  if (!vault) return false;
+  return getCurrentSyncedVaultId() === vault.id;
+}
+
+/**
+ * Enable file sync for the active vault by selecting a directory
+ * @returns The selected directory path, or null if cancelled
+ */
+export async function enableFileSync(): Promise<string | null> {
+  const vault = getActiveVault();
+  if (!vault) return null;
+
+  const directory = await selectSyncDirectory();
+  if (!directory) return null;
+
+  // Update vault with new baseDirectory
+  updateVaultInRepo(vault.id, { baseDirectory: directory });
+
+  // Refresh vaults state
+  const updatedVault = { ...vault, baseDirectory: directory };
+
+  // Update local state
+  const index = vaults.findIndex((v) => v.id === vault.id);
+  if (index !== -1) {
+    vaults[index] = updatedVault;
+    // Trigger reactivity
+    vaults = [...vaults];
+  }
+
+  // Connect sync
+  const repo = getRepo();
+  await connectVaultSync(repo, updatedVault);
+
+  return directory;
+}
+
+/**
+ * Disable file sync for the active vault
+ */
+export async function disableFileSync(): Promise<void> {
+  const vault = getActiveVault();
+  if (!vault) return;
+
+  // Disconnect sync first
+  await disconnectVaultSync();
+
+  // Update vault to remove baseDirectory
+  updateVaultInRepo(vault.id, { baseDirectory: undefined });
+
+  // Refresh vaults state
+  const updatedVault = { ...vault, baseDirectory: undefined };
+
+  // Update local state
+  const index = vaults.findIndex((v) => v.id === vault.id);
+  if (index !== -1) {
+    vaults[index] = updatedVault;
+    // Trigger reactivity
+    vaults = [...vaults];
+  }
+}

@@ -405,14 +405,81 @@ Action popover system for wikilinks with:
   - Proper focus management between editor and popovers
   - Selection restoration after edit
 
-### Phase 3: Sync
+### Phase 3: External File Sync (Complete)
+
+Implemented two-way sync between Automerge and markdown files on the filesystem:
+
+#### Architecture
+
+```
+[Renderer Process]
+  ├── Automerge Repo (IndexedDB storage)
+  ├── IPCNetworkAdapterRenderer
+  └── IPC Channel: "automerge-repo-message"
+       ↓↑
+[Main Process]
+  ├── IPCNetworkAdapterMain
+  ├── Automerge Repo (NodeFS storage in .automerge/)
+  ├── Markdown Sync (file watcher + frontmatter)
+  └── Filesystem: baseDirectory/notes/<TypeName>/*.md
+```
+
+#### Features
+
+- **Enable/Disable Sync**: Settings panel to choose sync directory
+- **File Organization**: Notes organized by type: `notes/<TypeName>/<title>.md`
+- **YAML Frontmatter**: Each file includes metadata (id, title, type)
+- **Two-Way Sync**:
+  - Edit in app → updates markdown file
+  - Edit markdown file externally → updates note in app
+  - Create new .md file → imports as new note
+  - Delete .md file → archives note
+- **Sync Loop Prevention**: Tracks files being written to avoid re-importing own changes
+
+#### New Files
+
+**Renderer Side:**
+- `src/renderer/src/lib/automerge/ipc/types.ts` - IPC message types
+- `src/renderer/src/lib/automerge/ipc/IPCNetworkAdapterRenderer.ts` - Network adapter for renderer
+- `src/renderer/src/lib/automerge/ipc/index.ts` - Barrel exports
+- `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` - Sync settings UI
+
+**Main Process Side:**
+- `src/main/automerge-sync/IPCNetworkAdapterMain.ts` - Network adapter for main process
+- `src/main/automerge-sync/vault-manager.ts` - Vault repo management
+- `src/main/automerge-sync/markdown-sync.ts` - Two-way sync logic
+- `src/main/automerge-sync/utils.ts` - Filename sanitization, frontmatter parsing
+- `src/main/automerge-sync/index.ts` - Barrel exports
+
+#### State Management Additions
+
+- `getIsFileSyncAvailable()` - Check if running in Electron
+- `getIsFileSyncEnabled()` - Check if vault has sync directory
+- `getSyncDirectory()` - Get current sync path
+- `getIsSyncing()` - Check if actively syncing
+- `enableFileSync()` - Select directory and enable sync
+- `disableFileSync()` - Disconnect sync
+
+#### Vault Type Update
+
+```typescript
+interface Vault {
+  id: string;
+  name: string;
+  docUrl: string;
+  baseDirectory?: string;  // NEW: Optional sync directory
+  archived: boolean;
+  created: string;
+}
+```
+
+### Phase 4: Future Sync
 
 Future work for multi-device sync:
 
-1. **Network Adapter**: Implement automerge-repo network adapter for sync
-2. **Server Component**: Backend service for relay/persistence
-3. **Conflict Resolution**: UI for handling sync conflicts
-4. **Offline Support**: Queue changes when offline
+1. **Server Component**: Backend service for relay/persistence
+2. **Conflict Resolution**: UI for handling sync conflicts
+3. **Real-time Collaboration**: Multiple users editing simultaneously
 
 ## Files Reference
 
@@ -426,6 +493,14 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/wikilinks.svelte.ts` (automerge-specific wikilinks)
 - `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (CodeMirror config for automerge)
 - `src/renderer/src/lib/automerge/search.svelte.ts` (enhanced search with ranking/highlighting)
+- `src/renderer/src/lib/automerge/ipc/types.ts` (IPC message types for sync)
+- `src/renderer/src/lib/automerge/ipc/IPCNetworkAdapterRenderer.ts` (renderer network adapter)
+- `src/renderer/src/lib/automerge/ipc/index.ts` (barrel exports)
+- `src/main/automerge-sync/IPCNetworkAdapterMain.ts` (main process network adapter)
+- `src/main/automerge-sync/vault-manager.ts` (vault repo lifecycle management)
+- `src/main/automerge-sync/markdown-sync.ts` (two-way sync with file watcher)
+- `src/main/automerge-sync/utils.ts` (filename sanitization, frontmatter helpers)
+- `src/main/automerge-sync/index.ts` (barrel exports)
 - `src/renderer/src/AutomergeApp.svelte`
 - `src/renderer/src/components/AutomergeFirstTimeExperience.svelte`
 - `src/renderer/src/components/AutomergeMainView.svelte`
@@ -440,6 +515,7 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeNoteTypeDropdown.svelte` (type selector dropdown)
 - `src/renderer/src/components/AutomergeWikilinkActionPopover.svelte` (wikilink action menu)
 - `src/renderer/src/components/AutomergeWikilinkEditPopover.svelte` (wikilink display text editor)
+- `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` (file sync settings UI)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -448,6 +524,12 @@ Future work for multi-device sync:
 - `src/renderer/src/main.ts` (entry point)
 - `src/renderer/index.html` (CSP for WASM)
 - `package.json` (build scripts, dependencies)
+- `src/renderer/src/lib/automerge/types.ts` (added baseDirectory to Vault)
+- `src/renderer/src/lib/automerge/repo.ts` (sync connection functions)
+- `src/renderer/src/lib/automerge/state.svelte.ts` (sync state management)
+- `src/preload/index.ts` (automergeSync IPC methods)
+- `src/main/index.ts` (IPC handlers for sync)
+- `src/renderer/src/components/AutomergeMainView.svelte` (integrated sync settings)
 
 ### Files to Eventually Remove (after full migration)
 
@@ -465,6 +547,8 @@ Future work for multi-device sync:
   "@automerge/automerge": "^3.2.1",
   "@automerge/automerge-repo": "^2.5.1",
   "@automerge/automerge-repo-storage-indexeddb": "^2.5.1",
+  "@automerge/automerge-repo-storage-nodefs": "^2.5.1",
+  "js-yaml": "^4.1.0",
   "vite-plugin-wasm": "^3.5.0"
 }
 ```

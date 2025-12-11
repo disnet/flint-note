@@ -84,6 +84,8 @@ export interface Vault {
   name: string;
   /** Automerge document URL */
   docUrl: string;
+  /** Optional base directory for file system sync */
+  baseDirectory?: string;
   /** Soft delete flag */
   archived: boolean;
   /** ISO timestamp of creation */

@@ -26,6 +26,7 @@
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
+  import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -292,6 +293,12 @@
               </select>
             </label>
           </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- File Sync Settings -->
+          <AutomergeVaultSyncSettings />
+
           <button class="close-settings" onclick={() => (activeSystemView = null)}
             >Close</button
           >
@@ -873,6 +880,12 @@
     border-radius: 0.375rem;
     background: var(--bg-primary);
     color: var(--text-primary);
+  }
+
+  .settings-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 1.5rem 0;
   }
 
   .close-settings {

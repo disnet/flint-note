@@ -37,6 +37,12 @@ import { AutoUpdaterService } from './auto-updater-service';
 import { publishNoteEvent } from './note-events';
 import { publishReviewEvent } from './review-events';
 import { setupApplicationMenu } from './menu';
+import {
+  initializeVaultRepo,
+  disposeVaultRepo,
+  getNetworkAdapterForWebContents,
+  disposeAllVaultRepos
+} from './automerge-sync';
 
 // Module-level service references
 let noteService: NoteService | null = null;
@@ -3629,6 +3635,54 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Automerge sync IPC handlers
+  ipcMain.handle(
+    'init-vault-sync',
+    async (event, params: { vaultId: string; baseDirectory: string; docUrl: string }) => {
+      try {
+        return initializeVaultRepo(
+          params.vaultId,
+          params.baseDirectory,
+          params.docUrl,
+          event.sender
+        );
+      } catch (error) {
+        logger.error('Failed to initialize vault sync', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle('dispose-vault-sync', async (_event, params: { vaultId: string }) => {
+    try {
+      disposeVaultRepo(params.vaultId);
+    } catch (error) {
+      logger.error('Failed to dispose vault sync', { error, params });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('automerge-repo-message', async (event, message) => {
+    const adapter = getNetworkAdapterForWebContents(event.sender.id);
+    if (adapter) {
+      adapter.handleMessage(message);
+    }
+  });
+
+  ipcMain.handle('select-sync-directory', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select Sync Directory',
+      buttonLabel: 'Select Folder'
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return result.filePaths[0];
+  });
+
   await createWindow(settingsStorageService);
   logger.info('Main window created and IPC handlers registered');
 
@@ -3700,6 +3754,11 @@ app.on('before-quit', async (event) => {
       await api.cleanup();
       logger.info('Database connections closed successfully');
     }
+
+    // Dispose all Automerge vault repos
+    logger.info('Disposing Automerge vault repos');
+    disposeAllVaultRepos();
+    logger.info('Automerge vault repos disposed');
 
     // Mark cleanup as complete
     hasCompletedCleanup = true;

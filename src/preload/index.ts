@@ -750,6 +750,53 @@ const api = {
 
   triggerMenuAction: (action: string, ...args: unknown[]): void => {
     electronAPI.ipcRenderer.send('menu-trigger-action', action, ...args);
+  },
+
+  // Automerge sync operations
+  automergeSync: {
+    sendRepoMessage: (message: {
+      type: string;
+      peerId?: string;
+      peerMetadata?: Record<string, unknown>;
+      data?: {
+        senderId: string;
+        targetId: string;
+        type: string;
+        documentId?: string;
+        data?: number[];
+      };
+    }) => electronAPI.ipcRenderer.invoke('automerge-repo-message', message),
+
+    onRepoMessage: (
+      callback: (message: {
+        type: string;
+        peerId?: string;
+        peerMetadata?: Record<string, unknown>;
+        data?: {
+          senderId: string;
+          targetId: string;
+          type: string;
+          documentId?: string;
+          data?: number[];
+        };
+      }) => void
+    ) => {
+      electronAPI.ipcRenderer.on('automerge-repo-message', (_event, message) =>
+        callback(message)
+      );
+    },
+
+    removeRepoMessageListener: () => {
+      electronAPI.ipcRenderer.removeAllListeners('automerge-repo-message');
+    },
+
+    initVaultSync: (params: { vaultId: string; baseDirectory: string; docUrl: string }) =>
+      electronAPI.ipcRenderer.invoke('init-vault-sync', params),
+
+    disposeVaultSync: (params: { vaultId: string }) =>
+      electronAPI.ipcRenderer.invoke('dispose-vault-sync', params),
+
+    selectSyncDirectory: () => electronAPI.ipcRenderer.invoke('select-sync-directory')
   }
 };
 
