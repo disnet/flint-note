@@ -304,6 +304,7 @@ After Phase 1 is stable:
 3. **Note Types**: UI for creating and managing custom note types ✅
 4. **Wikilink hover popovers**: Action popover on hover ✅
 5. **Inline images**: Support for images in notes (requires IPC)
+6. **Daily View**: Week-based daily notes view ✅
 
 **Completed in Phase 2:**
 
@@ -475,6 +476,52 @@ interface Vault {
 }
 ```
 
+#### Daily View (Complete)
+
+Implemented the daily notes view for capturing daily thoughts and tracking activity:
+
+**Components:**
+
+- **`AutomergeDailyView.svelte`** - Main daily view component
+  - Week-based view showing Monday through Sunday
+  - Week navigation (Previous/Next/Today buttons)
+  - Keyboard shortcuts: `T` (focus today), `[` (previous week), `]` (next week), `Escape` (blur)
+  - Reactive data from Automerge state
+
+- **`AutomergeDaySection.svelte`** - Individual day container
+  - Sticky day label (Mon, Tue, etc.)
+  - Contains daily note editor
+  - Click on day label opens note in main view
+
+- **`AutomergeWeekNavigation.svelte`** - Navigation header
+  - Previous/Next week buttons
+  - Week display (e.g., "Week of Dec 9")
+  - "Today" button to jump to current week
+
+- **`AutomergeDailyNoteEditor.svelte`** - Per-day editor
+  - CodeMirror editor with markdown support
+  - Collapsible with 5-line default height when unfocused
+  - Smooth expansion on focus
+  - Wikilink support via Automerge editor config
+
+**State Management Additions:**
+
+- `DAILY_NOTE_TYPE_ID` - Constant for daily note type
+- `DayData` and `WeekData` interfaces
+- `getDailyNote(date)` - Get daily note for a date
+- `getDailyNoteId(date)` - Generate predictable ID (`daily-YYYY-MM-DD`)
+- `getOrCreateDailyNote(date)` - Get or create daily note
+- `updateDailyNote(date, content)` - Update daily note content
+- `getWeekData(startDate)` - Get week data with activity tracking
+- `ensureDailyNoteType()` - Auto-create daily note type if missing
+
+**Key Differences from Original:**
+
+- No IPC calls needed - all data is local in Automerge
+- Uses unified Automerge state module instead of separate store
+- Predictable daily note IDs: `daily-YYYY-MM-DD`
+- Daily note type auto-created on first use
+
 ### Phase 4: Future Sync
 
 Future work for multi-device sync:
@@ -518,6 +565,10 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeWikilinkActionPopover.svelte` (wikilink action menu)
 - `src/renderer/src/components/AutomergeWikilinkEditPopover.svelte` (wikilink display text editor)
 - `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` (file sync settings UI)
+- `src/renderer/src/components/AutomergeDailyView.svelte` (daily view main component)
+- `src/renderer/src/components/AutomergeDaySection.svelte` (individual day container)
+- `src/renderer/src/components/AutomergeWeekNavigation.svelte` (week navigation header)
+- `src/renderer/src/components/AutomergeDailyNoteEditor.svelte` (per-day CodeMirror editor)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -531,7 +582,10 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/state.svelte.ts` (sync state management)
 - `src/preload/index.ts` (automergeSync IPC methods)
 - `src/main/index.ts` (IPC handlers for sync)
-- `src/renderer/src/components/AutomergeMainView.svelte` (integrated sync settings)
+- `src/renderer/src/components/AutomergeMainView.svelte` (integrated sync settings, daily view)
+- `src/renderer/src/components/AutomergeSystemViews.svelte` (added Daily nav item)
+- `src/renderer/src/components/AutomergeLeftSidebar.svelte` (updated view types)
+- `src/renderer/src/lib/automerge/index.ts` (exported daily view functions)
 
 ### Files to Eventually Remove (after full migration)
 

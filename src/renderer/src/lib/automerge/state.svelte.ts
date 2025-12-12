@@ -971,6 +971,228 @@ export function getIsLoading(): boolean {
   return isLoading;
 }
 
+// --- Daily View Support ---
+
+/** Daily note type ID constant */
+export const DAILY_NOTE_TYPE_ID = 'type-daily';
+
+/**
+ * Interface for daily view day data
+ */
+export interface DayData {
+  date: string; // ISO date string (YYYY-MM-DD)
+  dailyNote: Note | null;
+  createdNotes: Note[];
+  modifiedNotes: Note[];
+  totalActivity: number;
+}
+
+/**
+ * Interface for daily view week data
+ */
+export interface WeekData {
+  startDate: string;
+  endDate: string;
+  days: DayData[];
+}
+
+/**
+ * Ensure the daily note type exists in the document
+ */
+export function ensureDailyNoteType(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.noteTypes?.[DAILY_NOTE_TYPE_ID]) {
+    docHandle.change((d) => {
+      if (!d.noteTypes) {
+        d.noteTypes = {};
+      }
+      if (!d.noteTypes[DAILY_NOTE_TYPE_ID]) {
+        d.noteTypes[DAILY_NOTE_TYPE_ID] = {
+          id: DAILY_NOTE_TYPE_ID,
+          name: 'Daily',
+          purpose: 'Daily notes for tracking progress and capturing thoughts',
+          icon: '📅',
+          archived: false,
+          created: nowISO()
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Generate a daily note ID for a specific date
+ * Format: "daily-YYYY-MM-DD"
+ */
+export function getDailyNoteId(date: string): string {
+  return `daily-${date}`;
+}
+
+/**
+ * Get daily note for a specific date
+ */
+export function getDailyNote(date: string): Note | undefined {
+  const dailyNoteId = getDailyNoteId(date);
+  return currentDoc.notes[dailyNoteId];
+}
+
+/**
+ * Get or create a daily note for a specific date
+ * @returns The daily note
+ */
+export function getOrCreateDailyNote(date: string): Note {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Ensure daily note type exists
+  ensureDailyNoteType();
+
+  const dailyNoteId = getDailyNoteId(date);
+  const existing = currentDoc.notes[dailyNoteId];
+
+  if (existing) {
+    return existing;
+  }
+
+  // Create new daily note with predictable ID
+  const now = nowISO();
+  docHandle.change((doc) => {
+    doc.notes[dailyNoteId] = {
+      id: dailyNoteId,
+      title: date, // Title is the date itself
+      content: '',
+      type: DAILY_NOTE_TYPE_ID,
+      created: now,
+      updated: now,
+      archived: false
+    };
+  });
+
+  return currentDoc.notes[dailyNoteId];
+}
+
+/**
+ * Update daily note content
+ */
+export function updateDailyNote(date: string, content: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const dailyNoteId = getDailyNoteId(date);
+  const existing = currentDoc.notes[dailyNoteId];
+
+  // If content is empty and note doesn't exist, don't create it
+  if (!content.trim() && !existing) {
+    return;
+  }
+
+  // Create or update
+  if (existing) {
+    docHandle.change((doc) => {
+      const note = doc.notes[dailyNoteId];
+      if (note) {
+        note.content = content;
+        note.updated = nowISO();
+      }
+    });
+  } else {
+    // Create the note with content
+    getOrCreateDailyNote(date);
+    docHandle.change((doc) => {
+      const note = doc.notes[dailyNoteId];
+      if (note) {
+        note.content = content;
+        note.updated = nowISO();
+      }
+    });
+  }
+}
+
+/**
+ * Get week data for a specific start date
+ */
+export function getWeekData(startDate: string): WeekData {
+  // Generate 7 days from start date
+  const days: DayData[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const dateString = addDaysToDateString(startDate, i);
+
+    // Get daily note for this date
+    const dailyNote = getDailyNote(dateString) || null;
+
+    // Get notes created on this date (excluding daily notes)
+    const createdNotes = Object.values(currentDoc.notes).filter((note) => {
+      if (note.archived) return false;
+      if (note.type === DAILY_NOTE_TYPE_ID) return false;
+      const createdDate = note.created.split('T')[0];
+      return createdDate === dateString;
+    });
+
+    // Get notes modified on this date (excluding daily notes and notes created today)
+    const modifiedNotes = Object.values(currentDoc.notes).filter((note) => {
+      if (note.archived) return false;
+      if (note.type === DAILY_NOTE_TYPE_ID) return false;
+      const createdDate = note.created.split('T')[0];
+      const updatedDate = note.updated.split('T')[0];
+      // Only include if modified today but not created today
+      return updatedDate === dateString && createdDate !== dateString;
+    });
+
+    days.push({
+      date: dateString,
+      dailyNote,
+      createdNotes,
+      modifiedNotes,
+      totalActivity: createdNotes.length + modifiedNotes.length + (dailyNote ? 1 : 0)
+    });
+  }
+
+  // Calculate end date (6 days after start)
+  const endDate = addDaysToDateString(startDate, 6);
+
+  return {
+    startDate,
+    endDate,
+    days
+  };
+}
+
+/**
+ * Add days to a date string and return a new date string
+ * Uses UTC timestamp math to avoid Date object reactivity issues in .svelte.ts files
+ */
+function addDaysToDateString(dateString: string, daysToAdd: number): string {
+  // Parse the date string (YYYY-MM-DD)
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create timestamp and add days (using UTC to avoid timezone issues)
+  const timestamp = Date.UTC(year, month - 1, day) + daysToAdd * 24 * 60 * 60 * 1000;
+
+  // Extract date components from timestamp using UTC methods
+  // We need to convert timestamp to date parts without using mutable Date
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysSinceEpoch = Math.floor(timestamp / msPerDay);
+
+  // Algorithm to convert days since epoch to year/month/day
+  // Based on Howard Hinnant's algorithm
+  const z = daysSinceEpoch + 719468;
+  const era = Math.floor((z >= 0 ? z : z - 146096) / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor(
+    (doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) /
+      365
+  );
+  const y = yoe + era * 400;
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1;
+  const m = mp + (mp < 10 ? 3 : -9);
+  const resultYear = y + (m <= 2 ? 1 : 0);
+
+  return `${resultYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 // Note: State variables cannot be exported directly because they are reassigned.
 // Use the getter functions instead: getIsInitialized(), getIsLoading(), etc.
 

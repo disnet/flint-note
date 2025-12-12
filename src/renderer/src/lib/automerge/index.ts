@@ -85,7 +85,18 @@ export {
 
   // Loading states
   getIsInitialized,
-  getIsLoading
+  getIsLoading,
+
+  // Daily view
+  DAILY_NOTE_TYPE_ID,
+  getDailyNote,
+  getDailyNoteId,
+  getOrCreateDailyNote,
+  updateDailyNote,
+  getWeekData,
+  ensureDailyNoteType,
+  type DayData,
+  type WeekData
 } from './state.svelte';
 
 // Repo utilities

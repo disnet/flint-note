@@ -26,6 +26,7 @@
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
+  import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -44,7 +45,9 @@
 
   // UI state
   let searchQuery = $state('');
-  let activeSystemView = $state<'notes' | 'settings' | 'search' | 'types' | null>(null);
+  let activeSystemView = $state<
+    'notes' | 'settings' | 'search' | 'types' | 'daily' | null
+  >(null);
   let showCreateVaultModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
@@ -104,7 +107,9 @@
     archiveNote(noteId);
   }
 
-  function handleSystemViewSelect(view: 'notes' | 'settings' | 'types' | null): void {
+  function handleSystemViewSelect(
+    view: 'notes' | 'settings' | 'types' | 'daily' | null
+  ): void {
     activeSystemView = view;
     if (view) {
       setActiveNoteId(null); // Clear active note when viewing system views
@@ -342,6 +347,9 @@
           onTypeSelect={handleNoteTypeSelect}
           onNoteSelect={handleNoteSelectFromTypes}
         />
+      {:else if activeSystemView === 'daily'}
+        <!-- Daily View -->
+        <AutomergeDailyView onNoteSelect={handleNoteSelect} />
       {:else if activeSystemView === 'notes'}
         <!-- All Notes View -->
         <div class="all-notes-view">
