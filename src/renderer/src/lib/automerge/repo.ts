@@ -122,13 +122,16 @@ export function createNewNotesDocument(r: Repo): DocHandle<NotesDocument> {
 }
 
 /**
- * Find an existing document by URL
+ * Find an existing document by URL and wait for it to be ready
  */
 export async function findDocument(
   r: Repo,
   docUrl: string
 ): Promise<DocHandle<NotesDocument>> {
-  return r.find<NotesDocument>(docUrl as AutomergeUrl);
+  const handle = await r.find<NotesDocument>(docUrl as AutomergeUrl);
+  // Wait for the document to be ready (loaded from storage)
+  await handle.whenReady();
+  return handle;
 }
 
 // --- Vault CRUD (localStorage-based) ---

@@ -29,7 +29,6 @@ export {
   // Note getters
   getNotes,
   getAllNotes,
-  getNote,
   searchNotes,
   getNotesByType,
 

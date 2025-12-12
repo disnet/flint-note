@@ -21,11 +21,13 @@ This is a **unified Electron application** containing a Svelte-based UI and the 
    - Status: In development, renderer currently uses this version
 
 **Key differences:**
+
 - Automerge version is local-first with CRDT-based data structures
 - No migration from SQLite data - users create new vaults
 - See `docs/AUTOMERGE-MIGRATION.md` for full migration plan and progress
 
 **When working on this codebase:**
+
 - New feature work should target the Automerge version
 - Bug fixes may need to be applied to both versions depending on severity
 - The legacy version components are in the main `components/` directory

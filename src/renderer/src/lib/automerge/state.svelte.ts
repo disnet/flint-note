@@ -254,13 +254,6 @@ export function getAllNotes(): Note[] {
 }
 
 /**
- * Get a single note by ID
- */
-export function getNote(id: string): Note | undefined {
-  return currentDoc.notes[id];
-}
-
-/**
  * Search notes by title or content
  */
 export function searchNotes(query: string): Note[] {
@@ -559,21 +552,22 @@ export function setActiveWorkspace(workspaceId: string): void {
 
 /**
  * Add a note to the active workspace's recent notes
+ * Does not add if the note is already pinned or already in recent notes
  */
 export function addNoteToWorkspace(noteId: string): void {
   if (!docHandle) throw new Error('Not initialized');
 
-  const workspace = getActiveWorkspace();
-  if (!workspace) return;
-
-  // Don't add duplicates
-  if (workspace.recentNoteIds.includes(noteId)) return;
-
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
-    if (ws && !ws.recentNoteIds.includes(noteId)) {
-      ws.recentNoteIds.unshift(noteId);
-    }
+    if (!ws) return;
+
+    // Don't add if already pinned
+    if (ws.pinnedNoteIds?.includes(noteId)) return;
+
+    // Don't add duplicates to recent
+    if (ws.recentNoteIds.includes(noteId)) return;
+
+    ws.recentNoteIds.unshift(noteId);
   });
 }
 
