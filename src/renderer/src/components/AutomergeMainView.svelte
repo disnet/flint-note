@@ -177,114 +177,58 @@
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="main-view">
-  <!-- Title Bar -->
-  <div class="title-bar">
-    <div class="title-bar-content">
-      <div class="title-bar-left">
-        <button
-          class="sidebar-toggle"
-          onclick={toggleLeftSidebar}
-          title="Toggle sidebar (⌘B)"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-            <line x1="9" y1="3" x2="9" y2="21"></line>
-          </svg>
-        </button>
-        <span class="app-title">Flint</span>
-      </div>
-      <div class="title-bar-center">
-        <div class="search-container">
-          <input
-            id="search-input"
-            type="text"
-            class="search-input"
-            class:active={searchInputFocused && searchQuery.trim()}
-            placeholder="Search notes... (⌘K)"
-            bind:value={searchQuery}
-            onfocus={handleSearchFocus}
-            onblur={handleSearchBlur}
-            onkeydown={handleSearchKeyDown}
-          />
-          {#if searchInputFocused && searchQuery.trim()}
-            <div class="search-dropdown">
-              {#if searchResults.length > 0}
-                <AutomergeSearchResults
-                  results={searchResults}
-                  onSelect={handleSearchResultSelect}
-                  maxResults={8}
-                />
-                {#if searchResults.length > 8}
-                  <button
-                    class="view-all-btn"
-                    onclick={() => {
-                      activeSystemView = 'search';
-                      setActiveNoteId(null);
-                    }}
-                  >
-                    View all {searchResults.length} results (Enter)
-                  </button>
-                {/if}
-              {:else}
-                <div class="no-results-dropdown">
-                  No matching notes found for "{searchQuery}"
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      </div>
-      <div class="title-bar-right">
-        <!-- Vault Switcher -->
-        {#if vaults.length > 1}
-          <div class="vault-switcher">
-            <select
-              class="vault-select"
-              value={activeVault?.id}
-              onchange={(e) => handleVaultSelect((e.target as HTMLSelectElement).value)}
-            >
-              {#each vaults as vault (vault.id)}
-                <option value={vault.id}>{vault.name}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
-        <button class="add-vault-btn" onclick={handleCreateVault} title="New vault">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Main Layout -->
   <div class="app-layout">
     <!-- Left Sidebar -->
     <AutomergeLeftSidebar
       {activeSystemView}
+      {searchQuery}
+      {searchResults}
+      {searchInputFocused}
+      {vaults}
+      activeVault={activeVault ?? null}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
       onCreateNote={handleCreateNote}
+      onSearchChange={(query) => (searchQuery = query)}
+      onSearchFocus={handleSearchFocus}
+      onSearchBlur={handleSearchBlur}
+      onSearchKeyDown={handleSearchKeyDown}
+      onSearchResultSelect={handleSearchResultSelect}
+      onVaultSelect={handleVaultSelect}
+      onCreateVault={handleCreateVault}
+      onToggleSidebar={toggleLeftSidebar}
+      onViewAllResults={() => {
+        activeSystemView = 'search';
+        setActiveNoteId(null);
+      }}
     />
 
     <!-- Main Content -->
     <div class="main-content">
+      <!-- Safe zone for window dragging (macOS traffic lights area) -->
+      <div class="safe-zone">
+        {#if !sidebarState.leftSidebar.visible}
+          <button
+            class="floating-sidebar-toggle"
+            onclick={toggleLeftSidebar}
+            title="Toggle sidebar (⌘B)"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+          </button>
+        {/if}
+      </div>
+
       {#if activeSystemView === 'settings'}
         <div class="settings-panel">
           <h2>Settings</h2>
@@ -460,44 +404,26 @@
     color: var(--text-primary);
   }
 
-  /* Title Bar */
-  .title-bar {
+  /* App Layout */
+  .app-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Safe zone for window dragging */
+  .safe-zone {
     height: 38px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-light);
     -webkit-app-region: drag;
     user-select: none;
     flex-shrink: 0;
-  }
-
-  .title-bar-content {
+    background: transparent;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    height: 100%;
-    padding: 0 1rem;
+    padding-left: 70px; /* Space for traffic lights on macOS */
   }
 
-  .title-bar-left,
-  .title-bar-right {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .title-bar-right {
-    justify-content: flex-end;
-  }
-
-  .title-bar-center {
-    flex: 2;
-    display: flex;
-    justify-content: center;
-    -webkit-app-region: no-drag;
-  }
-
-  .sidebar-toggle {
+  .floating-sidebar-toggle {
     padding: 0.25rem;
     border: none;
     background: none;
@@ -508,84 +434,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 70px; /* Space for traffic lights on macOS */
   }
 
-  .sidebar-toggle:hover {
+  .floating-sidebar-toggle:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
-  }
-
-  .app-title {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .search-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.375rem 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
-
-  .search-input.active {
-    border-color: var(--accent-primary);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-
-  .search-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--bg-primary);
-    border: 1px solid var(--accent-primary);
-    border-top: none;
-    border-bottom-left-radius: 0.5rem;
-    border-bottom-right-radius: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 100;
-    max-height: 400px;
-    overflow-y: auto;
-  }
-
-  .view-all-btn {
-    width: 100%;
-    padding: 0.625rem;
-    border: none;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-    color: var(--accent-primary);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: center;
-  }
-
-  .view-all-btn:hover {
-    background: var(--bg-hover);
-  }
-
-  .no-results-dropdown {
-    padding: 1rem;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.875rem;
   }
 
   /* Search View */
@@ -638,45 +491,6 @@
     flex: 1;
     overflow-y: auto;
     padding: 0.5rem 0;
-  }
-
-  .vault-switcher {
-    -webkit-app-region: no-drag;
-  }
-
-  .vault-select {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    cursor: pointer;
-  }
-
-  .add-vault-btn {
-    padding: 0.25rem;
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.25rem;
-    -webkit-app-region: no-drag;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .add-vault-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  /* App Layout */
-  .app-layout {
-    display: flex;
-    flex: 1;
-    min-height: 0;
   }
 
   /* Main Content */
