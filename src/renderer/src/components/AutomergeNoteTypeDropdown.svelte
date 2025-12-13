@@ -277,10 +277,6 @@
     line-height: 1;
   }
 
-  .note-type-dropdown.compact .type-icon {
-    font-size: 0.875rem;
-  }
-
   .type-icon {
     font-size: 1rem;
     line-height: 1;

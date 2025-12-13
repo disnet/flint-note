@@ -2,7 +2,7 @@
   /**
    * Note editor component using Automerge for data storage with CodeMirror editor
    */
-  import { onMount, untrack } from 'svelte';
+  import { onMount, untrack, tick } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { Note } from '../lib/automerge';
@@ -29,10 +29,11 @@
     onNavigate?: (noteId: string) => void;
   }
 
-  let { note, onTitleChange, onContentChange, onArchive, onNavigate }: Props = $props();
+  let { note, onTitleChange, onContentChange, onNavigate }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
+  let titleTextarea: HTMLTextAreaElement | null = $state(null);
 
   // Debounce content changes
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -79,9 +80,38 @@
   });
 
   function handleTitleInput(event: Event): void {
-    const target = event.target as HTMLInputElement;
+    const target = event.target as HTMLTextAreaElement;
     onTitleChange(target.value);
+    adjustTitleHeight();
   }
+
+  function adjustTitleHeight(): void {
+    if (!titleTextarea) return;
+    titleTextarea.style.height = 'auto';
+    titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
+  }
+
+  // Adjust title height when note changes or on mount
+  $effect(() => {
+    void note.title;
+    tick().then(() => {
+      adjustTitleHeight();
+    });
+  });
+
+  // Watch for container resize
+  $effect(() => {
+    if (!titleTextarea) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      adjustTitleHeight();
+    });
+    resizeObserver.observe(titleTextarea);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  });
 
   function handleEditorContentChange(content: string): void {
     // Debounce content updates
@@ -113,18 +143,6 @@
 
   // Get backlinks for this note
   const backlinks = $derived(getBacklinks(note.id));
-
-  // Format date
-  function formatDate(isoString: string): string {
-    const date = new Date(isoString);
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
 
   // Handle keyboard shortcuts
   function handleKeyDown(event: KeyboardEvent): void {
@@ -686,21 +704,16 @@
 <div class="note-editor" onkeydown={handleKeyDown}>
   <!-- Header -->
   <div class="editor-header">
-    <div class="header-left">
-      <AutomergeNoteTypeDropdown noteId={note.id} currentTypeId={note.type} />
-      <input
-        type="text"
+    <div class="title-area">
+      <AutomergeNoteTypeDropdown noteId={note.id} currentTypeId={note.type} compact />
+      <textarea
+        bind:this={titleTextarea}
         class="title-input"
         value={note.title}
         oninput={handleTitleInput}
         placeholder="Untitled"
-      />
-    </div>
-    <div class="header-actions">
-      <span class="last-modified" title="Last modified">
-        {formatDate(note.updated)}
-      </span>
-      <button class="archive-btn" onclick={onArchive} title="Archive note"> 🗑️ </button>
+        rows="1"
+      ></textarea>
     </div>
   </div>
 
@@ -776,6 +789,7 @@
   .note-editor {
     display: flex;
     flex-direction: column;
+    gap: 0.75rem;
     height: 100%;
     background: var(--bg-primary);
   }
@@ -783,61 +797,58 @@
   /* Header */
   .editor-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
+    align-items: flex-start;
+    padding: 0;
     flex-shrink: 0;
-    gap: 1rem;
   }
 
-  .header-left {
+  /* Title area with type icon positioned absolutely */
+  .title-area {
+    position: relative;
     flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     min-width: 0;
+  }
+
+  /* Position type dropdown absolutely in the first line indent space */
+  .title-area :global(.note-type-dropdown.compact) {
+    position: absolute;
+    top: 0.4em;
+    left: 0;
+    z-index: 1;
+  }
+
+  .title-area :global(.note-type-dropdown.compact .type-button) {
+    padding: 0.1em 0.25rem;
+  }
+
+  .title-area :global(.note-type-dropdown.compact .type-icon) {
+    font-size: 1.5rem;
   }
 
   .title-input {
-    flex: 1;
+    width: 100%;
     border: none;
     background: transparent;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 800;
+    font-family:
+      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     color: var(--text-primary);
     outline: none;
-    padding: 0;
+    padding: 0.1em 0;
     min-width: 0;
+    resize: none;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    line-height: 1.4;
+    min-height: 1.4em;
+    text-indent: 2.3rem; /* Space for the type icon */
   }
 
   .title-input::placeholder {
     color: var(--text-muted);
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .last-modified {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  .archive-btn {
-    padding: 0.375rem 0.5rem;
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-size: 1rem;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-  }
-
-  .archive-btn:hover {
-    opacity: 1;
+    opacity: 0.5;
   }
 
   /* Content */
