@@ -143,9 +143,32 @@
     dragOffsetY = e.clientY - dragStartY;
 
     // Determine target index based on Y position
+    // Use edge-based detection: items shift when dragged item touches their edge
     const listRect = listElement.getBoundingClientRect();
     const y = e.clientY - listRect.top + listElement.scrollTop;
-    let newTargetIndex = Math.floor(y / itemHeight);
+
+    // Calculate what position the dragged item currently occupies visually
+    // The dragged item's center is at its original position + offset
+    const draggedItemCenter = (draggedIndex + 0.5) * itemHeight + dragOffsetY;
+
+    // Determine target based on which item's space we're in
+    // Use a small threshold (20% of item height) for more responsive shifting
+    const threshold = itemHeight * 0.2;
+    let newTargetIndex: number;
+
+    if (dragOffsetY > 0) {
+      // Dragging down - shift occurs when bottom edge of dragged item enters next item's space
+      const draggedItemBottom = draggedItemCenter + itemHeight / 2;
+      newTargetIndex = Math.floor((draggedItemBottom - threshold) / itemHeight);
+    } else if (dragOffsetY < 0) {
+      // Dragging up - shift occurs when top edge of dragged item enters previous item's space
+      const draggedItemTop = draggedItemCenter - itemHeight / 2;
+      newTargetIndex = Math.floor((draggedItemTop + threshold) / itemHeight);
+    } else {
+      // No movement yet
+      newTargetIndex = draggedIndex;
+    }
+
     newTargetIndex = Math.max(0, Math.min(unifiedList.length - 1, newTargetIndex));
 
     // Skip over separator - can't drop ON the separator
@@ -381,9 +404,7 @@
       ((draggedIndex < separatorIndex && dropTargetIndex > separatorIndex) ||
         (draggedIndex > separatorIndex && dropTargetIndex < separatorIndex) ||
         // Special case: dragging into empty pinned area (separator is at index 0)
-        (separatorIndex === 0 &&
-          draggedIndex > separatorIndex &&
-          dropTargetIndex === 0))
+        (separatorIndex === 0 && draggedIndex > separatorIndex && dropTargetIndex === 0))
   );
 
   // Context menu handlers
