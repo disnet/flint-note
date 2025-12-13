@@ -133,75 +133,120 @@
       e.dataTransfer.setData('text/plain', noteId);
       e.dataTransfer.setDragImage(emptyDragImage, 0, 0);
     }
+
+    // Add document-level drag listener to track mouse even outside list area
+    document.addEventListener('drag', handleDocumentDrag);
+  }
+
+  // Track drag position globally so item follows cursor even outside list area
+  function handleDocumentDrag(e: DragEvent): void {
+    if (draggedIndex === null) return;
+
+    // During drag, e.clientY can be 0 when outside valid drop targets
+    // Only update if we have valid coordinates
+    if (e.clientY !== 0) {
+      dragOffsetY = e.clientY - dragStartY;
+      updateDropTarget();
+    }
+  }
+
+  // Extracted drop target calculation so it can be called from both handlers
+  function updateDropTarget(): void {
+    if (draggedIndex === null || !listElement) return;
+
+    const threshold = itemHeight * 0.2;
+    const draggedItemCenter = (draggedIndex + 0.5) * itemHeight + dragOffsetY;
+    let newTargetIndex: number;
+
+    if (dragOffsetY > 0) {
+      const draggedItemBottom = draggedItemCenter + itemHeight / 2;
+      newTargetIndex = Math.floor((draggedItemBottom - threshold) / itemHeight);
+    } else if (dragOffsetY < 0) {
+      const draggedItemTop = draggedItemCenter - itemHeight / 2;
+      newTargetIndex = Math.floor((draggedItemTop + threshold) / itemHeight);
+    } else {
+      newTargetIndex = draggedIndex;
+    }
+
+    newTargetIndex = Math.max(0, Math.min(unifiedList.length - 1, newTargetIndex));
+
+    // Handle empty pinned area first
+    if (separatorIndex === 0 && draggedIndex > separatorIndex) {
+      const draggedItemTop =
+        (draggedIndex + 0.5) * itemHeight + dragOffsetY - itemHeight / 2;
+      if (draggedItemTop < separatorIndex * itemHeight + itemHeight * 0.8) {
+        dropTargetIndex = 0;
+        return;
+      }
+    }
+
+    // Handle separator
+    if (newTargetIndex === separatorIndex) {
+      // Both directions: separator position is valid as "end of pinned" or "start of recent"
+    }
+
+    // Cross-section: recent to pinned
+    if (draggedIndex > separatorIndex && newTargetIndex <= separatorIndex) {
+      const draggedItemTop =
+        (draggedIndex + 0.5) * itemHeight + dragOffsetY - itemHeight / 2;
+      const visualSlot = Math.floor((draggedItemCenter + threshold) / itemHeight);
+
+      if (visualSlot < 0) {
+        newTargetIndex = 0;
+      } else if (visualSlot >= separatorIndex) {
+        newTargetIndex = separatorIndex;
+      } else {
+        newTargetIndex = visualSlot;
+      }
+
+      if (draggedItemTop >= (separatorIndex + 0.8) * itemHeight) {
+        newTargetIndex = separatorIndex + 1;
+      }
+    }
+
+    // Cross-section: pinned to recent
+    if (draggedIndex < separatorIndex && newTargetIndex >= separatorIndex) {
+      const draggedItemBottom =
+        (draggedIndex + 0.5) * itemHeight + dragOffsetY + itemHeight / 2;
+      const visualSlot = Math.floor((draggedItemCenter - threshold) / itemHeight);
+
+      if (visualSlot <= separatorIndex) {
+        newTargetIndex = separatorIndex;
+      } else if (visualSlot >= unifiedList.length) {
+        newTargetIndex = unifiedList.length - 1;
+      } else {
+        newTargetIndex = visualSlot;
+      }
+
+      if (draggedItemBottom <= (separatorIndex + 0.2) * itemHeight) {
+        newTargetIndex = separatorIndex - 1;
+      }
+    }
+
+    // Handle edge cases
+    if (newTargetIndex < 0) newTargetIndex = 0;
+    if (newTargetIndex > unifiedList.length - 1) newTargetIndex = unifiedList.length - 1;
+
+    dropTargetIndex = newTargetIndex;
   }
 
   function handleDragOver(e: DragEvent): void {
     e.preventDefault();
     if (draggedIndex === null || !listElement) return;
 
-    // Update offset for visual feedback
+    // Update offset and recalculate drop target
     dragOffsetY = e.clientY - dragStartY;
-
-    // Determine target index based on Y position
-    // Use edge-based detection: items shift when dragged item touches their edge
-    const listRect = listElement.getBoundingClientRect();
-    const y = e.clientY - listRect.top + listElement.scrollTop;
-
-    // Calculate what position the dragged item currently occupies visually
-    // The dragged item's center is at its original position + offset
-    const draggedItemCenter = (draggedIndex + 0.5) * itemHeight + dragOffsetY;
-
-    // Determine target based on which item's space we're in
-    // Use a small threshold (20% of item height) for more responsive shifting
-    const threshold = itemHeight * 0.2;
-    let newTargetIndex: number;
-
-    if (dragOffsetY > 0) {
-      // Dragging down - shift occurs when bottom edge of dragged item enters next item's space
-      const draggedItemBottom = draggedItemCenter + itemHeight / 2;
-      newTargetIndex = Math.floor((draggedItemBottom - threshold) / itemHeight);
-    } else if (dragOffsetY < 0) {
-      // Dragging up - shift occurs when top edge of dragged item enters previous item's space
-      const draggedItemTop = draggedItemCenter - itemHeight / 2;
-      newTargetIndex = Math.floor((draggedItemTop + threshold) / itemHeight);
-    } else {
-      // No movement yet
-      newTargetIndex = draggedIndex;
-    }
-
-    newTargetIndex = Math.max(0, Math.min(unifiedList.length - 1, newTargetIndex));
-
-    // Skip over separator - can't drop ON the separator
-    // If targeting separator, adjust to either side based on drag direction
-    if (newTargetIndex === separatorIndex) {
-      if (draggedIndex < separatorIndex) {
-        // Dragging from pinned, keep in pinned unless going well past separator
-        newTargetIndex = separatorIndex - 1;
-        if (y > (separatorIndex + 0.7) * itemHeight) {
-          newTargetIndex = separatorIndex + 1;
-        }
-      } else {
-        // Dragging from recent, move to pinned more easily (lower threshold)
-        newTargetIndex = separatorIndex + 1;
-        if (y < (separatorIndex + 0.8) * itemHeight) {
-          newTargetIndex = separatorIndex - 1;
-        }
-      }
-    }
-
-    // Handle edge cases for empty sections
-    if (newTargetIndex < 0) newTargetIndex = 0;
-    if (newTargetIndex > unifiedList.length - 1) newTargetIndex = unifiedList.length - 1;
-
-    // If we're at the separator position and pinned is empty, target position 0
-    if (separatorIndex === 0 && newTargetIndex === 0 && y < itemHeight / 2) {
-      newTargetIndex = 0;
-    }
-
-    dropTargetIndex = newTargetIndex;
+    updateDropTarget();
   }
 
-  function handleDragEnd(): void {
+  function handleDragEnd(e: DragEvent): void {
+    // If drag was cancelled (e.g., Escape key, or dropEffect is 'none')
+    // just reset without trying to complete the move
+    if (e.dataTransfer?.dropEffect === 'none') {
+      isAnimating = false;
+      resetDragState();
+      return;
+    }
     finishDrag();
   }
 
@@ -227,8 +272,12 @@
 
     // Determine source and target sections based on separator position
     const fromPinned = fromIndex < separatorIndex;
+    // toPinned is true if:
+    // - toIndex is before the separator, OR
+    // - toIndex equals separator AND we're coming from recent (meaning "end of pinned")
     const toPinned =
-      toIndex < separatorIndex || (toIndex === separatorIndex && separatorIndex === 0);
+      toIndex < separatorIndex ||
+      (toIndex === separatorIndex && fromIndex > separatorIndex);
 
     // Save current visual positions for FLIP animation
     const draggedItemOffset = dragOffsetY;
@@ -253,6 +302,12 @@
 
     // Enter animating state
     isAnimating = true;
+
+    // Safety timeout - reset everything if animation gets stuck
+    const safetyTimeout = setTimeout(() => {
+      isAnimating = false;
+      resetDragState();
+    }, ANIMATION_DURATION + 500);
 
     // Reset drag state
     resetDragState();
@@ -349,6 +404,7 @@
 
     // Clean up after animation
     setTimeout(() => {
+      clearTimeout(safetyTimeout);
       freshElements.forEach((el) => {
         el.style.transition = '';
       });
@@ -364,6 +420,25 @@
     draggedNoteId = null;
     dropTargetIndex = null;
     dragOffsetY = 0;
+
+    // Remove document-level drag listener
+    document.removeEventListener('drag', handleDocumentDrag);
+
+    // Clear any stuck transforms on note items
+    if (listElement) {
+      const noteItems = listElement.querySelectorAll<HTMLElement>('[data-note-item]');
+      noteItems.forEach((el) => {
+        el.style.transform = '';
+        el.style.transition = '';
+      });
+      // Also clear any stuck separator transforms
+      const separatorRow = listElement.querySelector<HTMLElement>('.separator-row');
+      if (separatorRow) {
+        separatorRow.style.transform = '';
+        separatorRow.style.transition = '';
+      }
+      listElement.style.pointerEvents = '';
+    }
   }
 
   function getItemTransform(index: number): string | undefined {
@@ -397,14 +472,18 @@
     return draggedIndex === index;
   }
 
-  // Check if we're dragging across the separator (or into empty pinned area)
+  // Check if we're dragging across the separator
   const isDraggingAcrossSeparator = $derived(
     draggedIndex !== null &&
       dropTargetIndex !== null &&
+      // Pinned to recent (dropTargetIndex > separatorIndex)
       ((draggedIndex < separatorIndex && dropTargetIndex > separatorIndex) ||
+        // Pinned to start of recent (dropTargetIndex === separatorIndex means "start of recent")
+        (draggedIndex < separatorIndex && dropTargetIndex === separatorIndex) ||
+        // Recent to pinned (dropTargetIndex < separatorIndex)
         (draggedIndex > separatorIndex && dropTargetIndex < separatorIndex) ||
-        // Special case: dragging into empty pinned area (separator is at index 0)
-        (separatorIndex === 0 && draggedIndex > separatorIndex && dropTargetIndex === 0))
+        // Recent to end of pinned (dropTargetIndex === separatorIndex means "end of pinned")
+        (draggedIndex > separatorIndex && dropTargetIndex === separatorIndex))
   );
 
   // Context menu handlers
@@ -492,6 +571,7 @@
   <div class="section-label">Pinned</div>
   <div
     class="notes-list"
+    class:is-dragging={draggedIndex !== null}
     bind:this={listElement}
     ondragover={handleDragOver}
     ondrop={handleDrop}
@@ -758,6 +838,15 @@
 
   .note-item:hover {
     background: var(--bg-hover);
+  }
+
+  /* Disable hover effects during drag operations */
+  .notes-list.is-dragging .note-item:hover {
+    background: transparent;
+  }
+
+  .notes-list.is-dragging .note-item.active:hover {
+    background: var(--accent-light);
   }
 
   .note-item.active {
