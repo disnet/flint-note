@@ -99,7 +99,7 @@ export {
 } from './state.svelte';
 
 // Repo utilities
-export { createRepo, getRepo } from './repo';
+export { createRepo, getRepo, archiveVault } from './repo';
 
 // ID generation
 export {

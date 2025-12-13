@@ -152,15 +152,15 @@
     // If targeting separator, adjust to either side based on drag direction
     if (newTargetIndex === separatorIndex) {
       if (draggedIndex < separatorIndex) {
-        // Dragging from pinned, keep in pinned unless going past separator
+        // Dragging from pinned, keep in pinned unless going well past separator
         newTargetIndex = separatorIndex - 1;
-        if (y > (separatorIndex + 0.5) * itemHeight) {
+        if (y > (separatorIndex + 0.7) * itemHeight) {
           newTargetIndex = separatorIndex + 1;
         }
       } else {
-        // Dragging from recent, keep in recent unless going above separator
+        // Dragging from recent, move to pinned more easily (lower threshold)
         newTargetIndex = separatorIndex + 1;
-        if (y < (separatorIndex + 0.5) * itemHeight) {
+        if (y < (separatorIndex + 0.8) * itemHeight) {
           newTargetIndex = separatorIndex - 1;
         }
       }
@@ -374,12 +374,16 @@
     return draggedIndex === index;
   }
 
-  // Check if we're dragging across the separator
+  // Check if we're dragging across the separator (or into empty pinned area)
   const isDraggingAcrossSeparator = $derived(
     draggedIndex !== null &&
       dropTargetIndex !== null &&
       ((draggedIndex < separatorIndex && dropTargetIndex > separatorIndex) ||
-        (draggedIndex > separatorIndex && dropTargetIndex < separatorIndex))
+        (draggedIndex > separatorIndex && dropTargetIndex < separatorIndex) ||
+        // Special case: dragging into empty pinned area (separator is at index 0)
+        (separatorIndex === 0 &&
+          draggedIndex > separatorIndex &&
+          dropTargetIndex === 0))
   );
 
   // Context menu handlers
@@ -464,6 +468,7 @@
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
 <div class="sidebar-notes">
+  <div class="section-label">Pinned</div>
   <div
     class="notes-list"
     bind:this={listElement}
@@ -475,11 +480,8 @@
       <div
         class="empty-pinned-area always-visible"
         class:highlight={isDraggingAcrossSeparator}
-        class:drag-active={draggedIndex !== null}
       >
-        <span class="empty-pinned-text"
-          >{draggedIndex !== null ? 'Drop here to pin' : 'Drag notes here to pin'}</span
-        >
+        <span class="empty-pinned-text">Drag notes here to pin</span>
       </div>
     {/if}
     {#each unifiedList as item, index (item.type === 'separator' ? 'separator' : item.note.id)}
@@ -626,6 +628,15 @@
     padding-bottom: 0.5rem;
   }
 
+  .section-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0.75rem 0.25rem;
+  }
+
   .notes-list {
     display: flex;
     flex-direction: column;
@@ -645,34 +656,29 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem;
+    padding: 1.5rem 1.25rem;
     margin-bottom: 0.25rem;
-    border: 1px dashed var(--border-light);
-    border-radius: 0.375rem;
+    border: 2px dashed var(--border-light);
+    border-radius: 0.75rem;
     background: transparent;
-    min-height: 2rem;
-    opacity: 1;
-    transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .empty-pinned-area.drag-active {
-    border-color: var(--border-medium);
+    min-height: 4rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .empty-pinned-area.highlight {
     background: var(--accent-light);
-    border-color: var(--accent-medium, var(--border-medium));
+    border-color: var(--accent-primary);
+    box-shadow: 0 2px 12px rgba(0, 123, 255, 0.15);
   }
 
   .empty-pinned-text {
     font-size: 0.75rem;
     color: var(--text-muted);
+    transition: all 0.3s ease;
   }
 
   .empty-pinned-area.highlight .empty-pinned-text {
-    color: var(--text-secondary);
+    color: var(--accent-primary);
   }
 
   .separator-line {

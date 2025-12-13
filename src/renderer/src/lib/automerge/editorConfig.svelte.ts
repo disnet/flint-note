@@ -44,7 +44,8 @@ export class AutomergeEditorConfig {
   private getBaseTheme(): Extension {
     return EditorView.theme({
       '&': {
-        height: '100%',
+        height: 'auto',
+        minHeight: '300px',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
         fontSize: 'var(--font-editor-size) !important',
@@ -94,50 +95,13 @@ export class AutomergeEditorConfig {
     return EditorView.theme({
       '.cm-scroller': {
         width: '100%',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-        marginBottom: '25vh',
-        overflow: 'visible',
+        overflow: 'visible !important',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
-        paddingRight: '20px'
-      },
-      '.cm-scroller::-webkit-scrollbar': {
-        width: '12px'
-      },
-      '.cm-scroller::-webkit-scrollbar-track': {
-        background: 'transparent',
-        borderRadius: '6px'
-      },
-      '.cm-scroller::-webkit-scrollbar-thumb': {
-        background: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: '6px',
-        border: '2px solid transparent',
-        backgroundClip: 'padding-box',
-        transition: 'all 0.2s ease'
-      },
-      '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-        background: 'rgba(0, 0, 0, 0.3)',
-        backgroundClip: 'padding-box'
-      },
-      '.cm-scroller::-webkit-scrollbar-corner': {
-        background: 'transparent'
+        paddingBottom: '25vh'
       }
     });
   }
-
-  // Dark mode scrollbar theme
-  private darkEditorTheme = EditorView.theme({
-    '.cm-scroller': {
-      scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
-    },
-    '.cm-scroller::-webkit-scrollbar-thumb': {
-      background: 'rgba(255, 255, 255, 0.2)'
-    },
-    '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-      background: 'rgba(255, 255, 255, 0.3)'
-    }
-  });
 
   // Placeholder theme
   private placeholderTheme = EditorView.theme({
@@ -179,7 +143,6 @@ export class AutomergeEditorConfig {
       markdown(),
       EditorView.lineWrapping,
       this.isDarkMode ? githubDark : githubLight,
-      ...(this.isDarkMode ? [this.darkEditorTheme] : []),
       this.getBaseTheme(),
       this.getDefaultTheme(),
       markdownListStyling,
