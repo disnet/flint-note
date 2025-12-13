@@ -8,7 +8,14 @@
  */
 
 import type { DocHandle } from '@automerge/automerge-repo';
-import type { Note, NoteType, NotesDocument, Vault, Workspace } from './types';
+import type {
+  Note,
+  NoteType,
+  NotesDocument,
+  Vault,
+  Workspace,
+  PropertyDefinition
+} from './types';
 import { generateNoteId, generateWorkspaceId, generateNoteTypeId, nowISO } from './utils';
 import {
   createRepo,
@@ -792,6 +799,8 @@ export function createNoteType(params: {
   name: string;
   purpose?: string;
   icon?: string;
+  properties?: PropertyDefinition[];
+  editorChips?: string[];
 }): string {
   if (!docHandle) throw new Error('Not initialized');
 
@@ -807,7 +816,9 @@ export function createNoteType(params: {
       purpose: params.purpose || '',
       icon: params.icon || '📄',
       archived: false,
-      created: nowISO()
+      created: nowISO(),
+      properties: params.properties,
+      editorChips: params.editorChips
     };
   });
 
@@ -819,7 +830,9 @@ export function createNoteType(params: {
  */
 export function updateNoteType(
   id: string,
-  updates: Partial<Pick<NoteType, 'name' | 'purpose' | 'icon'>>
+  updates: Partial<
+    Pick<NoteType, 'name' | 'purpose' | 'icon' | 'properties' | 'editorChips'>
+  >
 ): void {
   if (!docHandle) throw new Error('Not initialized');
 
@@ -830,6 +843,8 @@ export function updateNoteType(
     if (updates.name !== undefined) noteType.name = updates.name;
     if (updates.purpose !== undefined) noteType.purpose = updates.purpose;
     if (updates.icon !== undefined) noteType.icon = updates.icon;
+    if (updates.properties !== undefined) noteType.properties = updates.properties;
+    if (updates.editorChips !== undefined) noteType.editorChips = updates.editorChips;
   });
 }
 
@@ -861,6 +876,93 @@ export function setNoteType(noteId: string, typeId: string): void {
       note.updated = nowISO();
     }
   });
+}
+
+// --- Note Properties ---
+
+/**
+ * Get a note's property values
+ */
+export function getNoteProps(noteId: string): Record<string, unknown> {
+  const note = currentDoc.notes[noteId];
+  return note?.props ?? {};
+}
+
+/**
+ * Get a single note by ID
+ */
+export function getNote(noteId: string): Note | undefined {
+  return currentDoc.notes[noteId];
+}
+
+/**
+ * Set a single property on a note
+ */
+export function setNoteProp(noteId: string, propName: string, value: unknown): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+    note.props[propName] = value;
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Set multiple properties on a note
+ */
+export function setNoteProps(noteId: string, props: Record<string, unknown>): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+    for (const [key, value] of Object.entries(props)) {
+      note.props[key] = value;
+    }
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Delete a property from a note
+ */
+export function deleteNoteProp(noteId: string, propName: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note || !note.props) return;
+
+    delete note.props[propName];
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Get property definitions for a note type
+ */
+export function getNoteTypeProperties(typeId: string): PropertyDefinition[] {
+  const noteType = currentDoc.noteTypes?.[typeId];
+  return noteType?.properties ?? [];
+}
+
+/**
+ * Get editor chips configuration for a note type
+ * Returns configured chips or defaults to system fields
+ */
+export function getNoteTypeEditorChips(typeId: string): string[] {
+  const noteType = currentDoc.noteTypes?.[typeId];
+  return noteType?.editorChips ?? ['created', 'updated'];
 }
 
 // --- Active note (UI state, not persisted in Automerge) ---

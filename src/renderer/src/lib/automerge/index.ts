@@ -6,7 +6,16 @@
  */
 
 // Types
-export type { Note, NoteType, Workspace, NotesDocument, Vault } from './types';
+export type {
+  Note,
+  NoteType,
+  Workspace,
+  NotesDocument,
+  Vault,
+  PropertyType,
+  PropertyConstraints,
+  PropertyDefinition
+} from './types';
 
 // State management
 export {
@@ -71,6 +80,15 @@ export {
   updateNoteType,
   archiveNoteType,
   setNoteType,
+
+  // Note properties
+  getNote,
+  getNoteProps,
+  setNoteProp,
+  setNoteProps,
+  deleteNoteProp,
+  getNoteTypeProperties,
+  getNoteTypeEditorChips,
 
   // Active note (UI state)
   getActiveNoteId,

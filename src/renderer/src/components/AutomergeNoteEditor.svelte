@@ -14,12 +14,15 @@
     addNoteToWorkspace,
     AutomergeEditorConfig,
     forceWikilinkRefresh,
-    getSelectedWikilink
+    getSelectedWikilink,
+    getNoteType,
+    setNoteProp
   } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import AutomergeNoteTypeDropdown from './AutomergeNoteTypeDropdown.svelte';
   import AutomergeWikilinkActionPopover from './AutomergeWikilinkActionPopover.svelte';
   import AutomergeWikilinkEditPopover from './AutomergeWikilinkEditPopover.svelte';
+  import AutomergeEditorChips from './AutomergeEditorChips.svelte';
 
   interface Props {
     note: Note;
@@ -143,6 +146,14 @@
 
   // Get backlinks for this note
   const backlinks = $derived(getBacklinks(note.id));
+
+  // Get the note type for property definitions
+  const noteType = $derived(getNoteType(note.type));
+
+  // Handle property changes
+  function handlePropChange(propName: string, value: unknown): void {
+    setNoteProp(note.id, propName, value);
+  }
 
   // Handle keyboard shortcuts
   function handleKeyDown(event: KeyboardEvent): void {
@@ -715,6 +726,13 @@
         rows="1"
       ></textarea>
     </div>
+    <!-- Property Chips -->
+    <AutomergeEditorChips
+      {note}
+      {noteType}
+      onPropChange={handlePropChange}
+      onNoteClick={onNavigate}
+    />
   </div>
 
   <!-- Content - CodeMirror Editor -->

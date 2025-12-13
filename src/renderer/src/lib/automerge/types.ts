@@ -3,6 +3,53 @@
  */
 
 /**
+ * Property field types supported in note type schemas
+ */
+export type PropertyType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'array'
+  | 'select'
+  | 'notelink' // Single note reference (stored as n-xxxxxxxx)
+  | 'notelinks'; // Array of note references
+
+/**
+ * Constraints for property values
+ */
+export interface PropertyConstraints {
+  /** Minimum value (for numbers) or minimum length (for arrays) */
+  min?: number;
+  /** Maximum value (for numbers) or maximum length (for arrays) */
+  max?: number;
+  /** Regex pattern for string validation */
+  pattern?: string;
+  /** Valid options for select fields */
+  options?: string[];
+  /** Date format specification */
+  format?: string;
+}
+
+/**
+ * Definition of a property field in a note type schema
+ */
+export interface PropertyDefinition {
+  /** Property name (used as key in note.props) */
+  name: string;
+  /** Data type of the property */
+  type: PropertyType;
+  /** Human-readable description */
+  description?: string;
+  /** Whether the property is required */
+  required?: boolean;
+  /** Value constraints */
+  constraints?: PropertyConstraints;
+  /** Default value when creating a new note */
+  default?: string | number | boolean | string[];
+}
+
+/**
  * A note in the Flint system
  */
 export interface Note {
@@ -20,6 +67,8 @@ export interface Note {
   updated: string;
   /** Soft delete flag */
   archived: boolean;
+  /** Custom property values defined by the note's type */
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -56,6 +105,10 @@ export interface NoteType {
   archived: boolean;
   /** ISO timestamp of creation */
   created: string;
+  /** Property schema defining custom fields for notes of this type */
+  properties?: PropertyDefinition[];
+  /** Names of properties to display as chips in the editor (defaults to system fields if not set) */
+  editorChips?: string[];
 }
 
 /**

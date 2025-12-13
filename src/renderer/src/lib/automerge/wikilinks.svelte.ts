@@ -203,21 +203,22 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
   if (!match) return null;
 
   const query = match[1];
+  const normalizedQuery = query.toLowerCase().trim();
 
   // Get notes from automerge state, excluding archived
   const notes = getAllNotes().filter((note) => !note.archived);
 
+  // Filter and sort notes
   const filteredNotes = query.trim()
     ? notes
         .filter(
           (note) =>
-            note.title.toLowerCase().includes(query.toLowerCase()) ||
-            note.id.toLowerCase().includes(query.toLowerCase())
+            note.title.toLowerCase().includes(normalizedQuery) ||
+            note.id.toLowerCase().includes(normalizedQuery)
         )
         .sort((a, b) => {
           const aTitle = a.title.toLowerCase();
           const bTitle = b.title.toLowerCase();
-          const normalizedQuery = query.toLowerCase();
 
           if (aTitle === normalizedQuery) return -1;
           if (bTitle === normalizedQuery) return 1;
@@ -229,19 +230,24 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 
           return aTitle.localeCompare(bTitle);
         })
-        .slice(0, 10)
-    : notes.slice(0, 10);
+        .slice(0, 8)
+    : notes.slice(0, 8);
 
-  const options = filteredNotes.map((note) => ({
-    label: note.title || 'Untitled',
-    apply: `${note.id}]]`,
-    type: 'text'
-  }));
+  const options: { label: string; apply: string; type: string; detail?: string }[] = [];
+
+  // Add note options
+  for (const note of filteredNotes) {
+    options.push({
+      label: note.title || 'Untitled',
+      apply: `${note.id}]]`,
+      type: 'text'
+    });
+  }
 
   // Add option to create new note
   if (
     query.trim() &&
-    !filteredNotes.some((note) => note.title.toLowerCase() === query.toLowerCase().trim())
+    !filteredNotes.some((note) => note.title.toLowerCase() === normalizedQuery)
   ) {
     options.push({
       label: `Create "${query.trim()}"`,
@@ -424,13 +430,13 @@ function createWikilinkDecorations(
       continue;
     }
 
-    // Get note icon
-    let noteIcon = '📝';
+    // Get icon from note type
+    let icon = '📝';
     if (wikilink.exists && wikilink.noteId) {
       const note = notes.find((n) => n.id === wikilink.noteId);
       if (note) {
         const noteType = noteTypes.find((t) => t.id === note.type);
-        noteIcon = noteType?.icon || '📝';
+        icon = noteType?.icon || '📝';
       }
     }
 
@@ -449,7 +455,7 @@ function createWikilinkDecorations(
       wikilink.from,
       wikilink.to,
       isSelected,
-      noteIcon
+      icon
     );
 
     decorations.push(

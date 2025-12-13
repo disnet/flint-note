@@ -13,9 +13,11 @@
     createNote,
     setActiveNoteId,
     addNoteToWorkspace,
-    type Note
+    type Note,
+    type PropertyDefinition
   } from '../lib/automerge';
   import EmojiPicker from './EmojiPicker.svelte';
+  import AutomergePropertyEditor from './AutomergePropertyEditor.svelte';
 
   interface Props {
     selectedTypeId?: string | null;
@@ -49,15 +51,11 @@
   let newTypePurpose = $state('');
   let createError = $state<string | null>(null);
 
-  // UI state for editing a type
-  let isEditing = $state(false);
-  let editName = $state('');
-  let editIcon = $state('');
-  let editPurpose = $state('');
-  let editError = $state<string | null>(null);
-
   // UI state for delete confirmation
   let showDeleteConfirm = $state(false);
+
+  // Auto-save timeout
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Reset create form
   function resetCreateForm(): void {
@@ -97,50 +95,22 @@
     }
   }
 
-  // Start editing the selected type
-  function startEditing(): void {
-    if (!selectedType) return;
-    editName = selectedType.name;
-    editIcon = selectedType.icon;
-    editPurpose = selectedType.purpose;
-    editError = null;
-    isEditing = true;
+  // Schedule auto-save for type fields
+  function scheduleTypeAutoSave(field: 'name' | 'purpose' | 'icon', value: string): void {
+    if (!selectedTypeId) return;
+
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+      updateNoteType(selectedTypeId, { [field]: value });
+    }, 500);
   }
 
-  // Cancel editing
-  function cancelEditing(): void {
-    isEditing = false;
-    editError = null;
-  }
-
-  // Save edits to the selected type
-  function saveEdits(): void {
-    if (!selectedTypeId || !editName.trim()) {
-      editError = 'Name is required';
-      return;
-    }
-
-    // Check for duplicate name (excluding current type)
-    const existingType = noteTypes.find(
-      (t) =>
-        t.id !== selectedTypeId && t.name.toLowerCase() === editName.trim().toLowerCase()
-    );
-    if (existingType) {
-      editError = 'A type with this name already exists';
-      return;
-    }
-
-    try {
-      updateNoteType(selectedTypeId, {
-        name: editName.trim(),
-        purpose: editPurpose.trim(),
-        icon: editIcon || undefined
-      });
-      isEditing = false;
-      editError = null;
-    } catch (err) {
-      editError = err instanceof Error ? err.message : 'Failed to save changes';
-    }
+  // Update type field immediately (for select/emoji changes)
+  function updateTypeField(field: 'name' | 'purpose' | 'icon', value: string): void {
+    if (!selectedTypeId) return;
+    updateNoteType(selectedTypeId, { [field]: value });
   }
 
   // Handle archiving the selected type
@@ -170,11 +140,23 @@
   // Reset state when selection changes
   $effect(() => {
     if (selectedTypeId) {
-      isEditing = false;
-      editError = null;
       showDeleteConfirm = false;
     }
   });
+
+  // Handle property updates
+  function handlePropertiesUpdate(properties: PropertyDefinition[]): void {
+    if (!selectedTypeId) return;
+    // Use $state.snapshot to get plain objects for Automerge
+    updateNoteType(selectedTypeId, { properties: $state.snapshot(properties) });
+  }
+
+  // Handle editor chips updates
+  function handleEditorChipsUpdate(chips: string[]): void {
+    if (!selectedTypeId) return;
+    // Use $state.snapshot to get plain objects for Automerge
+    updateNoteType(selectedTypeId, { editorChips: $state.snapshot(chips) });
+  }
 </script>
 
 <div class="note-types-view">
@@ -198,144 +180,121 @@
       </div>
 
       <div class="type-title-section">
-        {#if isEditing}
-          <div class="edit-form">
-            <div class="form-group">
-              <label for="edit-name" class="form-label">Name</label>
+        <div class="type-header">
+          <div class="type-info">
+            <div class="emoji-picker-large">
+              <EmojiPicker
+                value={selectedType.icon || '📄'}
+                onselect={(emoji) => updateTypeField('icon', emoji)}
+              />
+            </div>
+            <div class="type-name-group">
               <input
-                id="edit-name"
                 type="text"
-                class="form-input"
-                bind:value={editName}
+                class="type-name-input"
+                value={selectedType.name}
+                oninput={(e) => scheduleTypeAutoSave('name', e.currentTarget.value)}
                 placeholder="Type name"
               />
+              <span class="note-count">{getNoteCount(selectedTypeId || '')} notes</span>
             </div>
+          </div>
+          <div class="type-actions">
+            <button class="btn btn-primary" onclick={handleCreateNote}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New Note
+            </button>
+          </div>
+        </div>
 
-            <div class="form-group">
-              <span class="form-label">Icon</span>
-              <EmojiPicker
-                bind:value={editIcon}
-                onselect={(emoji) => (editIcon = emoji)}
-              />
-            </div>
+        <textarea
+          class="type-purpose-input"
+          value={selectedType.purpose || ''}
+          oninput={(e) => scheduleTypeAutoSave('purpose', e.currentTarget.value)}
+          placeholder="Brief description of what this type is for..."
+        ></textarea>
+      </div>
+      <!-- Properties section -->
+      <div class="type-properties">
+        <AutomergePropertyEditor
+          properties={selectedType.properties ?? []}
+          onUpdate={handlePropertiesUpdate}
+          editorChips={selectedType.editorChips ?? []}
+          onEditorChipsUpdate={handleEditorChipsUpdate}
+        />
+      </div>
 
-            <div class="form-group">
-              <label for="edit-purpose" class="form-label">Purpose</label>
-              <textarea
-                id="edit-purpose"
-                class="form-textarea"
-                bind:value={editPurpose}
-                placeholder="Brief description of what this type is for..."
-                rows="3"
-              ></textarea>
-            </div>
-
-            {#if editError}
-              <div class="error-message">{editError}</div>
-            {/if}
-
-            <div class="form-actions">
-              <button class="btn btn-secondary" onclick={cancelEditing}>Cancel</button>
-              <button class="btn btn-primary" onclick={saveEdits}>Save Changes</button>
-            </div>
+      <!-- Notes in this type -->
+      <div class="type-notes">
+        <h2 class="section-title">Notes</h2>
+        {#if getNotesForType(selectedTypeId || '').length > 0}
+          <div class="notes-list">
+            {#each getNotesForType(selectedTypeId || '') as note (note.id)}
+              <button
+                class="note-item"
+                onclick={() => handleNoteClick(note.id)}
+                type="button"
+              >
+                <span class="note-title">{note.title || 'Untitled'}</span>
+                <span class="note-date"
+                  >{new Date(note.updated).toLocaleDateString()}</span
+                >
+              </button>
+            {/each}
           </div>
         {:else}
-          <div class="type-header">
-            <div class="type-info">
-              <span class="type-icon-large">{selectedType.icon || '📄'}</span>
-              <div class="type-name-group">
-                <h1 class="type-name">{selectedType.name}</h1>
-                <span class="note-count">{getNoteCount(selectedTypeId || '')} notes</span>
-              </div>
-            </div>
-            <div class="type-actions">
-              <button class="btn btn-secondary" onclick={startEditing}>Edit</button>
-              <button class="btn btn-primary" onclick={handleCreateNote}>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New Note
-              </button>
-            </div>
+          <div class="empty-notes">
+            <p>No notes of this type yet.</p>
+            <button class="btn btn-secondary" onclick={handleCreateNote}>
+              Create first note
+            </button>
           </div>
-
-          {#if selectedType.purpose}
-            <p class="type-purpose">{selectedType.purpose}</p>
-          {/if}
         {/if}
       </div>
 
-      {#if !isEditing}
-        <!-- Notes in this type -->
-        <div class="type-notes">
-          <h2 class="section-title">Notes</h2>
-          {#if getNotesForType(selectedTypeId || '').length > 0}
-            <div class="notes-list">
-              {#each getNotesForType(selectedTypeId || '') as note (note.id)}
+      <!-- Danger zone -->
+      {#if selectedType.id !== 'type-default'}
+        <div class="danger-zone">
+          <h3 class="danger-title">Danger Zone</h3>
+          {#if showDeleteConfirm}
+            <div class="delete-confirm">
+              <p>Are you sure you want to archive this note type?</p>
+              {#if getNoteCount(selectedTypeId || '') > 0}
+                <p class="warning-text">
+                  Notes using this type will keep their assignment, but the type won't
+                  appear in lists.
+                </p>
+              {/if}
+              <div class="confirm-actions">
                 <button
-                  class="note-item"
-                  onclick={() => handleNoteClick(note.id)}
-                  type="button"
+                  class="btn btn-secondary"
+                  onclick={() => (showDeleteConfirm = false)}
                 >
-                  <span class="note-title">{note.title || 'Untitled'}</span>
-                  <span class="note-date"
-                    >{new Date(note.updated).toLocaleDateString()}</span
-                  >
+                  Cancel
                 </button>
-              {/each}
+                <button class="btn btn-danger" onclick={handleArchiveType}>
+                  Archive Type
+                </button>
+              </div>
             </div>
           {:else}
-            <div class="empty-notes">
-              <p>No notes of this type yet.</p>
-              <button class="btn btn-secondary" onclick={handleCreateNote}>
-                Create first note
-              </button>
-            </div>
+            <button
+              class="btn btn-danger-outline"
+              onclick={() => (showDeleteConfirm = true)}
+            >
+              Archive Note Type
+            </button>
           {/if}
         </div>
-
-        <!-- Danger zone -->
-        {#if selectedType.id !== 'type-default'}
-          <div class="danger-zone">
-            <h3 class="danger-title">Danger Zone</h3>
-            {#if showDeleteConfirm}
-              <div class="delete-confirm">
-                <p>Are you sure you want to archive this note type?</p>
-                {#if getNoteCount(selectedTypeId || '') > 0}
-                  <p class="warning-text">
-                    Notes using this type will keep their assignment, but the type won't
-                    appear in lists.
-                  </p>
-                {/if}
-                <div class="confirm-actions">
-                  <button
-                    class="btn btn-secondary"
-                    onclick={() => (showDeleteConfirm = false)}
-                  >
-                    Cancel
-                  </button>
-                  <button class="btn btn-danger" onclick={handleArchiveType}>
-                    Archive Type
-                  </button>
-                </div>
-              </div>
-            {:else}
-              <button
-                class="btn btn-danger-outline"
-                onclick={() => (showDeleteConfirm = true)}
-              >
-                Archive Note Type
-              </button>
-            {/if}
-          </div>
-        {/if}
       {/if}
     </div>
   {:else}
@@ -595,8 +554,13 @@
     gap: 1rem;
   }
 
-  .type-icon-large {
-    font-size: 2.5rem;
+  .emoji-picker-large {
+    font-size: 2rem;
+  }
+
+  .emoji-picker-large :global(button) {
+    font-size: 2rem;
+    padding: 0.25rem;
   }
 
   .type-name-group {
@@ -605,16 +569,69 @@
     gap: 0.25rem;
   }
 
-  .type-name {
+  .type-name-input {
     margin: 0;
+    padding: 0.25rem 0.5rem;
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    width: 100%;
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .type-name-input:hover {
+    background: var(--bg-secondary);
+  }
+
+  .type-name-input:focus {
+    outline: none;
+    background: var(--bg-primary);
+    border-color: var(--accent-primary);
   }
 
   .note-count {
     font-size: 0.875rem;
     color: var(--text-secondary);
+  }
+
+  .type-purpose-input {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+    min-height: 1.5em;
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .type-purpose-input:hover {
+    background: var(--bg-secondary);
+  }
+
+  .type-purpose-input:focus {
+    outline: none;
+    background: var(--bg-primary);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+  }
+
+  .type-purpose-input::placeholder {
+    color: var(--text-muted);
   }
 
   .type-actions {
@@ -623,11 +640,10 @@
     flex-shrink: 0;
   }
 
-  .type-purpose {
-    margin: 1rem 0 0;
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
+  /* Type Properties */
+  .type-properties {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-light);
   }
 
   /* Type Notes */
@@ -691,13 +707,6 @@
   .empty-notes p,
   .empty-types p {
     margin: 0 0 1rem;
-  }
-
-  /* Edit Form */
-  .edit-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
   }
 
   /* Form Elements */
