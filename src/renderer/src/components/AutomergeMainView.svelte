@@ -229,140 +229,142 @@
         {/if}
       </div>
 
-      {#if activeSystemView === 'settings'}
-        <div class="settings-panel">
-          <h2>Settings</h2>
-          <div class="settings-group">
-            <label>
-              <span>Theme</span>
-              <select bind:value={settingsStore.settings.appearance.theme}>
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-          </div>
+      <div class="content-wrapper">
+        {#if activeSystemView === 'settings'}
+          <div class="settings-panel">
+            <h2>Settings</h2>
+            <div class="settings-group">
+              <label>
+                <span>Theme</span>
+                <select bind:value={settingsStore.settings.appearance.theme}>
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+            </div>
 
-          <div class="settings-divider"></div>
+            <div class="settings-divider"></div>
 
-          <!-- File Sync Settings -->
-          <AutomergeVaultSyncSettings />
+            <!-- File Sync Settings -->
+            <AutomergeVaultSyncSettings />
 
-          <button class="close-settings" onclick={() => (activeSystemView = null)}
-            >Close</button
-          >
-        </div>
-      {:else if activeSystemView === 'search'}
-        <!-- Dedicated Search View -->
-        <div class="search-view">
-          <div class="search-view-header">
-            <h2>Search Results ({searchResults.length})</h2>
-            <span class="search-query-label">for "{searchQuery}"</span>
-            <button
-              class="close-search-btn"
-              onclick={() => (activeSystemView = null)}
-              aria-label="Close search"
+            <button class="close-settings" onclick={() => (activeSystemView = null)}
+              >Close</button
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
-          <div class="search-view-content">
-            <AutomergeSearchResults
-              results={searchResults}
-              onSelect={handleSearchResultSelect}
-              maxResults={50}
-            />
-          </div>
-        </div>
-      {:else if activeSystemView === 'types'}
-        <!-- Note Types View -->
-        <AutomergeNoteTypesView
-          selectedTypeId={selectedNoteTypeId}
-          onTypeSelect={handleNoteTypeSelect}
-          onNoteSelect={handleNoteSelectFromTypes}
-        />
-      {:else if activeSystemView === 'daily'}
-        <!-- Daily View -->
-        <AutomergeDailyView onNoteSelect={handleNoteSelect} />
-      {:else if activeSystemView === 'notes'}
-        <!-- All Notes View -->
-        <div class="all-notes-view">
-          <div class="all-notes-header">
-            <h2>All Notes ({notes.length})</h2>
-            <button class="create-btn" onclick={handleCreateNote}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              New Note
-            </button>
-          </div>
-          <div class="notes-grid">
-            {#each notes as note (note.id)}
+        {:else if activeSystemView === 'search'}
+          <!-- Dedicated Search View -->
+          <div class="search-view">
+            <div class="search-view-header">
+              <h2>Search Results ({searchResults.length})</h2>
+              <span class="search-query-label">for "{searchQuery}"</span>
               <button
-                class="note-card"
-                class:active={activeNoteId === note.id}
-                onclick={() => handleNoteSelect(note)}
+                class="close-search-btn"
+                onclick={() => (activeSystemView = null)}
+                aria-label="Close search"
               >
-                <div class="note-card-icon">
-                  {getNoteTypes().find((t) => t.id === note.type)?.icon || '📝'}
-                </div>
-                <div class="note-card-content">
-                  <span class="note-card-title">{note.title || 'Untitled'}</span>
-                  <span class="note-card-preview"
-                    >{note.content.slice(0, 100) || 'No content'}</span
-                  >
-                  <span class="note-card-date"
-                    >{new Date(note.updated).toLocaleDateString()}</span
-                  >
-                </div>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
-            {/each}
-            {#if notes.length === 0}
-              <div class="empty-notes">
-                <p>No notes yet</p>
-                <button class="create-first-btn" onclick={handleCreateNote}>
-                  Create your first note
+            </div>
+            <div class="search-view-content">
+              <AutomergeSearchResults
+                results={searchResults}
+                onSelect={handleSearchResultSelect}
+                maxResults={50}
+              />
+            </div>
+          </div>
+        {:else if activeSystemView === 'types'}
+          <!-- Note Types View -->
+          <AutomergeNoteTypesView
+            selectedTypeId={selectedNoteTypeId}
+            onTypeSelect={handleNoteTypeSelect}
+            onNoteSelect={handleNoteSelectFromTypes}
+          />
+        {:else if activeSystemView === 'daily'}
+          <!-- Daily View -->
+          <AutomergeDailyView onNoteSelect={handleNoteSelect} />
+        {:else if activeSystemView === 'notes'}
+          <!-- All Notes View -->
+          <div class="all-notes-view">
+            <div class="all-notes-header">
+              <h2>All Notes ({notes.length})</h2>
+              <button class="create-btn" onclick={handleCreateNote}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Note
+              </button>
+            </div>
+            <div class="notes-grid">
+              {#each notes as note (note.id)}
+                <button
+                  class="note-card"
+                  class:active={activeNoteId === note.id}
+                  onclick={() => handleNoteSelect(note)}
+                >
+                  <div class="note-card-icon">
+                    {getNoteTypes().find((t) => t.id === note.type)?.icon || '📝'}
+                  </div>
+                  <div class="note-card-content">
+                    <span class="note-card-title">{note.title || 'Untitled'}</span>
+                    <span class="note-card-preview"
+                      >{note.content.slice(0, 100) || 'No content'}</span
+                    >
+                    <span class="note-card-date"
+                      >{new Date(note.updated).toLocaleDateString()}</span
+                    >
+                  </div>
                 </button>
-              </div>
-            {/if}
+              {/each}
+              {#if notes.length === 0}
+                <div class="empty-notes">
+                  <p>No notes yet</p>
+                  <button class="create-first-btn" onclick={handleCreateNote}>
+                    Create your first note
+                  </button>
+                </div>
+              {/if}
+            </div>
           </div>
-        </div>
-      {:else if activeNote}
-        <AutomergeNoteEditor
-          note={activeNote}
-          onTitleChange={(title) => updateNote(activeNote.id, { title })}
-          onContentChange={(content) => updateNote(activeNote.id, { content })}
-          onArchive={() => handleArchiveNote(activeNote.id)}
-        />
-      {:else}
-        <div class="empty-editor">
-          <div class="empty-editor-content">
-            <h2>Select a note to edit</h2>
-            <p>Or create a new note with ⌘N</p>
-            <button class="create-note-btn" onclick={handleCreateNote}>
-              Create Note
-            </button>
+        {:else if activeNote}
+          <AutomergeNoteEditor
+            note={activeNote}
+            onTitleChange={(title) => updateNote(activeNote.id, { title })}
+            onContentChange={(content) => updateNote(activeNote.id, { content })}
+            onArchive={() => handleArchiveNote(activeNote.id)}
+          />
+        {:else}
+          <div class="empty-editor">
+            <div class="empty-editor-content">
+              <h2>Select a note to edit</h2>
+              <p>Or create a new note with ⌘N</p>
+              <button class="create-note-btn" onclick={handleCreateNote}>
+                Create Note
+              </button>
+            </div>
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
   </div>
 </div>
@@ -499,6 +501,18 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Content wrapper for centering with max-width */
+  .content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 70ch;
+    margin: 0 auto;
+    padding: 0 1rem;
     overflow: hidden;
   }
 
