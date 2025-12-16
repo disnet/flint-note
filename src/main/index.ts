@@ -13,6 +13,7 @@ import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { ToolService } from './tool-service';
+import { ChatServer } from './chat-server';
 
 // Type for accessing private properties of AIService
 type AIServiceWithPrivateProps = {
@@ -46,6 +47,7 @@ import {
 
 // Module-level service references
 let noteService: NoteService | null = null;
+let chatServerInstance: ChatServer | null = null;
 
 interface FrontendMessage {
   id: string;
@@ -478,6 +480,17 @@ app.whenReady().then(async () => {
 
   // Initialize Secure Storage service
   const secureStorageService = new SecureStorageService();
+
+  // Initialize Chat Server for AI SDK useChat integration
+  chatServerInstance = new ChatServer(secureStorageService);
+  let chatServerPort = 0;
+  try {
+    chatServerPort = await chatServerInstance.start();
+    logger.info('Chat Server initialized', { port: chatServerPort });
+  } catch (error) {
+    logger.error('Failed to initialize Chat Server', { error });
+    logger.warn('AI chat via useChat will not be available');
+  }
 
   // Initialize Settings Storage service
   const settingsStorageService = new SettingsStorageService();
@@ -2085,6 +2098,11 @@ app.whenReady().then(async () => {
       throw new Error('Secure storage service not available');
     }
     return await secureStorageService.getOpenRouterCredits();
+  });
+
+  // Chat server port handler (for useChat integration)
+  ipcMain.handle('get-chat-server-port', async () => {
+    return chatServerPort;
   });
 
   // Cache performance monitoring handlers
@@ -3759,6 +3777,13 @@ app.on('before-quit', async (event) => {
     logger.info('Disposing Automerge vault repos');
     disposeAllVaultRepos();
     logger.info('Automerge vault repos disposed');
+
+    // Stop chat server
+    if (chatServerInstance) {
+      logger.info('Stopping chat server');
+      await chatServerInstance.stop();
+      logger.info('Chat server stopped');
+    }
 
     // Mark cleanup as complete
     hasCompletedCleanup = true;

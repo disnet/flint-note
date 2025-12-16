@@ -28,6 +28,9 @@
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
+  import AutomergeChatFAB from './AutomergeChatFAB.svelte';
+  import AutomergeChatPanel from './AutomergeChatPanel.svelte';
+  import AutomergeAPIKeySettings from './AutomergeAPIKeySettings.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -52,6 +55,7 @@
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
   let selectedNoteTypeId = $state<string | null>(null);
+  let chatPanelOpen = $state(false);
 
   // Enhanced search results with highlighting
   const searchResults: SearchResult[] = $derived(
@@ -254,6 +258,11 @@
 
               <div class="settings-divider"></div>
 
+              <!-- API Key Settings -->
+              <AutomergeAPIKeySettings />
+
+              <div class="settings-divider"></div>
+
               <!-- File Sync Settings -->
               <AutomergeVaultSyncSettings />
 
@@ -405,6 +414,21 @@
     </div>
   </div>
 {/if}
+
+<!-- AI Chat FAB and Panel -->
+<AutomergeChatFAB
+  isOpen={chatPanelOpen}
+  onToggle={() => (chatPanelOpen = !chatPanelOpen)}
+/>
+
+<AutomergeChatPanel
+  isOpen={chatPanelOpen}
+  onClose={() => (chatPanelOpen = false)}
+  onGoToSettings={() => {
+    activeSystemView = 'settings';
+    chatPanelOpen = false;
+  }}
+/>
 
 <style>
   .main-view {

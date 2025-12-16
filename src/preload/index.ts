@@ -436,6 +436,10 @@ const api = {
     remaining_credits: number;
   } | null> => electronAPI.ipcRenderer.invoke('get-openrouter-credits'),
 
+  // Chat server port (for useChat integration)
+  getChatServerPort: (): Promise<number> =>
+    electronAPI.ipcRenderer.invoke('get-chat-server-port'),
+
   // Cache monitoring operations
   getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),
   getCachePerformanceSnapshot: () =>

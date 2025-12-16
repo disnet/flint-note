@@ -438,6 +438,9 @@ declare global {
         remaining_credits: number;
       } | null>;
 
+      // Chat server operations (for useChat integration)
+      getChatServerPort: () => Promise<number>;
+
       // Pinned notes storage operations
       loadPinnedNotes: (params: { vaultId: string }) => Promise<any>;
       savePinnedNotes: (params: { vaultId: string; notes: unknown[] }) => Promise<any>;
