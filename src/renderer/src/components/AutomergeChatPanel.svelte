@@ -2,12 +2,14 @@
   /**
    * AI Chat Panel Component
    *
-   * A floating chat panel that uses the AI SDK Chat class to communicate
-   * with the local chat server. Displays conversation messages and allows
-   * users to send messages to the AI assistant.
+   * A floating chat panel that uses a custom ChatService to communicate
+   * with the AI via a proxy server. Supports tool calling for note operations.
    */
-  import { Chat, type UIMessage } from '@ai-sdk/svelte';
-  import { TextStreamChatTransport } from 'ai';
+  import {
+    createChatService,
+    type ChatService,
+    type ChatMessage
+  } from '../lib/automerge/chat-service.svelte';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
 
@@ -27,8 +29,8 @@
   let apiKeyConfigured = $state<boolean | null>(null);
   let initError = $state<string | null>(null);
 
-  // Chat instance
-  let chat = $state<Chat | null>(null);
+  // Chat service instance
+  let chatService = $state<ChatService | null>(null);
 
   // Local input state for the textarea
   let localInput = $state('');
@@ -45,40 +47,36 @@
         const isValid = await window.api?.testApiKey({ provider: 'openrouter' });
         apiKeyConfigured = isValid ?? false;
 
-        // Initialize Chat instance when port is available
+        // Initialize ChatService when port is available
         if (port && isValid) {
-          const transport = new TextStreamChatTransport({
-            api: `http://localhost:${port}/api/chat`
-          });
-          chat = new Chat({ transport });
+          chatService = createChatService(port);
         }
       } catch (error) {
         console.error('Failed to initialize chat panel:', error);
-        initError =
-          error instanceof Error ? error.message : 'Failed to initialize chat';
+        initError = error instanceof Error ? error.message : 'Failed to initialize chat';
       }
     };
     init();
   });
 
-  // Derived state from chat
-  const messages = $derived(chat?.messages ?? []);
-  const status = $derived(chat?.status ?? 'ready');
-  const error = $derived(chat?.error);
-  const isLoading = $derived(status === 'submitted' || status === 'streaming');
+  // Derived state from chat service
+  const messages = $derived(chatService?.messages ?? []);
+  const status = $derived(chatService?.status ?? 'ready');
+  const error = $derived(chatService?.error);
+  const isLoading = $derived(status === 'submitting' || status === 'streaming');
 
   // Handle form submit
   async function handleSubmit(
     event: SubmitEvent & { currentTarget: HTMLFormElement }
   ): Promise<void> {
     event.preventDefault();
-    if (!chat || !localInput.trim() || isLoading) return;
+    if (!chatService || !localInput.trim() || isLoading) return;
 
     const messageText = localInput.trim();
     localInput = ''; // Clear input immediately
 
     try {
-      await chat.sendMessage({ text: messageText });
+      await chatService.sendMessage(messageText);
     } catch (err) {
       console.error('Failed to send message:', err);
     }
@@ -98,16 +96,14 @@
     }
   }
 
-  // Helper to get text content from UIMessage
-  function getMessageText(message: UIMessage): string {
-    // UIMessage v5 uses parts array, not content
-    if (Array.isArray(message.parts)) {
-      return message.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => ('text' in part ? part.text : ''))
-        .join('');
-    }
-    return '';
+  // Helper to get text content from ChatMessage
+  function getMessageText(message: ChatMessage): string {
+    return message.content;
+  }
+
+  // Check if message has tool calls
+  function hasToolCalls(message: ChatMessage): boolean {
+    return (message.toolCalls?.length ?? 0) > 0;
   }
 </script>
 
@@ -162,9 +158,7 @@
           </div>
           <h4>API Key Required</h4>
           <p>Configure your OpenRouter API key in Settings to start chatting.</p>
-          <button class="setup-button" onclick={onGoToSettings}>
-            Open Settings
-          </button>
+          <button class="setup-button" onclick={onGoToSettings}> Open Settings </button>
         </div>
       {:else if !serverPort || apiKeyConfigured === null}
         <!-- Loading state -->
@@ -195,15 +189,49 @@
                     class:user={message.role === 'user'}
                     class:assistant={message.role === 'assistant'}
                   >
-                    <ConversationMessage
-                      content={getMessageText(message)}
-                      role={message.role === 'user' ? 'user' : 'agent'}
-                      variant="bubble"
-                      noAnimation={true}
-                    />
+                    {#if hasToolCalls(message)}
+                      <!-- Show tool calls indicator -->
+                      <div class="tool-calls-indicator">
+                        {#each message.toolCalls ?? [] as toolCall (toolCall.id)}
+                          <div
+                            class="tool-call"
+                            class:running={toolCall.status === 'running'}
+                            class:completed={toolCall.status === 'completed'}
+                          >
+                            <span class="tool-icon">
+                              {#if toolCall.status === 'running'}
+                                <span class="tool-spinner"></span>
+                              {:else}
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                >
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              {/if}
+                            </span>
+                            <span class="tool-name"
+                              >{toolCall.name.replace(/_/g, ' ')}</span
+                            >
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                    {#if getMessageText(message)}
+                      <ConversationMessage
+                        content={getMessageText(message)}
+                        role={message.role === 'user' ? 'user' : 'agent'}
+                        variant="bubble"
+                        noAnimation={true}
+                      />
+                    {/if}
                   </div>
                 {/each}
-                {#if isLoading}
+                {#if isLoading && messages.length > 0 && !messages[messages.length - 1].content && !hasToolCalls(messages[messages.length - 1])}
                   <div class="typing-indicator">
                     <span></span>
                     <span></span>
@@ -547,5 +575,55 @@
   .send-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* Tool calls indicator */
+  .tool-calls-indicator {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .tool-call {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .tool-call.running {
+    background: var(--accent-primary-light, rgba(59, 130, 246, 0.1));
+    color: var(--accent-primary);
+  }
+
+  .tool-call.completed {
+    background: var(--success-bg, rgba(34, 197, 94, 0.1));
+    color: var(--success-text, #22c55e);
+  }
+
+  .tool-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+  }
+
+  .tool-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .tool-name {
+    text-transform: capitalize;
   }
 </style>

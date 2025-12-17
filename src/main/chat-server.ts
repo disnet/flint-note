@@ -1,70 +1,18 @@
 /**
- * HTTP Chat Server for AI SDK useChat integration
+ * HTTP Chat Server - Proxy for OpenRouter API
  *
- * This server provides HTTP endpoints that the @ai-sdk/svelte useChat hook
- * can communicate with. It runs on localhost only for security.
+ * This server acts as a proxy that forwards requests to OpenRouter while
+ * adding the API key from secure storage. This keeps the API key secure
+ * in the main process while allowing the renderer to handle AI logic.
+ *
+ * Runs on localhost only for security.
  */
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
-import { streamText } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 
-interface ModelMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-// UIMessage format from @ai-sdk/svelte Chat class
-interface UIMessagePart {
-  type: string;
-  text?: string;
-}
-
-interface UIMessage {
-  id?: string;
-  role: 'user' | 'assistant' | 'system';
-  content?: string;
-  parts?: UIMessagePart[];
-}
-
-interface ChatRequestBody {
-  messages: UIMessage[];
-  model?: string;
-}
-
-/**
- * Convert UIMessage to ModelMessage format
- * UIMessage uses parts array, ModelMessage uses content string
- */
-function convertToModelMessage(msg: UIMessage): ModelMessage {
-  // If it already has content string, use it
-  if (typeof msg.content === 'string') {
-    return { role: msg.role, content: msg.content };
-  }
-
-  // Convert parts array to content string
-  if (Array.isArray(msg.parts)) {
-    const textContent = msg.parts
-      .filter((part) => part.type === 'text' && part.text)
-      .map((part) => part.text)
-      .join('');
-    return { role: msg.role, content: textContent };
-  }
-
-  return { role: msg.role, content: '' };
-}
-
-const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
-
-const SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You help users with:
-- Answering questions about their notes and knowledge
-- Brainstorming and generating ideas
-- Writing assistance and editing
-- General questions and problem-solving
-
-Be concise, helpful, and friendly. When relevant, suggest how users might organize their thoughts into notes.`;
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export class ChatServer {
   private server: Server | null = null;
@@ -149,20 +97,21 @@ export class ChatServer {
       return;
     }
 
-    // Only handle POST /api/chat
-    if (req.method !== 'POST' || req.url !== '/api/chat') {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
+    // Handle POST /api/chat/proxy/* - forward to OpenRouter
+    // The AI SDK appends /chat/completions to the baseURL
+    if (req.method === 'POST' && req.url?.startsWith('/api/chat/proxy')) {
+      await this.handleProxyRequest(req, res);
       return;
     }
 
-    await this.handleChatRequest(req, res);
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
   }
 
   /**
-   * Handle chat request - stream response using AI SDK
+   * Handle proxy request - forward to OpenRouter with API key
    */
-  private async handleChatRequest(
+  private async handleProxyRequest(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<void> {
@@ -171,14 +120,6 @@ export class ChatServer {
     if (!body) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid request body' }));
-      return;
-    }
-
-    const { messages, model } = body as ChatRequestBody;
-
-    if (!messages || !Array.isArray(messages)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Messages array required' }));
       return;
     }
 
@@ -195,41 +136,32 @@ export class ChatServer {
     }
 
     try {
-      // Create OpenRouter provider with API key
-      const openrouter = createOpenRouter({
-        apiKey
+      // Forward request to OpenRouter with API key
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://flintnote.com',
+          'X-Title': 'Flint Notes'
+        },
+        body: JSON.stringify(body)
       });
 
-      // Convert UIMessages to ModelMessages and add system prompt
-      const convertedMessages = messages.map(convertToModelMessage);
-      const messagesWithSystem: ModelMessage[] = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...convertedMessages
-      ];
-
-      // Stream the response
-      const result = streamText({
-        model: openrouter(model || DEFAULT_MODEL),
-        messages: messagesWithSystem
-      });
-
-      // Convert to text stream response and pipe to response
-      const dataStreamResponse = result.toTextStreamResponse();
-
-      // Copy headers from the data stream response
-      const headers = dataStreamResponse.headers;
-      headers.forEach((value, key) => {
-        res.setHeader(key, value);
-      });
-
-      // Add CORS header
+      // Copy response headers
       res.setHeader('Access-Control-Allow-Origin', '*');
 
-      res.writeHead(dataStreamResponse.status);
+      // Forward content-type header
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      }
 
-      // Stream the body
-      if (dataStreamResponse.body) {
-        const reader = dataStreamResponse.body.getReader();
+      res.writeHead(response.status);
+
+      // Stream the response body
+      if (response.body) {
+        const reader = response.body.getReader();
         const pump = async (): Promise<void> => {
           const { done, value } = await reader.read();
           if (done) {
@@ -244,7 +176,7 @@ export class ChatServer {
         res.end();
       }
     } catch (error) {
-      logger.error('Chat request failed', { error });
+      logger.error('Proxy request failed', { error });
 
       // Check if headers have already been sent (streaming started)
       if (res.headersSent) {
@@ -252,7 +184,6 @@ export class ChatServer {
         return;
       }
 
-      // Handle specific error types
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
 
