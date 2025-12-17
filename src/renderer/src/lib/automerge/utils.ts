@@ -55,6 +55,22 @@ export function generateVaultId(): string {
 }
 
 /**
+ * Generate a conversation ID
+ * Format: "conv-xxxxxxxx"
+ */
+export function generateConversationId(): string {
+  return generateId('conv');
+}
+
+/**
+ * Generate a message ID
+ * Format: "msg-xxxxxxxx"
+ */
+export function generateMessageId(): string {
+  return generateId('msg');
+}
+
+/**
  * Get current ISO timestamp
  */
 export function nowISO(): string {

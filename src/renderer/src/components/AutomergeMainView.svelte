@@ -19,8 +19,11 @@
     createVault,
     switchVault,
     searchNotesEnhanced,
+    getActiveConversationId,
+    setActiveConversationId,
     type Note,
-    type SearchResult
+    type SearchResult,
+    type Conversation
   } from '../lib/automerge';
   import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
@@ -31,6 +34,7 @@
   import AutomergeChatFAB from './AutomergeChatFAB.svelte';
   import AutomergeChatPanel from './AutomergeChatPanel.svelte';
   import AutomergeAPIKeySettings from './AutomergeAPIKeySettings.svelte';
+  import AutomergeConversationList from './AutomergeConversationList.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -49,7 +53,7 @@
   // UI state
   let searchQuery = $state('');
   let activeSystemView = $state<
-    'notes' | 'settings' | 'search' | 'types' | 'daily' | null
+    'notes' | 'settings' | 'search' | 'types' | 'daily' | 'conversations' | null
   >(null);
   let showCreateVaultModal = $state(false);
   let newVaultName = $state('');
@@ -112,7 +116,7 @@
   }
 
   function handleSystemViewSelect(
-    view: 'notes' | 'settings' | 'types' | 'daily' | null
+    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
   ): void {
     activeSystemView = view;
     if (view) {
@@ -122,6 +126,21 @@
     if (view !== 'types') {
       selectedNoteTypeId = null;
     }
+  }
+
+  // Handle conversation selection from conversations view
+  function handleConversationSelectFromView(conv: Conversation): void {
+    setActiveConversationId(conv.id);
+    chatPanelOpen = true;
+    activeSystemView = null;
+  }
+
+  // Handle new conversation from conversations view
+  function handleNewConversationFromView(): void {
+    // Clear active conversation - ChatService will create new on first message
+    setActiveConversationId(null);
+    chatPanelOpen = true;
+    activeSystemView = null;
   }
 
   function handleNoteTypeSelect(typeId: string | null): void {
@@ -312,6 +331,34 @@
           {:else if activeSystemView === 'daily'}
             <!-- Daily View -->
             <AutomergeDailyView onNoteSelect={handleNoteSelect} />
+          {:else if activeSystemView === 'conversations'}
+            <!-- Conversations View -->
+            <div class="conversations-view">
+              <div class="conversations-view-header">
+                <h2>Conversations</h2>
+                <button class="create-btn" onclick={handleNewConversationFromView}>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  New Chat
+                </button>
+              </div>
+              <div class="conversations-list-wrapper">
+                <AutomergeConversationList
+                  activeConversationId={getActiveConversationId()}
+                  onConversationSelect={handleConversationSelectFromView}
+                  onNewConversation={handleNewConversationFromView}
+                />
+              </div>
+            </div>
           {:else if activeSystemView === 'notes'}
             <!-- All Notes View -->
             <div class="all-notes-view">
@@ -898,5 +945,37 @@
 
   .modal-btn.primary:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* Conversations View */
+  .conversations-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 1.5rem;
+    max-width: 600px;
+  }
+
+  .conversations-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+
+  .conversations-view-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .conversations-list-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
   }
 </style>

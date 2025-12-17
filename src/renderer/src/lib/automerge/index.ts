@@ -14,7 +14,10 @@ export type {
   Vault,
   PropertyType,
   PropertyConstraints,
-  PropertyDefinition
+  PropertyDefinition,
+  Conversation,
+  PersistedChatMessage,
+  PersistedToolCall
 } from './types';
 
 // State management
@@ -113,7 +116,24 @@ export {
   getWeekData,
   ensureDailyNoteType,
   type DayData,
-  type WeekData
+  type WeekData,
+
+  // Conversation getters
+  getConversations,
+  getRecentConversations,
+  getConversation,
+  getActiveConversation,
+  getActiveConversationId,
+
+  // Conversation mutations
+  createConversation,
+  addMessageToConversation,
+  updateConversationMessage,
+  updateConversation,
+  archiveConversation,
+  deleteConversation,
+  setActiveConversationId,
+  bumpConversationToRecent
 } from './state.svelte';
 
 // Repo utilities
@@ -126,6 +146,8 @@ export {
   generateWorkspaceId,
   generateNoteTypeId,
   generateVaultId,
+  generateConversationId,
+  generateMessageId,
   nowISO
 } from './utils';
 

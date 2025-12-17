@@ -87,6 +87,8 @@ export interface Workspace {
   recentNoteIds: string[];
   /** ISO timestamp of creation */
   created: string;
+  /** Ordered list of recent conversation IDs (optional for backward compatibility) */
+  recentConversationIds?: string[];
 }
 
 /**
@@ -112,6 +114,60 @@ export interface NoteType {
 }
 
 /**
+ * A persisted tool call in a conversation
+ */
+export interface PersistedToolCall {
+  /** Unique identifier */
+  id: string;
+  /** Tool function name */
+  name: string;
+  /** Arguments passed to the tool */
+  args: Record<string, unknown>;
+  /** Result returned by the tool */
+  result?: unknown;
+  /** Execution status */
+  status: 'pending' | 'running' | 'completed' | 'error';
+  /** Error message if status is 'error' */
+  error?: string;
+}
+
+/**
+ * A persisted message in a conversation
+ */
+export interface PersistedChatMessage {
+  /** Unique identifier, format: "msg-xxxxxxxx" */
+  id: string;
+  /** Message role */
+  role: 'user' | 'assistant' | 'system';
+  /** Message content (markdown) */
+  content: string;
+  /** Tool calls made by assistant (if any) */
+  toolCalls?: PersistedToolCall[];
+  /** ISO timestamp of creation */
+  createdAt: string;
+}
+
+/**
+ * A conversation containing chat messages
+ */
+export interface Conversation {
+  /** Unique identifier, format: "conv-xxxxxxxx" */
+  id: string;
+  /** Auto-generated from first user message, or "New Conversation" */
+  title: string;
+  /** Workspace this conversation belongs to */
+  workspaceId: string;
+  /** Ordered list of messages */
+  messages: PersistedChatMessage[];
+  /** ISO timestamp of creation */
+  created: string;
+  /** ISO timestamp of last activity */
+  updated: string;
+  /** Soft delete flag */
+  archived: boolean;
+}
+
+/**
  * The root Automerge document structure
  */
 export interface NotesDocument {
@@ -125,6 +181,8 @@ export interface NotesDocument {
   noteTypes: Record<string, NoteType>;
   /** Ordered list of workspace IDs for display order */
   workspaceOrder?: string[];
+  /** All conversations keyed by ID (optional for backward compatibility) */
+  conversations?: Record<string, Conversation>;
 }
 
 /**

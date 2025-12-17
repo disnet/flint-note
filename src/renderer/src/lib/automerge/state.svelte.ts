@@ -14,9 +14,18 @@ import type {
   NotesDocument,
   Vault,
   Workspace,
-  PropertyDefinition
+  PropertyDefinition,
+  Conversation,
+  PersistedChatMessage
 } from './types';
-import { generateNoteId, generateWorkspaceId, generateNoteTypeId, nowISO } from './utils';
+import {
+  generateNoteId,
+  generateWorkspaceId,
+  generateNoteTypeId,
+  generateConversationId,
+  generateMessageId,
+  nowISO
+} from './utils';
 import {
   createRepo,
   getRepo,
@@ -50,6 +59,7 @@ let activeVaultId = $state<string | null>(null);
 
 // UI state (not persisted in Automerge)
 let activeNoteId = $state<string | null>(null);
+let activeConversationId = $state<string | null>(null);
 
 // Loading states
 let isInitialized = $state(false);
@@ -1291,6 +1301,280 @@ function addDaysToDateString(dateString: string, daysToAdd: number): string {
 
 // Note: State variables cannot be exported directly because they are reassigned.
 // Use the getter functions instead: getIsInitialized(), getIsLoading(), etc.
+
+// --- Conversation getters (reactive) ---
+
+/**
+ * Get all non-archived conversations for the active workspace, sorted by updated (newest first)
+ */
+export function getConversations(): Conversation[] {
+  const workspace = getActiveWorkspace();
+  if (!workspace) return [];
+
+  const conversations = currentDoc.conversations ?? {};
+  return (
+    Object.values(conversations)
+      .filter((conv) => !conv.archived && conv.workspaceId === workspace.id)
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+  );
+}
+
+/**
+ * Get recent conversations for the active workspace (ordered by recency list)
+ */
+export function getRecentConversations(): Conversation[] {
+  const workspace = getActiveWorkspace();
+  if (!workspace) return [];
+
+  const recentIds = workspace.recentConversationIds ?? [];
+  const conversations = currentDoc.conversations ?? {};
+
+  return recentIds
+    .map((id) => conversations[id])
+    .filter((conv): conv is Conversation => conv !== undefined && !conv.archived);
+}
+
+/**
+ * Get a conversation by ID
+ */
+export function getConversation(id: string): Conversation | undefined {
+  return currentDoc.conversations?.[id];
+}
+
+/**
+ * Get the active conversation
+ */
+export function getActiveConversation(): Conversation | undefined {
+  if (!activeConversationId) return undefined;
+  return currentDoc.conversations?.[activeConversationId];
+}
+
+/**
+ * Get the active conversation ID
+ */
+export function getActiveConversationId(): string | null {
+  return activeConversationId;
+}
+
+// --- Conversation mutations ---
+
+/**
+ * Create a new conversation
+ * @returns The new conversation's ID
+ */
+export function createConversation(params?: { title?: string }): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const workspace = getActiveWorkspace();
+  if (!workspace) throw new Error('No active workspace');
+
+  const id = generateConversationId();
+  const now = nowISO();
+
+  docHandle.change((doc) => {
+    // Ensure conversations record exists
+    if (!doc.conversations) {
+      doc.conversations = {};
+    }
+
+    doc.conversations[id] = {
+      id,
+      title: params?.title || 'New Conversation',
+      workspaceId: workspace.id,
+      messages: [],
+      created: now,
+      updated: now,
+      archived: false
+    };
+
+    // Add to workspace's recent conversations
+    const ws = doc.workspaces[doc.activeWorkspaceId];
+    if (ws) {
+      if (!ws.recentConversationIds) {
+        ws.recentConversationIds = [];
+      }
+      ws.recentConversationIds.unshift(id);
+      // Limit to 20 recent conversations
+      if (ws.recentConversationIds.length > 20) {
+        ws.recentConversationIds = ws.recentConversationIds.slice(0, 20);
+      }
+    }
+  });
+
+  return id;
+}
+
+/**
+ * Add a message to a conversation
+ * @returns The new message's ID
+ */
+export function addMessageToConversation(
+  conversationId: string,
+  message: Omit<PersistedChatMessage, 'id' | 'createdAt'>
+): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const messageId = generateMessageId();
+  const now = nowISO();
+
+  docHandle.change((doc) => {
+    const conv = doc.conversations?.[conversationId];
+    if (!conv) return;
+
+    conv.messages.push({
+      ...message,
+      id: messageId,
+      createdAt: now
+    });
+    conv.updated = now;
+
+    // Auto-generate title from first user message
+    if (conv.title === 'New Conversation' && message.role === 'user') {
+      const preview = message.content.slice(0, 50).trim();
+      conv.title = preview + (message.content.length > 50 ? '...' : '');
+    }
+  });
+
+  return messageId;
+}
+
+/**
+ * Update a message in a conversation (for streaming updates)
+ */
+export function updateConversationMessage(
+  conversationId: string,
+  messageId: string,
+  updates: Partial<Pick<PersistedChatMessage, 'content' | 'toolCalls'>>
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const conv = doc.conversations?.[conversationId];
+    if (!conv) return;
+
+    const message = conv.messages.find((m) => m.id === messageId);
+    if (!message) return;
+
+    if (updates.content !== undefined) message.content = updates.content;
+    if (updates.toolCalls !== undefined) message.toolCalls = updates.toolCalls;
+    conv.updated = nowISO();
+  });
+}
+
+/**
+ * Update conversation metadata
+ */
+export function updateConversation(
+  id: string,
+  updates: Partial<Pick<Conversation, 'title'>>
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const conv = doc.conversations?.[id];
+    if (!conv) return;
+
+    if (updates.title !== undefined) conv.title = updates.title;
+    conv.updated = nowISO();
+  });
+}
+
+/**
+ * Archive a conversation (soft delete)
+ */
+export function archiveConversation(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const conv = doc.conversations?.[id];
+    if (conv) {
+      conv.archived = true;
+      conv.updated = nowISO();
+    }
+
+    // Remove from all workspace recentConversationIds
+    for (const wsId of Object.keys(doc.workspaces)) {
+      const ws = doc.workspaces[wsId];
+      if (ws.recentConversationIds) {
+        const index = ws.recentConversationIds.indexOf(id);
+        if (index !== -1) {
+          ws.recentConversationIds.splice(index, 1);
+        }
+      }
+    }
+  });
+
+  // Clear active if it was archived
+  if (activeConversationId === id) {
+    activeConversationId = null;
+  }
+}
+
+/**
+ * Delete a conversation permanently
+ */
+export function deleteConversation(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (doc.conversations) {
+      delete doc.conversations[id];
+    }
+
+    // Remove from all workspace recentConversationIds
+    for (const wsId of Object.keys(doc.workspaces)) {
+      const ws = doc.workspaces[wsId];
+      if (ws.recentConversationIds) {
+        const index = ws.recentConversationIds.indexOf(id);
+        if (index !== -1) {
+          ws.recentConversationIds.splice(index, 1);
+        }
+      }
+    }
+  });
+
+  if (activeConversationId === id) {
+    activeConversationId = null;
+  }
+}
+
+/**
+ * Set the active conversation
+ */
+export function setActiveConversationId(id: string | null): void {
+  activeConversationId = id;
+}
+
+/**
+ * Bump conversation to front of workspace's recent list
+ */
+export function bumpConversationToRecent(conversationId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const ws = doc.workspaces[doc.activeWorkspaceId];
+    if (!ws) return;
+
+    if (!ws.recentConversationIds) {
+      ws.recentConversationIds = [];
+    }
+
+    // Remove if already present
+    const existingIndex = ws.recentConversationIds.indexOf(conversationId);
+    if (existingIndex !== -1) {
+      ws.recentConversationIds.splice(existingIndex, 1);
+    }
+
+    // Add to front
+    ws.recentConversationIds.unshift(conversationId);
+
+    // Limit to 20
+    if (ws.recentConversationIds.length > 20) {
+      ws.recentConversationIds = ws.recentConversationIds.slice(0, 20);
+    }
+  });
+}
 
 // --- File Sync Functions ---
 

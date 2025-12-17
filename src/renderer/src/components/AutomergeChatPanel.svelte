@@ -10,8 +10,10 @@
     type ChatService,
     type ChatMessage
   } from '../lib/automerge/chat-service.svelte';
+  import { getActiveConversation, type Conversation } from '../lib/automerge';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
+  import AutomergeConversationList from './AutomergeConversationList.svelte';
 
   interface Props {
     /** Whether the panel is currently open */
@@ -34,6 +36,9 @@
 
   // Local input state for the textarea
   let localInput = $state('');
+
+  // History panel state
+  let showHistory = $state(false);
 
   // Initialize server port and check API key on mount
   $effect(() => {
@@ -64,6 +69,11 @@
   const status = $derived(chatService?.status ?? 'ready');
   const error = $derived(chatService?.error);
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
+  const conversationId = $derived(chatService?.conversationId ?? null);
+  const activeConversation = $derived(getActiveConversation());
+
+  // Get conversation title
+  const conversationTitle = $derived(activeConversation?.title ?? 'AI Assistant');
 
   // Handle form submit
   async function handleSubmit(
@@ -105,6 +115,25 @@
   function hasToolCalls(message: ChatMessage): boolean {
     return (message.toolCalls?.length ?? 0) > 0;
   }
+
+  // Handle conversation selection from history
+  function handleConversationSelect(conv: Conversation): void {
+    if (!chatService) return;
+    chatService.loadConversation(conv.id);
+    showHistory = false;
+  }
+
+  // Handle new conversation
+  function handleNewConversation(): void {
+    if (!chatService) return;
+    chatService.startNewConversation();
+    showHistory = false;
+  }
+
+  // Toggle history panel
+  function toggleHistory(): void {
+    showHistory = !showHistory;
+  }
 </script>
 
 {#if isOpen}
@@ -112,12 +141,11 @@
     <div class="chat-panel-inner">
       <!-- Header -->
       <div class="chat-header">
-        <h3>AI Assistant</h3>
         <button
-          class="close-button"
-          onclick={onClose}
-          title="Close"
-          aria-label="Close chat"
+          class="header-btn"
+          onclick={toggleHistory}
+          title="Conversation history"
+          aria-label="Toggle conversation history"
         >
           <svg
             width="16"
@@ -127,11 +155,61 @@
             stroke="currentColor"
             stroke-width="2"
           >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         </button>
+        <h3 class="header-title" title={conversationTitle}>{conversationTitle}</h3>
+        <div class="header-actions">
+          <button
+            class="header-btn"
+            onclick={handleNewConversation}
+            title="New conversation"
+            aria-label="Start new conversation"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button
+            class="header-btn"
+            onclick={onClose}
+            title="Close"
+            aria-label="Close chat"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
+
+      <!-- History panel (slide-out) -->
+      {#if showHistory}
+        <div class="history-panel">
+          <AutomergeConversationList
+            activeConversationId={conversationId}
+            onConversationSelect={handleConversationSelect}
+            onNewConversation={handleNewConversation}
+          />
+        </div>
+      {/if}
 
       <!-- Content -->
       {#if initError}
@@ -326,20 +404,31 @@
   .chat-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
   }
 
-  .chat-header h3 {
+  .header-title {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .close-button {
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .header-btn {
     padding: 4px;
     border: none;
     background: none;
@@ -351,9 +440,22 @@
     justify-content: center;
   }
 
-  .close-button:hover {
+  .header-btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  /* History panel */
+  .history-panel {
+    position: absolute;
+    top: 49px; /* Below header */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-primary);
+    z-index: 10;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-light);
   }
 
   /* States */

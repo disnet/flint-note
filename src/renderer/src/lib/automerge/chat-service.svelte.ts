@@ -15,6 +15,15 @@ import {
 } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
+import {
+  createConversation,
+  addMessageToConversation,
+  updateConversationMessage,
+  getConversation,
+  setActiveConversationId,
+  bumpConversationToRecent
+} from './state.svelte';
+import type { PersistedToolCall } from './types';
 
 /**
  * Message format for chat UI
@@ -62,13 +71,6 @@ When users want to modify notes:
 Be concise and helpful. When showing note content, format it nicely. Always confirm before making changes to notes.`;
 
 /**
- * Generate a unique message ID
- */
-function generateId(): string {
-  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-/**
  * Chat Service class that manages AI conversations with tool support
  */
 export class ChatService {
@@ -76,7 +78,9 @@ export class ChatService {
   private _messages = $state<ChatMessage[]>([]);
   private _status = $state<ChatStatus>('ready');
   private _error = $state<Error | null>(null);
+  private _conversationId = $state<string | null>(null);
   private abortController: AbortController | null = null;
+  private currentAssistantMessageId: string | null = null;
 
   constructor(proxyPort: number) {
     this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
@@ -111,6 +115,45 @@ export class ChatService {
   }
 
   /**
+   * Get current conversation ID (reactive)
+   */
+  get conversationId(): string | null {
+    return this._conversationId;
+  }
+
+  /**
+   * Load an existing conversation
+   */
+  loadConversation(conversationId: string): void {
+    const conversation = getConversation(conversationId);
+    if (!conversation) return;
+
+    this._conversationId = conversationId;
+    // Convert persisted messages to ChatMessage format
+    this._messages = conversation.messages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      toolCalls: m.toolCalls,
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
+      createdAt: new Date(m.createdAt)
+    }));
+    setActiveConversationId(conversationId);
+    bumpConversationToRecent(conversationId);
+  }
+
+  /**
+   * Start a new conversation (clears current and creates new)
+   */
+  startNewConversation(): string {
+    this.clearMessages();
+    const id = createConversation();
+    this._conversationId = id;
+    setActiveConversationId(id);
+    return id;
+  }
+
+  /**
    * Send a message and stream the response
    */
   async sendMessage(text: string): Promise<void> {
@@ -119,9 +162,19 @@ export class ChatService {
     // Clear any previous error
     this._error = null;
 
-    // Add user message
+    // Ensure we have a conversation
+    if (!this._conversationId) {
+      this._conversationId = createConversation();
+      setActiveConversationId(this._conversationId);
+    }
+
+    // Add user message and persist
+    const userMessageId = addMessageToConversation(this._conversationId, {
+      role: 'user',
+      content: text.trim()
+    });
     const userMessage: ChatMessage = {
-      id: generateId(),
+      id: userMessageId,
       role: 'user',
       content: text.trim(),
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
@@ -129,9 +182,15 @@ export class ChatService {
     };
     this._messages = [...this._messages, userMessage];
 
-    // Create assistant message placeholder
+    // Create assistant message placeholder and persist
+    const assistantMessageId = addMessageToConversation(this._conversationId, {
+      role: 'assistant',
+      content: '',
+      toolCalls: []
+    });
+    this.currentAssistantMessageId = assistantMessageId;
     const assistantMessage: ChatMessage = {
-      id: generateId(),
+      id: assistantMessageId,
       role: 'assistant',
       content: '',
       toolCalls: [],
@@ -276,26 +335,39 @@ export class ChatService {
   }
 
   /**
-   * Clear all messages
+   * Clear all messages and reset conversation
    */
   clearMessages(): void {
     this._messages = [];
+    this._conversationId = null;
+    this.currentAssistantMessageId = null;
     this._error = null;
     this._status = 'ready';
   }
 
   /**
-   * Helper to update the last assistant message
+   * Helper to update the last assistant message (also persists to Automerge)
    */
   private updateLastAssistantMessage(updater: (msg: ChatMessage) => void): void {
     const lastIndex = this._messages.length - 1;
     if (lastIndex >= 0 && this._messages[lastIndex].role === 'assistant') {
       // Create a new array to trigger reactivity
       const newMessages = [...this._messages];
-      const msg = { ...newMessages[lastIndex] };
+      const msg = {
+        ...newMessages[lastIndex],
+        toolCalls: [...(newMessages[lastIndex].toolCalls || [])]
+      };
       updater(msg);
       newMessages[lastIndex] = msg;
       this._messages = newMessages;
+
+      // Persist to Automerge
+      if (this._conversationId && this.currentAssistantMessageId) {
+        updateConversationMessage(this._conversationId, this.currentAssistantMessageId, {
+          content: msg.content,
+          toolCalls: msg.toolCalls as PersistedToolCall[] | undefined
+        });
+      }
     }
   }
 }

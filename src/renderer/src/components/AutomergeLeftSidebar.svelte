@@ -19,14 +19,23 @@
   } from '../lib/automerge';
 
   interface Props {
-    activeSystemView: 'notes' | 'settings' | 'search' | 'types' | 'daily' | null;
+    activeSystemView:
+      | 'notes'
+      | 'settings'
+      | 'search'
+      | 'types'
+      | 'daily'
+      | 'conversations'
+      | null;
     searchQuery: string;
     searchResults: SearchResult[];
     searchInputFocused: boolean;
     vaults: Vault[];
     activeVault: Vault | null;
     onNoteSelect: (note: Note) => void;
-    onSystemViewSelect: (view: 'notes' | 'settings' | 'types' | 'daily' | null) => void;
+    onSystemViewSelect: (
+      view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
+    ) => void;
     onCreateNote?: () => void;
     onSearchChange: (query: string) => void;
     onSearchFocus: () => void;

@@ -11,7 +11,7 @@ The AI chat agent provides a conversational interface for users to interact with
 - **AI SDK v5** (`ai` package) - Vercel's AI SDK for streaming responses and tool execution
 - **OpenRouter** - Default AI provider (supports multiple models)
 - **Electron Secure Storage** - System keychain for API key storage
-- **Automerge** - CRDT-based note storage (tools execute directly against it)
+- **Automerge** - CRDT-based storage for notes and conversations (tools execute directly against it)
 
 ## Architecture Diagram
 
@@ -19,34 +19,37 @@ The AI chat agent provides a conversational interface for users to interact with
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Renderer Process (Svelte)                                                  │
 │                                                                             │
-│  ┌─────────────────────┐                                                    │
-│  │ AutomergeChatFAB    │ ◄── Toggle button (bottom-right)                   │
-│  └─────────────────────┘                                                    │
+│  ┌─────────────────────┐    ┌──────────────────────────┐                    │
+│  │ AutomergeChatFAB    │    │ AutomergeConversationList│                    │
+│  │ (bottom-right)      │    │ (sidebar + panel history)│                    │
+│  └─────────────────────┘    └──────────────────────────┘                    │
+│            │                           │                                    │
+│            ▼                           ▼                                    │
+│  ┌─────────────────────────────────────────────────────┐                    │
+│  │ AutomergeChatPanel                                  │                    │
+│  │                                                     │                    │
+│  │ • ChatService (streaming + persistence)             │                    │
+│  │ • Tool UI display                                   │                    │
+│  │ • Conversation history panel                        │                    │
+│  └─────────────────────────────────────────────────────┘                    │
 │            │                                                                │
 │            ▼                                                                │
-│  ┌─────────────────────┐                                                    │
-│  │ AutomergeChatPanel  │                                                    │
-│  │                     │                                                    │
-│  │ • ChatService       │──┐                                                 │
-│  │ • Tool UI display   │  │                                                 │
-│  └─────────────────────┘  │                                                 │
-│            │              │                                                 │
-│            ▼              │                                                 │
-│  ┌─────────────────────┐  │    HTTP POST              ┌──────────────────┐  │
-│  │ ChatService         │  │    /api/chat/proxy/*      │ ChatServer       │  │
-│  │                     │──┼──────────────────────────►│ (main process)   │  │
-│  │ • streamText()      │  │                           │                  │  │
-│  │ • Tool definitions  │  │◄──────────────────────────│ • Adds API key   │  │
-│  │ • Tool execution    │  │    Proxied response       │ • Forwards to    │  │
-│  └─────────────────────┘  │                           │   OpenRouter     │  │
-│            │              │                           └────────┬─────────┘  │
-│            ▼              │                                    │            │
-│  ┌─────────────────────┐  │                                    ▼            │
-│  │ Note Tools          │  │                           ┌──────────────────┐  │
-│  │                     │◄─┘ (tool execution)          │ SecureStorage    │  │
-│  │ • search_notes      │                              │ Service          │  │
-│  │ • get_note          │                              │ (OS Keychain)    │  │
-│  │ • create_note       │                              └──────────────────┘  │
+│  ┌─────────────────────┐       HTTP POST              ┌──────────────────┐  │
+│  │ ChatService         │       /api/chat/proxy/*      │ ChatServer       │  │
+│  │                     │─────────────────────────────►│ (main process)   │  │
+│  │ • streamText()      │                              │                  │  │
+│  │ • Tool definitions  │◄─────────────────────────────│ • Adds API key   │  │
+│  │ • Tool execution    │       Proxied response       │ • Forwards to    │  │
+│  │ • Persistence       │                              │   OpenRouter     │  │
+│  └─────────────────────┘                              └────────┬─────────┘  │
+│            │                                                   │            │
+│            ▼                                                   ▼            │
+│  ┌─────────────────────┐                              ┌──────────────────┐  │
+│  │ Note Tools          │                              │ SecureStorage    │  │
+│  │                     │                              │ Service          │  │
+│  │ • search_notes      │                              │ (OS Keychain)    │  │
+│  │ • get_note          │                              └──────────────────┘  │
+│  │ • create_note       │                                                    │
 │  │ • update_note       │                                                    │
 │  │ • archive_note      │                                                    │
 │  │ • list_notes        │                                                    │
@@ -54,10 +57,15 @@ The AI chat agent provides a conversational interface for users to interact with
 │  └─────────────────────┘                                                    │
 │            │                                                                │
 │            ▼                                                                │
-│  ┌─────────────────────┐                                                    │
-│  │ Automerge State     │ ◄── Direct access (no IPC)                         │
-│  │ (IndexedDB)         │                                                    │
-│  └─────────────────────┘                                                    │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ Automerge State (IndexedDB)                                             ││
+│  │                                                                         ││
+│  │ NotesDocument:                                                          ││
+│  │ ├── notes: Record<string, Note>                                         ││
+│  │ ├── conversations: Record<string, Conversation>  ◄── Persisted chats    ││
+│  │ └── workspaces: Record<string, Workspace>                               ││
+│  │         └── recentConversationIds: string[]      ◄── Recent order       ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -87,6 +95,67 @@ Renderer                          Main Process (Proxy)            OpenRouter
 - Tools execute directly against Automerge (no IPC per tool call)
 - Web version can use same code, just point to a cloud proxy instead of localhost
 
+## Conversation Persistence
+
+Conversations are persisted in Automerge, allowing users to continue previous chats and reference them later.
+
+### Data Model
+
+```typescript
+interface Conversation {
+  id: string;                      // "conv-xxxxxxxx" (linkable ID)
+  title: string;                   // Auto-generated from first user message
+  workspaceId: string;             // Workspace scope
+  messages: PersistedChatMessage[];
+  created: string;                 // ISO timestamp
+  updated: string;                 // ISO timestamp
+  archived: boolean;
+}
+
+interface PersistedChatMessage {
+  id: string;                      // "msg-xxxxxxxx"
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  toolCalls?: PersistedToolCall[];
+  createdAt: string;               // ISO timestamp
+}
+
+interface PersistedToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  error?: string;
+}
+```
+
+### Storage Structure
+
+Conversations are stored in the Automerge document:
+
+```typescript
+interface NotesDocument {
+  notes: Record<string, Note>;
+  workspaces: Record<string, Workspace>;
+  conversations?: Record<string, Conversation>;  // Optional for backward compatibility
+}
+
+interface Workspace {
+  // ... existing fields
+  recentConversationIds?: string[];  // Ordered list (max 20)
+}
+```
+
+### Key Behaviors
+
+- **Workspace-scoped**: Conversations belong to a workspace (like notes)
+- **Linkable IDs**: Format `conv-xxxxxxxx` allows referencing conversations
+- **Auto-title**: First 50 characters of first user message
+- **Recent list**: 20 most recent conversations per workspace
+- **Streaming persistence**: Messages updated in real-time during AI response
+- **Backward compatible**: Optional fields with graceful defaults
+
 ## Components
 
 ### Main Process
@@ -115,36 +184,57 @@ Existing service for secure API key storage using Electron's `safeStorage` API, 
 
 #### ChatService (`src/renderer/src/lib/automerge/chat-service.svelte.ts`)
 
-Manages AI chat conversations with tool support:
+Manages AI chat conversations with tool support and persistence:
 
 ```typescript
 import { streamText, stepCountIs } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
+import {
+  createConversation,
+  addMessageToConversation,
+  updateConversationMessage,
+  getConversation,
+  setActiveConversationId
+} from './state.svelte';
 
 export class ChatService {
   private proxyUrl: string;
   private _messages = $state<ChatMessage[]>([]);
   private _status = $state<ChatStatus>('ready');
+  private _conversationId = $state<string | null>(null);
+
+  // Load existing conversation
+  loadConversation(conversationId: string) {
+    const conversation = getConversation(conversationId);
+    if (conversation) {
+      this._conversationId = conversationId;
+      this._messages = conversation.messages.map(/* convert to ChatMessage */);
+      setActiveConversationId(conversationId);
+    }
+  }
+
+  // Start fresh conversation
+  startNewConversation() {
+    this._conversationId = null;
+    this._messages = [];
+    setActiveConversationId(null);
+  }
 
   async sendMessage(text: string) {
-    const tools = createNoteTools();
+    // Create conversation if needed
+    if (!this._conversationId) {
+      this._conversationId = createConversation({ title: text.slice(0, 50) });
+      setActiveConversationId(this._conversationId);
+    }
 
-    // Create provider that routes through proxy
-    const openrouter = createOpenRouter({
-      baseURL: this.proxyUrl,
-      apiKey: 'proxy-handled' // Dummy - real key added by proxy
+    // Persist user message
+    addMessageToConversation(this._conversationId, {
+      role: 'user',
+      content: text
     });
 
-    const result = streamText({
-      model: openrouter('anthropic/claude-sonnet-4'),
-      system: SYSTEM_PROMPT,
-      messages: coreMessages,
-      tools,
-      stopWhen: stepCountIs(5) // Allow up to 5 tool call rounds
-    });
-
-    // Process stream events...
+    // Stream AI response and persist updates...
   }
 }
 ```
@@ -155,20 +245,23 @@ export class ChatService {
 - Streaming text responses
 - Multi-step tool execution (up to 5 rounds)
 - Abort/cancel support
+- **Conversation persistence**: Messages saved to Automerge
+- **Load/resume**: Continue previous conversations
+- **Real-time updates**: Assistant messages updated during streaming
 
 #### Note Tools (`src/renderer/src/lib/automerge/note-tools.svelte.ts`)
 
 AI SDK tool definitions that execute directly against Automerge:
 
-| Tool           | Description                              |
-| -------------- | ---------------------------------------- |
-| `search_notes` | Search notes by query string             |
-| `get_note`     | Get a specific note by ID                |
-| `list_notes`   | List notes (sorted by last updated)      |
-| `create_note`  | Create a new note                        |
-| `update_note`  | Update note title/content                |
-| `archive_note` | Soft delete a note                       |
-| `get_backlinks`| Get notes that link to a specific note   |
+| Tool            | Description                            |
+| --------------- | -------------------------------------- |
+| `search_notes`  | Search notes by query string           |
+| `get_note`      | Get a specific note by ID              |
+| `list_notes`    | List notes (sorted by last updated)    |
+| `create_note`   | Create a new note                      |
+| `update_note`   | Update note title/content              |
+| `archive_note`  | Soft delete a note                     |
+| `get_backlinks` | Get notes that link to a specific note |
 
 ```typescript
 import { tool } from 'ai';
@@ -204,12 +297,17 @@ Floating action button:
 
 #### AutomergeChatPanel (`src/renderer/src/components/AutomergeChatPanel.svelte`)
 
-Chat interface using the ChatService:
+Chat interface using the ChatService with conversation history:
 
 ```typescript
-import { createChatService, type ChatService } from '../lib/automerge/chat-service.svelte';
+import {
+  createChatService,
+  type ChatService
+} from '../lib/automerge/chat-service.svelte';
+import { getActiveConversation } from '../lib/automerge/state.svelte';
 
 let chatService = $state<ChatService | null>(null);
+let showHistory = $state(false);
 
 // Initialize when port is available
 $effect(() => {
@@ -218,10 +316,16 @@ $effect(() => {
   }
 });
 
-// Reactive state
-const messages = $derived(chatService?.messages ?? []);
-const status = $derived(chatService?.status ?? 'ready');
-const isLoading = $derived(chatService?.isLoading ?? false);
+// Handle conversation selection from history
+function handleConversationSelect(conversation: Conversation) {
+  chatService?.loadConversation(conversation.id);
+  showHistory = false;
+}
+
+function handleNewConversation() {
+  chatService?.startNewConversation();
+  showHistory = false;
+}
 ```
 
 **Features**:
@@ -232,6 +336,31 @@ const isLoading = $derived(chatService?.isLoading ?? false);
 - Typing indicator during streaming
 - API key missing state with settings link
 - Error display
+- **History panel**: Slide-out panel showing recent conversations
+- **Conversation switching**: Load and continue previous chats
+- **New conversation button**: Start fresh chat
+
+#### AutomergeConversationList (`src/renderer/src/components/AutomergeConversationList.svelte`)
+
+Reusable component for displaying conversation history:
+
+```typescript
+interface Props {
+  activeConversationId: string | null;
+  onConversationSelect: (conversation: Conversation) => void;
+  onNewConversation: () => void;
+}
+```
+
+**Features**:
+
+- Lists recent conversations (workspace-scoped)
+- Shows title and relative timestamp
+- Highlights active conversation
+- Archive button per conversation
+- New conversation button
+- Empty state for no conversations
+- Used in both chat panel history and sidebar system view
 
 #### AutomergeAPIKeySettings (`src/renderer/src/components/AutomergeAPIKeySettings.svelte`)
 
@@ -329,18 +458,22 @@ Always confirm before making changes to notes.`;
 
 ## File Summary
 
-| File                                                              | Purpose                              |
-| ----------------------------------------------------------------- | ------------------------------------ |
-| `src/main/chat-server.ts`                                         | HTTP proxy for OpenRouter API        |
-| `src/main/index.ts`                                               | Server initialization, IPC handlers  |
-| `src/preload/index.ts`                                            | IPC bridge for getChatServerPort     |
-| `src/renderer/src/lib/automerge/chat-service.svelte.ts`           | Chat service with streaming & tools  |
-| `src/renderer/src/lib/automerge/note-tools.svelte.ts`             | AI tool definitions for notes        |
-| `src/renderer/src/components/AutomergeChatFAB.svelte`             | Floating action button               |
-| `src/renderer/src/components/AutomergeChatPanel.svelte`           | Chat interface                       |
-| `src/renderer/src/components/AutomergeAPIKeySettings.svelte`      | API key settings                     |
-| `src/renderer/src/components/AutomergeMainView.svelte`            | Integration point                    |
-| `src/renderer/index.html`                                         | CSP configuration                    |
+| File                                                              | Purpose                                    |
+| ----------------------------------------------------------------- | ------------------------------------------ |
+| `src/main/chat-server.ts`                                         | HTTP proxy for OpenRouter API              |
+| `src/main/index.ts`                                               | Server initialization, IPC handlers        |
+| `src/preload/index.ts`                                            | IPC bridge for getChatServerPort           |
+| `src/renderer/src/lib/automerge/types.ts`                         | Conversation and message type definitions  |
+| `src/renderer/src/lib/automerge/state.svelte.ts`                  | Conversation CRUD and state management     |
+| `src/renderer/src/lib/automerge/chat-service.svelte.ts`           | Chat service with streaming & persistence  |
+| `src/renderer/src/lib/automerge/note-tools.svelte.ts`             | AI tool definitions for notes              |
+| `src/renderer/src/components/AutomergeChatFAB.svelte`             | Floating action button                     |
+| `src/renderer/src/components/AutomergeChatPanel.svelte`           | Chat interface with history                |
+| `src/renderer/src/components/AutomergeConversationList.svelte`    | Conversation list component                |
+| `src/renderer/src/components/AutomergeAPIKeySettings.svelte`      | API key settings                           |
+| `src/renderer/src/components/AutomergeSystemViews.svelte`         | Sidebar navigation (includes Conversations)|
+| `src/renderer/src/components/AutomergeMainView.svelte`            | Integration point, conversations view      |
+| `src/renderer/index.html`                                         | CSP configuration                          |
 
 ## Future Enhancements
 
@@ -348,6 +481,6 @@ Potential improvements not yet implemented:
 
 - **Context injection** - Automatically include relevant notes in conversation
 - **Model selection** - UI to choose different models
-- **Conversation persistence** - Save chat history to Automerge
-- **Multiple conversations** - Support for chat threads
+- **Conversation search** - Search across conversation history
+- **Conversation export** - Export chat history to markdown
 - **More tools** - Note type management, workspace switching, etc.
