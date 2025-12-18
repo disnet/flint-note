@@ -771,16 +771,18 @@
 <div class="note-editor" onkeydown={handleKeyDown}>
   <!-- Header -->
   <div class="editor-header">
-    <div class="title-area">
-      <AutomergeNoteTypeDropdown noteId={note.id} currentTypeId={note.type} compact />
-      <textarea
-        bind:this={titleTextarea}
-        class="title-input"
-        value={note.title}
-        oninput={handleTitleInput}
-        placeholder="Untitled"
-        rows="1"
-      ></textarea>
+    <div class="header-row">
+      <div class="title-area">
+        <AutomergeNoteTypeDropdown noteId={note.id} currentTypeId={note.type} compact />
+        <textarea
+          bind:this={titleTextarea}
+          class="title-input"
+          value={note.title}
+          oninput={handleTitleInput}
+          placeholder="Untitled"
+          rows="1"
+        ></textarea>
+      </div>
     </div>
     <!-- Property Chips -->
     <AutomergeEditorChips
@@ -861,6 +863,7 @@
 
 <style>
   .note-editor {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -874,6 +877,13 @@
     align-items: flex-start;
     padding: 0;
     flex-shrink: 0;
+  }
+
+  /* Header row with title and actions */
+  .header-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
   }
 
   /* Title area with type icon positioned absolutely */

@@ -227,6 +227,17 @@ export interface NotesDocument {
   workspaceOrder?: string[];
   /** All conversations keyed by ID (optional for backward compatibility) */
   conversations?: Record<string, Conversation>;
+  /** Items on the shelf (optional for backward compatibility) */
+  shelfItems?: ShelfItemData[];
+}
+
+/**
+ * Shelf item stored in Automerge document
+ */
+export interface ShelfItemData {
+  type: 'note' | 'conversation';
+  id: string;
+  isExpanded: boolean;
 }
 
 /**

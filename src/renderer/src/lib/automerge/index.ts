@@ -21,7 +21,8 @@ export type {
   SidebarItemType,
   SidebarItemRef,
   SidebarItem,
-  ActiveItem
+  ActiveItem,
+  ShelfItemData
 } from './types';
 
 // State management
@@ -142,7 +143,16 @@ export {
   updateConversation,
   archiveConversation,
   deleteConversation,
-  bumpItemToRecent
+  bumpItemToRecent,
+
+  // Shelf items (persisted in Automerge)
+  getShelfItems,
+  isItemOnShelf,
+  addShelfItem,
+  removeShelfItem,
+  toggleShelfItemExpanded,
+  setShelfItemExpanded,
+  clearShelfItems
 } from './state.svelte';
 
 // Repo utilities
@@ -184,3 +194,7 @@ export type {
   SearchOptions,
   TextSegment
 } from './search.svelte';
+
+// Shelf state
+export { automergeShelfStore } from './shelf-state.svelte';
+export type { ShelfItem } from './shelf-state.svelte';

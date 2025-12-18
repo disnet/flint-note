@@ -415,6 +415,7 @@
 
 <style>
   .conversation-view {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -429,6 +430,7 @@
     align-items: flex-start;
     padding: 0;
     flex-shrink: 0;
+    gap: 8px;
   }
 
   /* Title area with icon positioned absolutely */

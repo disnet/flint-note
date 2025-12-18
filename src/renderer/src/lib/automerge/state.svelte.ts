@@ -1882,3 +1882,101 @@ export async function disableFileSync(): Promise<void> {
     vaults = [...vaults];
   }
 }
+
+// --- Shelf Items (persisted in Automerge) ---
+
+import type { ShelfItemData } from './types';
+
+/**
+ * Get all shelf items
+ */
+export function getShelfItems(): ShelfItemData[] {
+  return currentDoc.shelfItems ?? [];
+}
+
+/**
+ * Check if an item is on the shelf
+ */
+export function isItemOnShelf(type: 'note' | 'conversation', id: string): boolean {
+  const items = currentDoc.shelfItems ?? [];
+  return items.some((item) => item.type === type && item.id === id);
+}
+
+/**
+ * Add an item to the shelf
+ */
+export function addShelfItem(type: 'note' | 'conversation', id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Don't add if already on shelf
+  if (isItemOnShelf(type, id)) return;
+
+  docHandle.change((doc) => {
+    if (!doc.shelfItems) {
+      doc.shelfItems = [];
+    }
+    doc.shelfItems.push({ type, id, isExpanded: false });
+  });
+}
+
+/**
+ * Remove an item from the shelf
+ */
+export function removeShelfItem(type: 'note' | 'conversation', id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.shelfItems) return;
+    const index = doc.shelfItems.findIndex(
+      (item) => item.type === type && item.id === id
+    );
+    if (index !== -1) {
+      doc.shelfItems.splice(index, 1);
+    }
+  });
+}
+
+/**
+ * Toggle the expanded state of a shelf item
+ */
+export function toggleShelfItemExpanded(type: 'note' | 'conversation', id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.shelfItems) return;
+    const item = doc.shelfItems.find((i) => i.type === type && i.id === id);
+    if (item) {
+      item.isExpanded = !item.isExpanded;
+    }
+  });
+}
+
+/**
+ * Set the expanded state of a shelf item
+ */
+export function setShelfItemExpanded(
+  type: 'note' | 'conversation',
+  id: string,
+  expanded: boolean
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.shelfItems) return;
+    const item = doc.shelfItems.find((i) => i.type === type && i.id === id);
+    if (item && item.isExpanded !== expanded) {
+      item.isExpanded = expanded;
+    }
+  });
+}
+
+/**
+ * Clear all items from the shelf
+ */
+export function clearShelfItems(): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    doc.shelfItems = [];
+  });
+}

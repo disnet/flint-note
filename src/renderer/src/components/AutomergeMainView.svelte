@@ -20,6 +20,7 @@
     createVault,
     switchVault,
     searchNotesEnhanced,
+    automergeShelfStore,
     type Note,
     type SearchResult,
     type Conversation,
@@ -31,8 +32,9 @@
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
-  import AutomergeChatFAB from './AutomergeChatFAB.svelte';
+  import AutomergeFABMenu from './AutomergeFABMenu.svelte';
   import AutomergeChatPanel from './AutomergeChatPanel.svelte';
+  import AutomergeShelfPanel from './AutomergeShelfPanel.svelte';
   import AutomergeAPIKeySettings from './AutomergeAPIKeySettings.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
   import AutomergeConversationView from './AutomergeConversationView.svelte';
@@ -63,6 +65,26 @@
   let selectedNoteTypeId = $state<string | null>(null);
   let selectedConversationId = $state<string | null>(null);
   let chatPanelOpen = $state(false);
+  let shelfPanelOpen = $state(false);
+
+  // Open shelf panel (used by "Add to Shelf" buttons)
+  function openShelfPanel(): void {
+    shelfPanelOpen = true;
+    chatPanelOpen = false; // Mutual exclusion
+  }
+
+  // Add current active item to shelf
+  function handleAddToShelf(): void {
+    if (activeItem) {
+      automergeShelfStore.addItem(activeItem.type, activeItem.id);
+      openShelfPanel();
+    }
+  }
+
+  // Check if current item is on shelf
+  const isOnShelf = $derived(
+    activeItem ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id) : false
+  );
 
   // Enhanced search results with highlighting
   const searchResults: SearchResult[] = $derived(
@@ -271,13 +293,40 @@
             </svg>
           </button>
         {/if}
-        <button class="more-menu-button" title="More options">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="2"></circle>
-            <circle cx="12" cy="12" r="2"></circle>
-            <circle cx="12" cy="19" r="2"></circle>
-          </svg>
-        </button>
+        <div class="safe-zone-actions">
+          {#if activeItem}
+            <button
+              class="safe-zone-button"
+              class:on-shelf={isOnShelf}
+              onclick={handleAddToShelf}
+              disabled={isOnShelf}
+              title={isOnShelf ? 'On Shelf' : 'Add to Shelf'}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+                <path
+                  d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+                ></path>
+              </svg>
+            </button>
+          {/if}
+          <button class="more-menu-button" title="More options">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="scroll-container">
@@ -504,10 +553,18 @@
   </div>
 {/if}
 
-<!-- AI Chat FAB and Panel -->
-<AutomergeChatFAB
-  isOpen={chatPanelOpen}
-  onToggle={() => (chatPanelOpen = !chatPanelOpen)}
+<!-- FAB Menu and Panels -->
+<AutomergeFABMenu
+  chatOpen={chatPanelOpen}
+  shelfOpen={shelfPanelOpen}
+  onToggleChat={() => {
+    chatPanelOpen = !chatPanelOpen;
+    if (chatPanelOpen) shelfPanelOpen = false; // Mutual exclusion
+  }}
+  onToggleShelf={() => {
+    shelfPanelOpen = !shelfPanelOpen;
+    if (shelfPanelOpen) chatPanelOpen = false; // Mutual exclusion
+  }}
 />
 
 <AutomergeChatPanel
@@ -516,6 +573,17 @@
   onGoToSettings={() => {
     activeSystemView = 'settings';
     chatPanelOpen = false;
+  }}
+/>
+
+<AutomergeShelfPanel
+  isOpen={shelfPanelOpen}
+  onClose={() => (shelfPanelOpen = false)}
+  onNavigate={(type, id) => {
+    setActiveItem({ type, id });
+    addItemToWorkspace({ type, id });
+    activeSystemView = null;
+    shelfPanelOpen = false;
   }}
 />
 
@@ -567,6 +635,39 @@
     color: var(--text-primary);
   }
 
+  .safe-zone-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+    -webkit-app-region: no-drag;
+  }
+
+  .safe-zone-button {
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .safe-zone-button:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .safe-zone-button:disabled {
+    cursor: default;
+  }
+
+  .safe-zone-button.on-shelf {
+    color: var(--accent-primary);
+  }
+
   .more-menu-button {
     padding: 0.25rem;
     border: none;
@@ -574,11 +675,9 @@
     color: var(--text-secondary);
     cursor: pointer;
     border-radius: 0.25rem;
-    -webkit-app-region: no-drag;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: auto;
   }
 
   .more-menu-button:hover {

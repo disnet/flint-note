@@ -91,6 +91,14 @@ interface NotesDocument {
   activeWorkspaceId: string;
   noteTypes: Record<string, NoteType>;
   workspaceOrder?: string[]; // Ordered list of workspace IDs for display order
+  conversations?: Record<string, Conversation>;
+  shelfItems?: ShelfItemData[]; // Items on the shelf
+}
+
+interface ShelfItemData {
+  type: 'note' | 'conversation';
+  id: string;
+  isExpanded: boolean;
 }
 
 interface Vault {
@@ -156,6 +164,16 @@ Unified reactive state module (~800 lines) providing:
 **Backlinks:**
 
 - `getBacklinks(noteId)`: Returns notes that link to the given note with context
+
+**Shelf Operations:**
+
+- `getShelfItems()` - Get all shelf items
+- `isItemOnShelf(type, id)` - Check if item is on shelf
+- `addShelfItem(type, id)` - Add item to shelf
+- `removeShelfItem(type, id)` - Remove item from shelf
+- `toggleShelfItemExpanded(type, id)` - Toggle expanded state
+- `setShelfItemExpanded(type, id, expanded)` - Set expanded state
+- `clearShelfItems()` - Clear all shelf items
 
 #### `index.ts`
 
@@ -430,6 +448,46 @@ Action popover system for wikilinks with:
   - Proper focus management between editor and popovers
   - Selection restoration after edit
 
+#### Note Shelf (Complete)
+
+Implemented a floating shelf panel for quick access to frequently referenced notes and conversations:
+
+**Components:**
+
+- **`AutomergeFABMenu.svelte`** - Floating action button with hover expansion
+  - Shows plus icon by default
+  - On hover, expands to show Chat and Shelf buttons
+  - When a panel is open, shows close button instead
+  - Smooth animations and hover delay to prevent flickering
+
+- **`AutomergeShelfPanel.svelte`** - Floating shelf panel
+  - Slides in from the right side
+  - Header with title and close button
+  - Empty state with instructions
+  - Scrollable list of shelf items
+
+- **`AutomergeShelfItem.svelte`** - Individual shelf item
+  - Disclosure arrow for expand/collapse
+  - Type-specific icon (note emoji or chat bubble)
+  - Item title
+  - Remove button on hover
+  - Expandable content preview
+
+**State Management:**
+
+- Shelf items stored directly in Automerge document (`shelfItems` array)
+- Automatically persisted and synced with file sync
+- No separate storage mechanism needed
+- `shelf-state.svelte.ts` provides thin wrapper class for components
+
+**Integration:**
+
+- "Add to Shelf" button in safe-zone header (top-right)
+- Button only appears when a note or conversation is active
+- Button shows different state when item is already on shelf
+- Clicking "Add to Shelf" also opens the shelf panel
+- Mutual exclusion with chat panel (opening one closes the other)
+
 ### Phase 3: External File Sync (Complete)
 
 Implemented two-way sync between Automerge and markdown files on the filesystem:
@@ -636,6 +694,10 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeChatPanel.svelte` (AI chat interface)
 - `src/renderer/src/components/AutomergeChatInput.svelte` (chat message input)
 - `src/renderer/src/components/AutomergeChatFAB.svelte` (floating action button for chat)
+- `src/renderer/src/components/AutomergeFABMenu.svelte` (expandable FAB with chat/shelf options)
+- `src/renderer/src/components/AutomergeShelfPanel.svelte` (floating shelf panel)
+- `src/renderer/src/components/AutomergeShelfItem.svelte` (individual shelf item with expand/collapse)
+- `src/renderer/src/lib/automerge/shelf-state.svelte.ts` (shelf state wrapper)
 - `src/renderer/src/components/AutomergeConversationView.svelte` (full conversation view)
 - `src/renderer/src/components/AutomergeConversationList.svelte` (conversation list in chat panel)
 - `vite.renderer.config.ts`
