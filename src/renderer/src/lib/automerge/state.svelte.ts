@@ -19,7 +19,8 @@ import type {
   PersistedChatMessage,
   SidebarItemRef,
   SidebarItem,
-  ActiveItem
+  ActiveItem,
+  SystemView
 } from './types';
 import {
   generateNoteId,
@@ -60,8 +61,9 @@ let docHandle: DocHandle<NotesDocument> | null = null;
 let vaults = $state<Vault[]>([]);
 let activeVaultId = $state<string | null>(null);
 
-// UI state (not persisted in Automerge)
+// UI state (persisted in Automerge document's lastViewState)
 let activeItem = $state<ActiveItem>(null);
+let activeSystemView = $state<SystemView>(null);
 
 // Loading states
 let isInitialized = $state(false);
@@ -114,6 +116,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Ensure default note type exists (migration for existing vaults)
     ensureDefaultNoteType();
 
+    // Restore last view state if available
+    restoreLastViewState();
+
     // Subscribe to future changes
     handle.on('change', ({ doc }) => {
       currentDoc = doc;
@@ -153,6 +158,35 @@ function ensureDefaultNoteType(): void {
         };
       }
     });
+  }
+}
+
+/**
+ * Restore the last view state from the Automerge document
+ * Validates that referenced items still exist and aren't archived
+ */
+function restoreLastViewState(): void {
+  const doc = docHandle?.doc();
+  if (!doc?.lastViewState) return;
+
+  const { activeItem: lastActiveItem, systemView: lastSystemView } = doc.lastViewState;
+
+  // Restore system view (always valid since it's just a string enum)
+  activeSystemView = lastSystemView;
+
+  // Restore active item only if it still exists and isn't archived
+  if (lastActiveItem) {
+    if (lastActiveItem.type === 'note') {
+      const note = doc.notes[lastActiveItem.id];
+      if (note && !note.archived) {
+        activeItem = lastActiveItem;
+      }
+    } else if (lastActiveItem.type === 'conversation') {
+      const conv = doc.conversations?.[lastActiveItem.id];
+      if (conv && !conv.archived) {
+        activeItem = lastActiveItem;
+      }
+    }
   }
 }
 
@@ -245,8 +279,12 @@ export async function switchVault(
     currentDoc = doc;
   });
 
-  // Clear active item when switching vaults
+  // Reset view state before restoring from new vault
   activeItem = null;
+  activeSystemView = null;
+
+  // Restore last view state from the new vault
+  restoreLastViewState();
 
   return handle;
 }
@@ -396,9 +434,9 @@ export function archiveNote(id: string): void {
     }
   });
 
-  // Clear active item if it was archived
+  // Clear active item if it was archived (using setter for persistence)
   if (activeItem?.type === 'note' && activeItem.id === id) {
-    activeItem = null;
+    setActiveItem(null);
   }
 }
 
@@ -432,9 +470,9 @@ export function deleteNote(id: string): void {
     }
   });
 
-  // Clear active item if it was deleted
+  // Clear active item if it was deleted (using setter for persistence)
   if (activeItem?.type === 'note' && activeItem.id === id) {
-    activeItem = null;
+    setActiveItem(null);
   }
 }
 
@@ -761,12 +799,12 @@ export function removeItemFromWorkspace(ref: SidebarItemRef): SidebarItemRef | n
     }
   });
 
-  // Clear active item if it was removed
+  // Clear active item if it was removed (using setter for persistence)
   if (activeItem?.type === ref.type && activeItem.id === ref.id) {
     if (nextItem) {
-      activeItem = nextItem;
+      setActiveItem(nextItem);
     } else {
-      activeItem = null;
+      setActiveItem(null);
     }
   }
 
@@ -1127,7 +1165,21 @@ export function getNoteTypeEditorChips(typeId: string): string[] {
   return noteType?.editorChips ?? ['created', 'updated'];
 }
 
-// --- Active item (UI state, not persisted in Automerge) ---
+// --- Active item and system view (persisted in Automerge document) ---
+
+/**
+ * Persist the current view state to the Automerge document
+ */
+function persistViewState(): void {
+  if (!docHandle) return;
+
+  docHandle.change((doc) => {
+    doc.lastViewState = {
+      activeItem: activeItem ? { type: activeItem.type, id: activeItem.id } : null,
+      systemView: activeSystemView
+    };
+  });
+}
 
 /**
  * Get the currently active item
@@ -1137,10 +1189,26 @@ export function getActiveItem(): ActiveItem {
 }
 
 /**
- * Set the active item
+ * Set the active item (also persists to document)
  */
 export function setActiveItem(item: ActiveItem): void {
   activeItem = item;
+  persistViewState();
+}
+
+/**
+ * Get the currently active system view
+ */
+export function getActiveSystemView(): SystemView {
+  return activeSystemView;
+}
+
+/**
+ * Set the active system view (also persists to document)
+ */
+export function setActiveSystemView(view: SystemView): void {
+  activeSystemView = view;
+  persistViewState();
 }
 
 /**
@@ -1724,9 +1792,9 @@ export function archiveConversation(id: string): void {
     }
   });
 
-  // Clear active item if it was archived
+  // Clear active item if it was archived (using setter for persistence)
   if (activeItem?.type === 'conversation' && activeItem.id === id) {
-    activeItem = null;
+    setActiveItem(null);
   }
 }
 
@@ -1762,9 +1830,9 @@ export function deleteConversation(id: string): void {
     }
   });
 
-  // Clear active item if it was deleted
+  // Clear active item if it was deleted (using setter for persistence)
   if (activeItem?.type === 'conversation' && activeItem.id === id) {
-    activeItem = null;
+    setActiveItem(null);
   }
 }
 

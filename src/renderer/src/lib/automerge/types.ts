@@ -44,6 +44,28 @@ export type ActiveItem =
   | { type: 'conversation'; id: string }
   | null;
 
+/**
+ * System views available in the main view area
+ */
+export type SystemView =
+  | 'notes'
+  | 'settings'
+  | 'search'
+  | 'types'
+  | 'daily'
+  | 'conversations'
+  | null;
+
+/**
+ * Persisted view state for restoring on app restart
+ */
+export interface LastViewState {
+  /** The last active item (note or conversation) */
+  activeItem: ActiveItem;
+  /** The last system view that was open */
+  systemView: SystemView;
+}
+
 // ============================================================================
 // Property Types
 // ============================================================================
@@ -229,6 +251,8 @@ export interface NotesDocument {
   conversations?: Record<string, Conversation>;
   /** Items on the shelf (optional for backward compatibility) */
   shelfItems?: ShelfItemData[];
+  /** Last view state for restoring on app restart (optional for backward compatibility) */
+  lastViewState?: LastViewState;
 }
 
 /**

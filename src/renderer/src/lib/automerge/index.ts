@@ -22,6 +22,8 @@ export type {
   SidebarItemRef,
   SidebarItem,
   ActiveItem,
+  SystemView,
+  LastViewState,
   ShelfItemData
 } from './types';
 
@@ -98,9 +100,11 @@ export {
   getNoteTypeProperties,
   getNoteTypeEditorChips,
 
-  // Active item (UI state)
+  // Active item and system view (persisted UI state)
   getActiveItem,
   setActiveItem,
+  getActiveSystemView,
+  setActiveSystemView,
   getActiveNote,
   getActiveConversation,
   navigateToNote,

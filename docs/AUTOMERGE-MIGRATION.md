@@ -93,6 +93,14 @@ interface NotesDocument {
   workspaceOrder?: string[]; // Ordered list of workspace IDs for display order
   conversations?: Record<string, Conversation>;
   shelfItems?: ShelfItemData[]; // Items on the shelf
+  lastViewState?: LastViewState; // Persist active view for app restart
+}
+
+type SystemView = 'notes' | 'settings' | 'search' | 'types' | 'daily' | 'conversations' | null;
+
+interface LastViewState {
+  activeItem: ActiveItem;
+  systemView: SystemView;
 }
 
 interface ShelfItemData {
@@ -129,13 +137,14 @@ Unified reactive state module (~800 lines) providing:
 **Reactive State:**
 
 - `currentDoc`: The automerge document (updated via subscription)
-- `activeItem`: Currently selected item as `ActiveItem` (UI-only, replaces separate activeNoteId/activeConversationId)
+- `activeItem`: Currently selected item as `ActiveItem` (persisted in document's `lastViewState`)
+- `activeSystemView`: Current system view (persisted in document's `lastViewState`)
 - `isInitialized`, `isLoading`: Loading states
 - `vaults`: List of vaults
 
 **Initialization:**
 
-- `initializeState(vaultId?)`: Initialize repo, load vaults, subscribe to document changes
+- `initializeState(vaultId?)`: Initialize repo, load vaults, subscribe to document changes, restore last view state
 
 **Note Operations:**
 
@@ -151,6 +160,7 @@ Unified reactive state module (~800 lines) providing:
 **Unified Sidebar Item Operations:**
 
 - `getActiveItem()`, `setActiveItem()`, `getActiveNote()`, `getActiveConversation()`
+- `getActiveSystemView()`, `setActiveSystemView()` - Persisted system view state
 - `getRecentItems()`, `getPinnedItems()`, `isItemRecent()`, `isItemPinned()`
 - `addItemToWorkspace()`, `removeItemFromWorkspace()`, `bumpItemToRecent()`
 - `pinItem()`, `unpinItem()`, `reorderPinnedItems()`, `reorderRecentItems()`

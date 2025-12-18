@@ -11,6 +11,8 @@
     getActiveNote,
     getActiveConversation,
     setActiveItem,
+    getActiveSystemView,
+    setActiveSystemView,
     createNote,
     updateNote,
     archiveNote,
@@ -24,7 +26,8 @@
     type Note,
     type SearchResult,
     type Conversation,
-    type SidebarItem
+    type SidebarItem,
+    type SystemView
   } from '../lib/automerge';
   import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
@@ -56,9 +59,8 @@
 
   // UI state
   let searchQuery = $state('');
-  let activeSystemView = $state<
-    'notes' | 'settings' | 'search' | 'types' | 'daily' | 'conversations' | null
-  >(null);
+  // activeSystemView is now persisted in Automerge document
+  const activeSystemView: SystemView = $derived(getActiveSystemView());
   let showCreateVaultModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
@@ -97,7 +99,7 @@
   function handleItemSelect(item: SidebarItem): void {
     setActiveItem({ type: item.type, id: item.id });
     addItemToWorkspace({ type: item.type, id: item.id });
-    activeSystemView = null; // Clear system view when selecting an item
+    setActiveSystemView(null); // Clear system view when selecting an item
     searchQuery = ''; // Clear search when selecting an item
     searchInputFocused = false;
   }
@@ -105,7 +107,7 @@
   function handleNoteSelect(note: Note): void {
     setActiveItem({ type: 'note', id: note.id });
     addItemToWorkspace({ type: 'note', id: note.id });
-    activeSystemView = null;
+    setActiveSystemView(null);
     searchQuery = '';
     searchInputFocused = false;
   }
@@ -133,7 +135,7 @@
     }
     // Enter opens the dedicated search view if there are results
     if (event.key === 'Enter' && searchQuery.trim() && searchResults.length > 0) {
-      activeSystemView = 'search';
+      setActiveSystemView('search');
       setActiveItem(null);
     }
   }
@@ -141,7 +143,7 @@
   function handleCreateNote(): void {
     const id = createNote({ title: '', content: '' });
     setActiveItem({ type: 'note', id });
-    activeSystemView = null;
+    setActiveSystemView(null);
   }
 
   function handleArchiveNote(noteId: string): void {
@@ -151,7 +153,7 @@
   function handleSystemViewSelect(
     view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
   ): void {
-    activeSystemView = view;
+    setActiveSystemView(view);
     if (view) {
       setActiveItem(null); // Clear active item when viewing system views
     }
@@ -174,7 +176,7 @@
 
   // Handle navigating to settings from conversation view
   function handleGoToSettingsFromConversation(): void {
-    activeSystemView = 'settings';
+    setActiveSystemView('settings');
     selectedConversationId = null;
   }
 
@@ -183,7 +185,7 @@
     // Clear active conversation - ChatService will create new on first message
     setActiveItem(null);
     chatPanelOpen = true;
-    activeSystemView = null;
+    setActiveSystemView(null);
   }
 
   function handleNoteTypeSelect(typeId: string | null): void {
@@ -193,7 +195,7 @@
   function handleNoteSelectFromTypes(_noteId: string): void {
     // Navigate to the note from the types view
     // The note is already selected via setActiveNoteId in the NoteTypesView
-    activeSystemView = null;
+    setActiveSystemView(null);
     selectedNoteTypeId = null;
   }
 
@@ -265,7 +267,7 @@
       onCreateVault={handleCreateVault}
       onToggleSidebar={toggleLeftSidebar}
       onViewAllResults={() => {
-        activeSystemView = 'search';
+        setActiveSystemView('search');
         setActiveItem(null);
       }}
     />
@@ -355,7 +357,7 @@
               <!-- File Sync Settings -->
               <AutomergeVaultSyncSettings />
 
-              <button class="close-settings" onclick={() => (activeSystemView = null)}
+              <button class="close-settings" onclick={() => setActiveSystemView(null)}
                 >Close</button
               >
             </div>
@@ -367,7 +369,7 @@
                 <span class="search-query-label">for "{searchQuery}"</span>
                 <button
                   class="close-search-btn"
-                  onclick={() => (activeSystemView = null)}
+                  onclick={() => setActiveSystemView(null)}
                   aria-label="Close search"
                 >
                   <svg
@@ -497,7 +499,7 @@
             <AutomergeConversationView
               conversationId={activeConversation.id}
               onGoToSettings={() => {
-                activeSystemView = 'settings';
+                setActiveSystemView('settings');
                 setActiveItem(null);
               }}
             />
@@ -571,7 +573,7 @@
   isOpen={chatPanelOpen}
   onClose={() => (chatPanelOpen = false)}
   onGoToSettings={() => {
-    activeSystemView = 'settings';
+    setActiveSystemView('settings');
     chatPanelOpen = false;
   }}
 />
@@ -582,7 +584,7 @@
   onNavigate={(type, id) => {
     setActiveItem({ type, id });
     addItemToWorkspace({ type, id });
-    activeSystemView = null;
+    setActiveSystemView(null);
     shelfPanelOpen = false;
   }}
 />
