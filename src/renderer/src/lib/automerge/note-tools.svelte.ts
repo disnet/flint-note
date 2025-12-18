@@ -36,10 +36,11 @@ interface NoteResult {
 /**
  * Convert a Note to a simplified result for the AI
  * Truncates content to avoid overwhelming the context
+ * Note: Automerge doesn't allow undefined values, so we only include defined fields
  */
 function toNoteResult(note: Note, maxContentLength = 500): NoteResult {
   const noteType = getNoteType(note.type);
-  return {
+  const result: NoteResult = {
     id: note.id,
     title: note.title,
     content:
@@ -47,10 +48,14 @@ function toNoteResult(note: Note, maxContentLength = 500): NoteResult {
         ? note.content.slice(0, maxContentLength) + '...'
         : note.content,
     type: note.type,
-    typeName: noteType?.name,
     created: note.created,
     updated: note.updated
   };
+  // Only add typeName if defined (Automerge doesn't allow undefined)
+  if (noteType?.name !== undefined) {
+    result.typeName = noteType.name;
+  }
+  return result;
 }
 
 /**
@@ -110,19 +115,25 @@ export function createNoteTools(): Record<string, Tool> {
           }
           // Return full content for get_note
           const noteType = getNoteType(note.type);
+          // Build result object, excluding undefined values (Automerge doesn't allow undefined)
+          const noteResult: Record<string, unknown> = {
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            type: note.type,
+            created: note.created,
+            updated: note.updated,
+            archived: note.archived
+          };
+          if (noteType?.name !== undefined) {
+            noteResult.typeName = noteType.name;
+          }
+          if (note.props !== undefined) {
+            noteResult.props = note.props;
+          }
           return {
             success: true,
-            note: {
-              id: note.id,
-              title: note.title,
-              content: note.content,
-              type: note.type,
-              typeName: noteType?.name,
-              created: note.created,
-              updated: note.updated,
-              archived: note.archived,
-              props: note.props
-            }
+            note: noteResult
           };
         } catch (error) {
           return {

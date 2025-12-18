@@ -14,6 +14,7 @@
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
+  import AutomergeChatInput from './AutomergeChatInput.svelte';
 
   interface Props {
     /** Whether the panel is currently open */
@@ -34,8 +35,11 @@
   // Chat service instance
   let chatService = $state<ChatService | null>(null);
 
-  // Local input state for the textarea
+  // Local input state for the input
   let localInput = $state('');
+
+  // Reference to chat input component
+  let chatInputRef: ReturnType<typeof AutomergeChatInput> | null = $state(null);
 
   // History panel state
   let showHistory = $state(false);
@@ -77,13 +81,14 @@
 
   // Handle form submit
   async function handleSubmit(
-    event: SubmitEvent & { currentTarget: HTMLFormElement }
+    event?: SubmitEvent & { currentTarget: HTMLFormElement }
   ): Promise<void> {
-    event.preventDefault();
+    event?.preventDefault();
     if (!chatService || !localInput.trim() || isLoading) return;
 
     const messageText = localInput.trim();
     localInput = ''; // Clear input immediately
+    chatInputRef?.clear(); // Clear the CodeMirror editor
 
     try {
       await chatService.sendMessage(messageText);
@@ -92,17 +97,15 @@
     }
   }
 
-  // Handle keyboard shortcuts in textarea
-  function handleKeyDown(
-    event: KeyboardEvent & { currentTarget: HTMLTextAreaElement }
-  ): void {
-    // Submit on Enter without Shift
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      const form = event.currentTarget.form;
-      if (form && localInput.trim() && !isLoading) {
-        form.requestSubmit();
-      }
+  // Handle input change from CodeMirror
+  function handleInputChange(newValue: string): void {
+    localInput = newValue;
+  }
+
+  // Handle submit from CodeMirror (Enter key)
+  function handleInputSubmit(): void {
+    if (localInput.trim() && !isLoading) {
+      handleSubmit();
     }
   }
 
@@ -328,14 +331,14 @@
                 </div>
               {/if}
               <div class="input-container">
-                <textarea
-                  class="chat-input"
-                  placeholder="Type a message..."
-                  bind:value={localInput}
-                  onkeydown={handleKeyDown}
-                  rows="1"
+                <AutomergeChatInput
+                  bind:this={chatInputRef}
+                  value={localInput}
+                  placeholder="Type a message... (use [[note]] to link)"
                   disabled={isLoading}
-                ></textarea>
+                  onValueChange={handleInputChange}
+                  onSubmit={handleInputSubmit}
+                />
                 <button
                   type="submit"
                   class="send-button"
@@ -624,35 +627,6 @@
     display: flex;
     gap: 8px;
     align-items: flex-end;
-  }
-
-  .chat-input {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    resize: none;
-    min-height: 40px;
-    max-height: 120px;
-    line-height: 1.4;
-    font-family: inherit;
-  }
-
-  .chat-input:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
-
-  .chat-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .chat-input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
   }
 
   .send-button {

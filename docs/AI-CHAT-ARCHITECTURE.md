@@ -103,21 +103,21 @@ Conversations are persisted in Automerge, allowing users to continue previous ch
 
 ```typescript
 interface Conversation {
-  id: string;                      // "conv-xxxxxxxx" (linkable ID)
-  title: string;                   // Auto-generated from first user message
-  workspaceId: string;             // Workspace scope
+  id: string; // "conv-xxxxxxxx" (linkable ID)
+  title: string; // Auto-generated from first user message
+  workspaceId: string; // Workspace scope
   messages: PersistedChatMessage[];
-  created: string;                 // ISO timestamp
-  updated: string;                 // ISO timestamp
+  created: string; // ISO timestamp
+  updated: string; // ISO timestamp
   archived: boolean;
 }
 
 interface PersistedChatMessage {
-  id: string;                      // "msg-xxxxxxxx"
+  id: string; // "msg-xxxxxxxx"
   role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: PersistedToolCall[];
-  createdAt: string;               // ISO timestamp
+  createdAt: string; // ISO timestamp
 }
 
 interface PersistedToolCall {
@@ -138,12 +138,12 @@ Conversations are stored in the Automerge document:
 interface NotesDocument {
   notes: Record<string, Note>;
   workspaces: Record<string, Workspace>;
-  conversations?: Record<string, Conversation>;  // Optional for backward compatibility
+  conversations?: Record<string, Conversation>; // Optional for backward compatibility
 }
 
 interface Workspace {
   // ... existing fields
-  recentConversationIds?: string[];  // Ordered list (max 20)
+  recentConversationIds?: string[]; // Ordered list (max 20)
 }
 ```
 
@@ -458,22 +458,22 @@ Always confirm before making changes to notes.`;
 
 ## File Summary
 
-| File                                                              | Purpose                                    |
-| ----------------------------------------------------------------- | ------------------------------------------ |
-| `src/main/chat-server.ts`                                         | HTTP proxy for OpenRouter API              |
-| `src/main/index.ts`                                               | Server initialization, IPC handlers        |
-| `src/preload/index.ts`                                            | IPC bridge for getChatServerPort           |
-| `src/renderer/src/lib/automerge/types.ts`                         | Conversation and message type definitions  |
-| `src/renderer/src/lib/automerge/state.svelte.ts`                  | Conversation CRUD and state management     |
-| `src/renderer/src/lib/automerge/chat-service.svelte.ts`           | Chat service with streaming & persistence  |
-| `src/renderer/src/lib/automerge/note-tools.svelte.ts`             | AI tool definitions for notes              |
-| `src/renderer/src/components/AutomergeChatFAB.svelte`             | Floating action button                     |
-| `src/renderer/src/components/AutomergeChatPanel.svelte`           | Chat interface with history                |
-| `src/renderer/src/components/AutomergeConversationList.svelte`    | Conversation list component                |
-| `src/renderer/src/components/AutomergeAPIKeySettings.svelte`      | API key settings                           |
-| `src/renderer/src/components/AutomergeSystemViews.svelte`         | Sidebar navigation (includes Conversations)|
-| `src/renderer/src/components/AutomergeMainView.svelte`            | Integration point, conversations view      |
-| `src/renderer/index.html`                                         | CSP configuration                          |
+| File                                                           | Purpose                                     |
+| -------------------------------------------------------------- | ------------------------------------------- |
+| `src/main/chat-server.ts`                                      | HTTP proxy for OpenRouter API               |
+| `src/main/index.ts`                                            | Server initialization, IPC handlers         |
+| `src/preload/index.ts`                                         | IPC bridge for getChatServerPort            |
+| `src/renderer/src/lib/automerge/types.ts`                      | Conversation and message type definitions   |
+| `src/renderer/src/lib/automerge/state.svelte.ts`               | Conversation CRUD and state management      |
+| `src/renderer/src/lib/automerge/chat-service.svelte.ts`        | Chat service with streaming & persistence   |
+| `src/renderer/src/lib/automerge/note-tools.svelte.ts`          | AI tool definitions for notes               |
+| `src/renderer/src/components/AutomergeChatFAB.svelte`          | Floating action button                      |
+| `src/renderer/src/components/AutomergeChatPanel.svelte`        | Chat interface with history                 |
+| `src/renderer/src/components/AutomergeConversationList.svelte` | Conversation list component                 |
+| `src/renderer/src/components/AutomergeAPIKeySettings.svelte`   | API key settings                            |
+| `src/renderer/src/components/AutomergeSystemViews.svelte`      | Sidebar navigation (includes Conversations) |
+| `src/renderer/src/components/AutomergeMainView.svelte`         | Integration point, conversations view       |
+| `src/renderer/index.html`                                      | CSP configuration                           |
 
 ## Future Enhancements
 
