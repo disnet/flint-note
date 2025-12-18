@@ -24,9 +24,21 @@ import {
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import type { Note } from './types';
-import { getAllNotes, getNoteTypes } from './state.svelte';
+import type { Note, Conversation } from './types';
+import {
+  getAllNotes,
+  getNoteTypes,
+  getConversation,
+  getConversations
+} from './state.svelte';
+
 import { wikilinkTheme } from '../wikilink-theme';
+
+// Type to distinguish link targets
+export type WikilinkTargetType = 'note' | 'conversation';
+
+// Regex to match conversation IDs: conv-xxxxxxxx (8 hex chars)
+const CONVERSATION_ID_REGEX = /^conv-[a-f0-9]{8}$/i;
 
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
 const WIKILINK_REGEX = /\[\[([^[\]]+)\]\]/g;
@@ -39,10 +51,19 @@ export interface WikilinkMatch {
   title: string;
   exists: boolean;
   noteId?: string;
+  targetType: WikilinkTargetType;
+  conversationId?: string;
 }
 
 export interface WikilinkClickHandler {
-  (noteId: string, title: string, shouldCreate?: boolean): void;
+  (
+    targetId: string,
+    title: string,
+    options?: {
+      shouldCreate?: boolean;
+      targetType?: WikilinkTargetType;
+    }
+  ): void;
 }
 
 export interface WikilinkHoverHandler {
@@ -57,6 +78,8 @@ export interface WikilinkHoverHandler {
       yTop: number;
       exists: boolean;
       noteId?: string;
+      targetType: WikilinkTargetType;
+      conversationId?: string;
     } | null
   ): void;
 }
@@ -74,6 +97,8 @@ interface SelectedWikilink {
   title: string;
   exists: boolean;
   noteId?: string;
+  targetType: WikilinkTargetType;
+  conversationId?: string;
 }
 
 // State field to store the currently selected wikilink (cursor adjacent to it)
@@ -97,7 +122,9 @@ const selectedWikilinkField = StateField.define<SelectedWikilink | null>({
           identifier: wikilink.identifier,
           title: wikilink.title,
           exists: wikilink.exists,
-          noteId: wikilink.noteId
+          noteId: wikilink.noteId,
+          targetType: wikilink.targetType,
+          conversationId: wikilink.conversationId
         };
       }
     }
@@ -133,6 +160,28 @@ const wikilinkHoverHandlerField = StateField.define<WikilinkHoverHandler | null>
 });
 
 /**
+ * Check if an identifier is a conversation ID
+ */
+function isConversationId(identifier: string): boolean {
+  return CONVERSATION_ID_REGEX.test(identifier.trim());
+}
+
+/**
+ * Find a conversation by identifier (conversation ID only - no title matching)
+ * Unlike notes, conversations can only be linked by ID
+ */
+function findConversationByIdentifier(identifier: string): Conversation | null {
+  const normalizedId = identifier.toLowerCase().trim();
+
+  // Only match by ID - conversations cannot be referenced by title
+  if (isConversationId(normalizedId)) {
+    return getConversation(normalizedId) ?? null;
+  }
+
+  return null;
+}
+
+/**
  * Parse wikilinks from text content
  */
 export function parseWikilinks(text: string, notes: Note[]): WikilinkMatch[] {
@@ -156,7 +205,25 @@ export function parseWikilinks(text: string, notes: Note[]): WikilinkMatch[] {
       title = content;
     }
 
-    const existingNote = findNoteByIdentifier(identifier, notes);
+    // Determine target type and look up existence
+    let targetType: WikilinkTargetType = 'note';
+    let exists = false;
+    let noteId: string | undefined;
+    let conversationId: string | undefined;
+
+    if (isConversationId(identifier)) {
+      // This is a conversation link
+      targetType = 'conversation';
+      const conversation = findConversationByIdentifier(identifier);
+      exists = !!conversation && !conversation.archived;
+      conversationId = conversation?.id;
+    } else {
+      // This is a note link
+      targetType = 'note';
+      const existingNote = findNoteByIdentifier(identifier, notes);
+      exists = !!existingNote;
+      noteId = existingNote?.id;
+    }
 
     matches.push({
       from: match.index,
@@ -164,8 +231,10 @@ export function parseWikilinks(text: string, notes: Note[]): WikilinkMatch[] {
       text: match[0],
       identifier,
       title,
-      exists: !!existingNote,
-      noteId: existingNote?.id
+      exists,
+      noteId,
+      targetType,
+      conversationId
     });
   }
 
@@ -207,6 +276,10 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 
   // Get notes from automerge state, excluding archived
   const notes = getAllNotes().filter((note) => !note.archived);
+  const noteTypes = getNoteTypes();
+
+  // Get conversations from automerge state, excluding archived
+  const conversations = getConversations().filter((conv) => !conv.archived);
 
   // Filter and sort notes
   const filteredNotes = query.trim()
@@ -230,29 +303,68 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 
           return aTitle.localeCompare(bTitle);
         })
-        .slice(0, 8)
-    : notes.slice(0, 8);
+        .slice(0, 6) // Reduced to make room for conversations
+    : notes.slice(0, 6);
+
+  // Filter and sort conversations
+  const filteredConversations = query.trim()
+    ? conversations
+        .filter(
+          (conv) =>
+            conv.title.toLowerCase().includes(normalizedQuery) ||
+            conv.id.toLowerCase().includes(normalizedQuery)
+        )
+        .sort((a, b) => {
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+
+          if (aTitle === normalizedQuery) return -1;
+          if (bTitle === normalizedQuery) return 1;
+
+          if (aTitle.startsWith(normalizedQuery) && !bTitle.startsWith(normalizedQuery))
+            return -1;
+          if (bTitle.startsWith(normalizedQuery) && !aTitle.startsWith(normalizedQuery))
+            return 1;
+
+          return aTitle.localeCompare(bTitle);
+        })
+        .slice(0, 4)
+    : conversations.slice(0, 4);
 
   const options: { label: string; apply: string; type: string; detail?: string }[] = [];
 
-  // Add note options
+  // Add note options with their type icons
   for (const note of filteredNotes) {
+    const noteType = noteTypes.find((t) => t.id === note.type);
+    const icon = noteType?.icon || '📝';
     options.push({
-      label: note.title || 'Untitled',
+      label: `${icon} ${note.title || 'Untitled'}`,
       apply: `${note.id}]]`,
-      type: 'text'
+      type: 'text',
+      detail: 'Note'
     });
   }
 
-  // Add option to create new note
+  // Add conversation options with chat icon
+  for (const conv of filteredConversations) {
+    options.push({
+      label: `💬 ${conv.title || 'New Conversation'}`,
+      apply: `${conv.id}]]`,
+      type: 'text',
+      detail: 'Conversation'
+    });
+  }
+
+  // Add option to create new note (not for conversations)
   if (
     query.trim() &&
     !filteredNotes.some((note) => note.title.toLowerCase() === normalizedQuery)
   ) {
     options.push({
-      label: `Create "${query.trim()}"`,
+      label: `📝 Create "${query.trim()}"`,
       apply: `${query.trim()}]]`,
-      type: 'text'
+      type: 'text',
+      detail: 'New Note'
     });
   }
 
@@ -276,7 +388,9 @@ class WikilinkWidget extends WidgetType {
     private from: number,
     private to: number,
     private isSelected: boolean,
-    private noteIcon: string
+    private icon: string,
+    private targetType: WikilinkTargetType,
+    private conversationId: string | undefined
   ) {
     super();
   }
@@ -284,10 +398,16 @@ class WikilinkWidget extends WidgetType {
   toDOM(_view: EditorView): HTMLElement {
     const span = document.createElement('span');
 
-    // Check if note is archived
+    // Check if target is archived
+    let isArchived = false;
     const notes = getAllNotes();
-    const note = this.noteId ? notes.find((n) => n.id === this.noteId) : null;
-    const isArchived = note?.archived ?? false;
+    if (this.targetType === 'note' && this.noteId) {
+      const note = notes.find((n) => n.id === this.noteId);
+      isArchived = note?.archived ?? false;
+    } else if (this.targetType === 'conversation' && this.conversationId) {
+      const conversation = getConversation(this.conversationId);
+      isArchived = conversation?.archived ?? false;
+    }
 
     // Build class name - use wikilink- prefix for theme compatibility
     const classes = ['wikilink'];
@@ -298,37 +418,62 @@ class WikilinkWidget extends WidgetType {
     if (isArchived) {
       classes.push('wikilink-archived');
     }
+    // Add target type class for potential future styling differentiation
+    classes.push(`wikilink-${this.targetType}`);
     span.className = classes.join(' ');
 
     // Add icon
     const iconSpan = document.createElement('span');
     iconSpan.className = 'wikilink-icon';
-    iconSpan.textContent = this.noteIcon;
+    iconSpan.textContent = this.icon;
     span.appendChild(iconSpan);
 
-    // Add title (use note's actual title for ID-only links)
+    // Add title - resolve display text from target if using ID-only syntax
     const titleSpan = document.createElement('span');
     titleSpan.className = 'wikilink-text';
 
     let displayText = this.displayTitle;
-    if (this.exists && this.noteId && this.identifier === this.displayTitle) {
-      const linkedNote = notes.find((n) => n.id === this.noteId);
-      if (linkedNote) {
-        displayText = linkedNote.title || 'Untitled';
+    if (this.exists && this.identifier === this.displayTitle) {
+      if (this.targetType === 'note' && this.noteId) {
+        const linkedNote = notes.find((n) => n.id === this.noteId);
+        if (linkedNote) {
+          displayText = linkedNote.title || 'Untitled';
+        }
+      } else if (this.targetType === 'conversation' && this.conversationId) {
+        const conversation = getConversation(this.conversationId);
+        if (conversation) {
+          displayText = conversation.title || 'New Conversation';
+        }
       }
     }
     titleSpan.textContent = displayText;
     span.appendChild(titleSpan);
 
-    // Click handler
+    // Click handler - different behavior for conversations
     span.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (this.clickHandler) {
-        if (this.exists && this.noteId) {
-          this.clickHandler(this.noteId, this.displayTitle);
+        if (this.targetType === 'conversation') {
+          // Conversations: only navigate if exists, never create
+          if (this.exists && this.conversationId) {
+            this.clickHandler(this.conversationId, this.displayTitle, {
+              targetType: 'conversation'
+            });
+          }
+          // For broken conversation links: do nothing (no creation)
         } else {
-          this.clickHandler(this.identifier, this.displayTitle, true);
+          // Notes: existing behavior
+          if (this.exists && this.noteId) {
+            this.clickHandler(this.noteId, this.displayTitle, {
+              targetType: 'note'
+            });
+          } else {
+            this.clickHandler(this.identifier, this.displayTitle, {
+              shouldCreate: true,
+              targetType: 'note'
+            });
+          }
         }
       }
     });
@@ -351,7 +496,9 @@ class WikilinkWidget extends WidgetType {
           y: rect.bottom,
           yTop: rect.top,
           exists: this.exists,
-          noteId: this.noteId
+          noteId: this.noteId,
+          targetType: this.targetType,
+          conversationId: this.conversationId
         });
       });
 
@@ -370,7 +517,9 @@ class WikilinkWidget extends WidgetType {
       this.exists === other.exists &&
       this.noteId === other.noteId &&
       this.isSelected === other.isSelected &&
-      this.noteIcon === other.noteIcon
+      this.icon === other.icon &&
+      this.targetType === other.targetType &&
+      this.conversationId === other.conversationId
     );
   }
 
@@ -430,9 +579,12 @@ function createWikilinkDecorations(
       continue;
     }
 
-    // Get icon from note type
+    // Determine icon based on target type
     let icon = '📝';
-    if (wikilink.exists && wikilink.noteId) {
+    if (wikilink.targetType === 'conversation') {
+      icon = '💬';
+    } else if (wikilink.exists && wikilink.noteId) {
+      // Get icon from note type for notes
       const note = notes.find((n) => n.id === wikilink.noteId);
       if (note) {
         const noteType = noteTypes.find((t) => t.id === note.type);
@@ -455,7 +607,9 @@ function createWikilinkDecorations(
       wikilink.from,
       wikilink.to,
       isSelected,
-      icon
+      icon,
+      wikilink.targetType,
+      wikilink.conversationId
     );
 
     decorations.push(
@@ -553,12 +707,30 @@ export function automergeWikilinksExtension(
           if (selected) {
             const handler = view.state.field(wikilinkHandlerField);
             if (handler) {
-              if (selected.exists && selected.noteId) {
-                handler(selected.noteId, selected.title);
+              if (selected.targetType === 'conversation') {
+                // Conversations: only navigate if exists, never create
+                if (selected.exists && selected.conversationId) {
+                  handler(selected.conversationId, selected.title, {
+                    targetType: 'conversation'
+                  });
+                  return true;
+                }
+                // For broken conversation links: do nothing
+                return false;
               } else {
-                handler(selected.identifier, selected.title, true);
+                // Notes: existing behavior
+                if (selected.exists && selected.noteId) {
+                  handler(selected.noteId, selected.title, {
+                    targetType: 'note'
+                  });
+                } else {
+                  handler(selected.identifier, selected.title, {
+                    shouldCreate: true,
+                    targetType: 'note'
+                  });
+                }
+                return true;
               }
-              return true;
             }
           }
           return false;

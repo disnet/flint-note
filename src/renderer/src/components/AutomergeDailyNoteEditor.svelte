@@ -10,10 +10,13 @@
     getAllNotes,
     createNote,
     setActiveNoteId,
+    setActiveConversationId,
     addNoteToWorkspace,
+    addItemToWorkspace,
     AutomergeEditorConfig,
     forceWikilinkRefresh
   } from '../lib/automerge';
+  import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
@@ -55,18 +58,31 @@
   }
 
   function handleWikilinkClick(
-    noteId: string,
+    targetId: string,
     title: string,
-    shouldCreate?: boolean
+    options?: {
+      shouldCreate?: boolean;
+      targetType?: WikilinkTargetType;
+    }
   ): void {
-    if (shouldCreate) {
-      // Create a new note with the given title
-      const newId = createNote({ title });
-      addNoteToWorkspace(newId);
-      setActiveNoteId(newId);
+    const targetType = options?.targetType || 'note';
+    const shouldCreate = options?.shouldCreate || false;
+
+    if (targetType === 'conversation') {
+      // Navigate to conversation (never create via wikilink)
+      setActiveConversationId(targetId);
+      addItemToWorkspace({ type: 'conversation', id: targetId });
     } else {
-      // Navigate to existing note
-      setActiveNoteId(noteId);
+      // Note handling
+      if (shouldCreate) {
+        // Create a new note with the given title
+        const newId = createNote({ title });
+        addNoteToWorkspace(newId);
+        setActiveNoteId(newId);
+      } else {
+        // Navigate to existing note
+        setActiveNoteId(targetId);
+      }
     }
   }
 

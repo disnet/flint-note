@@ -11,13 +11,17 @@
     getAllNotes,
     createNote,
     setActiveNoteId,
+    setActiveConversationId,
     addNoteToWorkspace,
+    addItemToWorkspace,
+    getConversation,
     AutomergeEditorConfig,
     forceWikilinkRefresh,
     getSelectedWikilink,
     getNoteType,
     setNoteProp
   } from '../lib/automerge';
+  import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import AutomergeNoteTypeDropdown from './AutomergeNoteTypeDropdown.svelte';
   import AutomergeWikilinkActionPopover from './AutomergeWikilinkActionPopover.svelte';
@@ -62,6 +66,8 @@
     title: string;
     exists: boolean;
     noteId?: string;
+    targetType: WikilinkTargetType;
+    conversationId?: string;
   } | null>(null);
   let linkRect = $state<{
     top: number;
@@ -127,20 +133,33 @@
   }
 
   function handleWikilinkClick(
-    noteId: string,
+    targetId: string,
     title: string,
-    shouldCreate?: boolean
+    options?: {
+      shouldCreate?: boolean;
+      targetType?: WikilinkTargetType;
+    }
   ): void {
-    if (shouldCreate) {
-      // Create a new note with the given title
-      const newId = createNote({ title });
-      addNoteToWorkspace(newId);
-      setActiveNoteId(newId);
-      onNavigate?.(newId);
+    const targetType = options?.targetType || 'note';
+    const shouldCreate = options?.shouldCreate || false;
+
+    if (targetType === 'conversation') {
+      // Navigate to conversation (never create via wikilink)
+      setActiveConversationId(targetId);
+      addItemToWorkspace({ type: 'conversation', id: targetId });
     } else {
-      // Navigate to existing note
-      setActiveNoteId(noteId);
-      onNavigate?.(noteId);
+      // Note handling
+      if (shouldCreate) {
+        // Create a new note with the given title
+        const newId = createNote({ title });
+        addNoteToWorkspace(newId);
+        setActiveNoteId(newId);
+        onNavigate?.(newId);
+      } else {
+        // Navigate to existing note
+        setActiveNoteId(targetId);
+        onNavigate?.(targetId);
+      }
     }
   }
 
@@ -275,6 +294,8 @@
       yTop: number;
       exists: boolean;
       noteId?: string;
+      targetType: WikilinkTargetType;
+      conversationId?: string;
     } | null
   ): void {
     // Clear any pending leave timeout
@@ -300,7 +321,9 @@
           identifier: data.identifier,
           title: data.displayText,
           exists: data.exists,
-          noteId: data.noteId
+          noteId: data.noteId,
+          targetType: data.targetType,
+          conversationId: data.conversationId
         };
         editPopoverFrom = data.from;
         editPopoverTo = data.to;
@@ -346,7 +369,9 @@
           identifier: data.identifier,
           title: data.displayText,
           exists: data.exists,
-          noteId: data.noteId
+          noteId: data.noteId,
+          targetType: data.targetType,
+          conversationId: data.conversationId
         };
         editPopoverFrom = data.from;
         editPopoverTo = data.to;
@@ -442,10 +467,27 @@
     if (!actionPopoverWikilinkData) return;
 
     const data = actionPopoverWikilinkData;
-    if (data.exists && data.noteId) {
-      handleWikilinkClick(data.noteId, data.title);
+
+    if (data.targetType === 'conversation') {
+      // Conversations: only navigate if exists, never create
+      if (data.exists && data.conversationId) {
+        handleWikilinkClick(data.conversationId, data.title, {
+          targetType: 'conversation'
+        });
+      }
+      // For broken conversation links: do nothing
     } else {
-      handleWikilinkClick(data.identifier, data.title, true);
+      // Notes: existing behavior
+      if (data.exists && data.noteId) {
+        handleWikilinkClick(data.noteId, data.title, {
+          targetType: 'note'
+        });
+      } else {
+        handleWikilinkClick(data.identifier, data.title, {
+          shouldCreate: true,
+          targetType: 'note'
+        });
+      }
     }
 
     actionPopoverVisible = false;
@@ -465,9 +507,21 @@
     // Set edit popover data
     editPopoverIdentifier = actionPopoverWikilinkData.identifier;
 
-    // For ID-only links, show the note's title
+    // For ID-only links, show the target's title
     if (actionPopoverWikilinkData.identifier === actionPopoverWikilinkData.title) {
-      if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
+      if (actionPopoverWikilinkData.targetType === 'conversation') {
+        // Look up conversation title
+        if (
+          actionPopoverWikilinkData.conversationId &&
+          actionPopoverWikilinkData.exists
+        ) {
+          const conv = getConversation(actionPopoverWikilinkData.conversationId);
+          editPopoverDisplayText = conv?.title || actionPopoverWikilinkData.title;
+        } else {
+          editPopoverDisplayText = actionPopoverWikilinkData.title;
+        }
+      } else if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
+        // Look up note title
         const notes = getAllNotes();
         const linkedNote = notes.find((n) => n.id === actionPopoverWikilinkData!.noteId);
         editPopoverDisplayText = linkedNote?.title || actionPopoverWikilinkData.title;
@@ -609,7 +663,9 @@
             identifier: selected.identifier,
             title: selected.title,
             exists: selected.exists,
-            noteId: selected.noteId
+            noteId: selected.noteId,
+            targetType: selected.targetType,
+            conversationId: selected.conversationId
           };
 
           linkRect = {

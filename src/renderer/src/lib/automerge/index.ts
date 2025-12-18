@@ -172,7 +172,8 @@ export {
 export type {
   WikilinkMatch,
   WikilinkClickHandler,
-  WikilinkHoverHandler
+  WikilinkHoverHandler,
+  WikilinkTargetType
 } from './wikilinks.svelte';
 
 // Enhanced search

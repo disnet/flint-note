@@ -1205,29 +1205,43 @@ export function addNoteToWorkspace(noteId: string): void {
 }
 
 /**
- * Navigate to a note by ID, or create a new note if shouldCreate is true.
+ * Navigate to a note or conversation by ID, or create a new note if shouldCreate is true.
  * This is the centralized handler for wikilink clicks.
  *
- * @param noteId - The note ID to navigate to (or the title if creating)
+ * @param targetId - The ID to navigate to (or the title if creating)
  * @param title - The display title (used when creating a new note)
- * @param shouldCreate - If true, create a new note with the given title
- * @returns The note ID that was navigated to (either existing or newly created)
+ * @param options - Options for navigation (shouldCreate, targetType)
+ * @returns The ID that was navigated to (either existing or newly created)
  */
 export function navigateToNote(
-  noteId: string,
+  targetId: string,
   title: string,
-  shouldCreate?: boolean
+  options?: {
+    shouldCreate?: boolean;
+    targetType?: 'note' | 'conversation';
+  }
 ): string {
-  if (shouldCreate) {
-    // Create a new note with the given title
-    const newId = createNote({ title });
-    addItemToWorkspace({ type: 'note', id: newId });
-    setActiveItem({ type: 'note', id: newId });
-    return newId;
+  const targetType = options?.targetType || 'note';
+  const shouldCreate = options?.shouldCreate || false;
+
+  if (targetType === 'conversation') {
+    // Navigate to conversation (never create via wikilink)
+    setActiveItem({ type: 'conversation', id: targetId });
+    addItemToWorkspace({ type: 'conversation', id: targetId });
+    return targetId;
   } else {
-    // Navigate to existing note
-    setActiveItem({ type: 'note', id: noteId });
-    return noteId;
+    // Note handling
+    if (shouldCreate) {
+      // Create a new note with the given title
+      const newId = createNote({ title });
+      addItemToWorkspace({ type: 'note', id: newId });
+      setActiveItem({ type: 'note', id: newId });
+      return newId;
+    } else {
+      // Navigate to existing note
+      setActiveItem({ type: 'note', id: targetId });
+      return targetId;
+    }
   }
 }
 
