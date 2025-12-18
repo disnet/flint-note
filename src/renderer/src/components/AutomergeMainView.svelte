@@ -35,6 +35,7 @@
   import AutomergeChatPanel from './AutomergeChatPanel.svelte';
   import AutomergeAPIKeySettings from './AutomergeAPIKeySettings.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
+  import AutomergeConversationView from './AutomergeConversationView.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -59,6 +60,7 @@
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
   let selectedNoteTypeId = $state<string | null>(null);
+  let selectedConversationId = $state<string | null>(null);
   let chatPanelOpen = $state(false);
 
   // Enhanced search results with highlighting
@@ -126,13 +128,28 @@
     if (view !== 'types') {
       selectedNoteTypeId = null;
     }
+    // Reset selected conversation when leaving conversations view
+    if (view !== 'conversations') {
+      selectedConversationId = null;
+    }
   }
 
   // Handle conversation selection from conversations view
   function handleConversationSelectFromView(conv: Conversation): void {
     setActiveConversationId(conv.id);
-    chatPanelOpen = true;
-    activeSystemView = null;
+    selectedConversationId = conv.id;
+    // Stay in conversations view to show the conversation in main area
+  }
+
+  // Handle back from conversation view to list
+  function handleBackToConversationList(): void {
+    selectedConversationId = null;
+  }
+
+  // Handle navigating to settings from conversation view
+  function handleGoToSettingsFromConversation(): void {
+    activeSystemView = 'settings';
+    selectedConversationId = null;
   }
 
   // Handle new conversation from conversations view
@@ -333,32 +350,42 @@
             <AutomergeDailyView onNoteSelect={handleNoteSelect} />
           {:else if activeSystemView === 'conversations'}
             <!-- Conversations View -->
-            <div class="conversations-view">
-              <div class="conversations-view-header">
-                <h2>Conversations</h2>
-                <button class="create-btn" onclick={handleNewConversationFromView}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New Chat
-                </button>
+            {#if selectedConversationId}
+              <!-- Single Conversation View -->
+              <AutomergeConversationView
+                conversationId={selectedConversationId}
+                onBack={handleBackToConversationList}
+                onGoToSettings={handleGoToSettingsFromConversation}
+              />
+            {:else}
+              <!-- Conversations List -->
+              <div class="conversations-view">
+                <div class="conversations-view-header">
+                  <h2>Conversations</h2>
+                  <button class="create-btn" onclick={handleNewConversationFromView}>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    New Chat
+                  </button>
+                </div>
+                <div class="conversations-list-wrapper">
+                  <AutomergeConversationList
+                    activeConversationId={getActiveConversationId()}
+                    onConversationSelect={handleConversationSelectFromView}
+                    onNewConversation={handleNewConversationFromView}
+                  />
+                </div>
               </div>
-              <div class="conversations-list-wrapper">
-                <AutomergeConversationList
-                  activeConversationId={getActiveConversationId()}
-                  onConversationSelect={handleConversationSelectFromView}
-                  onNewConversation={handleNewConversationFromView}
-                />
-              </div>
-            </div>
+            {/if}
           {:else if activeSystemView === 'notes'}
             <!-- All Notes View -->
             <div class="all-notes-view">
