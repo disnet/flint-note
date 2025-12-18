@@ -12,20 +12,23 @@
     type ChatService,
     type ChatMessage
   } from '../lib/automerge/chat-service.svelte';
-  import { navigateToNote, setActiveNoteId } from '../lib/automerge';
+  import {
+    navigateToNote,
+    setActiveNoteId,
+    getConversation,
+    updateConversation
+  } from '../lib/automerge';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import AutomergeChatInput from './AutomergeChatInput.svelte';
 
   interface Props {
     /** ID of the conversation to display */
     conversationId: string;
-    /** Callback when back button is clicked */
-    onBack: () => void;
     /** Callback to navigate to settings for API key configuration */
     onGoToSettings?: () => void;
   }
 
-  let { conversationId, onBack, onGoToSettings }: Props = $props();
+  let { conversationId, onGoToSettings }: Props = $props();
 
   // Chat service and initialization state
   let serverPort = $state<number | null>(null);
@@ -44,6 +47,10 @@
 
   // Reference to messages container for scrolling
   let messagesContainer: HTMLDivElement | null = $state(null);
+
+  // Title editing state
+  let titleTextarea: HTMLTextAreaElement | null = $state(null);
+  let titleDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Initialize chat service on mount (only runs once)
   onMount(() => {
@@ -106,14 +113,55 @@
   const error = $derived(chatService?.error);
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
 
-  // Get conversation title from first user message or default
+  // Get conversation from Automerge state
+  const conversation = $derived(getConversation(conversationId));
+
+  // Get conversation title - use stored title or fall back to first message
   const conversationTitle = $derived.by(() => {
+    // First try the stored title
+    if (conversation?.title && conversation.title !== 'New Conversation') {
+      return conversation.title;
+    }
+    // Fall back to first user message
     const firstUserMessage = messages.find((m) => m.role === 'user');
     if (firstUserMessage?.content) {
       const title = firstUserMessage.content.slice(0, 50);
       return title.length < firstUserMessage.content.length ? `${title}...` : title;
     }
     return 'New Conversation';
+  });
+
+  // Title editing handlers
+  function handleTitleInput(event: Event): void {
+    const target = event.target as HTMLTextAreaElement;
+    const newTitle = target.value;
+
+    // Debounce the save
+    if (titleDebounceTimeout) {
+      clearTimeout(titleDebounceTimeout);
+    }
+    titleDebounceTimeout = setTimeout(() => {
+      updateConversation(conversationId, { title: newTitle });
+    }, 300);
+
+    adjustTitleHeight();
+  }
+
+  function adjustTitleHeight(): void {
+    if (!titleTextarea) return;
+    titleTextarea.style.height = 'auto';
+    titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
+  }
+
+  // Adjust title height when conversation changes
+  $effect(() => {
+    void conversationTitle;
+    if (titleTextarea) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        adjustTitleHeight();
+      });
+    }
   });
 
   // Handle form submit
@@ -174,20 +222,29 @@
 
 <div class="conversation-view">
   <div class="conversation-header">
-    <button class="back-btn" onclick={onBack} aria-label="Back to conversations">
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
-    </button>
-    <div class="header-info">
-      <h2>{conversationTitle}</h2>
+    <div class="title-area">
+      <span class="conversation-icon">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </span>
+      <textarea
+        bind:this={titleTextarea}
+        class="title-input"
+        value={conversationTitle}
+        oninput={handleTitleInput}
+        placeholder="Untitled"
+        rows="1"
+      ></textarea>
     </div>
   </div>
 
@@ -369,42 +426,58 @@
 
   .conversation-header {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border-light);
+    align-items: flex-start;
+    padding: 0;
     flex-shrink: 0;
   }
 
-  .back-btn {
-    padding: 0.5rem;
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.375rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .back-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .header-info {
+  /* Title area with icon positioned absolutely */
+  .title-area {
+    position: relative;
     flex: 1;
     min-width: 0;
   }
 
-  .header-info h2 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    white-space: nowrap;
+  .conversation-icon {
+    position: absolute;
+    top: 0.4em;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+  }
+
+  .conversation-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .title-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-family:
+      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    color: var(--text-primary);
+    outline: none;
+    padding: 0.1em 0;
+    min-width: 0;
+    resize: none;
     overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    line-height: 1.4;
+    min-height: 1.4em;
+    text-indent: 2.3rem; /* Space for the conversation icon */
+  }
+
+  .title-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.5;
   }
 
   /* States */

@@ -150,11 +150,6 @@
     // Stay in conversations view to show the conversation in main area
   }
 
-  // Handle back from conversation view to list
-  function handleBackToConversationList(): void {
-    selectedConversationId = null;
-  }
-
   // Handle navigating to settings from conversation view
   function handleGoToSettingsFromConversation(): void {
     activeSystemView = 'settings';
@@ -363,7 +358,6 @@
               <!-- Single Conversation View -->
               <AutomergeConversationView
                 conversationId={selectedConversationId}
-                onBack={handleBackToConversationList}
                 onGoToSettings={handleGoToSettingsFromConversation}
               />
             {:else}
@@ -453,7 +447,6 @@
             <!-- Conversation selected from sidebar -->
             <AutomergeConversationView
               conversationId={activeConversation.id}
-              onBack={() => setActiveItem(null)}
               onGoToSettings={() => {
                 activeSystemView = 'settings';
                 setActiveItem(null);
