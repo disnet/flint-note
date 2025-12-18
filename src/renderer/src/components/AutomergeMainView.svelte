@@ -7,23 +7,23 @@
     getNotes,
     getAllNotes,
     getNoteTypes,
-    getActiveNoteId,
+    getActiveItem,
     getActiveNote,
-    setActiveNoteId,
+    getActiveConversation,
+    setActiveItem,
     createNote,
     updateNote,
     archiveNote,
-    addNoteToWorkspace,
+    addItemToWorkspace,
     getNonArchivedVaults,
     getActiveVault,
     createVault,
     switchVault,
     searchNotesEnhanced,
-    getActiveConversationId,
-    setActiveConversationId,
     type Note,
     type SearchResult,
-    type Conversation
+    type Conversation,
+    type SidebarItem
   } from '../lib/automerge';
   import AutomergeLeftSidebar from './AutomergeLeftSidebar.svelte';
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
@@ -43,8 +43,9 @@
   const notes = $derived(getNotes());
   const allNotes = $derived(getAllNotes());
   const noteTypes = $derived(getNoteTypes());
-  const activeNoteId = $derived(getActiveNoteId());
+  const activeItem = $derived(getActiveItem());
   const activeNote = $derived(getActiveNote());
+  const activeConversation = $derived(getActiveConversation());
   const vaults = $derived(getNonArchivedVaults());
   const activeVault = $derived(getActiveVault());
 
@@ -71,11 +72,19 @@
   );
 
   // Handlers
+  function handleItemSelect(item: SidebarItem): void {
+    setActiveItem({ type: item.type, id: item.id });
+    addItemToWorkspace({ type: item.type, id: item.id });
+    activeSystemView = null; // Clear system view when selecting an item
+    searchQuery = ''; // Clear search when selecting an item
+    searchInputFocused = false;
+  }
+
   function handleNoteSelect(note: Note): void {
-    setActiveNoteId(note.id);
-    addNoteToWorkspace(note.id);
-    activeSystemView = null; // Clear system view when selecting a note
-    searchQuery = ''; // Clear search when selecting a note
+    setActiveItem({ type: 'note', id: note.id });
+    addItemToWorkspace({ type: 'note', id: note.id });
+    activeSystemView = null;
+    searchQuery = '';
     searchInputFocused = false;
   }
 
@@ -103,13 +112,13 @@
     // Enter opens the dedicated search view if there are results
     if (event.key === 'Enter' && searchQuery.trim() && searchResults.length > 0) {
       activeSystemView = 'search';
-      setActiveNoteId(null);
+      setActiveItem(null);
     }
   }
 
   function handleCreateNote(): void {
     const id = createNote({ title: '', content: '' });
-    setActiveNoteId(id);
+    setActiveItem({ type: 'note', id });
     activeSystemView = null;
   }
 
@@ -122,7 +131,7 @@
   ): void {
     activeSystemView = view;
     if (view) {
-      setActiveNoteId(null); // Clear active note when viewing system views
+      setActiveItem(null); // Clear active item when viewing system views
     }
     // Reset selected note type when leaving types view
     if (view !== 'types') {
@@ -136,7 +145,7 @@
 
   // Handle conversation selection from conversations view
   function handleConversationSelectFromView(conv: Conversation): void {
-    setActiveConversationId(conv.id);
+    setActiveItem({ type: 'conversation', id: conv.id });
     selectedConversationId = conv.id;
     // Stay in conversations view to show the conversation in main area
   }
@@ -155,7 +164,7 @@
   // Handle new conversation from conversations view
   function handleNewConversationFromView(): void {
     // Clear active conversation - ChatService will create new on first message
-    setActiveConversationId(null);
+    setActiveItem(null);
     chatPanelOpen = true;
     activeSystemView = null;
   }
@@ -173,7 +182,7 @@
 
   async function handleVaultSelect(vaultId: string): Promise<void> {
     await switchVault(vaultId);
-    setActiveNoteId(null);
+    setActiveItem(null);
   }
 
   function handleCreateVault(): void {
@@ -227,7 +236,7 @@
       {searchInputFocused}
       {vaults}
       activeVault={activeVault ?? null}
-      onNoteSelect={handleNoteSelect}
+      onItemSelect={handleItemSelect}
       onSystemViewSelect={handleSystemViewSelect}
       onCreateNote={handleCreateNote}
       onSearchChange={(query) => (searchQuery = query)}
@@ -240,7 +249,7 @@
       onToggleSidebar={toggleLeftSidebar}
       onViewAllResults={() => {
         activeSystemView = 'search';
-        setActiveNoteId(null);
+        setActiveItem(null);
       }}
     />
 
@@ -379,7 +388,9 @@
                 </div>
                 <div class="conversations-list-wrapper">
                   <AutomergeConversationList
-                    activeConversationId={getActiveConversationId()}
+                    activeConversationId={activeItem?.type === 'conversation'
+                      ? activeItem.id
+                      : null}
                     onConversationSelect={handleConversationSelectFromView}
                     onNewConversation={handleNewConversationFromView}
                   />
@@ -410,7 +421,8 @@
                 {#each notes as note (note.id)}
                   <button
                     class="note-card"
-                    class:active={activeNoteId === note.id}
+                    class:active={activeItem?.type === 'note' &&
+                      activeItem.id === note.id}
                     onclick={() => handleNoteSelect(note)}
                   >
                     <div class="note-card-icon">
@@ -437,6 +449,16 @@
                 {/if}
               </div>
             </div>
+          {:else if activeItem?.type === 'conversation' && activeConversation}
+            <!-- Conversation selected from sidebar -->
+            <AutomergeConversationView
+              conversationId={activeConversation.id}
+              onBack={() => setActiveItem(null)}
+              onGoToSettings={() => {
+                activeSystemView = 'settings';
+                setActiveItem(null);
+              }}
+            />
           {:else if activeNote}
             <AutomergeNoteEditor
               note={activeNote}

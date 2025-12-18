@@ -16,7 +16,10 @@ import type {
   Workspace,
   PropertyDefinition,
   Conversation,
-  PersistedChatMessage
+  PersistedChatMessage,
+  SidebarItemRef,
+  SidebarItem,
+  ActiveItem
 } from './types';
 import {
   generateNoteId,
@@ -58,8 +61,7 @@ let vaults = $state<Vault[]>([]);
 let activeVaultId = $state<string | null>(null);
 
 // UI state (not persisted in Automerge)
-let activeNoteId = $state<string | null>(null);
-let activeConversationId = $state<string | null>(null);
+let activeItem = $state<ActiveItem>(null);
 
 // Loading states
 let isInitialized = $state(false);
@@ -243,8 +245,8 @@ export async function switchVault(
     currentDoc = doc;
   });
 
-  // Clear active note when switching vaults
-  activeNoteId = null;
+  // Clear active item when switching vaults
+  activeItem = null;
 
   return handle;
 }
@@ -328,10 +330,12 @@ export function createNote(params: {
       archived: false
     };
 
-    // Auto-add to recent notes in active workspace
+    // Auto-add to recent items in active workspace
     const workspaceId = doc.activeWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
-      doc.workspaces[workspaceId].recentNoteIds.unshift(id);
+      const ws = doc.workspaces[workspaceId];
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'note', id });
     }
   });
 
@@ -374,16 +378,27 @@ export function archiveNote(id: string): void {
     // Remove from all workspaces when archived
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      const index = ws.recentNoteIds.indexOf(id);
-      if (index !== -1) {
-        ws.recentNoteIds.splice(index, 1);
+      ensureWorkspaceArrays(ws);
+      // Remove from pinned items
+      const pinnedIndex = ws.pinnedItemIds.findIndex(
+        (item) => item.type === 'note' && item.id === id
+      );
+      if (pinnedIndex !== -1) {
+        ws.pinnedItemIds.splice(pinnedIndex, 1);
+      }
+      // Remove from recent items
+      const recentIndex = ws.recentItemIds.findIndex(
+        (item) => item.type === 'note' && item.id === id
+      );
+      if (recentIndex !== -1) {
+        ws.recentItemIds.splice(recentIndex, 1);
       }
     }
   });
 
-  // Clear active note if it was archived
-  if (activeNoteId === id) {
-    activeNoteId = null;
+  // Clear active item if it was archived
+  if (activeItem?.type === 'note' && activeItem.id === id) {
+    activeItem = null;
   }
 }
 
@@ -399,16 +414,27 @@ export function deleteNote(id: string): void {
     // Remove from all workspaces
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      const index = ws.recentNoteIds.indexOf(id);
-      if (index !== -1) {
-        ws.recentNoteIds.splice(index, 1);
+      ensureWorkspaceArrays(ws);
+      // Remove from pinned items
+      const pinnedIndex = ws.pinnedItemIds.findIndex(
+        (item) => item.type === 'note' && item.id === id
+      );
+      if (pinnedIndex !== -1) {
+        ws.pinnedItemIds.splice(pinnedIndex, 1);
+      }
+      // Remove from recent items
+      const recentIndex = ws.recentItemIds.findIndex(
+        (item) => item.type === 'note' && item.id === id
+      );
+      if (recentIndex !== -1) {
+        ws.recentItemIds.splice(recentIndex, 1);
       }
     }
   });
 
-  // Clear active note if it was deleted
-  if (activeNoteId === id) {
-    activeNoteId = null;
+  // Clear active item if it was deleted
+  if (activeItem?.type === 'note' && activeItem.id === id) {
+    activeItem = null;
   }
 }
 
@@ -453,23 +479,132 @@ export function getActiveWorkspace(): Workspace | undefined {
 }
 
 /**
- * Get recent notes in the active workspace
+ * Get pinned item refs from a workspace, handling migration from old field names
  */
-export function getRecentNotes(): Note[] {
-  const workspace = getActiveWorkspace();
-  if (!workspace) return [];
-
-  return workspace.recentNoteIds
-    .map((id) => currentDoc.notes[id])
-    .filter((note): note is Note => note !== undefined && !note.archived);
+function getWorkspacePinnedRefs(workspace: Workspace): SidebarItemRef[] {
+  // New field name
+  if (workspace.pinnedItemIds && Array.isArray(workspace.pinnedItemIds)) {
+    return workspace.pinnedItemIds;
+  }
+  // Old field name (pinnedNoteIds was string[])
+  const oldPinned = (workspace as unknown as { pinnedNoteIds?: string[] }).pinnedNoteIds;
+  if (oldPinned && Array.isArray(oldPinned)) {
+    return oldPinned.map((id) => ({ type: 'note' as const, id }));
+  }
+  return [];
 }
 
 /**
- * Check if a note is in the recent notes of the active workspace
+ * Get recent item refs from a workspace, handling migration from old field names
  */
-export function isNoteRecent(noteId: string): boolean {
+function getWorkspaceRecentRefs(workspace: Workspace): SidebarItemRef[] {
+  // New field name
+  if (workspace.recentItemIds && Array.isArray(workspace.recentItemIds)) {
+    return workspace.recentItemIds;
+  }
+  // Old field name (recentNoteIds was string[])
+  const oldRecent = (workspace as unknown as { recentNoteIds?: string[] }).recentNoteIds;
+  if (oldRecent && Array.isArray(oldRecent)) {
+    return oldRecent.map((id) => ({ type: 'note' as const, id }));
+  }
+  return [];
+}
+
+/**
+ * Ensure a workspace has the new array fields (pinnedItemIds, recentItemIds)
+ * Migrates from old field names if necessary.
+ * Call this inside Automerge change callbacks before accessing these arrays.
+ */
+function ensureWorkspaceArrays(ws: Workspace): void {
+  // Migrate pinnedNoteIds -> pinnedItemIds if needed
+  if (!ws.pinnedItemIds) {
+    const oldPinned = (ws as unknown as { pinnedNoteIds?: string[] }).pinnedNoteIds;
+    if (oldPinned && Array.isArray(oldPinned)) {
+      ws.pinnedItemIds = oldPinned.map((id) => ({ type: 'note' as const, id }));
+      // Clean up old field
+      delete (ws as unknown as { pinnedNoteIds?: string[] }).pinnedNoteIds;
+    } else {
+      ws.pinnedItemIds = [];
+    }
+  }
+
+  // Migrate recentNoteIds -> recentItemIds if needed
+  if (!ws.recentItemIds) {
+    const oldRecent = (ws as unknown as { recentNoteIds?: string[] }).recentNoteIds;
+    if (oldRecent && Array.isArray(oldRecent)) {
+      ws.recentItemIds = oldRecent.map((id) => ({ type: 'note' as const, id }));
+      // Clean up old field
+      delete (ws as unknown as { recentNoteIds?: string[] }).recentNoteIds;
+    } else {
+      ws.recentItemIds = [];
+    }
+  }
+}
+
+/**
+ * Convert a SidebarItemRef to a SidebarItem, or return null if not found/archived
+ */
+function refToSidebarItem(
+  ref: SidebarItemRef,
+  noteTypes: Record<string, NoteType>
+): SidebarItem | null {
+  if (ref.type === 'note') {
+    const note = currentDoc.notes[ref.id];
+    if (!note || note.archived) return null;
+    const noteType = noteTypes[note.type];
+    const displayText = note.title || note.content.trim().slice(0, 50) || 'Untitled';
+    const isPreview = !note.title;
+    return {
+      id: note.id,
+      type: 'note',
+      title: displayText + (isPreview && note.content.length > 50 ? '...' : ''),
+      icon: noteType?.icon || '📝',
+      updated: note.updated,
+      metadata: {
+        noteTypeId: note.type,
+        isPreview
+      }
+    };
+  } else if (ref.type === 'conversation') {
+    const conv = currentDoc.conversations?.[ref.id];
+    if (!conv || conv.archived) return null;
+    return {
+      id: conv.id,
+      type: 'conversation',
+      title: conv.title,
+      icon: '💬',
+      updated: conv.updated,
+      metadata: {
+        messageCount: conv.messages.length
+      }
+    };
+  }
+  return null;
+}
+
+/**
+ * Get recent items in the active workspace as SidebarItems
+ */
+export function getRecentItems(): SidebarItem[] {
   const workspace = getActiveWorkspace();
-  return workspace?.recentNoteIds.includes(noteId) ?? false;
+  if (!workspace) return [];
+
+  const noteTypes = currentDoc.noteTypes ?? {};
+  const refs = getWorkspaceRecentRefs(workspace);
+
+  return refs
+    .map((ref) => refToSidebarItem(ref, noteTypes))
+    .filter((item): item is SidebarItem => item !== null);
+}
+
+/**
+ * Check if an item is in the recent items of the active workspace
+ */
+export function isItemRecent(ref: SidebarItemRef): boolean {
+  const workspace = getActiveWorkspace();
+  if (!workspace) return false;
+  const refs = getWorkspaceRecentRefs(workspace);
+  return refs.some((r) => r.type === ref.type && r.id === ref.id);
 }
 
 // --- Workspace mutations ---
@@ -488,8 +623,8 @@ export function createWorkspace(params: { name: string; icon: string }): string 
       id,
       name: params.name,
       icon: params.icon,
-      pinnedNoteIds: [],
-      recentNoteIds: [],
+      pinnedItemIds: [],
+      recentItemIds: [],
       created: nowISO()
     };
 
@@ -568,71 +703,80 @@ export function setActiveWorkspace(workspaceId: string): void {
 }
 
 /**
- * Add a note to the active workspace's recent notes
- * Does not add if the note is already pinned or already in recent notes
+ * Add an item to the active workspace's recent items
+ * Does not add if the item is already pinned or already in recent items
  */
-export function addNoteToWorkspace(noteId: string): void {
+export function addItemToWorkspace(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (!ws) return;
+    ensureWorkspaceArrays(ws);
 
     // Don't add if already pinned
-    if (ws.pinnedNoteIds?.includes(noteId)) return;
+    if (ws.pinnedItemIds.some((r) => r.type === ref.type && r.id === ref.id)) return;
 
     // Don't add duplicates to recent
-    if (ws.recentNoteIds.includes(noteId)) return;
+    if (ws.recentItemIds.some((r) => r.type === ref.type && r.id === ref.id)) return;
 
-    ws.recentNoteIds.unshift(noteId);
+    ws.recentItemIds.unshift(ref);
   });
 }
 
 /**
- * Remove a note from the active workspace's recent notes
- * @returns The ID of the note to select next, or null if none
+ * Remove an item from the active workspace's recent items
+ * @returns The next item to select, or null if none
  */
-export function removeNoteFromWorkspace(noteId: string): string | null {
+export function removeItemFromWorkspace(ref: SidebarItemRef): SidebarItemRef | null {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
   if (!workspace) return null;
 
-  const index = workspace.recentNoteIds.indexOf(noteId);
+  const recentRefs = getWorkspaceRecentRefs(workspace);
+  const index = recentRefs.findIndex((r) => r.type === ref.type && r.id === ref.id);
   if (index === -1) return null;
 
-  // Determine next note to select
-  let nextNoteId: string | null = null;
-  if (workspace.recentNoteIds.length > 1) {
-    if (index < workspace.recentNoteIds.length - 1) {
-      nextNoteId = workspace.recentNoteIds[index + 1];
+  // Determine next item to select
+  let nextItem: SidebarItemRef | null = null;
+  if (recentRefs.length > 1) {
+    if (index < recentRefs.length - 1) {
+      nextItem = recentRefs[index + 1];
     } else {
-      nextNoteId = workspace.recentNoteIds[index - 1];
+      nextItem = recentRefs[index - 1];
     }
   }
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (ws) {
-      const idx = ws.recentNoteIds.indexOf(noteId);
+      ensureWorkspaceArrays(ws);
+      const idx = ws.recentItemIds.findIndex(
+        (r) => r.type === ref.type && r.id === ref.id
+      );
       if (idx !== -1) {
-        ws.recentNoteIds.splice(idx, 1);
+        ws.recentItemIds.splice(idx, 1);
       }
     }
   });
 
-  // Clear active note if it was removed
-  if (activeNoteId === noteId) {
-    activeNoteId = nextNoteId;
+  // Clear active item if it was removed
+  if (activeItem?.type === ref.type && activeItem.id === ref.id) {
+    if (nextItem) {
+      activeItem = nextItem;
+    } else {
+      activeItem = null;
+    }
   }
 
-  return nextNoteId;
+  return nextItem;
 }
 
 /**
- * Reorder recent notes in the active workspace
+ * Reorder recent items in the active workspace
  */
-export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void {
+export function reorderRecentItems(fromIndex: number, toIndex: number): void {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
@@ -641,9 +785,11 @@ export function reorderWorkspaceNotes(fromIndex: number, toIndex: number): void 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (!ws) return;
+    ensureWorkspaceArrays(ws);
 
-    const [removed] = ws.recentNoteIds.splice(fromIndex, 1);
-    ws.recentNoteIds.splice(toIndex, 0, removed);
+    const [removed] = ws.recentItemIds.splice(fromIndex, 1);
+    // Create a new plain object to avoid Automerge "existing document object" error
+    ws.recentItemIds.splice(toIndex, 0, { type: removed.type, id: removed.id });
   });
 }
 
@@ -672,61 +818,60 @@ export function reorderWorkspaces(fromIndex: number, toIndex: number): void {
   });
 }
 
-// --- Pinned notes ---
+// --- Pinned items ---
 
 /**
- * Get pinned notes in the active workspace
+ * Get pinned items in the active workspace as SidebarItems
  */
-export function getPinnedNotes(): Note[] {
+export function getPinnedItems(): SidebarItem[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  // Handle old workspaces that don't have pinnedNoteIds
-  const pinnedIds = workspace.pinnedNoteIds ?? [];
+  const noteTypes = currentDoc.noteTypes ?? {};
+  const refs = getWorkspacePinnedRefs(workspace);
 
-  return pinnedIds
-    .map((id) => currentDoc.notes[id])
-    .filter((note): note is Note => note !== undefined && !note.archived);
+  return refs
+    .map((ref) => refToSidebarItem(ref, noteTypes))
+    .filter((item): item is SidebarItem => item !== null);
 }
 
 /**
- * Pin a note to the active workspace
+ * Pin an item to the active workspace
  */
-export function pinNote(noteId: string): void {
+export function pinItem(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
   if (!workspace) return;
 
   // Don't pin if already pinned
-  if (workspace.pinnedNoteIds?.includes(noteId)) return;
+  const pinnedRefs = getWorkspacePinnedRefs(workspace);
+  if (pinnedRefs.some((r) => r.type === ref.type && r.id === ref.id)) return;
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (!ws) return;
-
-    // Initialize pinnedNoteIds if it doesn't exist
-    if (!ws.pinnedNoteIds) {
-      ws.pinnedNoteIds = [];
-    }
+    ensureWorkspaceArrays(ws);
 
     // Add to pinned if not already there
-    if (!ws.pinnedNoteIds.includes(noteId)) {
-      ws.pinnedNoteIds.push(noteId);
+    if (!ws.pinnedItemIds.some((r) => r.type === ref.type && r.id === ref.id)) {
+      ws.pinnedItemIds.push(ref);
     }
 
-    // Remove from recent notes (pinned notes replace recent notes)
-    const recentIndex = ws.recentNoteIds.indexOf(noteId);
+    // Remove from recent items (pinned items replace recent items)
+    const recentIndex = ws.recentItemIds.findIndex(
+      (r) => r.type === ref.type && r.id === ref.id
+    );
     if (recentIndex !== -1) {
-      ws.recentNoteIds.splice(recentIndex, 1);
+      ws.recentItemIds.splice(recentIndex, 1);
     }
   });
 }
 
 /**
- * Unpin a note from the active workspace
+ * Unpin an item from the active workspace
  */
-export function unpinNote(noteId: string): void {
+export function unpinItem(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
@@ -734,32 +879,37 @@ export function unpinNote(noteId: string): void {
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
-    if (!ws || !ws.pinnedNoteIds) return;
+    if (!ws) return;
+    ensureWorkspaceArrays(ws);
 
-    const index = ws.pinnedNoteIds.indexOf(noteId);
+    const index = ws.pinnedItemIds.findIndex(
+      (r) => r.type === ref.type && r.id === ref.id
+    );
     if (index !== -1) {
-      ws.pinnedNoteIds.splice(index, 1);
+      ws.pinnedItemIds.splice(index, 1);
 
-      // Add to recent notes when unpinned (at the start)
-      if (!ws.recentNoteIds.includes(noteId)) {
-        ws.recentNoteIds.unshift(noteId);
+      // Add to recent items when unpinned (at the start)
+      if (!ws.recentItemIds.some((r) => r.type === ref.type && r.id === ref.id)) {
+        ws.recentItemIds.unshift(ref);
       }
     }
   });
 }
 
 /**
- * Check if a note is pinned in the active workspace
+ * Check if an item is pinned in the active workspace
  */
-export function isNotePinned(noteId: string): boolean {
+export function isItemPinned(ref: SidebarItemRef): boolean {
   const workspace = getActiveWorkspace();
-  return workspace?.pinnedNoteIds?.includes(noteId) ?? false;
+  if (!workspace) return false;
+  const pinnedRefs = getWorkspacePinnedRefs(workspace);
+  return pinnedRefs.some((r) => r.type === ref.type && r.id === ref.id);
 }
 
 /**
- * Reorder pinned notes in the active workspace
+ * Reorder pinned items in the active workspace
  */
-export function reorderPinnedNotes(fromIndex: number, toIndex: number): void {
+export function reorderPinnedItems(fromIndex: number, toIndex: number): void {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
@@ -767,10 +917,12 @@ export function reorderPinnedNotes(fromIndex: number, toIndex: number): void {
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
-    if (!ws || !ws.pinnedNoteIds) return;
+    if (!ws) return;
+    ensureWorkspaceArrays(ws);
 
-    const [removed] = ws.pinnedNoteIds.splice(fromIndex, 1);
-    ws.pinnedNoteIds.splice(toIndex, 0, removed);
+    const [removed] = ws.pinnedItemIds.splice(fromIndex, 1);
+    // Create a new plain object to avoid Automerge "existing document object" error
+    ws.pinnedItemIds.splice(toIndex, 0, { type: removed.type, id: removed.id });
   });
 }
 
@@ -975,28 +1127,81 @@ export function getNoteTypeEditorChips(typeId: string): string[] {
   return noteType?.editorChips ?? ['created', 'updated'];
 }
 
-// --- Active note (UI state, not persisted in Automerge) ---
+// --- Active item (UI state, not persisted in Automerge) ---
 
 /**
- * Get the currently active note ID
+ * Get the currently active item
  */
-export function getActiveNoteId(): string | null {
-  return activeNoteId;
+export function getActiveItem(): ActiveItem {
+  return activeItem;
 }
 
 /**
- * Get the currently active note
+ * Set the active item
+ */
+export function setActiveItem(item: ActiveItem): void {
+  activeItem = item;
+}
+
+/**
+ * Get the currently active note (convenience getter)
  */
 export function getActiveNote(): Note | undefined {
-  if (!activeNoteId) return undefined;
-  return currentDoc.notes[activeNoteId];
+  if (!activeItem || activeItem.type !== 'note') return undefined;
+  return currentDoc.notes[activeItem.id];
 }
 
 /**
- * Set the active note ID
+ * Get the currently active conversation (convenience getter)
  */
-export function setActiveNoteId(id: string | null): void {
-  activeNoteId = id;
+export function getActiveConversation(): Conversation | undefined {
+  if (!activeItem || activeItem.type !== 'conversation') return undefined;
+  return currentDoc.conversations?.[activeItem.id];
+}
+
+// --- Convenience wrappers for backward compatibility ---
+
+/**
+ * Get the active note ID (convenience wrapper)
+ */
+export function getActiveNoteId(): string | null {
+  return activeItem?.type === 'note' ? activeItem.id : null;
+}
+
+/**
+ * Set the active note by ID (convenience wrapper)
+ */
+export function setActiveNoteId(noteId: string | null): void {
+  if (noteId === null) {
+    setActiveItem(null);
+  } else {
+    setActiveItem({ type: 'note', id: noteId });
+  }
+}
+
+/**
+ * Get the active conversation ID (convenience wrapper)
+ */
+export function getActiveConversationId(): string | null {
+  return activeItem?.type === 'conversation' ? activeItem.id : null;
+}
+
+/**
+ * Set the active conversation by ID (convenience wrapper)
+ */
+export function setActiveConversationId(conversationId: string | null): void {
+  if (conversationId === null) {
+    setActiveItem(null);
+  } else {
+    setActiveItem({ type: 'conversation', id: conversationId });
+  }
+}
+
+/**
+ * Add a note to the current workspace (convenience wrapper)
+ */
+export function addNoteToWorkspace(noteId: string): void {
+  addItemToWorkspace({ type: 'note', id: noteId });
 }
 
 /**
@@ -1016,12 +1221,12 @@ export function navigateToNote(
   if (shouldCreate) {
     // Create a new note with the given title
     const newId = createNote({ title });
-    addNoteToWorkspace(newId);
-    setActiveNoteId(newId);
+    addItemToWorkspace({ type: 'note', id: newId });
+    setActiveItem({ type: 'note', id: newId });
     return newId;
   } else {
     // Navigate to existing note
-    setActiveNoteId(noteId);
+    setActiveItem({ type: 'note', id: noteId });
     return noteId;
   }
 }
@@ -1348,40 +1553,10 @@ export function getConversations(): Conversation[] {
 }
 
 /**
- * Get recent conversations for the active workspace (ordered by recency list)
- */
-export function getRecentConversations(): Conversation[] {
-  const workspace = getActiveWorkspace();
-  if (!workspace) return [];
-
-  const recentIds = workspace.recentConversationIds ?? [];
-  const conversations = currentDoc.conversations ?? {};
-
-  return recentIds
-    .map((id) => conversations[id])
-    .filter((conv): conv is Conversation => conv !== undefined && !conv.archived);
-}
-
-/**
  * Get a conversation by ID
  */
 export function getConversation(id: string): Conversation | undefined {
   return currentDoc.conversations?.[id];
-}
-
-/**
- * Get the active conversation
- */
-export function getActiveConversation(): Conversation | undefined {
-  if (!activeConversationId) return undefined;
-  return currentDoc.conversations?.[activeConversationId];
-}
-
-/**
- * Get the active conversation ID
- */
-export function getActiveConversationId(): string | null {
-  return activeConversationId;
 }
 
 // --- Conversation mutations ---
@@ -1415,17 +1590,11 @@ export function createConversation(params?: { title?: string }): string {
       archived: false
     };
 
-    // Add to workspace's recent conversations
+    // Add to workspace's recent items
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (ws) {
-      if (!ws.recentConversationIds) {
-        ws.recentConversationIds = [];
-      }
-      ws.recentConversationIds.unshift(id);
-      // Limit to 20 recent conversations
-      if (ws.recentConversationIds.length > 20) {
-        ws.recentConversationIds = ws.recentConversationIds.slice(0, 20);
-      }
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'conversation', id });
     }
   });
 
@@ -1520,21 +1689,30 @@ export function archiveConversation(id: string): void {
       conv.updated = nowISO();
     }
 
-    // Remove from all workspace recentConversationIds
+    // Remove from all workspaces
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      if (ws.recentConversationIds) {
-        const index = ws.recentConversationIds.indexOf(id);
-        if (index !== -1) {
-          ws.recentConversationIds.splice(index, 1);
-        }
+      ensureWorkspaceArrays(ws);
+      // Remove from pinned items
+      const pinnedIndex = ws.pinnedItemIds.findIndex(
+        (item) => item.type === 'conversation' && item.id === id
+      );
+      if (pinnedIndex !== -1) {
+        ws.pinnedItemIds.splice(pinnedIndex, 1);
+      }
+      // Remove from recent items
+      const recentIndex = ws.recentItemIds.findIndex(
+        (item) => item.type === 'conversation' && item.id === id
+      );
+      if (recentIndex !== -1) {
+        ws.recentItemIds.splice(recentIndex, 1);
       }
     }
   });
 
-  // Clear active if it was archived
-  if (activeConversationId === id) {
-    activeConversationId = null;
+  // Clear active item if it was archived
+  if (activeItem?.type === 'conversation' && activeItem.id === id) {
+    activeItem = null;
   }
 }
 
@@ -1549,57 +1727,54 @@ export function deleteConversation(id: string): void {
       delete doc.conversations[id];
     }
 
-    // Remove from all workspace recentConversationIds
+    // Remove from all workspaces
     for (const wsId of Object.keys(doc.workspaces)) {
       const ws = doc.workspaces[wsId];
-      if (ws.recentConversationIds) {
-        const index = ws.recentConversationIds.indexOf(id);
-        if (index !== -1) {
-          ws.recentConversationIds.splice(index, 1);
-        }
+      ensureWorkspaceArrays(ws);
+      // Remove from pinned items
+      const pinnedIndex = ws.pinnedItemIds.findIndex(
+        (item) => item.type === 'conversation' && item.id === id
+      );
+      if (pinnedIndex !== -1) {
+        ws.pinnedItemIds.splice(pinnedIndex, 1);
+      }
+      // Remove from recent items
+      const recentIndex = ws.recentItemIds.findIndex(
+        (item) => item.type === 'conversation' && item.id === id
+      );
+      if (recentIndex !== -1) {
+        ws.recentItemIds.splice(recentIndex, 1);
       }
     }
   });
 
-  if (activeConversationId === id) {
-    activeConversationId = null;
+  // Clear active item if it was deleted
+  if (activeItem?.type === 'conversation' && activeItem.id === id) {
+    activeItem = null;
   }
 }
 
 /**
- * Set the active conversation
+ * Bump an item to front of workspace's recent list
  */
-export function setActiveConversationId(id: string | null): void {
-  activeConversationId = id;
-}
-
-/**
- * Bump conversation to front of workspace's recent list
- */
-export function bumpConversationToRecent(conversationId: string): void {
+export function bumpItemToRecent(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
     const ws = doc.workspaces[doc.activeWorkspaceId];
     if (!ws) return;
-
-    if (!ws.recentConversationIds) {
-      ws.recentConversationIds = [];
-    }
+    ensureWorkspaceArrays(ws);
 
     // Remove if already present
-    const existingIndex = ws.recentConversationIds.indexOf(conversationId);
+    const existingIndex = ws.recentItemIds.findIndex(
+      (r) => r.type === ref.type && r.id === ref.id
+    );
     if (existingIndex !== -1) {
-      ws.recentConversationIds.splice(existingIndex, 1);
+      ws.recentItemIds.splice(existingIndex, 1);
     }
 
     // Add to front
-    ws.recentConversationIds.unshift(conversationId);
-
-    // Limit to 20
-    if (ws.recentConversationIds.length > 20) {
-      ws.recentConversationIds = ws.recentConversationIds.slice(0, 20);
-    }
+    ws.recentItemIds.unshift(ref);
   });
 }
 

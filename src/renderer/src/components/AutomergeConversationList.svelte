@@ -4,7 +4,7 @@
    * Shows recent conversations with title and date
    */
   import {
-    getRecentConversations,
+    getConversations,
     archiveConversation,
     type Conversation
   } from '../lib/automerge';
@@ -17,12 +17,10 @@
 
   let { activeConversationId, onConversationSelect, onNewConversation }: Props = $props();
 
-  const conversations = $derived(getRecentConversations());
+  const conversations = $derived(getConversations());
 
   function formatDate(isoString: string): string {
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for formatting, not reactive state
     const date = new Date(isoString);
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 
@@ -31,6 +29,7 @@
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     // Yesterday
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (

@@ -17,7 +17,11 @@ export type {
   PropertyDefinition,
   Conversation,
   PersistedChatMessage,
-  PersistedToolCall
+  PersistedToolCall,
+  SidebarItemType,
+  SidebarItemRef,
+  SidebarItem,
+  ActiveItem
 } from './types';
 
 // State management
@@ -53,25 +57,25 @@ export {
   // Workspace getters
   getWorkspaces,
   getActiveWorkspace,
-  getRecentNotes,
-  isNoteRecent,
+  getRecentItems,
+  isItemRecent,
 
   // Workspace mutations
   createWorkspace,
   updateWorkspace,
   deleteWorkspace,
   setActiveWorkspace,
-  addNoteToWorkspace,
-  removeNoteFromWorkspace,
-  reorderWorkspaceNotes,
+  addItemToWorkspace,
+  removeItemFromWorkspace,
+  reorderRecentItems,
   reorderWorkspaces,
 
-  // Pinned notes
-  getPinnedNotes,
-  pinNote,
-  unpinNote,
-  isNotePinned,
-  reorderPinnedNotes,
+  // Pinned items
+  getPinnedItems,
+  pinItem,
+  unpinItem,
+  isItemPinned,
+  reorderPinnedItems,
 
   // Note type getters
   getNoteTypes,
@@ -93,11 +97,19 @@ export {
   getNoteTypeProperties,
   getNoteTypeEditorChips,
 
-  // Active note (UI state)
-  getActiveNoteId,
+  // Active item (UI state)
+  getActiveItem,
+  setActiveItem,
   getActiveNote,
-  setActiveNoteId,
+  getActiveConversation,
   navigateToNote,
+
+  // Convenience wrappers (for backward compatibility)
+  getActiveNoteId,
+  setActiveNoteId,
+  getActiveConversationId,
+  setActiveConversationId,
+  addNoteToWorkspace,
 
   // Backlinks
   getBacklinks,
@@ -121,10 +133,7 @@ export {
 
   // Conversation getters
   getConversations,
-  getRecentConversations,
   getConversation,
-  getActiveConversation,
-  getActiveConversationId,
 
   // Conversation mutations
   createConversation,
@@ -133,8 +142,7 @@ export {
   updateConversation,
   archiveConversation,
   deleteConversation,
-  setActiveConversationId,
-  bumpConversationToRecent
+  bumpItemToRecent
 } from './state.svelte';
 
 // Repo utilities

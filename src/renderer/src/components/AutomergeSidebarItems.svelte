@@ -1,66 +1,72 @@
 <script lang="ts">
   /**
-   * Unified sidebar notes component
-   * Shows pinned and recent notes in a single list with a separator
+   * Unified sidebar items component
+   * Shows pinned and recent items (notes and conversations) in a single list with a separator
    * Dragging items above/below the separator pins/unpins them
    */
   import { tick } from 'svelte';
   import {
-    getPinnedNotes,
-    getRecentNotes,
-    removeNoteFromWorkspace,
-    pinNote,
-    unpinNote,
+    getPinnedItems,
+    getRecentItems,
+    removeItemFromWorkspace,
+    pinItem,
+    unpinItem,
     archiveNote,
-    getNoteTypes,
-    getActiveNoteId,
-    reorderPinnedNotes,
-    reorderWorkspaceNotes,
-    type Note
+    archiveConversation,
+    getActiveItem,
+    reorderPinnedItems,
+    reorderRecentItems,
+    type SidebarItem,
+    type SidebarItemRef
   } from '../lib/automerge';
 
   interface Props {
-    onNoteSelect: (note: Note) => void;
+    onItemSelect: (item: SidebarItem) => void;
   }
 
-  let { onNoteSelect }: Props = $props();
+  let { onItemSelect }: Props = $props();
 
   // Reactive state
-  const pinnedNotes = $derived(getPinnedNotes());
-  const recentNotes = $derived(getRecentNotes());
-  const activeNoteId = $derived(getActiveNoteId());
-  const noteTypes = $derived(getNoteTypes());
+  const pinnedItems = $derived(getPinnedItems());
+  const recentItems = $derived(getRecentItems());
+  const activeItem = $derived(getActiveItem());
 
-  // Build unified list: pinned notes + separator + recent notes
+  // Build unified list: pinned items + separator + recent items
   type ListItem =
-    | { type: 'note'; note: Note; section: 'pinned' | 'recent'; sectionIndex: number }
+    | {
+        type: 'item';
+        item: SidebarItem;
+        section: 'pinned' | 'recent';
+        sectionIndex: number;
+      }
     | { type: 'separator' };
 
   const unifiedList = $derived.by(() => {
     const items: ListItem[] = [];
 
-    // Add pinned notes
-    pinnedNotes.forEach((note, index) => {
-      items.push({ type: 'note', note, section: 'pinned', sectionIndex: index });
+    // Add pinned items
+    pinnedItems.forEach((item, index) => {
+      items.push({ type: 'item', item, section: 'pinned', sectionIndex: index });
     });
 
     // Add separator (always present)
     items.push({ type: 'separator' });
 
-    // Add recent notes
-    recentNotes.forEach((note, index) => {
-      items.push({ type: 'note', note, section: 'recent', sectionIndex: index });
+    // Add recent items
+    recentItems.forEach((item, index) => {
+      items.push({ type: 'item', item, section: 'recent', sectionIndex: index });
     });
 
     return items;
   });
 
   // The index in unified list where the separator is
-  const separatorIndex = $derived(pinnedNotes.length);
+  const separatorIndex = $derived(pinnedItems.length);
 
   // Drag state
   let draggedIndex = $state<number | null>(null);
-  let draggedNoteId = $state<string | null>(null);
+  let draggedItemId = $state<string | null>(null);
+  let draggedItemType = $state<'note' | 'conversation' | null>(null);
   let dropTargetIndex = $state<number | null>(null);
   let dragOffsetY = $state(0);
   let dragStartY = $state(0);
@@ -79,58 +85,49 @@
 
   // Context menu state
   let contextMenuOpen = $state(false);
-  let contextMenuNoteId = $state<string | null>(null);
+  let contextMenuItemId = $state<string | null>(null);
+  let contextMenuItemType = $state<'note' | 'conversation' | null>(null);
   let contextMenuSection = $state<'pinned' | 'recent' | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
 
-  function handleNoteClick(note: Note): void {
-    onNoteSelect(note);
+  function handleItemClick(item: SidebarItem): void {
+    onItemSelect(item);
   }
 
-  function handleCloseTab(noteId: string, event: Event): void {
+  function handleCloseTab(item: SidebarItem, event: Event): void {
     event.stopPropagation();
-    removeNoteFromWorkspace(noteId);
+    removeItemFromWorkspace({ type: item.type, id: item.id });
   }
 
   function handleClearAll(): void {
-    for (const note of recentNotes) {
-      removeNoteFromWorkspace(note.id);
+    for (const item of recentItems) {
+      removeItemFromWorkspace({ type: item.type, id: item.id });
     }
   }
 
-  function getNoteDisplayText(note: Note): { text: string; isPreview: boolean } {
-    if (note.title) {
-      return { text: note.title, isPreview: false };
-    }
-    const preview = note.content.trim().slice(0, 50);
-    if (preview) {
-      return { text: preview + (note.content.length > 50 ? '...' : ''), isPreview: true };
-    }
-    return { text: 'Untitled', isPreview: true };
-  }
-
-  function getNoteIcon(note: Note): string {
-    const noteType = noteTypes.find((t) => t.id === note.type);
-    return noteType?.icon || '📝';
+  // Check if the item is active
+  function isItemActive(item: SidebarItem): boolean {
+    return activeItem?.type === item.type && activeItem?.id === item.id;
   }
 
   // Drag handlers
-  function handleDragStart(e: DragEvent, index: number, noteId: string): void {
+  function handleDragStart(e: DragEvent, index: number, item: SidebarItem): void {
     draggedIndex = index;
-    draggedNoteId = noteId;
+    draggedItemId = item.id;
+    draggedItemType = item.type;
     dropTargetIndex = index;
     dragOffsetY = 0;
 
-    const item = (e.target as HTMLElement).closest('[data-note-item]') as HTMLElement;
-    if (item) {
-      itemHeight = item.offsetHeight;
+    const el = (e.target as HTMLElement).closest('[data-sidebar-item]') as HTMLElement;
+    if (el) {
+      itemHeight = el.offsetHeight;
     }
 
     dragStartY = e.clientY;
 
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', noteId);
+      e.dataTransfer.setData('text/plain', `${item.type}:${item.id}`);
       e.dataTransfer.setDragImage(emptyDragImage, 0, 0);
     }
 
@@ -256,14 +253,21 @@
   }
 
   async function finishDrag(): Promise<void> {
-    if (draggedIndex === null || dropTargetIndex === null || draggedNoteId === null) {
+    if (
+      draggedIndex === null ||
+      dropTargetIndex === null ||
+      draggedItemId === null ||
+      draggedItemType === null
+    ) {
       resetDragState();
       return;
     }
 
     const fromIndex = draggedIndex;
     const toIndex = dropTargetIndex;
-    const noteId = draggedNoteId;
+    const itemId = draggedItemId;
+    const itemType = draggedItemType;
+    const itemRef: SidebarItemRef = { type: itemType, id: itemId };
 
     if (fromIndex === toIndex) {
       resetDragState();
@@ -286,8 +290,8 @@
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map used only for local computation, not reactive state
     const visualPositions = new Map<string, number>();
     for (let i = 0; i < unifiedList.length; i++) {
-      const item = unifiedList[i];
-      if (item.type === 'separator') continue;
+      const listItem = unifiedList[i];
+      if (listItem.type === 'separator') continue;
 
       let visualIndex = i;
       if (i === fromIndex) {
@@ -297,7 +301,8 @@
       } else if (fromIndex > toIndex && i >= toIndex && i < fromIndex) {
         visualIndex = i + 1;
       }
-      visualPositions.set(item.note.id, visualIndex);
+      // Use composite key for uniqueness across types
+      visualPositions.set(`${listItem.item.type}:${listItem.item.id}`, visualIndex);
     }
 
     // Enter animating state
@@ -315,12 +320,12 @@
     // Handle the move
     if (fromPinned && toPinned) {
       // Reorder within pinned
-      reorderPinnedNotes(fromIndex, toIndex);
+      reorderPinnedItems(fromIndex, toIndex);
     } else if (!fromPinned && !toPinned) {
       // Reorder within recent
       const fromSectionIndex = fromIndex - separatorIndex - 1;
       const toSectionIndex = toIndex - separatorIndex - 1;
-      reorderWorkspaceNotes(fromSectionIndex, toSectionIndex);
+      reorderRecentItems(fromSectionIndex, toSectionIndex);
     } else if (fromPinned && !toPinned) {
       // Moving from pinned to recent (unpin)
       // Calculate target position in recent section
@@ -329,27 +334,27 @@
       // New separator will be at (separatorIndex - 1)
       // Target in recent = toIndex - newSeparator - 1 = toIndex - (separatorIndex - 1) - 1 = toIndex - separatorIndex
       const targetRecentIndex = toIndex - separatorIndex;
-      unpinNote(noteId);
-      // After unpin, note is added at index 0 of recent
+      unpinItem(itemRef);
+      // After unpin, item is added at index 0 of recent
       if (targetRecentIndex > 0) {
         await tick();
         // Bounds check
-        const currentRecentLength = getRecentNotes().length;
+        const currentRecentLength = getRecentItems().length;
         if (targetRecentIndex < currentRecentLength) {
-          reorderWorkspaceNotes(0, targetRecentIndex);
+          reorderRecentItems(0, targetRecentIndex);
         }
       }
     } else {
       // Moving from recent to pinned (pin)
       // toIndex is the target position in the unified list (which will be in pinned section)
       const targetPinnedIndex = toIndex;
-      pinNote(noteId);
-      // After pin, note is added at end of pinned
+      pinItem(itemRef);
+      // After pin, item is added at end of pinned
       await tick();
-      const newPinnedLength = getPinnedNotes().length;
-      // The note is now at index (newPinnedLength - 1), move it to targetPinnedIndex if needed
+      const newPinnedLength = getPinnedItems().length;
+      // The item is now at index (newPinnedLength - 1), move it to targetPinnedIndex if needed
       if (targetPinnedIndex < newPinnedLength - 1) {
-        reorderPinnedNotes(newPinnedLength - 1, targetPinnedIndex);
+        reorderPinnedItems(newPinnedLength - 1, targetPinnedIndex);
       }
     }
 
@@ -362,12 +367,16 @@
     }
 
     // Query fresh element references
-    const freshElements = listElement.querySelectorAll<HTMLElement>('[data-note-item]');
+    const freshElements =
+      listElement.querySelectorAll<HTMLElement>('[data-sidebar-item]');
 
     // Apply FLIP: position elements at their OLD visual position, then animate to new
     freshElements.forEach((el) => {
-      const id = el.dataset.noteId;
-      if (!id) return;
+      const elId = el.dataset.itemId;
+      const elType = el.dataset.itemType;
+      if (!elId || !elType) return;
+
+      const compositeKey = `${elType}:${elId}`;
 
       // Find this element's new index
       const newIndex = Array.from(freshElements).indexOf(el);
@@ -376,11 +385,11 @@
 
       let deltaY: number;
 
-      if (id === noteId) {
+      if (elId === itemId && elType === itemType) {
         // The dragged item: calculate from its pixel position
         deltaY = (fromIndex - adjustedNewIndex) * itemHeight + draggedItemOffset;
       } else {
-        const oldVisualIndex = visualPositions.get(id);
+        const oldVisualIndex = visualPositions.get(compositeKey);
         if (oldVisualIndex === undefined) return;
         deltaY = (oldVisualIndex - adjustedNewIndex) * itemHeight;
       }
@@ -417,17 +426,19 @@
 
   function resetDragState(): void {
     draggedIndex = null;
-    draggedNoteId = null;
+    draggedItemId = null;
+    draggedItemType = null;
     dropTargetIndex = null;
     dragOffsetY = 0;
 
     // Remove document-level drag listener
     document.removeEventListener('drag', handleDocumentDrag);
 
-    // Clear any stuck transforms on note items
+    // Clear any stuck transforms on sidebar items
     if (listElement) {
-      const noteItems = listElement.querySelectorAll<HTMLElement>('[data-note-item]');
-      noteItems.forEach((el) => {
+      const sidebarItems =
+        listElement.querySelectorAll<HTMLElement>('[data-sidebar-item]');
+      sidebarItems.forEach((el) => {
         el.style.transform = '';
         el.style.transition = '';
       });
@@ -489,11 +500,12 @@
   // Context menu handlers
   function handleContextMenu(
     event: MouseEvent,
-    noteId: string,
+    item: SidebarItem,
     section: 'pinned' | 'recent'
   ): void {
     event.preventDefault();
-    contextMenuNoteId = noteId;
+    contextMenuItemId = item.id;
+    contextMenuItemType = item.type;
     contextMenuSection = section;
 
     const menuWidth = 160;
@@ -519,7 +531,8 @@
 
   function closeContextMenu(): void {
     contextMenuOpen = false;
-    contextMenuNoteId = null;
+    contextMenuItemId = null;
+    contextMenuItemType = null;
     contextMenuSection = null;
   }
 
@@ -539,27 +552,33 @@
   }
 
   function handlePinUnpin(): void {
-    if (!contextMenuNoteId) return;
+    if (!contextMenuItemId || !contextMenuItemType) return;
+    const itemRef: SidebarItemRef = { type: contextMenuItemType, id: contextMenuItemId };
     if (contextMenuSection === 'pinned') {
-      unpinNote(contextMenuNoteId);
+      unpinItem(itemRef);
     } else {
-      pinNote(contextMenuNoteId);
+      pinItem(itemRef);
     }
     closeContextMenu();
   }
 
   function handleArchive(): void {
-    if (!contextMenuNoteId) return;
-    archiveNote(contextMenuNoteId);
+    if (!contextMenuItemId || !contextMenuItemType) return;
+    if (contextMenuItemType === 'note') {
+      archiveNote(contextMenuItemId);
+    } else if (contextMenuItemType === 'conversation') {
+      archiveConversation(contextMenuItemId);
+    }
     closeContextMenu();
   }
 
   function handleClose(): void {
-    if (!contextMenuNoteId) return;
+    if (!contextMenuItemId || !contextMenuItemType) return;
+    const itemRef: SidebarItemRef = { type: contextMenuItemType, id: contextMenuItemId };
     if (contextMenuSection === 'pinned') {
-      unpinNote(contextMenuNoteId);
+      unpinItem(itemRef);
     } else {
-      removeNoteFromWorkspace(contextMenuNoteId);
+      removeItemFromWorkspace(itemRef);
     }
     closeContextMenu();
   }
@@ -567,29 +586,29 @@
 
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
-<div class="sidebar-notes">
+<div class="sidebar-items">
   <div class="section-label">Pinned</div>
   <div
-    class="notes-list"
+    class="items-list"
     class:is-dragging={draggedIndex !== null}
     bind:this={listElement}
     ondragover={handleDragOver}
     ondrop={handleDrop}
     role="list"
   >
-    {#if pinnedNotes.length === 0}
+    {#if pinnedItems.length === 0}
       <div
         class="empty-pinned-area always-visible"
         class:highlight={isDraggingAcrossSeparator}
       >
-        <span class="empty-pinned-text">Drag notes here to pin</span>
+        <span class="empty-pinned-text">Drag items here to pin</span>
       </div>
     {/if}
-    {#each unifiedList as item, index (item.type === 'separator' ? 'separator' : item.note.id)}
-      {#if item.type === 'separator'}
+    {#each unifiedList as listItem, index (listItem.type === 'separator' ? 'separator' : `${listItem.item.type}:${listItem.item.id}`)}
+      {#if listItem.type === 'separator'}
         <div class="separator-row" style:transform={getItemTransform(index)}>
           <div class="separator-line"></div>
-          {#if recentNotes.length > 0}
+          {#if recentItems.length > 0}
             <button class="clear-all" onclick={handleClearAll}>
               <svg
                 width="12"
@@ -609,37 +628,54 @@
         </div>
       {:else}
         <div
-          class="note-item"
-          class:active={activeNoteId === item.note.id}
+          class="sidebar-item"
+          class:active={isItemActive(listItem.item)}
           class:dragging={isDragging(index)}
-          class:pinned={item.section === 'pinned'}
+          class:pinned={listItem.section === 'pinned'}
           style:transform={getItemTransform(index)}
-          onclick={() => handleNoteClick(item.note)}
-          oncontextmenu={(e) => handleContextMenu(e, item.note.id, item.section)}
+          onclick={() => handleItemClick(listItem.item)}
+          oncontextmenu={(e) => handleContextMenu(e, listItem.item, listItem.section)}
           role="button"
           tabindex="0"
-          onkeydown={(e) => e.key === 'Enter' && handleNoteClick(item.note)}
+          onkeydown={(e) => e.key === 'Enter' && handleItemClick(listItem.item)}
           draggable="true"
-          ondragstart={(e) => handleDragStart(e, index, item.note.id)}
+          ondragstart={(e) => handleDragStart(e, index, listItem.item)}
           ondragend={handleDragEnd}
-          data-note-item
-          data-note-id={item.note.id}
+          data-sidebar-item
+          data-item-id={listItem.item.id}
+          data-item-type={listItem.item.type}
         >
-          <div class="note-content">
-            <div class="note-icon">
-              <span class="emoji-icon">{getNoteIcon(item.note)}</span>
+          <div class="item-content">
+            <div class="item-icon">
+              {#if listItem.item.type === 'conversation'}
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+              {:else}
+                <span class="emoji-icon">{listItem.item.icon}</span>
+              {/if}
             </div>
             <span
-              class="note-title"
-              class:untitled-text={getNoteDisplayText(item.note).isPreview}
+              class="item-title"
+              class:untitled-text={listItem.item.metadata?.isPreview}
             >
-              {getNoteDisplayText(item.note).text}
+              {listItem.item.title}
             </span>
           </div>
-          {#if item.section === 'recent'}
+          {#if listItem.section === 'recent'}
             <button
-              class="close-note"
-              onclick={(e) => handleCloseTab(item.note.id, e)}
+              class="close-item"
+              onclick={(e) => handleCloseTab(listItem.item, e)}
               aria-label="Remove from recent"
             >
               <svg
@@ -722,7 +758,7 @@
 {/if}
 
 <style>
-  .sidebar-notes {
+  .sidebar-items {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -738,7 +774,7 @@
     padding: 0.5rem 0.75rem 0.25rem;
   }
 
-  .notes-list {
+  .items-list {
     display: flex;
     flex-direction: column;
     padding: 0 0.75rem;
@@ -817,7 +853,7 @@
     flex-shrink: 0;
   }
 
-  .note-item {
+  .sidebar-item {
     width: 100%;
     display: flex;
     align-items: center;
@@ -836,24 +872,24 @@
     /* Transform transitions are controlled programmatically for FLIP animations */
   }
 
-  .note-item:hover {
+  .sidebar-item:hover {
     background: var(--bg-hover);
   }
 
   /* Disable hover effects during drag operations */
-  .notes-list.is-dragging .note-item:hover {
+  .items-list.is-dragging .sidebar-item:hover {
     background: transparent;
   }
 
-  .notes-list.is-dragging .note-item.active:hover {
+  .items-list.is-dragging .sidebar-item.active:hover {
     background: var(--accent-light);
   }
 
-  .note-item.active {
+  .sidebar-item.active {
     background: var(--accent-light);
   }
 
-  .note-item.dragging {
+  .sidebar-item.dragging {
     opacity: 0.9;
     z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -863,7 +899,7 @@
       box-shadow 0.15s;
   }
 
-  .note-content {
+  .item-content {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -872,7 +908,7 @@
     min-width: 0;
   }
 
-  .note-icon {
+  .item-icon {
     display: flex;
     align-items: center;
     color: var(--text-secondary);
@@ -884,7 +920,7 @@
     line-height: 1;
   }
 
-  .note-title {
+  .item-title {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -897,7 +933,7 @@
     font-style: italic;
   }
 
-  .close-note {
+  .close-item {
     display: none;
     align-items: center;
     justify-content: center;
@@ -911,11 +947,11 @@
     flex-shrink: 0;
   }
 
-  .note-item:hover .close-note {
+  .sidebar-item:hover .close-item {
     display: flex;
   }
 
-  .close-note:hover {
+  .close-item:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }

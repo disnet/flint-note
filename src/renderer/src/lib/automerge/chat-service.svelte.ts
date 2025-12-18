@@ -20,8 +20,7 @@ import {
   addMessageToConversation,
   updateConversationMessage,
   getConversation,
-  setActiveConversationId,
-  bumpConversationToRecent
+  setActiveConversationId
 } from './state.svelte';
 import type { PersistedToolCall } from './types';
 
@@ -145,7 +144,8 @@ export class ChatService {
       createdAt: new Date(m.createdAt)
     }));
     setActiveConversationId(conversationId);
-    bumpConversationToRecent(conversationId);
+    // Note: Don't bump to recent here - selecting an item shouldn't reorder it.
+    // Bumping happens when there's actual activity (messages sent/received).
   }
 
   /**

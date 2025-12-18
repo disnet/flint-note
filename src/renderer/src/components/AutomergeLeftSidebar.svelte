@@ -5,7 +5,7 @@
    */
   import { fly } from 'svelte/transition';
   import AutomergeSystemViews from './AutomergeSystemViews.svelte';
-  import AutomergeSidebarNotes from './AutomergeSidebarNotes.svelte';
+  import AutomergeSidebarItems from './AutomergeSidebarItems.svelte';
   import AutomergeWorkspaceBar from './AutomergeWorkspaceBar.svelte';
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
@@ -15,7 +15,8 @@
     archiveVault,
     type Note,
     type Vault,
-    type SearchResult
+    type SearchResult,
+    type SidebarItem
   } from '../lib/automerge';
 
   interface Props {
@@ -32,7 +33,7 @@
     searchInputFocused: boolean;
     vaults: Vault[];
     activeVault: Vault | null;
-    onNoteSelect: (note: Note) => void;
+    onItemSelect: (item: SidebarItem) => void;
     onSystemViewSelect: (
       view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
     ) => void;
@@ -49,7 +50,7 @@
   }
 
   let {
-    onNoteSelect,
+    onItemSelect,
     onSystemViewSelect,
     activeSystemView,
     onCreateNote,
@@ -384,7 +385,7 @@
           in:fly={{ x: slideDirection * 50, duration: 150, delay: 75 }}
           out:fly={{ x: slideDirection * -50, duration: 75 }}
         >
-          <AutomergeSidebarNotes {onNoteSelect} />
+          <AutomergeSidebarItems {onItemSelect} />
         </div>
       {/key}
     </div>

@@ -45,10 +45,36 @@ interface Workspace {
   id: string; // "ws-xxxxxxxx"
   name: string;
   icon: string;
-  pinnedNoteIds: string[]; // Notes pinned to this workspace (always visible)
-  recentNoteIds: string[]; // Recent notes (can be closed)
+  pinnedItemIds: SidebarItemRef[]; // Items pinned to this workspace (always visible)
+  recentItemIds: SidebarItemRef[]; // Recent items (can be closed)
   created: string;
 }
+
+// Unified sidebar item types (notes, conversations, future: epub, pdf, etc.)
+type SidebarItemType = 'note' | 'conversation';
+
+interface SidebarItemRef {
+  type: SidebarItemType;
+  id: string;
+}
+
+interface SidebarItem {
+  id: string;
+  type: SidebarItemType;
+  title: string;
+  icon: string;
+  updated: string;
+  metadata?: {
+    noteTypeId?: string;
+    messageCount?: number;
+    isPreview?: boolean;
+  };
+}
+
+type ActiveItem =
+  | { type: 'note'; id: string }
+  | { type: 'conversation'; id: string }
+  | null;
 
 interface NoteType {
   id: string; // "type-xxxxxxxx"
@@ -95,7 +121,7 @@ Unified reactive state module (~800 lines) providing:
 **Reactive State:**
 
 - `currentDoc`: The automerge document (updated via subscription)
-- `activeNoteId`: Currently selected note (UI-only)
+- `activeItem`: Currently selected item as `ActiveItem` (UI-only, replaces separate activeNoteId/activeConversationId)
 - `isInitialized`, `isLoading`: Loading states
 - `vaults`: List of vaults
 
@@ -110,13 +136,17 @@ Unified reactive state module (~800 lines) providing:
 
 **Workspace Operations:**
 
-- `getWorkspaces()`, `getActiveWorkspace()`, `getRecentNotes()`, `isNoteRecent()`
+- `getWorkspaces()`, `getActiveWorkspace()`
 - `createWorkspace()`, `updateWorkspace()`, `deleteWorkspace()`
-- `setActiveWorkspace()`, `addNoteToWorkspace()`, `removeNoteFromWorkspace()`, `reorderWorkspaceNotes()`, `reorderWorkspaces()`
+- `setActiveWorkspace()`, `reorderWorkspaces()`
 
-**Pinned Notes Operations:**
+**Unified Sidebar Item Operations:**
 
-- `getPinnedNotes()`, `pinNote()`, `unpinNote()`, `isNotePinned()`, `reorderPinnedNotes()`
+- `getActiveItem()`, `setActiveItem()`, `getActiveNote()`, `getActiveConversation()`
+- `getRecentItems()`, `getPinnedItems()`, `isItemRecent()`, `isItemPinned()`
+- `addItemToWorkspace()`, `removeItemFromWorkspace()`, `bumpItemToRecent()`
+- `pinItem()`, `unpinItem()`, `reorderPinnedItems()`, `reorderRecentItems()`
+- Convenience wrappers: `getActiveNoteId()`, `setActiveNoteId()`, `addNoteToWorkspace()`
 
 **Note Type Operations:**
 
@@ -178,21 +208,16 @@ Resizable left sidebar containing:
 
 Navigation component with "All Notes" and "Settings" options.
 
-#### `AutomergePinnedNotes.svelte`
+#### `AutomergeSidebarItems.svelte`
 
-Pinned notes list for active workspace:
+Unified sidebar items component (replaces separate PinnedNotes and RecentNotes):
 
-- Collapsible section
-- Context menu for unpin/archive
-- Display of note type icons
-
-#### `AutomergeRecentNotes.svelte`
-
-Recent notes in active workspace:
-
-- "Close all" button
-- Context menu for pin/close/archive
-- Close button on hover
+- Displays both pinned and recent sections
+- Supports multiple item types (notes, conversations)
+- Type-specific icons (emoji for notes, chat bubble for conversations)
+- Drag-and-drop reordering within and between sections
+- Context menu for pin/unpin/close/archive
+- Collapsible pinned section
 
 #### `AutomergeWorkspaceBar.svelte`
 
@@ -229,8 +254,7 @@ Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the o
 │    └── AutomergeMainView.svelte                             │
 │          ├── AutomergeLeftSidebar.svelte                    │
 │          │     ├── AutomergeSystemViews.svelte              │
-│          │     ├── AutomergePinnedNotes.svelte              │
-│          │     ├── AutomergeRecentNotes.svelte              │
+│          │     ├── AutomergeSidebarItems.svelte             │
 │          │     └── AutomergeWorkspaceBar.svelte             │
 │          └── AutomergeNoteEditor.svelte                     │
 ├─────────────────────────────────────────────────────────────┤
@@ -522,6 +546,45 @@ Implemented the daily notes view for capturing daily thoughts and tracking activ
 - Predictable daily note IDs: `daily-YYYY-MM-DD`
 - Daily note type auto-created on first use
 
+#### Unified Sidebar Items (Complete)
+
+Refactored the sidebar to support multiple item types (notes, conversations, and future types like epub/pdf):
+
+**Data Model Changes:**
+
+- Workspace now uses `pinnedItemIds: SidebarItemRef[]` and `recentItemIds: SidebarItemRef[]`
+- Replaced separate `activeNoteId`/`activeConversationId` with unified `activeItem: ActiveItem`
+- `SidebarItemRef` is a lightweight reference: `{ type: 'note' | 'conversation', id: string }`
+- `SidebarItem` is the full display object with title, icon, updated timestamp, and metadata
+
+**Component Changes:**
+
+- Renamed `AutomergeSidebarNotes.svelte` → `AutomergeSidebarItems.svelte`
+- Items render with type-specific icons (emoji for notes, chat bubble for conversations)
+- Conversations clickable to open in main view
+- Full drag-and-drop support for reordering both notes and conversations
+- Context menu works for both types (Archive, Close, Pin/Unpin)
+
+**State Management:**
+
+- `getActiveItem()`, `setActiveItem()` - Unified active item state
+- `getActiveNote()`, `getActiveConversation()` - Convenience getters
+- `getRecentItems()`, `getPinnedItems()` - Return `SidebarItem[]` for rendering
+- `pinItem()`, `unpinItem()`, `addItemToWorkspace()`, `removeItemFromWorkspace()`
+- `reorderPinnedItems()`, `reorderRecentItems()` - Drag-and-drop support
+- Backward-compatible wrappers: `getActiveNoteId()`, `setActiveNoteId()`, `addNoteToWorkspace()`
+
+**Migration Handling:**
+
+- `ensureWorkspaceArrays()` helper migrates old field names (`pinnedNoteIds` → `pinnedItemIds`)
+- `getWorkspacePinnedRefs()`, `getWorkspaceRecentRefs()` handle reading from old or new format
+- Automatic migration happens on first access within Automerge change callbacks
+
+**Automerge Considerations:**
+
+- When reordering items, create new plain objects to avoid "Cannot create a reference to existing document object" error
+- Objects spliced from Automerge arrays cannot be directly re-inserted; must create fresh objects
+
 ### Phase 4: Future Sync
 
 Future work for multi-device sync:
@@ -542,6 +605,8 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/wikilinks.svelte.ts` (automerge-specific wikilinks)
 - `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (CodeMirror config for automerge)
 - `src/renderer/src/lib/automerge/search.svelte.ts` (enhanced search with ranking/highlighting)
+- `src/renderer/src/lib/automerge/chat-service.svelte.ts` (AI chat streaming with tool support)
+- `src/renderer/src/lib/automerge/note-tools.svelte.ts` (AI tools for note operations)
 - `src/renderer/src/lib/automerge/ipc/types.ts` (IPC message types for sync)
 - `src/renderer/src/lib/automerge/ipc/IPCNetworkAdapterRenderer.ts` (renderer network adapter)
 - `src/renderer/src/lib/automerge/ipc/index.ts` (barrel exports)
@@ -556,8 +621,7 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeNoteEditor.svelte`
 - `src/renderer/src/components/AutomergeLeftSidebar.svelte`
 - `src/renderer/src/components/AutomergeSystemViews.svelte`
-- `src/renderer/src/components/AutomergePinnedNotes.svelte`
-- `src/renderer/src/components/AutomergeRecentNotes.svelte`
+- `src/renderer/src/components/AutomergeSidebarItems.svelte` (unified, replaces PinnedNotes + RecentNotes)
 - `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
 - `src/renderer/src/components/AutomergeSearchResults.svelte`
 - `src/renderer/src/components/AutomergeNoteTypesView.svelte` (note types management view)
@@ -569,6 +633,11 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeDaySection.svelte` (individual day container)
 - `src/renderer/src/components/AutomergeWeekNavigation.svelte` (week navigation header)
 - `src/renderer/src/components/AutomergeDailyNoteEditor.svelte` (per-day CodeMirror editor)
+- `src/renderer/src/components/AutomergeChatPanel.svelte` (AI chat interface)
+- `src/renderer/src/components/AutomergeChatInput.svelte` (chat message input)
+- `src/renderer/src/components/AutomergeChatFAB.svelte` (floating action button for chat)
+- `src/renderer/src/components/AutomergeConversationView.svelte` (full conversation view)
+- `src/renderer/src/components/AutomergeConversationList.svelte` (conversation list in chat panel)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 

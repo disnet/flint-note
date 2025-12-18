@@ -2,6 +2,52 @@
  * Automerge document types for Flint notes storage
  */
 
+// ============================================================================
+// Sidebar Item Types (unified notes + conversations)
+// ============================================================================
+
+/**
+ * Types of items that can appear in the sidebar
+ * Extensible for future types: 'epub' | 'pdf' | 'bookmark'
+ */
+export type SidebarItemType = 'note' | 'conversation';
+
+/**
+ * Reference to a sidebar item stored in workspace arrays
+ */
+export interface SidebarItemRef {
+  type: SidebarItemType;
+  id: string;
+}
+
+/**
+ * Full sidebar item for display purposes
+ */
+export interface SidebarItem {
+  id: string;
+  type: SidebarItemType;
+  title: string;
+  icon: string;
+  updated: string;
+  metadata?: {
+    noteTypeId?: string;
+    messageCount?: number;
+    isPreview?: boolean;
+  };
+}
+
+/**
+ * Currently active item in the main view
+ */
+export type ActiveItem =
+  | { type: 'note'; id: string }
+  | { type: 'conversation'; id: string }
+  | null;
+
+// ============================================================================
+// Property Types
+// ============================================================================
+
 /**
  * Property field types supported in note type schemas
  */
@@ -72,7 +118,7 @@ export interface Note {
 }
 
 /**
- * A workspace containing notes
+ * A workspace containing notes and conversations
  */
 export interface Workspace {
   /** Unique identifier, format: "ws-xxxxxxxx" */
@@ -81,14 +127,12 @@ export interface Workspace {
   name: string;
   /** Emoji icon */
   icon: string;
-  /** Ordered list of pinned note IDs (always visible) */
-  pinnedNoteIds: string[];
-  /** Ordered list of recent note IDs (can be closed) */
-  recentNoteIds: string[];
+  /** Ordered list of pinned items (always visible) */
+  pinnedItemIds: SidebarItemRef[];
+  /** Ordered list of recent items (can be closed), sorted by activity */
+  recentItemIds: SidebarItemRef[];
   /** ISO timestamp of creation */
   created: string;
-  /** Ordered list of recent conversation IDs (optional for backward compatibility) */
-  recentConversationIds?: string[];
 }
 
 /**

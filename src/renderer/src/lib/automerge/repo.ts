@@ -4,7 +4,7 @@
 
 import { Repo, type DocHandle, type AutomergeUrl } from '@automerge/automerge-repo';
 import { IndexedDBStorageAdapter } from '@automerge/automerge-repo-storage-indexeddb';
-import type { NotesDocument, Vault } from './types';
+import type { NotesDocument, Vault, SidebarItemRef } from './types';
 import { generateVaultId, nowISO } from './utils';
 import { IPCNetworkAdapterRenderer } from './ipc';
 import type { ElectronSyncAPI } from './ipc';
@@ -70,16 +70,16 @@ function createDefaultWorkspace(): {
   id: string;
   name: string;
   icon: string;
-  pinnedNoteIds: string[];
-  recentNoteIds: string[];
+  pinnedItemIds: SidebarItemRef[];
+  recentItemIds: SidebarItemRef[];
   created: string;
 } {
   return {
     id: DEFAULT_WORKSPACE_ID,
     name: 'Default',
     icon: '📋',
-    pinnedNoteIds: [] as string[],
-    recentNoteIds: [] as string[],
+    pinnedItemIds: [] as SidebarItemRef[],
+    recentItemIds: [] as SidebarItemRef[],
     created: nowISO()
   };
 }
