@@ -68,6 +68,12 @@ When users want to modify notes:
 - Use update_note to change existing notes
 - Use archive_note to remove notes (soft delete)
 
+When referencing notes in your responses, use wikilink format so users can click to open them:
+- [[n-xxxxxxxx]] - links to a note by ID
+- [[n-xxxxxxxx|Note Title]] - links to a note with display text
+
+For example: "I found your note [[n-abc12345|Meeting Notes]] which discusses..."
+
 Be concise and helpful. When showing note content, format it nicely. Always confirm before making changes to notes.`;
 
 /**

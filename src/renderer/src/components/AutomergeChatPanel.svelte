@@ -10,7 +10,12 @@
     type ChatService,
     type ChatMessage
   } from '../lib/automerge/chat-service.svelte';
-  import { getActiveConversation, navigateToNote, type Conversation } from '../lib/automerge';
+  import {
+    getActiveConversation,
+    navigateToNote,
+    setActiveNoteId,
+    type Conversation
+  } from '../lib/automerge';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
@@ -136,6 +141,11 @@
   // Toggle history panel
   function toggleHistory(): void {
     showHistory = !showHistory;
+  }
+
+  // Handle note link clicks in chat messages
+  function handleNoteClick(noteId: string): void {
+    setActiveNoteId(noteId);
   }
 </script>
 
@@ -308,6 +318,7 @@
                         role={message.role === 'user' ? 'user' : 'agent'}
                         variant="bubble"
                         noAnimation={true}
+                        onNoteClick={handleNoteClick}
                       />
                     {/if}
                   </div>
