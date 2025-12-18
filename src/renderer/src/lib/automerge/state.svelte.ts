@@ -999,6 +999,33 @@ export function setActiveNoteId(id: string | null): void {
   activeNoteId = id;
 }
 
+/**
+ * Navigate to a note by ID, or create a new note if shouldCreate is true.
+ * This is the centralized handler for wikilink clicks.
+ *
+ * @param noteId - The note ID to navigate to (or the title if creating)
+ * @param title - The display title (used when creating a new note)
+ * @param shouldCreate - If true, create a new note with the given title
+ * @returns The note ID that was navigated to (either existing or newly created)
+ */
+export function navigateToNote(
+  noteId: string,
+  title: string,
+  shouldCreate?: boolean
+): string {
+  if (shouldCreate) {
+    // Create a new note with the given title
+    const newId = createNote({ title });
+    addNoteToWorkspace(newId);
+    setActiveNoteId(newId);
+    return newId;
+  } else {
+    // Navigate to existing note
+    setActiveNoteId(noteId);
+    return noteId;
+  }
+}
+
 // --- Backlinks ---
 
 const LINK_PATTERN = /\[\[(n-[a-f0-9]{8})(?:\|[^\]]+)?\]\]/g;

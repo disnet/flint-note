@@ -97,6 +97,7 @@ export {
   getActiveNoteId,
   getActiveNote,
   setActiveNoteId,
+  navigateToNote,
 
   // Backlinks
   getBacklinks,

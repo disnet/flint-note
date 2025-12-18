@@ -10,7 +10,7 @@
     type ChatService,
     type ChatMessage
   } from '../lib/automerge/chat-service.svelte';
-  import { getActiveConversation, type Conversation } from '../lib/automerge';
+  import { getActiveConversation, navigateToNote, type Conversation } from '../lib/automerge';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
@@ -338,6 +338,7 @@
                   disabled={isLoading}
                   onValueChange={handleInputChange}
                   onSubmit={handleInputSubmit}
+                  onWikilinkClick={navigateToNote}
                 />
                 <button
                   type="submit"
