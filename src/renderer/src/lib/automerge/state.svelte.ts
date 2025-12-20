@@ -1010,16 +1010,22 @@ export function createNoteType(params: {
     if (!doc.noteTypes) {
       doc.noteTypes = {};
     }
-    doc.noteTypes[id] = {
+    const noteType: NoteType = {
       id,
       name: params.name,
       purpose: params.purpose || '',
       icon: params.icon || '📄',
       archived: false,
-      created: nowISO(),
-      properties: params.properties,
-      editorChips: params.editorChips
+      created: nowISO()
     };
+    // Only add optional fields if they're defined (Automerge doesn't allow undefined)
+    if (params.properties !== undefined) {
+      noteType.properties = params.properties;
+    }
+    if (params.editorChips !== undefined) {
+      noteType.editorChips = params.editorChips;
+    }
+    doc.noteTypes[id] = noteType;
   });
 
   return id;
@@ -1158,11 +1164,11 @@ export function getNoteTypeProperties(typeId: string): PropertyDefinition[] {
 
 /**
  * Get editor chips configuration for a note type
- * Returns configured chips or defaults to system fields
+ * Returns configured chips or defaults to system fields (handles empty array)
  */
 export function getNoteTypeEditorChips(typeId: string): string[] {
   const noteType = currentDoc.noteTypes?.[typeId];
-  return noteType?.editorChips ?? ['created', 'updated'];
+  return noteType?.editorChips?.length ? noteType.editorChips : ['created', 'updated'];
 }
 
 // --- Active item and system view (persisted in Automerge document) ---

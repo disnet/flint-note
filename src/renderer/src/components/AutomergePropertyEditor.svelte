@@ -22,6 +22,12 @@
 
   let { properties, onUpdate, editorChips = [], onEditorChipsUpdate }: Props = $props();
 
+  // System fields that are always available
+  const SYSTEM_FIELDS = [
+    { name: 'created', label: 'Created', description: 'When the note was created' },
+    { name: 'updated', label: 'Updated', description: 'When the note was last modified' }
+  ];
+
   // Available property types
   const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
     { value: 'string', label: 'Text' },
@@ -186,6 +192,29 @@
 </script>
 
 <div class="property-editor">
+  <!-- System Fields Section -->
+  {#if onEditorChipsUpdate}
+    <div class="system-fields-section">
+      <h3>Display Settings</h3>
+      <p class="section-description">Choose which fields are always visible in the note editor.</p>
+      <div class="system-fields-list">
+        {#each SYSTEM_FIELDS as field (field.name)}
+          <label class="system-field-item">
+            <input
+              type="checkbox"
+              checked={editorChips.includes(field.name)}
+              onchange={() => toggleEditorChip(field.name)}
+            />
+            <span class="system-field-info">
+              <span class="system-field-label">{field.label}</span>
+              <span class="system-field-description">{field.description}</span>
+            </span>
+          </label>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <div class="section-header">
     <h3>Properties</h3>
     <button class="add-btn" onclick={addProperty}>+ Add Field</button>
@@ -221,28 +250,15 @@
               />
               Required
             </label>
-            {#if onEditorChipsUpdate}
-              <button
-                type="button"
-                class="action-btn chip-toggle"
-                class:active={editorChips.includes(prop.name)}
-                onclick={() => toggleEditorChip(prop.name)}
-                title={editorChips.includes(prop.name)
-                  ? 'Hide in editor'
-                  : 'Show in editor'}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill={editorChips.includes(prop.name) ? 'currentColor' : 'none'}
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
+            {#if onEditorChipsUpdate && prop.name.trim()}
+              <label class="checkbox-label always-display-label">
+                <input
+                  type="checkbox"
+                  checked={editorChips.includes(prop.name)}
+                  onchange={() => toggleEditorChip(prop.name)}
+                />
+                Always display
+              </label>
             {/if}
             <button
               class="remove-btn"
@@ -384,7 +400,72 @@
   .property-editor {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1.25rem;
+  }
+
+  /* System Fields Section */
+  .system-fields-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .system-fields-section h3 {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .section-description {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  .system-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .system-field-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+
+  .system-field-item:hover {
+    border-color: var(--border-medium);
+  }
+
+  .system-field-item input[type='checkbox'] {
+    margin-top: 0.125rem;
+    cursor: pointer;
+  }
+
+  .system-field-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .system-field-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .system-field-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
   }
 
   .section-header {
@@ -479,28 +560,11 @@
     cursor: pointer;
   }
 
-  .action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
+  .always-display-label {
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
     border-radius: 0.25rem;
-    transition: all 0.15s ease;
-  }
-
-  .action-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .action-btn.chip-toggle.active {
-    color: var(--accent-primary);
+    font-size: 0.75rem;
   }
 
   .remove-btn {

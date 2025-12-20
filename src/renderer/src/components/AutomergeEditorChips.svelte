@@ -37,8 +37,10 @@
   // System fields (always available)
   const SYSTEM_FIELDS = ['created', 'updated'];
 
-  // Get the chips to display
-  const editorChips = $derived(noteType?.editorChips ?? ['created', 'updated']);
+  // Get the chips to display (default to system fields if empty or undefined)
+  const editorChips = $derived(
+    noteType?.editorChips?.length ? noteType.editorChips : ['created', 'updated']
+  );
 
   // Get property definitions from the note type
   const propertyDefs = $derived(noteType?.properties ?? []);
