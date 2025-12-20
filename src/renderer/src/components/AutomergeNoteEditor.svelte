@@ -883,7 +883,7 @@
   /* Header */
   .editor-header {
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
     padding: 0;
     flex-shrink: 0;
   }
