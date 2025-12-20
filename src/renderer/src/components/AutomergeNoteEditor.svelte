@@ -94,6 +94,14 @@
     adjustTitleHeight();
   }
 
+  function handleTitleKeyDown(event: KeyboardEvent): void {
+    // Prevent newlines in title - move focus to editor instead
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      editorView?.focus();
+    }
+  }
+
   function adjustTitleHeight(): void {
     if (!titleTextarea) return;
     titleTextarea.style.height = 'auto';
@@ -779,6 +787,7 @@
           class="title-input"
           value={note.title}
           oninput={handleTitleInput}
+          onkeydown={handleTitleKeyDown}
           placeholder="Untitled"
           rows="1"
         ></textarea>
