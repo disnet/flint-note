@@ -345,11 +345,13 @@
 
   // Navigate to a specific page
   export function goToPage(pageNum: number): void {
-    if (pageNum < 1 || pageNum > totalPages) return;
+    if (pageNum < 1 || pageNum > totalPages || !container) return;
 
     const element = pageElements.get(pageNum);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Use container.scrollTo instead of scrollIntoView to avoid affecting parent containers
+      const elementTop = element.offsetTop - container.offsetTop;
+      container.scrollTo({ top: elementTop, behavior: 'smooth' });
     }
   }
 
@@ -389,9 +391,7 @@
     const anchorNode = selection.anchorNode;
     if (!anchorNode) return;
 
-    const textLayer = (anchorNode.parentElement as HTMLElement)?.closest(
-      '.textLayer'
-    );
+    const textLayer = (anchorNode.parentElement as HTMLElement)?.closest('.textLayer');
     if (!textLayer) return;
 
     const pageElement = textLayer.closest('.pdf-page') as HTMLElement;
@@ -624,6 +624,8 @@
     align-items: center;
     gap: 16px;
     padding: 24px;
+    /* Allow horizontal scrolling when zoomed in */
+    min-width: min-content;
   }
 
   .pdf-page {

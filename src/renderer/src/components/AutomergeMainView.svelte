@@ -340,8 +340,11 @@
         </div>
       </div>
 
-      <div class="scroll-container">
-        <div class="content-wrapper">
+      <div class="scroll-container" class:no-scroll={isActiveNoteEpub || isActiveNotePdf}>
+        <div
+          class="content-wrapper"
+          class:full-width-content={isActiveNoteEpub || isActiveNotePdf}
+        >
           {#if activeSystemView === 'settings'}
             <div class="settings-panel">
               <h2>Settings</h2>
@@ -622,6 +625,7 @@
     flex-direction: column;
     background: var(--bg-primary);
     color: var(--text-primary);
+    overflow: hidden; /* Prevent any scroll propagation */
   }
 
   /* App Layout */
@@ -629,6 +633,7 @@
     display: flex;
     flex: 1;
     min-height: 0;
+    overflow: hidden; /* Prevent any scroll propagation */
   }
 
   /* Safe zone for window dragging */
@@ -771,6 +776,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
   }
 
@@ -779,9 +785,12 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    /* Use overlay scrollbar to avoid gutter */
-    overflow-y: overlay;
-    scrollbar-gutter: auto;
+    min-height: 0; /* Important for flex child with overflow */
+  }
+
+  /* Disable scrolling for PDF/EPUB viewers that handle their own scrolling */
+  .scroll-container.no-scroll {
+    overflow: hidden;
   }
 
   /* Thin overlay scrollbar styling */
@@ -816,11 +825,18 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
     max-width: 70ch;
     margin: 0 auto;
     padding: 0 1rem;
     min-height: 100%;
+  }
+
+  /* Allow full width for PDF and EPUB viewers */
+  .content-wrapper.full-width-content {
+    max-width: none;
+    padding: 0;
+    height: 100%;
+    min-height: 0; /* Allow shrinking in flex context */
   }
 
   .empty-editor {

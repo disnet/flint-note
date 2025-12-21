@@ -719,6 +719,120 @@ interface EpubTocItem {
 - Uses foliate-js for rendering with scrolled flow mode
 - Debounced reading state updates to reduce Automerge changes
 
+#### PDF Support (Complete)
+
+Full PDF file support for reading documents directly in Flint:
+
+**Architecture:**
+
+```
+[OPFS (Origin Private File System)]     [Automerge Document]
+└── /pdfs/                              └── notes["n-xxx"]
+    └── {sha256-hash}.pdf                   ├── type: "type-pdf"
+                                            ├── title: "Research Paper"
+                                            ├── content: "<!-- highlights -->"
+                                            └── props:
+                                                ├── pdfHash: "sha256-..."
+                                                ├── pdfTitle: "..."
+                                                ├── pdfAuthor: "..."
+                                                ├── totalPages: 150
+                                                ├── currentPage: 34
+                                                ├── zoomLevel: 100
+                                                └── lastRead: "2025-01-15T..."
+```
+
+**Key Design Decisions:**
+
+- **OPFS for binary storage**: PDFs stored in browser's Origin Private File System, content-addressed by SHA-256 hash for deduplication (same pattern as EPUB)
+- **Automerge for metadata**: Reading progress, highlights, and zoom preferences synced via Automerge
+- **Highlights in note content**: Stored as markdown in the note's content field for portability
+- **pdfjs-dist for rendering**: Uses Mozilla's PDF.js library (v5.0.375) with canvas rendering and text layer for selection
+
+**New Files:**
+
+- `src/renderer/src/lib/automerge/pdf-opfs-storage.svelte.ts` - OPFS storage service for PDFs
+- `src/renderer/src/lib/automerge/pdf-import.svelte.ts` - PDF import flow with metadata extraction
+- `src/renderer/src/lib/automerge/pdf-tools.svelte.ts` - AI tools for PDF content access
+- `src/renderer/src/components/AutomergePdfViewer.svelte` - Main PDF viewer container with controls
+- `src/renderer/src/components/AutomergePdfReader.svelte` - PDF.js wrapper for canvas rendering
+- `src/renderer/src/components/AutomergePdfOutline.svelte` - Table of contents/bookmarks panel
+- `src/renderer/src/components/AutomergePdfHighlights.svelte` - Highlights list panel
+
+**Type Definitions** (in `types.ts`):
+
+```typescript
+interface PdfNoteProps {
+  pdfHash: string;
+  pdfTitle?: string;
+  pdfAuthor?: string;
+  totalPages?: number;
+  currentPage?: number; // 1-indexed
+  zoomLevel?: number; // 50-200
+  lastRead?: string; // ISO timestamp
+}
+
+interface PdfHighlight {
+  id: string;
+  pageNumber: number;
+  text: string;
+  rects: Array<{ x: number; y: number; width: number; height: number }>;
+  createdAt: string;
+}
+
+interface PdfOutlineItem {
+  title: string;
+  pageNumber: number;
+  children?: PdfOutlineItem[];
+}
+
+interface PdfMetadata {
+  title?: string;
+  author?: string;
+  creator?: string;
+  producer?: string;
+  pageCount: number;
+}
+```
+
+**State Management** (in `state.svelte.ts`):
+
+- `PDF_NOTE_TYPE_ID` - Constant for PDF note type
+- `ensurePdfNoteType()` - Auto-create PDF type on first import
+- `createPdfNote()` - Create note with PDF props
+- `updatePdfReadingState()` - Update currentPage, lastRead
+- `updatePdfZoomLevel()` - Update zoom level preference
+- `getPdfNotes()` - Get all PDF notes sorted by lastRead
+
+**Features:**
+
+- **Import**: Via FAB menu "Import PDF" button or drag-and-drop
+- **Metadata extraction**: Parses PDF info dictionary for title, author, page count
+- **Reading position**: Persists current page and progress percentage
+- **Zoom levels**: Adjustable zoom (50%, 75%, 100%, 125%, 150%, 200%)
+- **Table of contents**: Navigable outline/bookmarks sidebar
+- **Text selection**: Full text selection support via PDF.js TextLayer
+- **Highlights**: Select text to create highlights, stored in note content
+- **High DPI support**: Canvas scaling for sharp rendering on Retina displays
+- **Keyboard navigation**: Arrow keys and Page Up/Down for page navigation
+- **AI tools**: `get_document_structure`, `get_document_chunk`, `search_document_text`
+
+**Integration:**
+
+- PDF notes appear in sidebar like regular notes
+- View routing in `AutomergeMainView.svelte` detects PDF type
+- FAB menu includes "Import PDF" option alongside "Import Book"
+- Full-width display mode for better reading experience
+- Highlights stored as markdown for future migration compatibility
+
+**Key Considerations:**
+
+- OPFS is device-local; PDFs must be re-imported on each device
+- Content-addressing enables deduplication (same PDF = same hash)
+- Uses canvas rendering with text layer overlay for selection
+- PDF.js worker bundled locally via Vite's `?url` import to avoid CSP issues
+- Debounced reading state updates to reduce Automerge changes
+- Non-reactive Maps/Sets used internally to prevent Svelte 5 effect loops
+
 #### Unified Sidebar Items (Complete)
 
 Refactored the sidebar to support multiple item types (notes, conversations, and future types like epub/pdf):
@@ -823,6 +937,13 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeEpubToc.svelte` (table of contents panel)
 - `src/renderer/src/components/AutomergeEpubHighlights.svelte` (highlights list panel)
 - `src/renderer/src/components/AutomergeEpubProgress.svelte` (progress bar and navigation)
+- `src/renderer/src/lib/automerge/pdf-opfs-storage.svelte.ts` (OPFS storage for PDFs)
+- `src/renderer/src/lib/automerge/pdf-import.svelte.ts` (PDF import and metadata extraction)
+- `src/renderer/src/lib/automerge/pdf-tools.svelte.ts` (AI tools for PDF content access)
+- `src/renderer/src/components/AutomergePdfViewer.svelte` (PDF viewer container)
+- `src/renderer/src/components/AutomergePdfReader.svelte` (PDF.js wrapper for canvas rendering)
+- `src/renderer/src/components/AutomergePdfOutline.svelte` (bookmarks/outline panel)
+- `src/renderer/src/components/AutomergePdfHighlights.svelte` (highlights list panel)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -840,11 +961,12 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeSystemViews.svelte` (added Daily nav item)
 - `src/renderer/src/components/AutomergeLeftSidebar.svelte` (updated view types)
 - `src/renderer/src/lib/automerge/index.ts` (exported daily view functions, EPUB functions)
-- `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata)
-- `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB functions: createEpubNote, updateEpubReadingState, etc.)
-- `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB AI tools)
-- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB view routing)
-- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book option)
+- `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata, PdfNoteProps, PdfHighlight, PdfOutlineItem, PdfMetadata)
+- `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB and PDF functions: createEpubNote, createPdfNote, updateEpubReadingState, updatePdfReadingState, etc.)
+- `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB and PDF AI tools)
+- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB and PDF view routing, full-width content mode)
+- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book and Import PDF options)
+- `src/renderer/src/lib/automerge/index.ts` (exported PDF functions and types)
 
 ### Files to Eventually Remove (after full migration)
 
@@ -864,6 +986,7 @@ Future work for multi-device sync:
   "@automerge/automerge-repo-storage-indexeddb": "^2.5.1",
   "@automerge/automerge-repo-storage-nodefs": "^2.5.1",
   "js-yaml": "^4.1.0",
+  "pdfjs-dist": "^5.0.375",
   "vite-plugin-wasm": "^3.5.0"
 }
 ```

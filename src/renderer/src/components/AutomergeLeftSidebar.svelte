@@ -434,6 +434,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
   }
 
