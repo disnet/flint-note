@@ -429,34 +429,50 @@
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const highlightRemoveFunctions = new Map<string, () => void>();
 
-  // Public methods
+  // Public methods - all check isMounted to avoid errors when component is destroyed
   export async function goToCfi(cfi: string): Promise<void> {
-    if (view) {
+    if (!isMounted || !view || isLoading) return;
+    try {
       await view.goTo(cfi);
+    } catch (err) {
+      // Ignore errors during navigation - likely component was destroyed
+      console.debug('[EPUB] Navigation error (may be expected during cleanup):', err);
     }
   }
 
   export async function goToSection(index: number): Promise<void> {
-    if (view) {
+    if (!isMounted || !view || isLoading) return;
+    try {
       await view.goTo({ index });
+    } catch (err) {
+      console.debug('[EPUB] Navigation error (may be expected during cleanup):', err);
     }
   }
 
   export async function goToHref(href: string): Promise<void> {
-    if (view) {
+    if (!isMounted || !view || isLoading) return;
+    try {
       await view.goTo(href);
+    } catch (err) {
+      console.debug('[EPUB] Navigation error (may be expected during cleanup):', err);
     }
   }
 
   export async function prevPage(): Promise<void> {
-    if (view) {
+    if (!isMounted || !view || isLoading) return;
+    try {
       await view.prev();
+    } catch (err) {
+      console.debug('[EPUB] Navigation error (may be expected during cleanup):', err);
     }
   }
 
   export async function nextPage(): Promise<void> {
-    if (view) {
+    if (!isMounted || !view || isLoading) return;
+    try {
       await view.next();
+    } catch (err) {
+      console.debug('[EPUB] Navigation error (may be expected during cleanup):', err);
     }
   }
 
@@ -485,9 +501,17 @@
   }
 
   export function removeHighlight(id: string): boolean {
+    if (!isMounted) return false;
     const remove = highlightRemoveFunctions.get(id);
     if (remove) {
-      remove();
+      try {
+        remove();
+      } catch (err) {
+        console.debug(
+          '[EPUB] Failed to remove highlight (may be expected during cleanup):',
+          err
+        );
+      }
       highlightRemoveFunctions.delete(id);
       return true;
     }
@@ -538,6 +562,7 @@
   });
 
   onDestroy(() => {
+    // Mark as unmounted first to prevent any pending operations
     isMounted = false;
     stopSelectionChecking();
     themeObserver?.disconnect();
@@ -549,6 +574,8 @@
         'draw-annotation',
         handleDrawAnnotation as (event: Event) => void
       );
+      // Clear the view reference to prevent stale operations
+      view = null;
     }
     highlightRemoveFunctions.clear();
   });
