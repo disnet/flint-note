@@ -24,6 +24,7 @@
     searchNotesEnhanced,
     automergeShelfStore,
     EPUB_NOTE_TYPE_ID,
+    PDF_NOTE_TYPE_ID,
     type Note,
     type SearchResult,
     type Conversation,
@@ -35,6 +36,7 @@
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
   import AutomergeEpubViewer from './AutomergeEpubViewer.svelte';
+  import AutomergePdfViewer from './AutomergePdfViewer.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import AutomergeFABMenu from './AutomergeFABMenu.svelte';
@@ -60,8 +62,9 @@
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
 
-  // Check if active note is an EPUB
+  // Check if active note is an EPUB or PDF
   const isActiveNoteEpub = $derived(activeNote?.type === EPUB_NOTE_TYPE_ID);
+  const isActiveNotePdf = $derived(activeNote?.type === PDF_NOTE_TYPE_ID);
 
   // UI state
   let searchQuery = $state('');
@@ -517,6 +520,11 @@
           {:else if activeNote}
             {#if isActiveNoteEpub}
               <AutomergeEpubViewer
+                note={activeNote}
+                onTitleChange={(title) => updateNote(activeNote.id, { title })}
+              />
+            {:else if isActiveNotePdf}
+              <AutomergePdfViewer
                 note={activeNote}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
               />

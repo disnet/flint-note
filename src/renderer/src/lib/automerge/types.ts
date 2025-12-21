@@ -359,3 +359,76 @@ export interface EpubLocation {
   /** Total number of sections/locations */
   totalLocations: number;
 }
+
+// ============================================================================
+// PDF Types
+// ============================================================================
+
+/**
+ * PDF-specific properties stored in Note.props
+ */
+export interface PdfNoteProps {
+  /** SHA-256 hash of PDF content, used for OPFS lookup */
+  pdfHash: string;
+  /** Document title extracted from PDF metadata */
+  pdfTitle?: string;
+  /** Document author extracted from PDF metadata */
+  pdfAuthor?: string;
+  /** Total number of pages in the PDF */
+  totalPages: number;
+  /** Current page number (1-indexed) */
+  currentPage?: number;
+  /** Zoom level percentage (50-200) */
+  zoomLevel?: number;
+  /** ISO timestamp of last reading session */
+  lastRead?: string;
+}
+
+/**
+ * A highlight/annotation in a PDF
+ */
+export interface PdfHighlight {
+  /** Unique identifier, format: "h-{timestamp.toString(36)}" */
+  id: string;
+  /** Page number where the highlight is located (1-indexed) */
+  pageNumber: number;
+  /** The highlighted text content */
+  text: string;
+  /** Bounding rectangles for the highlight (normalized coordinates 0-1) */
+  rects: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+  /** ISO timestamp of when the highlight was created */
+  createdAt: string;
+}
+
+/**
+ * Outline/bookmark item from PDF navigation
+ */
+export interface PdfOutlineItem {
+  /** Display label for the outline entry */
+  label: string;
+  /** Target page number (1-indexed) */
+  pageNumber: number;
+  /** Nested outline items (for sections with subsections) */
+  children?: PdfOutlineItem[];
+}
+
+/**
+ * PDF metadata extracted from the document
+ */
+export interface PdfMetadata {
+  /** Document title */
+  title?: string;
+  /** Document author(s) */
+  author?: string;
+  /** Document creator application */
+  creator?: string;
+  /** PDF producer application */
+  producer?: string;
+  /** Total page count */
+  pageCount: number;
+}

@@ -7,7 +7,7 @@
    * When a panel is open, shows only a close button below the panel.
    */
 
-  import { pickAndImportEpub } from '../lib/automerge';
+  import { pickAndImportEpub, pickAndImportPdf } from '../lib/automerge';
 
   interface Props {
     /** Whether the chat panel is currently open */
@@ -22,15 +22,26 @@
 
   let { chatOpen, shelfOpen, onToggleChat, onToggleShelf }: Props = $props();
 
-  let isImporting = $state(false);
+  let isImportingEpub = $state(false);
+  let isImportingPdf = $state(false);
 
-  async function handleImportClick(): Promise<void> {
-    if (isImporting) return;
-    isImporting = true;
+  async function handleImportEpubClick(): Promise<void> {
+    if (isImportingEpub) return;
+    isImportingEpub = true;
     try {
       await pickAndImportEpub();
     } finally {
-      isImporting = false;
+      isImportingEpub = false;
+    }
+  }
+
+  async function handleImportPdfClick(): Promise<void> {
+    if (isImportingPdf) return;
+    isImportingPdf = true;
+    try {
+      await pickAndImportPdf();
+    } finally {
+      isImportingPdf = false;
     }
   }
 
@@ -122,17 +133,62 @@
       </svg>
     </button>
   {:else}
+    <!-- Import PDF button (appears above on hover) -->
+    <button
+      class="fab-button import-button"
+      class:visible={showExpandedMenu}
+      onclick={handleImportPdfClick}
+      title="Import PDF"
+      aria-label="Import PDF"
+      tabindex={showExpandedMenu ? 0 : -1}
+      disabled={isImportingPdf}
+    >
+      {#if isImportingPdf}
+        <!-- Loading spinner -->
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="spinning"
+        >
+          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"
+          ></circle>
+        </svg>
+      {:else}
+        <!-- Document icon for PDF -->
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      {/if}
+    </button>
+
     <!-- Import Book button (appears above on hover) -->
     <button
       class="fab-button import-button"
       class:visible={showExpandedMenu}
-      onclick={handleImportClick}
+      onclick={handleImportEpubClick}
       title="Import Book"
       aria-label="Import Book"
       tabindex={showExpandedMenu ? 0 : -1}
-      disabled={isImporting}
+      disabled={isImportingEpub}
     >
-      {#if isImporting}
+      {#if isImportingEpub}
         <!-- Loading spinner -->
         <svg
           width="22"

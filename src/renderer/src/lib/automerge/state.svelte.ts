@@ -2219,3 +2219,170 @@ export function getEpubProps(noteId: string): EpubNoteProps | undefined {
   if (!note || note.type !== EPUB_NOTE_TYPE_ID) return undefined;
   return note.props as EpubNoteProps | undefined;
 }
+
+// --- PDF Support ---
+
+import type { PdfNoteProps } from './types';
+
+/** PDF note type ID constant */
+export const PDF_NOTE_TYPE_ID = 'type-pdf';
+
+/**
+ * Ensure the PDF note type exists in the document
+ */
+export function ensurePdfNoteType(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.noteTypes?.[PDF_NOTE_TYPE_ID]) {
+    docHandle.change((d) => {
+      if (!d.noteTypes) {
+        d.noteTypes = {};
+      }
+      if (!d.noteTypes[PDF_NOTE_TYPE_ID]) {
+        d.noteTypes[PDF_NOTE_TYPE_ID] = {
+          id: PDF_NOTE_TYPE_ID,
+          name: 'PDF Document',
+          purpose: 'PDF documents with reading progress and highlights',
+          icon: '📄',
+          archived: false,
+          created: nowISO()
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Get all non-archived PDF notes, sorted by last read (most recent first)
+ */
+export function getPdfNotes(): Note[] {
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived && note.type === PDF_NOTE_TYPE_ID)
+    .sort((a, b) => {
+      // Sort by lastRead if available, otherwise by updated
+      const aLastRead = (a.props as PdfNoteProps | undefined)?.lastRead || a.updated;
+      const bLastRead = (b.props as PdfNoteProps | undefined)?.lastRead || b.updated;
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+      return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
+    });
+}
+
+/**
+ * Create a PDF note
+ * @returns The new note's ID
+ */
+export function createPdfNote(params: {
+  title: string;
+  pdfHash: string;
+  totalPages: number;
+  pdfTitle?: string;
+  pdfAuthor?: string;
+}): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Ensure PDF note type exists
+  ensurePdfNoteType();
+
+  const id = generateNoteId();
+  const now = nowISO();
+
+  // Build props object, excluding undefined values (Automerge doesn't allow undefined)
+  const props: Record<string, unknown> = {
+    pdfHash: params.pdfHash,
+    totalPages: params.totalPages,
+    currentPage: 1,
+    zoomLevel: 100
+  };
+  if (params.pdfTitle !== undefined) {
+    props.pdfTitle = params.pdfTitle;
+  }
+  if (params.pdfAuthor !== undefined) {
+    props.pdfAuthor = params.pdfAuthor;
+  }
+
+  docHandle.change((doc) => {
+    doc.notes[id] = {
+      id,
+      title: params.title,
+      content: '',
+      type: PDF_NOTE_TYPE_ID,
+      created: now,
+      updated: now,
+      archived: false,
+      props
+    };
+
+    // Auto-add to recent items in active workspace
+    const workspaceId = doc.activeWorkspaceId;
+    if (workspaceId && doc.workspaces[workspaceId]) {
+      const ws = doc.workspaces[workspaceId];
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'note', id });
+    }
+  });
+
+  return id;
+}
+
+/**
+ * Update PDF reading state (current page, zoom level, last read time)
+ * Use this for debounced reading position updates
+ */
+export function updatePdfReadingState(
+  noteId: string,
+  updates: {
+    currentPage?: number;
+    zoomLevel?: number;
+    lastRead?: string;
+  }
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+
+    const props = note.props as PdfNoteProps;
+    if (updates.currentPage !== undefined) props.currentPage = updates.currentPage;
+    if (updates.zoomLevel !== undefined) props.zoomLevel = updates.zoomLevel;
+    if (updates.lastRead !== undefined) props.lastRead = updates.lastRead;
+
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Update PDF zoom level preference
+ */
+export function updatePdfZoomLevel(noteId: string, zoomLevel: number): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Clamp zoom level to valid range
+  const clampedZoom = Math.max(50, Math.min(200, zoomLevel));
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+
+    (note.props as PdfNoteProps).zoomLevel = clampedZoom;
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Get PDF props from a note
+ */
+export function getPdfProps(noteId: string): PdfNoteProps | undefined {
+  const note = currentDoc.notes[noteId];
+  if (!note || note.type !== PDF_NOTE_TYPE_ID) return undefined;
+  return note.props as PdfNoteProps | undefined;
+}

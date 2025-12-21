@@ -16,6 +16,7 @@ import {
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
 import { createEpubTools } from './epub-tools.svelte';
+import { createPdfTools } from './pdf-tools.svelte';
 import {
   createConversation,
   addMessageToConversation,
@@ -73,6 +74,12 @@ When users ask about their EPUB books:
 - Use get_document_chunk to read specific chapters or sections
 - Use search_document_text to find specific text within a book
 - EPUB books are stored as notes with type "type-epub" - you can find them using list_notes or search_notes
+
+When users ask about their PDF documents:
+- Use get_pdf_structure to see the outline/bookmarks and page count
+- Use get_pdf_chunk to read text from specific page ranges
+- Use search_pdf_text to find specific text within a document
+- PDF documents are stored as notes with type "type-pdf" - you can find them using list_notes or search_notes
 
 When referencing notes in your responses, use wikilink format so users can click to open them:
 - [[n-xxxxxxxx]] - links to a note by ID
@@ -254,10 +261,11 @@ export class ChatService {
           }
         });
 
-      // Create tools (note tools + EPUB tools)
+      // Create tools (note tools + EPUB tools + PDF tools)
       const tools = {
         ...createNoteTools(),
-        ...createEpubTools()
+        ...createEpubTools(),
+        ...createPdfTools()
       };
 
       // Create OpenRouter provider pointing to our proxy

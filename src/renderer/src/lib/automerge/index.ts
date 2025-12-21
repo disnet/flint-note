@@ -30,7 +30,12 @@ export type {
   EpubHighlight,
   EpubTocItem,
   EpubMetadata,
-  EpubLocation
+  EpubLocation,
+  // PDF types
+  PdfNoteProps,
+  PdfHighlight,
+  PdfOutlineItem,
+  PdfMetadata
 } from './types';
 
 // State management
@@ -171,11 +176,23 @@ export {
   createEpubNote,
   updateEpubReadingState,
   updateEpubTextSize,
-  getEpubProps
+  getEpubProps,
+
+  // PDF support
+  PDF_NOTE_TYPE_ID,
+  ensurePdfNoteType,
+  getPdfNotes,
+  createPdfNote,
+  updatePdfReadingState,
+  updatePdfZoomLevel,
+  getPdfProps
 } from './state.svelte';
 
 // OPFS storage for EPUB files
 export { opfsStorage, computeHash } from './opfs-storage.svelte';
+
+// OPFS storage for PDF files
+export { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
 
 // EPUB import
 export {
@@ -186,6 +203,16 @@ export {
   epubExists
 } from './epub-import.svelte';
 export type { EpubImportResult } from './epub-import.svelte';
+
+// PDF import
+export {
+  importPdfFile,
+  importPdfFromData,
+  pickAndImportPdf,
+  handlePdfDrop,
+  pdfExists
+} from './pdf-import.svelte';
+export type { PdfImportResult } from './pdf-import.svelte';
 
 // Repo utilities
 export {
@@ -237,6 +264,7 @@ export type {
 export { automergeShelfStore } from './shelf-state.svelte';
 export type { ShelfItem } from './shelf-state.svelte';
 
-// AI tools for notes and EPUBs
+// AI tools for notes, EPUBs, and PDFs
 export { createNoteTools } from './note-tools.svelte';
 export { createEpubTools } from './epub-tools.svelte';
+export { createPdfTools } from './pdf-tools.svelte';
