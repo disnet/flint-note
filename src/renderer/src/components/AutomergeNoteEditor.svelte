@@ -85,7 +85,17 @@
     onWikilinkClick: handleWikilinkClick,
     onWikilinkHover: handleWikilinkHover,
     onContentChange: handleEditorContentChange,
-    placeholder: 'Start writing...'
+    placeholder: 'Start writing...',
+    // Deck widget support - navigate to notes when clicked in embedded decks
+    onDeckNoteOpen: (noteId) => {
+      if (onNavigate) {
+        onNavigate(noteId);
+      } else {
+        // Fallback to default navigation
+        setActiveNoteId(noteId);
+        addNoteToWorkspace(noteId);
+      }
+    }
   });
 
   function handleTitleInput(event: Event): void {

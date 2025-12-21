@@ -17,10 +17,11 @@
 
   interface Props {
     onCreateNote?: () => void;
+    onCreateDeck?: () => void;
     showShadow?: boolean;
   }
 
-  let { onCreateNote, showShadow = false }: Props = $props();
+  let { onCreateNote, onCreateDeck, showShadow = false }: Props = $props();
 
   // Reactive state
   const workspaces = $derived(getWorkspaces());
@@ -93,6 +94,11 @@
   function handleNewNoteClick(): void {
     closeAddMenu();
     onCreateNote?.();
+  }
+
+  function handleNewDeckClick(): void {
+    closeAddMenu();
+    onCreateDeck?.();
   }
 
   function closeFormPopover(): void {
@@ -472,6 +478,23 @@
             <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
           New Note
+        </button>
+      {/if}
+      {#if onCreateDeck}
+        <button class="add-menu-item" onclick={handleNewDeckClick}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          New Deck
         </button>
       {/if}
       <button class="add-menu-item" onclick={openNewWorkspaceForm}>

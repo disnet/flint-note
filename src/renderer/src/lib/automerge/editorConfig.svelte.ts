@@ -23,6 +23,7 @@ import {
   type WikilinkClickHandler,
   type WikilinkHoverHandler
 } from './wikilinks.svelte';
+import { automergeDeckExtension } from './deck';
 
 export interface AutomergeEditorConfigOptions {
   onWikilinkClick?: WikilinkClickHandler;
@@ -31,6 +32,8 @@ export interface AutomergeEditorConfigOptions {
   onCursorChange?: () => void;
   placeholder?: string;
   variant?: 'default' | 'daily-note';
+  /** Handler for opening notes from deck widgets */
+  onDeckNoteOpen?: (noteId: string) => void;
 }
 
 export class AutomergeEditorConfig {
@@ -154,6 +157,18 @@ export class AutomergeEditorConfig {
               this.options.onWikilinkClick,
               this.options.onWikilinkHover
             )
+          ]
+        : []),
+      // Deck extension for flint-deck code blocks
+      ...(this.options.onDeckNoteOpen
+        ? [
+            automergeDeckExtension({
+              onNoteOpen: this.options.onDeckNoteOpen,
+              onConfigChange: (_from, _to, _config) => {
+                // Config changes are handled by the widget itself via updateDeckBlock
+                // This is called when inline deck YAML changes (deprecated)
+              }
+            })
           ]
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),

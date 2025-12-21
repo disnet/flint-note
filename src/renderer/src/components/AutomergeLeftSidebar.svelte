@@ -38,6 +38,7 @@
       view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
     ) => void;
     onCreateNote?: () => void;
+    onCreateDeck?: () => void;
     onSearchChange: (query: string) => void;
     onSearchFocus: () => void;
     onSearchBlur: () => void;
@@ -54,6 +55,7 @@
     onSystemViewSelect,
     activeSystemView,
     onCreateNote,
+    onCreateDeck,
     searchQuery,
     searchResults,
     searchInputFocused,
@@ -389,7 +391,7 @@
         </div>
       {/key}
     </div>
-    <AutomergeWorkspaceBar {onCreateNote} {showShadow} />
+    <AutomergeWorkspaceBar {onCreateNote} {onCreateDeck} {showShadow} />
   </div>
 </div>
 

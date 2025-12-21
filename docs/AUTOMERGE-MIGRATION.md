@@ -948,6 +948,97 @@ interface WebpageHighlight {
 - Shadow DOM prevents webpage CSS from affecting app styles
 - DOMPurify removes potentially dangerous HTML/scripts
 
+#### Deck Support (Complete)
+
+Full deck (filtered note list) support ported from the legacy version to Automerge:
+
+**Architecture:**
+
+Decks are special notes that contain YAML configuration in code blocks, defining filtered views of notes with sorting, pagination, and column configuration.
+
+````
+[Automerge Document]
+└── notes["n-xxx"]
+    ├── type: "type-deck"
+    ├── title: "My Tasks"
+    └── content: """
+        ```flint-deck
+        views:
+          - name: Default
+            filters:
+              - field: flint_type
+                operator: "="
+                value: "Task"
+            sort:
+              field: updated
+              order: desc
+        ```
+        """
+````
+
+**Key Design Decisions:**
+
+- **Client-side filtering**: All filtering, sorting, and pagination done in-browser (no SQL)
+- **YAML configuration**: Deck config stored as YAML in `flint-deck` code blocks
+- **Type names in filters**: `flint_type` filter uses type names (not IDs) for readability
+- **Shared YAML utilities**: Parsing/serialization shared with legacy via `shared/deck-yaml-utils.ts`
+
+**New Files:**
+
+- `src/renderer/src/lib/automerge/deck/automerge-deck-types.ts` - Type definitions, system fields, operators
+- `src/renderer/src/lib/automerge/deck/automerge-deck-query.svelte.ts` - Client-side query engine
+- `src/renderer/src/lib/automerge/deck/automerge-deck-theme.ts` - CodeMirror theme for deck blocks
+- `src/renderer/src/lib/automerge/deck/automerge-deck-extension.svelte.ts` - CodeMirror extension for deck widgets
+- `src/renderer/src/lib/automerge/deck/index.ts` - Barrel exports
+- `src/renderer/src/components/AutomergeDeckWidget.svelte` - Main deck widget (toolbar, filters, results)
+- `src/renderer/src/components/AutomergeDeckViewer.svelte` - Full-page deck viewer
+- `src/renderer/src/components/AutomergeDeckToolbar.svelte` - Column/sort controls
+- `src/renderer/src/components/AutomergeDeckFilterPopup.svelte` - Quick filter editing popup
+- `src/renderer/src/components/AutomergeDeckFilterBuilder.svelte` - Full filter editor
+- `src/renderer/src/components/AutomergeDeckFilterRow.svelte` - Individual filter row
+- `src/renderer/src/components/AutomergeDeckValueInput.svelte` - Filter value input (text, select, checkboxes)
+- `src/renderer/src/components/AutomergeDeckFieldSelector.svelte` - Field picker dropdown
+- `src/renderer/src/components/AutomergeDeckOperatorSelector.svelte` - Operator picker
+- `src/renderer/src/components/AutomergeDeckNoteListItem.svelte` - Result row with inline editing
+- `src/renderer/src/components/AutomergeDeckPagination.svelte` - Pagination controls
+- `src/renderer/src/components/AutomergeDeckColumnConfig.svelte` - Column visibility/order
+- `src/renderer/src/components/AutomergeDeckPropPickerDialog.svelte` - Add column dialog
+- `src/renderer/src/components/AutomergeDeckViewSwitcher.svelte` - Multi-view tabs
+
+**State Management** (in `state.svelte.ts`):
+
+- `DECK_NOTE_TYPE_ID` - Constant for deck note type (`"type-deck"`)
+- `ensureDeckNoteType()` - Auto-create deck type on first use
+- `createDeckNote(title)` - Create new deck note with default config
+- `getDeckNotes()` - Get all deck notes
+
+**Features:**
+
+- **Filter types**: Type (select dropdown), Title (text), Created/Updated (date), Archived (boolean), custom props
+- **Filter operators**: `=`, `!=`, `LIKE`, `IN`, `NOT IN`, `BETWEEN`, `>`, `<`, `>=`, `<=`
+- **Type filter UI**: Dropdown/checkbox list of available note types
+- **Multi-view support**: Multiple named views with tabs
+- **Column configuration**: Show/hide columns, drag reorder, custom labels
+- **Inline editing**: Edit title and properties directly in result rows
+- **Type switcher**: Compact icon-only type selector per row
+- **New note creation**: Pre-fills type and props from active filters
+- **Pagination**: Configurable page sizes (10, 25, 50, 100, All)
+- **Sorting**: Click column headers or use sort dropdown
+
+**Integration:**
+
+- Deck notes appear in sidebar like regular notes
+- CodeMirror extension renders `flint-deck` blocks as interactive widgets
+- "New Deck" button in workspace bar add menu
+- Full-page viewer for deck notes (`AutomergeDeckViewer.svelte`)
+
+**Key Differences from Legacy:**
+
+- No SQL queries - all filtering done client-side with JavaScript
+- Type filter uses names instead of IDs for human readability
+- Query service returns `AutomergeDeckResultNote` with pre-resolved type info
+- Uses Svelte 5 reactivity (`$derived`, `$state`) throughout
+
 #### Unified Sidebar Items (Complete)
 
 Refactored the sidebar to support multiple item types (notes, conversations, and future types like epub/pdf):
@@ -1064,6 +1155,25 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeWebpageViewer.svelte` (webpage viewer container)
 - `src/renderer/src/components/AutomergeWebpageReader.svelte` (Shadow DOM reader with DOMPurify)
 - `src/renderer/src/components/AutomergeImportWebpageModal.svelte` (URL input modal)
+- `src/renderer/src/lib/automerge/deck/automerge-deck-types.ts` (deck type definitions)
+- `src/renderer/src/lib/automerge/deck/automerge-deck-query.svelte.ts` (client-side query engine)
+- `src/renderer/src/lib/automerge/deck/automerge-deck-theme.ts` (CodeMirror theme)
+- `src/renderer/src/lib/automerge/deck/automerge-deck-extension.svelte.ts` (CodeMirror extension)
+- `src/renderer/src/lib/automerge/deck/index.ts` (barrel exports)
+- `src/renderer/src/components/AutomergeDeckWidget.svelte` (main deck widget)
+- `src/renderer/src/components/AutomergeDeckViewer.svelte` (full-page deck viewer)
+- `src/renderer/src/components/AutomergeDeckToolbar.svelte` (column/sort controls)
+- `src/renderer/src/components/AutomergeDeckFilterPopup.svelte` (quick filter popup)
+- `src/renderer/src/components/AutomergeDeckFilterBuilder.svelte` (full filter editor)
+- `src/renderer/src/components/AutomergeDeckFilterRow.svelte` (individual filter row)
+- `src/renderer/src/components/AutomergeDeckValueInput.svelte` (filter value input)
+- `src/renderer/src/components/AutomergeDeckFieldSelector.svelte` (field picker)
+- `src/renderer/src/components/AutomergeDeckOperatorSelector.svelte` (operator picker)
+- `src/renderer/src/components/AutomergeDeckNoteListItem.svelte` (result row)
+- `src/renderer/src/components/AutomergeDeckPagination.svelte` (pagination controls)
+- `src/renderer/src/components/AutomergeDeckColumnConfig.svelte` (column config)
+- `src/renderer/src/components/AutomergeDeckPropPickerDialog.svelte` (add column dialog)
+- `src/renderer/src/components/AutomergeDeckViewSwitcher.svelte` (multi-view tabs)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -1086,8 +1196,13 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB and PDF AI tools)
 - `src/renderer/src/components/AutomergeMainView.svelte` (EPUB, PDF, and Webpage view routing, full-width content mode for EPUB/PDF)
 - `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book, Import PDF, and Archive Webpage options)
-- `src/renderer/src/lib/automerge/index.ts` (exported PDF and Webpage functions and types)
+- `src/renderer/src/lib/automerge/index.ts` (exported PDF, Webpage, and Deck functions and types)
 - `src/main/index.ts` (added archive-webpage IPC handler)
+- `src/renderer/src/lib/automerge/state.svelte.ts` (added deck functions: createDeckNote, getDeckNotes, ensureDeckNoteType)
+- `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (integrated deck CodeMirror extension)
+- `src/renderer/src/components/AutomergeMainView.svelte` (deck viewer routing, deck creation handler)
+- `src/renderer/src/components/AutomergeWorkspaceBar.svelte` (added "New Deck" to add menu)
+- `src/renderer/src/components/AutomergeLeftSidebar.svelte` (passed onCreateDeck prop)
 - `src/preload/index.ts` (added archiveWebpage IPC definition)
 - `src/renderer/src/env.d.ts` (added archiveWebpage type definition)
 

@@ -311,6 +311,20 @@ export function getAllNotes(): Note[] {
 }
 
 /**
+ * Get all notes as a dictionary (for deck queries)
+ */
+export function getNotesDict(): Record<string, Note> {
+  return currentDoc.notes;
+}
+
+/**
+ * Get all note types as a dictionary (for deck queries)
+ */
+export function getNoteTypesDict(): Record<string, NoteType> {
+  return currentDoc.noteTypes;
+}
+
+/**
  * Search notes by title or content
  */
 export function searchNotes(query: string): Note[] {
@@ -2536,4 +2550,93 @@ export function getWebpageProps(noteId: string): WebpageNoteProps | undefined {
   const note = currentDoc.notes[noteId];
   if (!note || note.type !== WEBPAGE_NOTE_TYPE_ID) return undefined;
   return note.props as WebpageNoteProps | undefined;
+}
+
+// --- Deck Support ---
+
+import {
+  serializeDeckConfig,
+  createEmptyDeckConfig
+} from '../../../../shared/deck-yaml-utils';
+
+/** Deck note type ID constant */
+export const DECK_NOTE_TYPE_ID = 'type-deck';
+
+/**
+ * Ensure the Deck note type exists in the document
+ */
+export function ensureDeckNoteType(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.noteTypes?.[DECK_NOTE_TYPE_ID]) {
+    docHandle.change((d) => {
+      if (!d.noteTypes) {
+        d.noteTypes = {};
+      }
+      if (!d.noteTypes[DECK_NOTE_TYPE_ID]) {
+        d.noteTypes[DECK_NOTE_TYPE_ID] = {
+          id: DECK_NOTE_TYPE_ID,
+          name: 'Deck',
+          purpose: 'Filtered note lists with customizable columns and views',
+          icon: '📊',
+          archived: false,
+          created: nowISO()
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Get all non-archived Deck notes, sorted by updated (most recent first)
+ */
+export function getDeckNotes(): Note[] {
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived && note.type === DECK_NOTE_TYPE_ID)
+    .sort((a, b) => {
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+      return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+    });
+}
+
+/**
+ * Create a Deck note with default configuration
+ * @returns The new note's ID
+ */
+export function createDeckNote(title: string): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Ensure Deck note type exists
+  ensureDeckNoteType();
+
+  const id = generateNoteId();
+  const now = nowISO();
+
+  // Create default deck configuration as YAML content
+  const defaultConfig = createEmptyDeckConfig();
+  const yamlContent = serializeDeckConfig(defaultConfig);
+
+  docHandle.change((doc) => {
+    doc.notes[id] = {
+      id,
+      title,
+      content: yamlContent,
+      type: DECK_NOTE_TYPE_ID,
+      created: now,
+      updated: now,
+      archived: false,
+      props: {}
+    };
+
+    // Auto-add to recent items in active workspace
+    const workspaceId = doc.activeWorkspaceId;
+    if (workspaceId && doc.workspaces[workspaceId]) {
+      const ws = doc.workspaces[workspaceId];
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'note', id });
+    }
+  });
+
+  return id;
 }

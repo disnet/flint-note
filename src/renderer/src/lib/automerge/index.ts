@@ -198,7 +198,13 @@ export {
   getWebpageNotes,
   createWebpageNote,
   updateWebpageReadingState,
-  getWebpageProps
+  getWebpageProps,
+
+  // Deck support
+  DECK_NOTE_TYPE_ID,
+  ensureDeckNoteType,
+  getDeckNotes,
+  createDeckNote
 } from './state.svelte';
 
 // OPFS storage for EPUB files
@@ -293,3 +299,6 @@ export type { ShelfItem } from './shelf-state.svelte';
 export { createNoteTools } from './note-tools.svelte';
 export { createEpubTools } from './epub-tools.svelte';
 export { createPdfTools } from './pdf-tools.svelte';
+
+// Deck module (filtered note lists)
+export * from './deck';

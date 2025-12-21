@@ -26,6 +26,8 @@
     EPUB_NOTE_TYPE_ID,
     PDF_NOTE_TYPE_ID,
     WEBPAGE_NOTE_TYPE_ID,
+    DECK_NOTE_TYPE_ID,
+    createDeckNote,
     type Note,
     type SearchResult,
     type Conversation,
@@ -39,6 +41,7 @@
   import AutomergeEpubViewer from './AutomergeEpubViewer.svelte';
   import AutomergePdfViewer from './AutomergePdfViewer.svelte';
   import AutomergeWebpageViewer from './AutomergeWebpageViewer.svelte';
+  import AutomergeDeckViewer from './AutomergeDeckViewer.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import AutomergeFABMenu from './AutomergeFABMenu.svelte';
@@ -65,10 +68,11 @@
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
 
-  // Check if active note is an EPUB, PDF, or Webpage
+  // Check if active note is an EPUB, PDF, Webpage, or Deck
   const isActiveNoteEpub = $derived(activeNote?.type === EPUB_NOTE_TYPE_ID);
   const isActiveNotePdf = $derived(activeNote?.type === PDF_NOTE_TYPE_ID);
   const isActiveNoteWebpage = $derived(activeNote?.type === WEBPAGE_NOTE_TYPE_ID);
+  const isActiveNoteDeck = $derived(activeNote?.type === DECK_NOTE_TYPE_ID);
 
   // UI state
   let searchQuery = $state('');
@@ -156,6 +160,12 @@
 
   function handleCreateNote(): void {
     const id = createNote({ title: '', content: '' });
+    setActiveItem({ type: 'note', id });
+    setActiveSystemView(null);
+  }
+
+  function handleCreateDeck(): void {
+    const id = createDeckNote('');
     setActiveItem({ type: 'note', id });
     setActiveSystemView(null);
   }
@@ -272,6 +282,7 @@
       onItemSelect={handleItemSelect}
       onSystemViewSelect={handleSystemViewSelect}
       onCreateNote={handleCreateNote}
+      onCreateDeck={handleCreateDeck}
       onSearchChange={(query) => (searchQuery = query)}
       onSearchFocus={handleSearchFocus}
       onSearchBlur={handleSearchBlur}
@@ -345,10 +356,15 @@
         </div>
       </div>
 
-      <div class="scroll-container" class:no-scroll={isActiveNoteEpub || isActiveNotePdf}>
+      <div
+        class="scroll-container"
+        class:no-scroll={isActiveNoteEpub || isActiveNotePdf || isActiveNoteDeck}
+      >
         <div
           class="content-wrapper"
-          class:full-width-content={isActiveNoteEpub || isActiveNotePdf}
+          class:full-width-content={isActiveNoteEpub ||
+            isActiveNotePdf ||
+            isActiveNoteDeck}
         >
           {#if activeSystemView === 'settings'}
             <div class="settings-panel">
@@ -539,6 +555,15 @@
             {:else if isActiveNoteWebpage}
               <AutomergeWebpageViewer
                 note={activeNote}
+                onTitleChange={(title) => updateNote(activeNote.id, { title })}
+              />
+            {:else if isActiveNoteDeck}
+              <AutomergeDeckViewer
+                note={activeNote}
+                onNoteOpen={(noteId) => {
+                  setActiveItem({ type: 'note', id: noteId });
+                  addItemToWorkspace({ type: 'note', id: noteId });
+                }}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
               />
             {:else}
