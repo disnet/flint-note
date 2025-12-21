@@ -196,7 +196,9 @@
   {#if onEditorChipsUpdate}
     <div class="system-fields-section">
       <h3>Display Settings</h3>
-      <p class="section-description">Choose which fields are always visible in the note editor.</p>
+      <p class="section-description">
+        Choose which fields are always visible in the note editor.
+      </p>
       <div class="system-fields-list">
         {#each SYSTEM_FIELDS as field (field.name)}
           <label class="system-field-item">

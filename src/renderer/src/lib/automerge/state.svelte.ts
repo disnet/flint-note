@@ -2054,3 +2054,168 @@ export function clearShelfItems(): void {
     doc.shelfItems = [];
   });
 }
+
+// --- EPUB Support ---
+
+import type { EpubNoteProps } from './types';
+
+/** EPUB note type ID constant */
+export const EPUB_NOTE_TYPE_ID = 'type-epub';
+
+/**
+ * Ensure the EPUB note type exists in the document
+ */
+export function ensureEpubNoteType(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.noteTypes?.[EPUB_NOTE_TYPE_ID]) {
+    docHandle.change((d) => {
+      if (!d.noteTypes) {
+        d.noteTypes = {};
+      }
+      if (!d.noteTypes[EPUB_NOTE_TYPE_ID]) {
+        d.noteTypes[EPUB_NOTE_TYPE_ID] = {
+          id: EPUB_NOTE_TYPE_ID,
+          name: 'Book',
+          purpose: 'EPUB books with reading progress and highlights',
+          icon: '📖',
+          archived: false,
+          created: nowISO()
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Get all non-archived EPUB notes, sorted by last read (most recent first)
+ */
+export function getEpubNotes(): Note[] {
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived && note.type === EPUB_NOTE_TYPE_ID)
+    .sort((a, b) => {
+      // Sort by lastRead if available, otherwise by updated
+      const aLastRead = (a.props as EpubNoteProps | undefined)?.lastRead || a.updated;
+      const bLastRead = (b.props as EpubNoteProps | undefined)?.lastRead || b.updated;
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+      return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
+    });
+}
+
+/**
+ * Create an EPUB note
+ * @returns The new note's ID
+ */
+export function createEpubNote(params: {
+  title: string;
+  epubHash: string;
+  epubTitle?: string;
+  epubAuthor?: string;
+}): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Ensure EPUB note type exists
+  ensureEpubNoteType();
+
+  const id = generateNoteId();
+  const now = nowISO();
+
+  // Build props object, excluding undefined values (Automerge doesn't allow undefined)
+  const props: Record<string, unknown> = {
+    epubHash: params.epubHash,
+    progress: 0,
+    textSize: 100
+  };
+  if (params.epubTitle !== undefined) {
+    props.epubTitle = params.epubTitle;
+  }
+  if (params.epubAuthor !== undefined) {
+    props.epubAuthor = params.epubAuthor;
+  }
+
+  docHandle.change((doc) => {
+    doc.notes[id] = {
+      id,
+      title: params.title,
+      content: '',
+      type: EPUB_NOTE_TYPE_ID,
+      created: now,
+      updated: now,
+      archived: false,
+      props
+    };
+
+    // Auto-add to recent items in active workspace
+    const workspaceId = doc.activeWorkspaceId;
+    if (workspaceId && doc.workspaces[workspaceId]) {
+      const ws = doc.workspaces[workspaceId];
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'note', id });
+    }
+  });
+
+  return id;
+}
+
+/**
+ * Update EPUB reading state (CFI position, progress, last read time)
+ * Use this for debounced reading position updates
+ */
+export function updateEpubReadingState(
+  noteId: string,
+  updates: {
+    currentCfi?: string;
+    progress?: number;
+    lastRead?: string;
+  }
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+
+    const props = note.props as EpubNoteProps;
+    if (updates.currentCfi !== undefined) props.currentCfi = updates.currentCfi;
+    if (updates.progress !== undefined) props.progress = updates.progress;
+    if (updates.lastRead !== undefined) props.lastRead = updates.lastRead;
+
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Update EPUB text size preference
+ */
+export function updateEpubTextSize(noteId: string, textSize: number): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Clamp text size to valid range
+  const clampedSize = Math.max(75, Math.min(200, textSize));
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+
+    (note.props as EpubNoteProps).textSize = clampedSize;
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Get EPUB props from a note
+ */
+export function getEpubProps(noteId: string): EpubNoteProps | undefined {
+  const note = currentDoc.notes[noteId];
+  if (!note || note.type !== EPUB_NOTE_TYPE_ID) return undefined;
+  return note.props as EpubNoteProps | undefined;
+}

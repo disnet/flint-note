@@ -439,6 +439,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="picker-overlay" onclick={closeNoteLinkPicker} onkeydown={() => {}}></div>
   <div class="picker-dropdown">
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
       class="picker-search"

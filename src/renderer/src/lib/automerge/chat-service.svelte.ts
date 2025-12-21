@@ -15,6 +15,7 @@ import {
 } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
+import { createEpubTools } from './epub-tools.svelte';
 import {
   createConversation,
   addMessageToConversation,
@@ -54,7 +55,7 @@ export type ChatStatus = 'ready' | 'submitting' | 'streaming' | 'error';
 
 const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You have access to tools that let you search, read, create, update, and archive notes.
+const SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You have access to tools that let you search, read, create, update, and archive notes, as well as read and search EPUB books.
 
 When users ask about their notes:
 - Use search_notes to find relevant notes by keywords
@@ -66,6 +67,12 @@ When users want to modify notes:
 - Use create_note to make new notes
 - Use update_note to change existing notes
 - Use archive_note to remove notes (soft delete)
+
+When users ask about their EPUB books:
+- Use get_document_structure to see the table of contents and chapters of a book
+- Use get_document_chunk to read specific chapters or sections
+- Use search_document_text to find specific text within a book
+- EPUB books are stored as notes with type "type-epub" - you can find them using list_notes or search_notes
 
 When referencing notes in your responses, use wikilink format so users can click to open them:
 - [[n-xxxxxxxx]] - links to a note by ID
@@ -247,8 +254,11 @@ export class ChatService {
           }
         });
 
-      // Create tools
-      const tools = createNoteTools();
+      // Create tools (note tools + EPUB tools)
+      const tools = {
+        ...createNoteTools(),
+        ...createEpubTools()
+      };
 
       // Create OpenRouter provider pointing to our proxy
       // The proxy will add the real API key

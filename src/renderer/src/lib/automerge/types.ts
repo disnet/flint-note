@@ -281,3 +281,81 @@ export interface Vault {
   /** ISO timestamp of creation */
   created: string;
 }
+
+// ============================================================================
+// EPUB Types
+// ============================================================================
+
+/**
+ * EPUB-specific properties stored in Note.props
+ */
+export interface EpubNoteProps {
+  /** SHA-256 hash of EPUB content, used for OPFS lookup */
+  epubHash: string;
+  /** Book title extracted from EPUB metadata */
+  epubTitle?: string;
+  /** Book author extracted from EPUB metadata */
+  epubAuthor?: string;
+  /** Current reading position (EPUB CFI format) */
+  currentCfi?: string;
+  /** Reading progress percentage (0-100) */
+  progress?: number;
+  /** ISO timestamp of last reading session */
+  lastRead?: string;
+  /** Font size preference (75-200) */
+  textSize?: number;
+}
+
+/**
+ * A highlight/annotation in an EPUB
+ */
+export interface EpubHighlight {
+  /** Unique identifier, format: "h-{timestamp.toString(36)}" */
+  id: string;
+  /** EPUB CFI pointing to the highlighted range */
+  cfi: string;
+  /** The highlighted text content */
+  text: string;
+  /** ISO timestamp of when the highlight was created */
+  createdAt: string;
+}
+
+/**
+ * Table of contents item from EPUB navigation
+ */
+export interface EpubTocItem {
+  /** Display label for the TOC entry */
+  label: string;
+  /** Navigation target (href or CFI) */
+  href: string;
+  /** Nested TOC items (for chapters with subsections) */
+  subitems?: EpubTocItem[];
+}
+
+/**
+ * EPUB metadata extracted from the book
+ */
+export interface EpubMetadata {
+  /** Book title */
+  title?: string;
+  /** Book author(s) */
+  author?: string;
+  /** Publisher name */
+  publisher?: string;
+  /** Language code (e.g., "en", "de") */
+  language?: string;
+  /** Book description/summary */
+  description?: string;
+}
+
+/**
+ * Reading location information
+ */
+export interface EpubLocation {
+  /** Current section/chapter index */
+  index: number;
+  /** Progress fraction within the book (0-1) */
+  fraction: number;
+  /** Total number of sections/locations */
+  totalLocations: number;
+}

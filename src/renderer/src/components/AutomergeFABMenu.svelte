@@ -3,9 +3,11 @@
    * Floating Action Button Menu
    *
    * Displays a FAB that expands into a popup menu on hover,
-   * showing options for Chat and Shelf panels.
+   * showing options for Chat, Shelf, and Import Book.
    * When a panel is open, shows only a close button below the panel.
    */
+
+  import { pickAndImportEpub } from '../lib/automerge';
 
   interface Props {
     /** Whether the chat panel is currently open */
@@ -19,6 +21,18 @@
   }
 
   let { chatOpen, shelfOpen, onToggleChat, onToggleShelf }: Props = $props();
+
+  let isImporting = $state(false);
+
+  async function handleImportClick(): Promise<void> {
+    if (isImporting) return;
+    isImporting = true;
+    try {
+      await pickAndImportEpub();
+    } finally {
+      isImporting = false;
+    }
+  }
 
   let isHovered = $state(false);
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -108,6 +122,48 @@
       </svg>
     </button>
   {:else}
+    <!-- Import Book button (appears above on hover) -->
+    <button
+      class="fab-button import-button"
+      class:visible={showExpandedMenu}
+      onclick={handleImportClick}
+      title="Import Book"
+      aria-label="Import Book"
+      tabindex={showExpandedMenu ? 0 : -1}
+      disabled={isImporting}
+    >
+      {#if isImporting}
+        <!-- Loading spinner -->
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="spinning"
+        >
+          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"
+          ></circle>
+        </svg>
+      {:else}
+        <!-- Book icon -->
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      {/if}
+    </button>
+
     <!-- Shelf button (appears above on hover) -->
     <button
       class="fab-button shelf-button"
@@ -315,5 +371,31 @@
 
   .fab-close:active {
     transform: scale(0.95);
+  }
+
+  /* Spinning animation for loading state */
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+
+  /* Disabled state for import button */
+  .fab-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .fab-button:disabled:hover {
+    transform: translateY(0) scale(1);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
   }
 </style>

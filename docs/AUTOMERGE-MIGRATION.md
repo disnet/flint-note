@@ -96,7 +96,14 @@ interface NotesDocument {
   lastViewState?: LastViewState; // Persist active view for app restart
 }
 
-type SystemView = 'notes' | 'settings' | 'search' | 'types' | 'daily' | 'conversations' | null;
+type SystemView =
+  | 'notes'
+  | 'settings'
+  | 'search'
+  | 'types'
+  | 'daily'
+  | 'conversations'
+  | null;
 
 interface LastViewState {
   activeItem: ActiveItem;
@@ -614,6 +621,104 @@ Implemented the daily notes view for capturing daily thoughts and tracking activ
 - Predictable daily note IDs: `daily-YYYY-MM-DD`
 - Daily note type auto-created on first use
 
+#### EPUB Support (Complete)
+
+Full EPUB file support for reading books directly in Flint:
+
+**Architecture:**
+
+```
+[OPFS (Origin Private File System)]     [Automerge Document]
+└── /epubs/                             └── notes["n-xxx"]
+    └── {sha256-hash}.epub                  ├── type: "type-epub"
+                                            ├── title: "Deep Work"
+                                            ├── content: "<!-- highlights -->"
+                                            └── props:
+                                                ├── epubHash: "sha256-..."
+                                                ├── epubTitle: "Deep Work"
+                                                ├── epubAuthor: "Cal Newport"
+                                                ├── currentCfi: "epubcfi(...)"
+                                                ├── progress: 34
+                                                ├── lastRead: "2025-01-15T..."
+                                                └── textSize: 100
+```
+
+**Key Design Decisions:**
+
+- **OPFS for binary storage**: EPUBs stored in browser's Origin Private File System, content-addressed by SHA-256 hash for deduplication
+- **Automerge for metadata**: Reading progress, highlights, and settings synced via Automerge
+- **Highlights in note content**: Stored as markdown in the note's content field for future portability
+
+**New Files:**
+
+- `src/renderer/src/lib/automerge/opfs-storage.svelte.ts` - OPFS storage service with content-addressed hashing
+- `src/renderer/src/lib/automerge/epub-import.svelte.ts` - EPUB import flow with metadata extraction
+- `src/renderer/src/lib/automerge/epub-tools.svelte.ts` - AI tools for EPUB content access
+- `src/renderer/src/components/AutomergeEpubViewer.svelte` - Main EPUB viewer container
+- `src/renderer/src/components/AutomergeEpubReader.svelte` - foliate-js wrapper for rendering
+- `src/renderer/src/components/AutomergeEpubToc.svelte` - Table of contents panel
+- `src/renderer/src/components/AutomergeEpubHighlights.svelte` - Highlights list panel
+- `src/renderer/src/components/AutomergeEpubProgress.svelte` - Progress bar and navigation
+
+**Type Definitions** (in `types.ts`):
+
+```typescript
+interface EpubNoteProps {
+  epubHash: string;
+  epubTitle?: string;
+  epubAuthor?: string;
+  currentCfi?: string;
+  progress?: number; // 0-100
+  lastRead?: string; // ISO timestamp
+  textSize?: number; // 75-200
+}
+
+interface EpubHighlight {
+  id: string;
+  cfi: string;
+  text: string;
+  createdAt: string;
+}
+
+interface EpubTocItem {
+  label: string;
+  href: string;
+  subitems?: EpubTocItem[];
+}
+```
+
+**State Management** (in `state.svelte.ts`):
+
+- `EPUB_NOTE_TYPE_ID` - Constant for EPUB note type
+- `ensureEpubNoteType()` - Auto-create EPUB type on first import
+- `createEpubNote()` - Create note with EPUB props
+- `updateEpubReadingState()` - Update CFI, progress, lastRead
+- `updateEpubTextSize()` - Update text size preference
+
+**Features:**
+
+- **Import**: Via FAB menu "Import Book" button or drag-and-drop
+- **Metadata extraction**: Parses OPF to extract title, author, publisher, etc.
+- **Reading position**: Persists CFI location and progress percentage
+- **Text size**: Adjustable font size (75-200%)
+- **Table of contents**: Navigable TOC sidebar
+- **Highlights**: Select text to create highlights, stored in note content
+- **AI tools**: `get_document_structure`, `get_document_chunk`, `search_document_text`
+
+**Integration:**
+
+- EPUB notes appear in sidebar like regular notes
+- View routing in `AutomergeMainView.svelte` detects EPUB type
+- FAB menu includes "Import Book" option
+- Highlights stored as markdown for future migration compatibility
+
+**Key Considerations:**
+
+- OPFS is device-local; EPUBs must be re-imported on each device
+- Content-addressing enables deduplication (same EPUB = same hash)
+- Uses foliate-js for rendering with scrolled flow mode
+- Debounced reading state updates to reduce Automerge changes
+
 #### Unified Sidebar Items (Complete)
 
 Refactored the sidebar to support multiple item types (notes, conversations, and future types like epub/pdf):
@@ -710,6 +815,14 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/shelf-state.svelte.ts` (shelf state wrapper)
 - `src/renderer/src/components/AutomergeConversationView.svelte` (full conversation view)
 - `src/renderer/src/components/AutomergeConversationList.svelte` (conversation list in chat panel)
+- `src/renderer/src/lib/automerge/opfs-storage.svelte.ts` (OPFS storage with content-addressed hashing)
+- `src/renderer/src/lib/automerge/epub-import.svelte.ts` (EPUB import and metadata extraction)
+- `src/renderer/src/lib/automerge/epub-tools.svelte.ts` (AI tools for EPUB content access)
+- `src/renderer/src/components/AutomergeEpubViewer.svelte` (EPUB viewer container)
+- `src/renderer/src/components/AutomergeEpubReader.svelte` (foliate-js wrapper)
+- `src/renderer/src/components/AutomergeEpubToc.svelte` (table of contents panel)
+- `src/renderer/src/components/AutomergeEpubHighlights.svelte` (highlights list panel)
+- `src/renderer/src/components/AutomergeEpubProgress.svelte` (progress bar and navigation)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -726,7 +839,12 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeMainView.svelte` (integrated sync settings, daily view)
 - `src/renderer/src/components/AutomergeSystemViews.svelte` (added Daily nav item)
 - `src/renderer/src/components/AutomergeLeftSidebar.svelte` (updated view types)
-- `src/renderer/src/lib/automerge/index.ts` (exported daily view functions)
+- `src/renderer/src/lib/automerge/index.ts` (exported daily view functions, EPUB functions)
+- `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata)
+- `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB functions: createEpubNote, updateEpubReadingState, etc.)
+- `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB AI tools)
+- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB view routing)
+- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book option)
 
 ### Files to Eventually Remove (after full migration)
 

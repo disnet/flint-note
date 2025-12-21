@@ -23,6 +23,7 @@
     switchVault,
     searchNotesEnhanced,
     automergeShelfStore,
+    EPUB_NOTE_TYPE_ID,
     type Note,
     type SearchResult,
     type Conversation,
@@ -33,6 +34,7 @@
   import AutomergeNoteEditor from './AutomergeNoteEditor.svelte';
   import AutomergeSearchResults from './AutomergeSearchResults.svelte';
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
+  import AutomergeEpubViewer from './AutomergeEpubViewer.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import AutomergeFABMenu from './AutomergeFABMenu.svelte';
@@ -56,6 +58,9 @@
 
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
+
+  // Check if active note is an EPUB
+  const isActiveNoteEpub = $derived(activeNote?.type === EPUB_NOTE_TYPE_ID);
 
   // UI state
   let searchQuery = $state('');
@@ -504,12 +509,19 @@
               }}
             />
           {:else if activeNote}
-            <AutomergeNoteEditor
-              note={activeNote}
-              onTitleChange={(title) => updateNote(activeNote.id, { title })}
-              onContentChange={(content) => updateNote(activeNote.id, { content })}
-              onArchive={() => handleArchiveNote(activeNote.id)}
-            />
+            {#if isActiveNoteEpub}
+              <AutomergeEpubViewer
+                note={activeNote}
+                onTitleChange={(title) => updateNote(activeNote.id, { title })}
+              />
+            {:else}
+              <AutomergeNoteEditor
+                note={activeNote}
+                onTitleChange={(title) => updateNote(activeNote.id, { title })}
+                onContentChange={(content) => updateNote(activeNote.id, { content })}
+                onArchive={() => handleArchiveNote(activeNote.id)}
+              />
+            {/if}
           {:else}
             <div class="empty-editor">
               <div class="empty-editor-content">
@@ -790,6 +802,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    height: 100%;
     max-width: 70ch;
     margin: 0 auto;
     padding: 0 1rem;

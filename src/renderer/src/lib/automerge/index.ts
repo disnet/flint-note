@@ -24,7 +24,13 @@ export type {
   ActiveItem,
   SystemView,
   LastViewState,
-  ShelfItemData
+  ShelfItemData,
+  // EPUB types
+  EpubNoteProps,
+  EpubHighlight,
+  EpubTocItem,
+  EpubMetadata,
+  EpubLocation
 } from './types';
 
 // State management
@@ -156,8 +162,30 @@ export {
   removeShelfItem,
   toggleShelfItemExpanded,
   setShelfItemExpanded,
-  clearShelfItems
+  clearShelfItems,
+
+  // EPUB support
+  EPUB_NOTE_TYPE_ID,
+  ensureEpubNoteType,
+  getEpubNotes,
+  createEpubNote,
+  updateEpubReadingState,
+  updateEpubTextSize,
+  getEpubProps
 } from './state.svelte';
+
+// OPFS storage for EPUB files
+export { opfsStorage, computeHash } from './opfs-storage.svelte';
+
+// EPUB import
+export {
+  importEpubFile,
+  importEpubFromData,
+  pickAndImportEpub,
+  handleEpubDrop,
+  epubExists
+} from './epub-import.svelte';
+export type { EpubImportResult } from './epub-import.svelte';
 
 // Repo utilities
 export { createRepo, getRepo, archiveVault } from './repo';
@@ -202,3 +230,7 @@ export type {
 // Shelf state
 export { automergeShelfStore } from './shelf-state.svelte';
 export type { ShelfItem } from './shelf-state.svelte';
+
+// AI tools for notes and EPUBs
+export { createNoteTools } from './note-tools.svelte';
+export { createEpubTools } from './epub-tools.svelte';
