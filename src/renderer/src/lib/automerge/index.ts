@@ -188,7 +188,13 @@ export {
 export type { EpubImportResult } from './epub-import.svelte';
 
 // Repo utilities
-export { createRepo, getRepo, archiveVault } from './repo';
+export {
+  createRepo,
+  getRepo,
+  archiveVault,
+  compactVaultDocument,
+  getStorageStats
+} from './repo';
 
 // ID generation
 export {

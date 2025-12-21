@@ -45,9 +45,8 @@ const DEFAULT_NOTE_TYPE_ID = 'type-default';
 export function createRepo(): Repo {
   if (repo) return repo;
 
-  repo = new Repo({
-    storage: new IndexedDBStorageAdapter('flint-notes')
-  });
+  const storage = new IndexedDBStorageAdapter('flint-notes');
+  repo = new Repo({ storage });
 
   return repo;
 }
@@ -343,4 +342,183 @@ export async function selectSyncDirectory(): Promise<string | null> {
     return null;
   }
   return syncAPI.selectSyncDirectory();
+}
+
+// --- Document Compaction ---
+
+/**
+ * Compact a vault's document by creating a fresh copy with only current state.
+ * This removes all change history, significantly reducing storage size and load time.
+ *
+ * WARNING: This creates a new document URL. The old document data remains in IndexedDB
+ * until manually cleared.
+ *
+ * @returns The new document URL, or null if compaction failed
+ */
+export async function compactVaultDocument(vaultId: string): Promise<string | null> {
+  const r = getRepo();
+  const vaults = getVaults();
+  const vault = vaults.find((v) => v.id === vaultId);
+
+  if (!vault) {
+    console.error('[Compact] Vault not found:', vaultId);
+    return null;
+  }
+
+  console.log('[Compact] Starting compaction for vault:', vault.name);
+
+  try {
+    // Load the current document
+    const oldHandle = await r.find<NotesDocument>(vault.docUrl as AutomergeUrl);
+    await oldHandle.whenReady();
+
+    const currentDoc = oldHandle.doc();
+    if (!currentDoc) {
+      console.error('[Compact] Could not load current document');
+      return null;
+    }
+
+    // Log current state
+    const noteCount = Object.keys(currentDoc.notes || {}).length;
+    const workspaceCount = Object.keys(currentDoc.workspaces || {}).length;
+    console.log(
+      '[Compact] Current document has',
+      noteCount,
+      'notes,',
+      workspaceCount,
+      'workspaces'
+    );
+
+    // Create a fresh document with the current state (no history)
+    const newHandle = r.create<NotesDocument>();
+
+    // Copy all current data to the new document
+    newHandle.change((doc) => {
+      // Deep copy all fields
+      doc.notes = JSON.parse(JSON.stringify(currentDoc.notes || {}));
+      doc.workspaces = JSON.parse(JSON.stringify(currentDoc.workspaces || {}));
+      doc.activeWorkspaceId = currentDoc.activeWorkspaceId;
+      doc.noteTypes = JSON.parse(JSON.stringify(currentDoc.noteTypes || {}));
+
+      if (currentDoc.workspaceOrder) {
+        doc.workspaceOrder = [...currentDoc.workspaceOrder];
+      }
+      if (currentDoc.conversations) {
+        doc.conversations = JSON.parse(JSON.stringify(currentDoc.conversations));
+      }
+      if (currentDoc.shelfItems) {
+        doc.shelfItems = JSON.parse(JSON.stringify(currentDoc.shelfItems));
+      }
+      if (currentDoc.lastViewState) {
+        doc.lastViewState = JSON.parse(JSON.stringify(currentDoc.lastViewState));
+      }
+    });
+
+    // Update vault to use new document URL
+    const newDocUrl = newHandle.url;
+
+    // Update in localStorage
+    const updatedVaults = vaults.map((v) =>
+      v.id === vaultId ? { ...v, docUrl: newDocUrl } : v
+    );
+    saveVaults(updatedVaults);
+
+    console.log('[Compact] Old document URL:', vault.docUrl);
+    console.log('[Compact] New document URL:', newDocUrl);
+    console.log('[Compact] ✅ Compaction complete!');
+    console.log('[Compact] Reload the app to use the compacted document.');
+    console.log(
+      '[Compact] To reclaim space, clear IndexedDB via DevTools: Application > IndexedDB > flint-notes > Clear'
+    );
+
+    return newDocUrl;
+  } catch (error) {
+    console.error('[Compact] Compaction failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Get storage statistics for debugging
+ */
+export async function getStorageStats(): Promise<{
+  entryCount: number;
+  totalSizeKB: number;
+  entries: { key: string; sizeKB: number }[];
+} | null> {
+  return new Promise((resolve) => {
+    try {
+      const dbName = 'flint-notes';
+      const request = indexedDB.open(dbName);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const storeNames = Array.from(db.objectStoreNames);
+
+        if (storeNames.length === 0) {
+          db.close();
+          resolve({ entryCount: 0, totalSizeKB: 0, entries: [] });
+          return;
+        }
+
+        const tx = db.transaction(storeNames, 'readonly');
+        const store = tx.objectStore(storeNames[0]);
+
+        const getAllKeysRequest = store.getAllKeys();
+        const getAllRequest = store.getAll();
+
+        let keys: IDBValidKey[] = [];
+        let values: unknown[] = [];
+
+        getAllKeysRequest.onsuccess = () => {
+          keys = getAllKeysRequest.result;
+        };
+
+        getAllRequest.onsuccess = () => {
+          values = getAllRequest.result;
+
+          const entries: { key: string; sizeKB: number }[] = [];
+          let totalSize = 0;
+
+          for (let i = 0; i < keys.length; i++) {
+            const key = String(keys[i]);
+            const value = values[i];
+            let size = 0;
+
+            if (value instanceof ArrayBuffer) {
+              size = value.byteLength;
+            } else if (value instanceof Uint8Array) {
+              size = value.byteLength;
+            } else if (typeof value === 'object' && value !== null) {
+              size = JSON.stringify(value).length;
+            }
+
+            entries.push({ key, sizeKB: size / 1024 });
+            totalSize += size;
+          }
+
+          // Sort by size descending
+          entries.sort((a, b) => b.sizeKB - a.sizeKB);
+
+          db.close();
+          resolve({
+            entryCount: keys.length,
+            totalSizeKB: totalSize / 1024,
+            entries: entries.slice(0, 20) // Top 20 largest
+          });
+        };
+
+        getAllRequest.onerror = () => {
+          db.close();
+          resolve(null);
+        };
+      };
+
+      request.onerror = () => {
+        resolve(null);
+      };
+    } catch {
+      resolve(null);
+    }
+  });
 }

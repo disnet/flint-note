@@ -41,6 +41,7 @@
   import AutomergeChatPanel from './AutomergeChatPanel.svelte';
   import AutomergeShelfPanel from './AutomergeShelfPanel.svelte';
   import AutomergeAPIKeySettings from './AutomergeAPIKeySettings.svelte';
+  import AutomergeDebugSettings from './AutomergeDebugSettings.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
   import AutomergeConversationView from './AutomergeConversationView.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
@@ -361,6 +362,11 @@
 
               <!-- File Sync Settings -->
               <AutomergeVaultSyncSettings />
+
+              <div class="settings-divider"></div>
+
+              <!-- Debug / Performance Settings -->
+              <AutomergeDebugSettings />
 
               <button class="close-settings" onclick={() => setActiveSystemView(null)}
                 >Close</button
