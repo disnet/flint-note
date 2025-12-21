@@ -3509,6 +3509,94 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Archive webpage for Automerge (returns HTML content instead of saving to filesystem)
+  ipcMain.handle('archive-webpage', async (_event, params: { url: string }) => {
+    try {
+      const { url } = params;
+
+      // Validate URL
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
+      }
+
+      // Fetch the webpage
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+      }
+
+      const originalHtml = await response.text();
+
+      // Parse with Defuddle for article extraction
+      const { JSDOM } = await import('jsdom');
+      const { Defuddle } = await import('defuddle/node');
+
+      const dom = new JSDOM(originalHtml, { url });
+      const article = await Defuddle(dom, url);
+
+      if (!article || !article.content) {
+        throw new Error('Could not extract article content from page');
+      }
+
+      // Convert images in article content to data URIs for offline access
+      logger.info('Converting images to data URIs for archive...', { url });
+      const contentWithImages = await convertImagesToDataUris(article.content, url);
+
+      // Helper to escape HTML
+      const escapeHtml = (str: string): string =>
+        str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+
+      // Create a full HTML document for the reader version
+      const html = `<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(article.title || 'Untitled')}</title>
+</head>
+<body>
+  <article>
+    <h1>${escapeHtml(article.title || 'Untitled')}</h1>
+    ${article.author ? `<p class="byline">${escapeHtml(article.author)}</p>` : ''}
+    ${contentWithImages}
+  </article>
+</body>
+</html>`;
+
+      const metadata = {
+        url,
+        title: article.title || 'Untitled',
+        siteName: article.site,
+        author: article.author,
+        excerpt: article.description,
+        fetchedAt: new Date().toISOString(),
+        lang: 'en',
+        dir: 'ltr'
+      };
+
+      logger.info('Webpage archived successfully', {
+        url,
+        title: article.title
+      });
+
+      return { html, metadata };
+    } catch (error) {
+      logger.error('Failed to archive webpage', { error });
+      throw error;
+    }
+  });
+
   ipcMain.handle(
     'read-webpage-file',
     async (_event, params: { relativePath: string }) => {

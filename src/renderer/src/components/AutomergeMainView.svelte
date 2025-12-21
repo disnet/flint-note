@@ -25,6 +25,7 @@
     automergeShelfStore,
     EPUB_NOTE_TYPE_ID,
     PDF_NOTE_TYPE_ID,
+    WEBPAGE_NOTE_TYPE_ID,
     type Note,
     type SearchResult,
     type Conversation,
@@ -37,6 +38,7 @@
   import AutomergeNoteTypesView from './AutomergeNoteTypesView.svelte';
   import AutomergeEpubViewer from './AutomergeEpubViewer.svelte';
   import AutomergePdfViewer from './AutomergePdfViewer.svelte';
+  import AutomergeWebpageViewer from './AutomergeWebpageViewer.svelte';
   import AutomergeDailyView from './AutomergeDailyView.svelte';
   import AutomergeVaultSyncSettings from './AutomergeVaultSyncSettings.svelte';
   import AutomergeFABMenu from './AutomergeFABMenu.svelte';
@@ -46,6 +48,7 @@
   import AutomergeDebugSettings from './AutomergeDebugSettings.svelte';
   import AutomergeConversationList from './AutomergeConversationList.svelte';
   import AutomergeConversationView from './AutomergeConversationView.svelte';
+  import AutomergeImportWebpageModal from './AutomergeImportWebpageModal.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -62,15 +65,17 @@
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
 
-  // Check if active note is an EPUB or PDF
+  // Check if active note is an EPUB, PDF, or Webpage
   const isActiveNoteEpub = $derived(activeNote?.type === EPUB_NOTE_TYPE_ID);
   const isActiveNotePdf = $derived(activeNote?.type === PDF_NOTE_TYPE_ID);
+  const isActiveNoteWebpage = $derived(activeNote?.type === WEBPAGE_NOTE_TYPE_ID);
 
   // UI state
   let searchQuery = $state('');
   // activeSystemView is now persisted in Automerge document
   const activeSystemView: SystemView = $derived(getActiveSystemView());
   let showCreateVaultModal = $state(false);
+  let showArchiveWebpageModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
   let selectedNoteTypeId = $state<string | null>(null);
@@ -531,6 +536,11 @@
                 note={activeNote}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
               />
+            {:else if isActiveNoteWebpage}
+              <AutomergeWebpageViewer
+                note={activeNote}
+                onTitleChange={(title) => updateNote(activeNote.id, { title })}
+              />
             {:else}
               <AutomergeNoteEditor
                 note={activeNote}
@@ -596,6 +606,9 @@
     shelfPanelOpen = !shelfPanelOpen;
     if (shelfPanelOpen) chatPanelOpen = false; // Mutual exclusion
   }}
+  onArchiveWebpage={() => {
+    showArchiveWebpageModal = true;
+  }}
 />
 
 <AutomergeChatPanel
@@ -616,6 +629,12 @@
     setActiveSystemView(null);
     shelfPanelOpen = false;
   }}
+/>
+
+<!-- Archive Webpage Modal -->
+<AutomergeImportWebpageModal
+  isOpen={showArchiveWebpageModal}
+  onClose={() => (showArchiveWebpageModal = false)}
 />
 
 <style>

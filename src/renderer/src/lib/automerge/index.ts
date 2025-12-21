@@ -35,7 +35,12 @@ export type {
   PdfNoteProps,
   PdfHighlight,
   PdfOutlineItem,
-  PdfMetadata
+  PdfMetadata,
+  // Webpage types
+  WebpageNoteProps,
+  WebpageMetadata,
+  WebpageHighlight,
+  WebpageSelectionInfo
 } from './types';
 
 // State management
@@ -185,7 +190,15 @@ export {
   createPdfNote,
   updatePdfReadingState,
   updatePdfZoomLevel,
-  getPdfProps
+  getPdfProps,
+
+  // Webpage support
+  WEBPAGE_NOTE_TYPE_ID,
+  ensureWebpageNoteType,
+  getWebpageNotes,
+  createWebpageNote,
+  updateWebpageReadingState,
+  getWebpageProps
 } from './state.svelte';
 
 // OPFS storage for EPUB files
@@ -193,6 +206,9 @@ export { opfsStorage, computeHash } from './opfs-storage.svelte';
 
 // OPFS storage for PDF files
 export { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
+
+// OPFS storage for Webpage files
+export { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
 
 // EPUB import
 export {
@@ -213,6 +229,15 @@ export {
   pdfExists
 } from './pdf-import.svelte';
 export type { PdfImportResult } from './pdf-import.svelte';
+
+// Webpage import
+export {
+  importWebpageFromUrl,
+  webpageExists,
+  getWebpageHtml,
+  getWebpageMetadata
+} from './webpage-import.svelte';
+export type { WebpageImportResult } from './webpage-import.svelte';
 
 // Repo utilities
 export {

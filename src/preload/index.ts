@@ -664,6 +664,22 @@ const api = {
   } | null> => electronAPI.ipcRenderer.invoke('import-webpage', params),
   readWebpageFile: (params: { relativePath: string }): Promise<string> =>
     electronAPI.ipcRenderer.invoke('read-webpage-file', params),
+  // Archive webpage for Automerge (returns HTML content for OPFS storage)
+  archiveWebpage: (params: {
+    url: string;
+  }): Promise<{
+    html: string;
+    metadata: {
+      url: string;
+      title: string;
+      siteName?: string;
+      author?: string;
+      excerpt?: string;
+      fetchedAt: string;
+      lang?: string;
+      dir?: string;
+    };
+  }> => electronAPI.ipcRenderer.invoke('archive-webpage', params),
 
   // Shell operations
   openExternal: (params: { url: string }): Promise<void> =>

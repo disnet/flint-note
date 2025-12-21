@@ -3,7 +3,7 @@
    * Floating Action Button Menu
    *
    * Displays a FAB that expands into a popup menu on hover,
-   * showing options for Chat, Shelf, and Import Book.
+   * showing options for Chat, Shelf, Import Book, and Archive Webpage.
    * When a panel is open, shows only a close button below the panel.
    */
 
@@ -18,9 +18,12 @@
     onToggleChat: () => void;
     /** Toggle shelf panel callback */
     onToggleShelf: () => void;
+    /** Archive webpage callback (opens modal) */
+    onArchiveWebpage?: () => void;
   }
 
-  let { chatOpen, shelfOpen, onToggleChat, onToggleShelf }: Props = $props();
+  let { chatOpen, shelfOpen, onToggleChat, onToggleShelf, onArchiveWebpage }: Props =
+    $props();
 
   let isImportingEpub = $state(false);
   let isImportingPdf = $state(false);
@@ -177,6 +180,36 @@
         </svg>
       {/if}
     </button>
+
+    <!-- Archive Webpage button (appears above on hover) -->
+    {#if onArchiveWebpage}
+      <button
+        class="fab-button webpage-button"
+        class:visible={showExpandedMenu}
+        onclick={onArchiveWebpage}
+        title="Archive Webpage"
+        aria-label="Archive Webpage"
+        tabindex={showExpandedMenu ? 0 : -1}
+      >
+        <!-- Globe icon -->
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path
+            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+          ></path>
+        </svg>
+      </button>
+    {/if}
 
     <!-- Import Book button (appears above on hover) -->
     <button

@@ -833,6 +833,121 @@ interface PdfMetadata {
 - Debounced reading state updates to reduce Automerge changes
 - Non-reactive Maps/Sets used internally to prevent Svelte 5 effect loops
 
+#### Webpage Archiving (Complete)
+
+Full webpage archiving support for saving articles and web pages for offline reading:
+
+**Architecture:**
+
+```
+[OPFS (Origin Private File System)]     [Automerge Document]
+└── /webpages/                          └── notes["n-xxx"]
+    ├── {sha256-hash}.html                  ├── type: "type-webpage"
+    └── {sha256-hash}.meta.json             ├── title: "Article Title"
+                                            ├── content: "<!-- highlights -->"
+                                            └── props:
+                                                ├── webpageHash: "sha256-..."
+                                                ├── webpageUrl: "https://..."
+                                                ├── webpageTitle: "..."
+                                                ├── webpageAuthor: "..."
+                                                ├── webpageSiteName: "..."
+                                                ├── progress: 50
+                                                └── lastRead: "2025-01-15T..."
+```
+
+**Key Design Decisions:**
+
+- **OPFS for HTML storage**: Archived HTML stored in browser's Origin Private File System, content-addressed by SHA-256 hash
+- **Defuddle for article extraction**: Uses Defuddle library in main process to extract clean article content from web pages
+- **Shadow DOM rendering**: Webpage content rendered in Shadow DOM to isolate styles from the app
+- **DOMPurify sanitization**: HTML sanitized before rendering to prevent XSS
+- **70ch width constraint**: Matches markdown notes for consistent reading experience
+
+**New Files:**
+
+- `src/renderer/src/lib/automerge/webpage-opfs-storage.svelte.ts` - OPFS storage service for archived webpages
+- `src/renderer/src/lib/automerge/webpage-import.svelte.ts` - Webpage import flow via IPC
+- `src/renderer/src/components/AutomergeWebpageViewer.svelte` - Main webpage viewer with header and highlights
+- `src/renderer/src/components/AutomergeWebpageReader.svelte` - Shadow DOM reader with DOMPurify
+- `src/renderer/src/components/AutomergeImportWebpageModal.svelte` - URL input modal
+
+**Type Definitions** (in `types.ts`):
+
+```typescript
+interface WebpageNoteProps {
+  webpageHash: string;
+  webpageUrl: string;
+  webpageTitle?: string;
+  webpageAuthor?: string;
+  webpageSiteName?: string;
+  webpageExcerpt?: string;
+  progress?: number; // 0-100
+  lastRead?: string; // ISO timestamp
+  archivedAt?: string;
+}
+
+interface WebpageMetadata {
+  url: string;
+  title: string;
+  siteName?: string;
+  author?: string;
+  excerpt?: string;
+  fetchedAt: string;
+  lang?: string;
+  dir?: string;
+}
+
+interface WebpageHighlight {
+  id: string;
+  text: string;
+  prefix: string;
+  suffix: string;
+  startOffset: number;
+  endOffset: number;
+  createdAt: string;
+}
+```
+
+**State Management** (in `state.svelte.ts`):
+
+- `WEBPAGE_NOTE_TYPE_ID` - Constant for webpage note type
+- `ensureWebpageNoteType()` - Auto-create webpage type on first import
+- `createWebpageNote()` - Create note with webpage props
+- `updateWebpageReadingState()` - Update progress, lastRead
+- `getWebpageProps()` - Get webpage-specific props from note
+- `getWebpageNotes()` - Get all webpage notes sorted by lastRead
+
+**Features:**
+
+- **Import via URL**: Enter URL in modal, fetches and archives article
+- **Article extraction**: Defuddle extracts main content, removes ads/navigation
+- **Offline reading**: Full article available without internet
+- **Reading progress**: Scroll position tracked as percentage
+- **Text highlights**: Select text to create highlights, stored in note content
+- **Property chips**: Shows site, author, progress, last read, highlight count
+- **Source link**: Click to open original URL in browser
+- **Editable title**: Title can be edited like regular notes
+
+**IPC Handler** (in `src/main/index.ts`):
+
+- `archive-webpage` - Fetches URL, extracts article with Defuddle, converts images to data URIs, returns HTML + metadata
+
+**Integration:**
+
+- Webpage notes appear in sidebar like regular notes
+- View routing in `AutomergeMainView.svelte` detects webpage type
+- FAB menu includes "Archive Webpage" option
+- 70ch max-width display matching markdown notes
+- Highlights stored as markdown for future migration compatibility
+
+**Key Considerations:**
+
+- OPFS is device-local; webpages must be re-archived on each device
+- Content-addressing enables deduplication (same content = same hash)
+- Images converted to data URIs for offline availability
+- Shadow DOM prevents webpage CSS from affecting app styles
+- DOMPurify removes potentially dangerous HTML/scripts
+
 #### Unified Sidebar Items (Complete)
 
 Refactored the sidebar to support multiple item types (notes, conversations, and future types like epub/pdf):
@@ -944,6 +1059,11 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergePdfReader.svelte` (PDF.js wrapper for canvas rendering)
 - `src/renderer/src/components/AutomergePdfOutline.svelte` (bookmarks/outline panel)
 - `src/renderer/src/components/AutomergePdfHighlights.svelte` (highlights list panel)
+- `src/renderer/src/lib/automerge/webpage-opfs-storage.svelte.ts` (OPFS storage for webpages)
+- `src/renderer/src/lib/automerge/webpage-import.svelte.ts` (webpage import and archiving)
+- `src/renderer/src/components/AutomergeWebpageViewer.svelte` (webpage viewer container)
+- `src/renderer/src/components/AutomergeWebpageReader.svelte` (Shadow DOM reader with DOMPurify)
+- `src/renderer/src/components/AutomergeImportWebpageModal.svelte` (URL input modal)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -961,12 +1081,15 @@ Future work for multi-device sync:
 - `src/renderer/src/components/AutomergeSystemViews.svelte` (added Daily nav item)
 - `src/renderer/src/components/AutomergeLeftSidebar.svelte` (updated view types)
 - `src/renderer/src/lib/automerge/index.ts` (exported daily view functions, EPUB functions)
-- `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata, PdfNoteProps, PdfHighlight, PdfOutlineItem, PdfMetadata)
-- `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB and PDF functions: createEpubNote, createPdfNote, updateEpubReadingState, updatePdfReadingState, etc.)
+- `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata, PdfNoteProps, PdfHighlight, PdfOutlineItem, PdfMetadata, WebpageNoteProps, WebpageMetadata, WebpageHighlight, WebpageSelectionInfo)
+- `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB, PDF, and Webpage functions: createEpubNote, createPdfNote, createWebpageNote, updateEpubReadingState, updatePdfReadingState, updateWebpageReadingState, etc.)
 - `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB and PDF AI tools)
-- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB and PDF view routing, full-width content mode)
-- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book and Import PDF options)
-- `src/renderer/src/lib/automerge/index.ts` (exported PDF functions and types)
+- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB, PDF, and Webpage view routing, full-width content mode for EPUB/PDF)
+- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book, Import PDF, and Archive Webpage options)
+- `src/renderer/src/lib/automerge/index.ts` (exported PDF and Webpage functions and types)
+- `src/main/index.ts` (added archive-webpage IPC handler)
+- `src/preload/index.ts` (added archiveWebpage IPC definition)
+- `src/renderer/src/env.d.ts` (added archiveWebpage type definition)
 
 ### Files to Eventually Remove (after full migration)
 

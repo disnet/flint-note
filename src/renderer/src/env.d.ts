@@ -752,6 +752,20 @@ declare global {
         excerpt?: string;
       } | null>;
       readWebpageFile: (params: { relativePath: string }) => Promise<string>;
+      // Archive webpage for Automerge (returns HTML content for OPFS storage)
+      archiveWebpage: (params: { url: string }) => Promise<{
+        html: string;
+        metadata: {
+          url: string;
+          title: string;
+          siteName?: string;
+          author?: string;
+          excerpt?: string;
+          fetchedAt: string;
+          lang?: string;
+          dir?: string;
+        };
+      }>;
 
       // Shell operations
       openExternal: (params: { url: string }) => Promise<void>;

@@ -432,3 +432,91 @@ export interface PdfMetadata {
   /** Total page count */
   pageCount: number;
 }
+
+// ============================================================================
+// Webpage Archive Types
+// ============================================================================
+
+/**
+ * Webpage-specific properties stored in Note.props
+ */
+export interface WebpageNoteProps {
+  /** SHA-256 hash of archived HTML content, used for OPFS lookup */
+  webpageHash: string;
+  /** Original URL of the webpage */
+  webpageUrl: string;
+  /** Article title extracted from the page */
+  webpageTitle?: string;
+  /** Article author/byline extracted from the page */
+  webpageAuthor?: string;
+  /** Website name (e.g., "The New York Times") */
+  webpageSiteName?: string;
+  /** Article excerpt/description */
+  webpageExcerpt?: string;
+  /** Reading progress percentage (0-100) */
+  progress?: number;
+  /** ISO timestamp of last reading session */
+  lastRead?: string;
+  /** ISO timestamp when the page was archived */
+  archivedAt?: string;
+}
+
+/**
+ * Metadata extracted from a webpage during archiving
+ */
+export interface WebpageMetadata {
+  /** Original URL */
+  url: string;
+  /** Article title */
+  title: string;
+  /** Website name */
+  siteName?: string;
+  /** Article author/byline */
+  author?: string;
+  /** Article excerpt/description */
+  excerpt?: string;
+  /** ISO timestamp when fetched */
+  fetchedAt: string;
+  /** Language code */
+  lang?: string;
+  /** Text direction */
+  dir?: string;
+}
+
+/**
+ * A highlight/annotation in an archived webpage
+ */
+export interface WebpageHighlight {
+  /** Unique identifier, format: "h-{timestamp.toString(36)}" */
+  id: string;
+  /** The highlighted text content */
+  text: string;
+  /** Text before the highlight (for context matching) */
+  prefix: string;
+  /** Text after the highlight (for context matching) */
+  suffix: string;
+  /** Character offset from start of plain text content */
+  startOffset: number;
+  /** Character offset to end of highlight */
+  endOffset: number;
+  /** ISO timestamp of when the highlight was created */
+  createdAt: string;
+}
+
+/**
+ * Selection info for creating highlights
+ */
+export interface WebpageSelectionInfo {
+  /** Selected text */
+  text: string;
+  /** Context before selection */
+  prefix: string;
+  /** Context after selection */
+  suffix: string;
+  /** Start offset in document text */
+  startOffset: number;
+  /** End offset in document text */
+  endOffset: number;
+  /** Position for popup placement */
+  position: { x: number; y: number };
+}

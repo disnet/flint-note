@@ -2386,3 +2386,154 @@ export function getPdfProps(noteId: string): PdfNoteProps | undefined {
   if (!note || note.type !== PDF_NOTE_TYPE_ID) return undefined;
   return note.props as PdfNoteProps | undefined;
 }
+
+// --- Webpage Archive Support ---
+
+import type { WebpageNoteProps } from './types';
+
+/** Webpage note type ID constant */
+export const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
+
+/**
+ * Ensure the Webpage note type exists in the document
+ */
+export function ensureWebpageNoteType(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.noteTypes?.[WEBPAGE_NOTE_TYPE_ID]) {
+    docHandle.change((d) => {
+      if (!d.noteTypes) {
+        d.noteTypes = {};
+      }
+      if (!d.noteTypes[WEBPAGE_NOTE_TYPE_ID]) {
+        d.noteTypes[WEBPAGE_NOTE_TYPE_ID] = {
+          id: WEBPAGE_NOTE_TYPE_ID,
+          name: 'Web Article',
+          purpose: 'Archived web articles with reading progress and highlights',
+          icon: '🌐',
+          archived: false,
+          created: nowISO()
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Get all non-archived webpage notes, sorted by last read (most recent first)
+ */
+export function getWebpageNotes(): Note[] {
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived && note.type === WEBPAGE_NOTE_TYPE_ID)
+    .sort((a, b) => {
+      // Sort by lastRead if available, otherwise by updated
+      const aLastRead = (a.props as WebpageNoteProps | undefined)?.lastRead || a.updated;
+      const bLastRead = (b.props as WebpageNoteProps | undefined)?.lastRead || b.updated;
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
+      return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
+    });
+}
+
+/**
+ * Create a Webpage note
+ * @returns The new note's ID
+ */
+export function createWebpageNote(params: {
+  title: string;
+  webpageHash: string;
+  webpageUrl: string;
+  webpageTitle?: string;
+  webpageAuthor?: string;
+  webpageSiteName?: string;
+  webpageExcerpt?: string;
+}): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Ensure Webpage note type exists
+  ensureWebpageNoteType();
+
+  const id = generateNoteId();
+  const now = nowISO();
+
+  // Build props object, excluding undefined values (Automerge doesn't allow undefined)
+  const props: Record<string, unknown> = {
+    webpageHash: params.webpageHash,
+    webpageUrl: params.webpageUrl,
+    progress: 0,
+    archivedAt: now
+  };
+  if (params.webpageTitle !== undefined) {
+    props.webpageTitle = params.webpageTitle;
+  }
+  if (params.webpageAuthor !== undefined) {
+    props.webpageAuthor = params.webpageAuthor;
+  }
+  if (params.webpageSiteName !== undefined) {
+    props.webpageSiteName = params.webpageSiteName;
+  }
+  if (params.webpageExcerpt !== undefined) {
+    props.webpageExcerpt = params.webpageExcerpt;
+  }
+
+  docHandle.change((doc) => {
+    doc.notes[id] = {
+      id,
+      title: params.title,
+      content: '',
+      type: WEBPAGE_NOTE_TYPE_ID,
+      created: now,
+      updated: now,
+      archived: false,
+      props
+    };
+
+    // Auto-add to recent items in active workspace
+    const workspaceId = doc.activeWorkspaceId;
+    if (workspaceId && doc.workspaces[workspaceId]) {
+      const ws = doc.workspaces[workspaceId];
+      ensureWorkspaceArrays(ws);
+      ws.recentItemIds.unshift({ type: 'note', id });
+    }
+  });
+
+  return id;
+}
+
+/**
+ * Update Webpage reading state (progress, last read time)
+ * Use this for debounced reading position updates
+ */
+export function updateWebpageReadingState(
+  noteId: string,
+  updates: {
+    progress?: number;
+    lastRead?: string;
+  }
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+
+    const props = note.props as WebpageNoteProps;
+    if (updates.progress !== undefined) props.progress = updates.progress;
+    if (updates.lastRead !== undefined) props.lastRead = updates.lastRead;
+
+    note.updated = nowISO();
+  });
+}
+
+/**
+ * Get Webpage props from a note
+ */
+export function getWebpageProps(noteId: string): WebpageNoteProps | undefined {
+  const note = currentDoc.notes[noteId];
+  if (!note || note.type !== WEBPAGE_NOTE_TYPE_ID) return undefined;
+  return note.props as WebpageNoteProps | undefined;
+}
