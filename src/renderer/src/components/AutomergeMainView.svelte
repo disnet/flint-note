@@ -52,6 +52,8 @@
   import AutomergeConversationList from './AutomergeConversationList.svelte';
   import AutomergeConversationView from './AutomergeConversationView.svelte';
   import AutomergeImportWebpageModal from './AutomergeImportWebpageModal.svelte';
+  import AutomergeLegacyMigrationModal from './AutomergeLegacyMigrationModal.svelte';
+  import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
@@ -80,6 +82,7 @@
   const activeSystemView: SystemView = $derived(getActiveSystemView());
   let showCreateVaultModal = $state(false);
   let showArchiveWebpageModal = $state(false);
+  let showLegacyMigrationModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
   let selectedNoteTypeId = $state<string | null>(null);
@@ -202,6 +205,17 @@
   function handleGoToSettingsFromConversation(): void {
     setActiveSystemView('settings');
     selectedConversationId = null;
+  }
+
+  // Handle legacy migration
+  async function handleLegacyMigrationComplete(): Promise<void> {
+    showLegacyMigrationModal = false;
+    // Re-initialize state to load the newly created vault
+    await initializeState();
+  }
+
+  function handleLegacyMigrationCancel(): void {
+    showLegacyMigrationModal = false;
   }
 
   // Handle new conversation from conversations view
@@ -394,6 +408,23 @@
 
               <!-- Debug / Performance Settings -->
               <AutomergeDebugSettings />
+
+              <div class="settings-divider"></div>
+
+              <!-- Legacy Vault Import -->
+              <div class="import-section">
+                <h3>Import Legacy Vault</h3>
+                <p class="import-description">
+                  Import notes from an older Flint vault (before the Automerge update).
+                  Your original files will not be modified.
+                </p>
+                <button
+                  class="action-button primary"
+                  onclick={() => (showLegacyMigrationModal = true)}
+                >
+                  Import Legacy Vault...
+                </button>
+              </div>
 
               <button class="close-settings" onclick={() => setActiveSystemView(null)}
                 >Close</button
@@ -661,6 +692,13 @@
   isOpen={showArchiveWebpageModal}
   onClose={() => (showArchiveWebpageModal = false)}
 />
+
+{#if showLegacyMigrationModal}
+  <AutomergeLegacyMigrationModal
+    onComplete={handleLegacyMigrationComplete}
+    onCancel={handleLegacyMigrationCancel}
+  />
+{/if}
 
 <style>
   .main-view {
@@ -1099,6 +1137,44 @@
     border-radius: 0.375rem;
     color: var(--text-primary);
     cursor: pointer;
+  }
+
+  /* Import Section */
+  .import-section {
+    padding: 1rem;
+  }
+
+  .import-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+  }
+
+  .import-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 1rem 0;
+  }
+
+  .action-button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .action-button.primary {
+    background: var(--accent-primary);
+    color: var(--accent-text);
+  }
+
+  .action-button.primary:hover {
+    background: var(--accent-primary-hover);
   }
 
   /* Modal Styles */

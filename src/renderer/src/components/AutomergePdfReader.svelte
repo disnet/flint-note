@@ -11,11 +11,13 @@
    */
 
   import { onMount, onDestroy, tick, untrack } from 'svelte';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import * as pdfjsLib from 'pdfjs-dist';
   import { TextLayer } from 'pdfjs-dist';
   import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
   import type { PDFDocumentProxy } from 'pdfjs-dist';
   import type { PdfOutlineItem, PdfHighlight } from '../lib/automerge';
+  import type { ActionReturn } from 'svelte/action';
 
   // Configure PDF.js worker (using Vite's URL import for local bundling)
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -62,7 +64,7 @@
 
   // State (reactive)
   let container: HTMLDivElement;
-  let pagesContainer: HTMLDivElement;
+  let pagesContainer = $state<HTMLDivElement | undefined>(undefined);
   let pdfDoc = $state<PDFDocumentProxy | null>(null);
   let isLoading = $state(true);
   let currentPage = $state(1);
@@ -77,9 +79,9 @@
     width: number;
     height: number;
   }
-  let pageDimensions = new Map<number, PageDimension>();
-  let renderedPages = new Set<number>();
-  let pageElements = new Map<number, HTMLDivElement>();
+  let pageDimensions = new SvelteMap<number, PageDimension>();
+  let renderedPages = new SvelteSet<number>();
+  let pageElements = new SvelteMap<number, HTMLDivElement>();
 
   // Intersection observer for lazy page rendering
   let intersectionObserver: IntersectionObserver | null = null;
@@ -303,7 +305,7 @@
     if (!pdfDoc) return;
 
     // Clear rendered pages to force re-render
-    renderedPages = new Set();
+    renderedPages.clear();
 
     // Re-render currently visible pages
     for (const [pageNum, element] of pageElements) {
@@ -459,7 +461,7 @@
   }
 
   // Svelte action to register page element
-  function registerPageElement(element: HTMLDivElement, pageNum: number) {
+  function registerPageElement(element: HTMLDivElement, pageNum: number): ActionReturn {
     pageElements.set(pageNum, element);
     if (intersectionObserver) {
       intersectionObserver.observe(element);

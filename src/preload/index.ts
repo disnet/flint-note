@@ -817,6 +817,52 @@ const api = {
       electronAPI.ipcRenderer.invoke('dispose-vault-sync', params),
 
     selectSyncDirectory: () => electronAPI.ipcRenderer.invoke('select-sync-directory')
+  },
+
+  // Legacy vault migration operations
+  legacyMigration: {
+    // Detect legacy vaults in common locations
+    detectLegacyVaults: (params: { existingVaults: Array<{ baseDirectory?: string }> }) =>
+      electronAPI.ipcRenderer.invoke('detect-legacy-vaults', params),
+
+    // Detect a legacy vault at a specific path
+    detectLegacyVaultAtPath: (params: {
+      vaultPath: string;
+      existingVaults: Array<{ baseDirectory?: string }>;
+    }) => electronAPI.ipcRenderer.invoke('detect-legacy-vault-at-path', params),
+
+    // Get document data for migration (called after initial migration setup)
+    getMigrationDocumentData: (params: { vaultPath: string }) =>
+      electronAPI.ipcRenderer.invoke('get-migration-document-data', params),
+
+    // Listen for migration progress updates
+    onMigrationProgress: (
+      callback: (progress: {
+        phase: string;
+        message: string;
+        current: number;
+        total: number;
+        details?: {
+          noteTypes?: number;
+          notes?: number;
+          workspaces?: number;
+          reviewItems?: number;
+          epubs?: number;
+        };
+      }) => void
+    ) => {
+      electronAPI.ipcRenderer.on('migration-progress', (_event, progress) =>
+        callback(progress)
+      );
+    },
+
+    // Remove migration progress listener
+    removeMigrationListeners: () => {
+      electronAPI.ipcRenderer.removeAllListeners('migration-progress');
+    },
+
+    // Browse for a vault directory
+    browseForVault: () => electronAPI.ipcRenderer.invoke('browse-for-vault')
   }
 };
 

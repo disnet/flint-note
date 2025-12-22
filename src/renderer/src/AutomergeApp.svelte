@@ -6,12 +6,17 @@
   import { onMount } from 'svelte';
   import AutomergeFirstTimeExperience from './components/AutomergeFirstTimeExperience.svelte';
   import AutomergeMainView from './components/AutomergeMainView.svelte';
+  import AutomergeLegacyMigrationModal from './components/AutomergeLegacyMigrationModal.svelte';
   import { initializeState, getIsLoading, getNonArchivedVaults } from './lib/automerge';
+  import { detectLegacyVaults } from './lib/automerge/legacy-migration.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
 
   // Track if we have vaults
   let hasVaults = $state(false);
   let initError = $state<string | null>(null);
+
+  // Legacy vault detection state
+  let showMigrationModal = $state(false);
 
   // Derive loading state reactively
   const isLoading = $derived(getIsLoading());
@@ -21,7 +26,21 @@
     try {
       await initializeState();
       // Check if we have vaults after initialization
-      hasVaults = getNonArchivedVaults().length > 0;
+      const vaults = getNonArchivedVaults();
+      hasVaults = vaults.length > 0;
+
+      // If no vaults, check for legacy vaults to migrate
+      if (!hasVaults) {
+        try {
+          const legacyVaults = await detectLegacyVaults();
+          // If we found legacy vaults, show the migration modal
+          if (legacyVaults.length > 0) {
+            showMigrationModal = true;
+          }
+        } catch (err) {
+          console.warn('Failed to detect legacy vaults:', err);
+        }
+      }
     } catch (err) {
       console.error('Failed to initialize automerge:', err);
       initError = err instanceof Error ? err.message : 'Failed to initialize';
@@ -31,6 +50,19 @@
   // Handle vault creation
   function handleVaultCreated(): void {
     hasVaults = true;
+  }
+
+  // Handle migration completion
+  async function handleMigrationComplete(): Promise<void> {
+    showMigrationModal = false;
+    // Re-initialize state to load the newly created vault
+    await initializeState();
+    hasVaults = getNonArchivedVaults().length > 0;
+  }
+
+  // Handle migration cancel
+  function handleMigrationCancel(): void {
+    showMigrationModal = false;
   }
 
   // Theme application
@@ -71,8 +103,15 @@
     </div>
   </div>
 {:else if !hasVaults}
-  <!-- First-time experience -->
-  <AutomergeFirstTimeExperience onVaultCreated={handleVaultCreated} />
+  <!-- First-time experience or migration modal -->
+  {#if showMigrationModal}
+    <AutomergeLegacyMigrationModal
+      onComplete={handleMigrationComplete}
+      onCancel={handleMigrationCancel}
+    />
+  {:else}
+    <AutomergeFirstTimeExperience onVaultCreated={handleVaultCreated} />
+  {/if}
 {:else}
   <!-- Main app interface -->
   <AutomergeMainView />

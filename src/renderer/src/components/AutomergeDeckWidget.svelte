@@ -158,9 +158,9 @@
 
   // Load schema fields from Automerge note types
   $effect(() => {
-    // Build schema from note types
-    const newMap = new SvelteMap<string, SchemaFieldInfo>();
-    const newFieldsByType = new SvelteMap<string, Set<string>>();
+    // Clear existing maps
+    schemaFields.clear();
+    fieldsByType.clear();
 
     const noteTypesDict = getNoteTypesDict();
     const typesToCheck =
@@ -172,8 +172,8 @@
         const typeFields = new SvelteSet<string>();
         for (const prop of noteType.properties) {
           typeFields.add(prop.name);
-          if (!newMap.has(prop.name)) {
-            newMap.set(prop.name, {
+          if (!schemaFields.has(prop.name)) {
+            schemaFields.set(prop.name, {
               name: prop.name,
               type: prop.type as SchemaFieldInfo['type'],
               options: prop.constraints?.options,
@@ -181,12 +181,9 @@
             });
           }
         }
-        newFieldsByType.set(typeId, typeFields);
+        fieldsByType.set(typeId, typeFields);
       }
     }
-
-    schemaFields = newMap;
-    fieldsByType = newFieldsByType;
   });
 
   // Available schema fields for filter/column pickers

@@ -805,6 +805,81 @@ declare global {
       // Trigger menu actions from custom title bar menu (Windows/Linux)
       triggerMenuNavigate: (view: string) => void;
       triggerMenuAction: (action: string, ...args: unknown[]) => void;
+
+      // Automerge sync operations
+      automergeSync: {
+        sendRepoMessage: (message: unknown) => Promise<void>;
+        onRepoMessage: (callback: (message: unknown) => void) => void;
+        removeRepoMessageListener: () => void;
+        initVaultSync: (params: {
+          vaultId: string;
+          baseDirectory: string;
+          docUrl: string;
+        }) => Promise<{ success: boolean }>;
+        disposeVaultSync: (params: { vaultId: string }) => Promise<void>;
+        selectSyncDirectory: () => Promise<string | null>;
+      };
+
+      // Legacy vault migration operations
+      legacyMigration: {
+        detectLegacyVaults: (params: {
+          existingVaults: Array<{ baseDirectory?: string }>;
+        }) => Promise<
+          Array<{
+            path: string;
+            name: string;
+            noteCount: number;
+            epubCount: number;
+            lastModified: string;
+            hasExistingMigration: boolean;
+            syncDirectoryName: string;
+          }>
+        >;
+        detectLegacyVaultAtPath: (params: {
+          vaultPath: string;
+          existingVaults: Array<{ baseDirectory?: string }>;
+        }) => Promise<{
+          path: string;
+          name: string;
+          noteCount: number;
+          epubCount: number;
+          lastModified: string;
+          hasExistingMigration: boolean;
+          syncDirectoryName: string;
+        } | null>;
+        getMigrationDocumentData: (params: { vaultPath: string }) => Promise<{
+          document: unknown;
+          epubFiles: Array<{
+            noteId: string;
+            fileData: Uint8Array;
+            filePath: string;
+            metadata: { title?: string; author?: string };
+            readingState?: { currentCfi?: string; progress?: number };
+          }>;
+          errors: Array<{
+            entity: string;
+            entityId: string;
+            message: string;
+          }>;
+        } | null>;
+        onMigrationProgress: (
+          callback: (progress: {
+            phase: string;
+            message: string;
+            current: number;
+            total: number;
+            details?: {
+              noteTypes?: number;
+              notes?: number;
+              workspaces?: number;
+              reviewItems?: number;
+              epubs?: number;
+            };
+          }) => void
+        ) => void;
+        removeMigrationListeners: () => void;
+        browseForVault: () => Promise<string | null>;
+      };
     };
   }
 }

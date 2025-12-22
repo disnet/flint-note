@@ -44,6 +44,11 @@ import {
   getNetworkAdapterForWebContents,
   disposeAllVaultRepos
 } from './automerge-sync';
+import {
+  detectLegacyVaults,
+  detectLegacyVaultAtPath,
+  getMigrationDocumentData
+} from './migration';
 
 // Module-level service references
 let noteService: NoteService | null = null;
@@ -3780,6 +3785,66 @@ app.whenReady().then(async () => {
       properties: ['openDirectory', 'createDirectory'],
       title: 'Select Sync Directory',
       buttonLabel: 'Select Folder'
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return result.filePaths[0];
+  });
+
+  // Legacy vault migration IPC handlers
+  ipcMain.handle(
+    'detect-legacy-vaults',
+    async (_event, params: { existingVaults: Array<{ baseDirectory?: string }> }) => {
+      try {
+        return await detectLegacyVaults(params.existingVaults);
+      } catch (error) {
+        logger.error('Failed to detect legacy vaults', { error });
+        return [];
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'detect-legacy-vault-at-path',
+    async (
+      _event,
+      params: { vaultPath: string; existingVaults: Array<{ baseDirectory?: string }> }
+    ) => {
+      try {
+        return await detectLegacyVaultAtPath(params.vaultPath, params.existingVaults);
+      } catch (error) {
+        logger.error('Failed to detect legacy vault at path', {
+          error,
+          path: params.vaultPath
+        });
+        return null;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'get-migration-document-data',
+    async (_event, params: { vaultPath: string }) => {
+      try {
+        return await getMigrationDocumentData(params.vaultPath);
+      } catch (error) {
+        logger.error('Failed to get migration document data', {
+          error,
+          path: params.vaultPath
+        });
+        return null;
+      }
+    }
+  );
+
+  ipcMain.handle('browse-for-vault', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select Legacy Vault Directory',
+      buttonLabel: 'Select Vault'
     });
 
     if (result.canceled || result.filePaths.length === 0) {

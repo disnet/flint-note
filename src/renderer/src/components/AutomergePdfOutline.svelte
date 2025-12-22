@@ -5,6 +5,7 @@
    * Displays the PDF's outline structure (bookmarks) in a navigable tree.
    */
 
+  import { SvelteSet } from 'svelte/reactivity';
   import type { PdfOutlineItem } from '../lib/automerge';
 
   // Props
@@ -19,7 +20,7 @@
   } = $props();
 
   // Track expanded state for items with children
-  let expandedItems = $state<Set<string>>(new Set());
+  let expandedItems = new SvelteSet<string>();
 
   // Generate a unique key for an outline item
   function getItemKey(item: PdfOutlineItem, path: string): string {
@@ -30,10 +31,8 @@
   function toggleExpanded(key: string): void {
     if (expandedItems.has(key)) {
       expandedItems.delete(key);
-      expandedItems = new Set(expandedItems);
     } else {
       expandedItems.add(key);
-      expandedItems = new Set(expandedItems);
     }
   }
 

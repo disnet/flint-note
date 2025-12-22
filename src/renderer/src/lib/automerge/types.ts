@@ -177,6 +177,8 @@ export interface NoteType {
   properties?: PropertyDefinition[];
   /** Names of properties to display as chips in the editor (defaults to system fields if not set) */
   editorChips?: string[];
+  /** Instructions for AI agents when working with notes of this type */
+  agentInstructions?: string;
 }
 
 /**

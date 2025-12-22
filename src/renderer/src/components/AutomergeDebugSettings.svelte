@@ -144,7 +144,7 @@
       {#if showDetails}
         <div class="stats-details">
           <div class="details-header">Top entries by size:</div>
-          {#each stats.entries.slice(0, 10) as entry}
+          {#each stats.entries.slice(0, 10) as entry (entry.key)}
             <div class="entry-row">
               <span class="entry-key" title={entry.key}>{entry.key.slice(0, 40)}...</span>
               <span class="entry-size">{formatSize(entry.sizeKB)}</span>

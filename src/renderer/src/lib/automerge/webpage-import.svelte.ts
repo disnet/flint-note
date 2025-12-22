@@ -38,8 +38,14 @@ interface ArchiveWebpageResult {
  * @returns Import result with note ID, hash, and metadata
  */
 export async function importWebpageFromUrl(url: string): Promise<WebpageImportResult> {
-  // Validate URL
-  const parsedUrl = new URL(url);
+  // Validate URL - standard URL is fine here since we only need validation, not reactivity
+  let parsedUrl: URL;
+  try {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error('Invalid URL');
+  }
   if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
     throw new Error('Only HTTP and HTTPS URLs are supported');
   }
