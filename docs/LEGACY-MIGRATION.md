@@ -16,17 +16,18 @@ The migration system converts vaults from the original SQLite-based storage (`.f
 
 All custom note type definitions are migrated, including:
 
-| Legacy Field | Automerge Field | Notes |
-|--------------|-----------------|-------|
-| `type_name` | `name` | Display name |
-| `purpose` | `purpose` | Type description |
-| `icon` | `icon` | Emoji icon |
-| `metadata_schema` | `properties` | Converted to PropertyDefinition[] |
-| `agent_instructions` | `agentInstructions` | AI agent instructions |
-| `editor_chips` | `editorChips` | Editor toolbar chips |
-| `default_review_mode` | `defaultReviewEnabled` | Spaced repetition default |
+| Legacy Field          | Automerge Field        | Notes                             |
+| --------------------- | ---------------------- | --------------------------------- |
+| `type_name`           | `name`                 | Display name                      |
+| `purpose`             | `purpose`              | Type description                  |
+| `icon`                | `icon`                 | Emoji icon                        |
+| `metadata_schema`     | `properties`           | Converted to PropertyDefinition[] |
+| `agent_instructions`  | `agentInstructions`    | AI agent instructions             |
+| `editor_chips`        | `editorChips`          | Editor toolbar chips              |
+| `default_review_mode` | `defaultReviewEnabled` | Spaced repetition default         |
 
 **Special handling:**
+
 - The default "Note" type maps to `type-default`
 - All other types get new `type-xxxxxxxx` IDs
 - A mapping is maintained to convert note references
@@ -35,18 +36,19 @@ All custom note type definitions are migrated, including:
 
 All notes are migrated with their content and metadata:
 
-| Legacy Field | Automerge Field | Notes |
-|--------------|-----------------|-------|
-| `id` | `id` | **Preserved exactly** (e.g., `n-a1b2c3d4`) |
-| `title` | `title` | Note title |
-| `content` | `content` | Markdown content |
-| `type` | `type` | Mapped to new type ID |
-| `created` | `created` | ISO timestamp |
-| `updated` | `updated` | ISO timestamp |
-| `archived` | `archived` | Boolean conversion |
-| `note_metadata.*` | `props.*` | All metadata merged into props |
+| Legacy Field      | Automerge Field | Notes                                      |
+| ----------------- | --------------- | ------------------------------------------ |
+| `id`              | `id`            | **Preserved exactly** (e.g., `n-a1b2c3d4`) |
+| `title`           | `title`         | Note title                                 |
+| `content`         | `content`       | Markdown content                           |
+| `type`            | `type`          | Mapped to new type ID                      |
+| `created`         | `created`       | ISO timestamp                              |
+| `updated`         | `updated`       | ISO timestamp                              |
+| `archived`        | `archived`      | Boolean conversion                         |
+| `note_metadata.*` | `props.*`       | All metadata merged into props             |
 
 **Note kinds:**
+
 - `markdown` notes: Migrated as normal notes
 - `epub` notes: Type set to `type-epub`, EPUB file data included for OPFS storage
 
@@ -64,31 +66,75 @@ EPUB files are fully migrated:
 
 Workspaces are extracted from the `ui_state` table:
 
-| Legacy (JSON) | Automerge Field | Notes |
-|---------------|-----------------|-------|
-| `name` | `name` | Workspace name |
-| `icon` | `icon` | Emoji icon |
+| Legacy (JSON)   | Automerge Field | Notes                         |
+| --------------- | --------------- | ----------------------------- |
+| `name`          | `name`          | Workspace name                |
+| `icon`          | `icon`          | Emoji icon                    |
 | `pinnedNoteIds` | `pinnedItemIds` | Converted to SidebarItemRef[] |
-| - | `recentItemIds` | Initialized empty |
+| -               | `recentItemIds` | Initialized empty             |
 
 ### Review Items (Spaced Repetition)
 
 Review data is merged into note props:
 
-| Legacy Field | Note Prop | Notes |
-|--------------|-----------|-------|
-| `enabled` | `reviewEnabled` | Boolean |
-| `next_review` | `reviewNextReview` | ISO timestamp |
-| `review_count` | `reviewCount` | Number |
-| `current_interval` | `reviewInterval` | Days |
-| `last_reviewed` | `reviewLastReviewed` | ISO timestamp |
-| `status` | `reviewStatus` | String |
+| Legacy Field       | Note Prop            | Notes         |
+| ------------------ | -------------------- | ------------- |
+| `enabled`          | `reviewEnabled`      | Boolean       |
+| `next_review`      | `reviewNextReview`   | ISO timestamp |
+| `review_count`     | `reviewCount`        | Number        |
+| `current_interval` | `reviewInterval`     | Days          |
+| `last_reviewed`    | `reviewLastReviewed` | ISO timestamp |
+| `status`           | `reviewStatus`       | String        |
+
+### Agent Routines (Workflows)
+
+Legacy workflows are migrated to agent routines:
+
+| Legacy (workflows table) | Automerge Field | Notes                                       |
+| ------------------------ | --------------- | ------------------------------------------- |
+| `id`                     | `id`            | **Preserved exactly** (e.g., `w-a1b2c3d4`)  |
+| `name`                   | `name`          | Routine name (1-20 chars)                   |
+| `purpose`                | `purpose`       | One-sentence description                    |
+| `description`            | `description`   | Markdown instructions                       |
+| `status`                 | `status`        | Preserved: active/paused/completed/archived |
+| `type`                   | `type`          | 'workflow' → 'routine', 'backlog' preserved |
+| `recurring_spec`         | `recurringSpec` | JSON parsed to object                       |
+| `due_date`               | `dueDate`       | ISO datetime                                |
+| `last_completed`         | `lastCompleted` | ISO datetime                                |
+| `created_at`             | `created`       | ISO timestamp                               |
+| `updated_at`             | `updated`       | ISO timestamp                               |
+
+**Supplementary Materials** are embedded in each routine:
+
+| Legacy (workflow_supplementary_materials) | Automerge Field | Notes                    |
+| ----------------------------------------- | --------------- | ------------------------ |
+| `id`                                      | `id`            | Preserved                |
+| `material_type`                           | `materialType`  | text/code/note_reference |
+| `content`                                 | `content`       | For text/code types      |
+| `note_id`                                 | `noteId`        | For note_reference type  |
+| `metadata`                                | `metadata`      | JSON parsed              |
+| `position`                                | `position`      | Display order            |
+| `created_at`                              | `createdAt`     | ISO timestamp            |
+
+**Completion History** is embedded (limited to 20 most recent):
+
+| Legacy (workflow_completion_history) | Automerge Field  | Notes           |
+| ------------------------------------ | ---------------- | --------------- |
+| `id`                                 | `id`             | Preserved       |
+| `completed_at`                       | `completedAt`    | ISO datetime    |
+| `conversation_id`                    | `conversationId` | Optional link   |
+| `notes`                              | `notes`          | Execution notes |
+| `output_note_id`                     | `outputNoteId`   | Result note ID  |
+| `metadata`                           | `metadata`       | JSON parsed     |
+
+**Note:** Completion history is limited to 20 entries per routine during migration to keep document size reasonable.
 
 ## Migration Process
 
 ### Phase 1: Detection
 
 The migration service scans for legacy vaults by looking for `.flint-note/search.db` files in:
+
 - `~/Documents`
 - `~/Documents/Flint`
 - `~/Flint`
@@ -110,11 +156,14 @@ This prevents conflicts with existing note type directories that might be named 
 All data is read from SQLite in read-only mode:
 
 ```
-note_type_descriptions → Note type definitions
-notes                  → Note content and metadata
-note_metadata          → Property values (grouped by note_id)
-ui_state               → Workspace configurations
-review_items           → Spaced repetition data
+note_type_descriptions            → Note type definitions
+notes                             → Note content and metadata
+note_metadata                     → Property values (grouped by note_id)
+ui_state                          → Workspace configurations
+review_items                      → Spaced repetition data
+workflows                         → Agent routines
+workflow_supplementary_materials  → Routine materials
+workflow_completion_history       → Completion records
 ```
 
 ### Phase 4: Transformation
@@ -127,6 +176,7 @@ Data is converted to Automerge format:
 4. **Metadata** is merged into note `props`
 5. **Workspaces** are parsed from JSON and converted
 6. **Review items** are merged into corresponding notes
+7. **Agent routines** are transformed with embedded materials and completion history
 
 ### Phase 5: Document Creation
 
@@ -176,15 +226,15 @@ vault-path/
 Legacy metadata types are converted to Automerge property types:
 
 | Legacy `value_type` | Automerge `PropertyType` |
-|---------------------|-------------------------|
-| `string` | `text` |
-| `number` | `number` |
-| `date` | `date` |
-| `boolean` | `checkbox` |
-| `array` | `array` |
-| `notelink` | `relation` |
-| `notelinks` | `relation` |
-| `multiSelect` | `array` |
+| ------------------- | ------------------------ |
+| `string`            | `text`                   |
+| `number`            | `number`                 |
+| `date`              | `date`                   |
+| `boolean`           | `checkbox`               |
+| `array`             | `array`                  |
+| `notelink`          | `relation`               |
+| `notelinks`         | `relation`               |
+| `multiSelect`       | `array`                  |
 
 ### Metadata Value Parsing
 
@@ -231,18 +281,18 @@ The migration uses these IPC channels:
 
 ```typescript
 // Detection
-legacyMigration.detectLegacyVaults()
-legacyMigration.detectLegacyVaultAtPath(path)
+legacyMigration.detectLegacyVaults();
+legacyMigration.detectLegacyVaultAtPath(path);
 
 // Migration data
-legacyMigration.getMigrationDocumentData(vaultPath)
+legacyMigration.getMigrationDocumentData(vaultPath);
 
 // Progress updates
-legacyMigration.onMigrationProgress(callback)
-legacyMigration.removeMigrationListeners()
+legacyMigration.onMigrationProgress(callback);
+legacyMigration.removeMigrationListeners();
 
 // File browser
-legacyMigration.browseForVault()
+legacyMigration.browseForVault();
 ```
 
 ## Triggering Migration
@@ -261,5 +311,6 @@ After migration, statistics are reported:
 - Number of EPUB files migrated
 - Number of workspaces migrated
 - Number of review items migrated
+- Number of agent routines migrated
 - Number of items skipped (already existed)
 - List of non-fatal errors encountered

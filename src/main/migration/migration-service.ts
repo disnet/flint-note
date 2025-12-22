@@ -173,6 +173,7 @@ export async function migrateLegacyVault(
         epubs: 0,
         workspaces: 0,
         reviewItems: 0,
+        agentRoutines: 0,
         skipped: 0
       },
       errors: [

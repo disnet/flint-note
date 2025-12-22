@@ -235,6 +235,115 @@ export interface Conversation {
   archived: boolean;
 }
 
+// ============================================================================
+// Agent Routine Types
+// ============================================================================
+
+/**
+ * Status of an agent routine
+ */
+export type AgentRoutineStatus = 'active' | 'paused' | 'completed' | 'archived';
+
+/**
+ * Type of agent routine
+ */
+export type AgentRoutineType = 'routine' | 'backlog';
+
+/**
+ * Recurring schedule specification
+ */
+export interface RecurringSpec {
+  frequency: 'daily' | 'weekly' | 'monthly';
+  /** Day of week (0-6, 0=Sunday) for weekly routines */
+  dayOfWeek?: number;
+  /** Day of month (1-31) for monthly routines */
+  dayOfMonth?: number;
+  /** Time of day in "HH:MM" format */
+  time?: string;
+}
+
+/**
+ * Supplementary material attached to a routine
+ */
+export interface SupplementaryMaterial {
+  /** Unique identifier, format: "wm-xxxxxxxx" */
+  id: string;
+  /** Type of material */
+  materialType: 'text' | 'code' | 'note_reference';
+  /** Content for text/code types */
+  content?: string;
+  /** Note ID for note_reference type */
+  noteId?: string;
+  /** Additional metadata */
+  metadata?: {
+    /** Programming language for code type */
+    language?: string;
+    /** Description of the material */
+    description?: string;
+    /** Template type identifier */
+    templateType?: string;
+  };
+  /** Display order */
+  position: number;
+  /** ISO timestamp of creation */
+  createdAt: string;
+}
+
+/**
+ * A completion record for an agent routine
+ */
+export interface RoutineCompletion {
+  /** Unique identifier, format: "wc-xxxxxxxx" */
+  id: string;
+  /** ISO timestamp of completion */
+  completedAt: string;
+  /** Associated conversation ID (if any) */
+  conversationId?: string;
+  /** Notes about the completion */
+  notes?: string;
+  /** ID of note created as output (if any) */
+  outputNoteId?: string;
+  /** Execution metadata */
+  metadata?: {
+    /** Execution duration in milliseconds */
+    durationMs?: number;
+    /** Number of tool calls made */
+    toolCallsCount?: number;
+  };
+}
+
+/**
+ * An agent routine (migrated from legacy "workflow")
+ */
+export interface AgentRoutine {
+  /** Unique identifier, format: "w-xxxxxxxx" (preserved from legacy) */
+  id: string;
+  /** Short name (1-20 chars) */
+  name: string;
+  /** One-sentence description (1-100 chars) */
+  purpose: string;
+  /** Detailed markdown instructions */
+  description: string;
+  /** Current status */
+  status: AgentRoutineStatus;
+  /** Routine type */
+  type: AgentRoutineType;
+  /** Scheduling specification for recurring routines */
+  recurringSpec?: RecurringSpec;
+  /** Due date for one-time routines (ISO datetime) */
+  dueDate?: string;
+  /** Last time this routine was completed (ISO datetime) */
+  lastCompleted?: string;
+  /** ISO timestamp of creation */
+  created: string;
+  /** ISO timestamp of last update */
+  updated: string;
+  /** Embedded supplementary materials */
+  supplementaryMaterials?: SupplementaryMaterial[];
+  /** Embedded completion history (limited during migration) */
+  completionHistory?: RoutineCompletion[];
+}
+
 /**
  * The root Automerge document structure
  */
@@ -255,6 +364,8 @@ export interface NotesDocument {
   shelfItems?: ShelfItemData[];
   /** Last view state for restoring on app restart (optional for backward compatibility) */
   lastViewState?: LastViewState;
+  /** Agent routines keyed by ID (optional for backward compatibility) */
+  agentRoutines?: Record<string, AgentRoutine>;
 }
 
 /**

@@ -14,7 +14,10 @@ import type {
   LegacyMetadataRow,
   LegacyNoteTypeRow,
   LegacyUIStateRow,
-  LegacyReviewItemRow
+  LegacyReviewItemRow,
+  LegacyWorkflowRow,
+  LegacySupplementaryMaterialRow,
+  LegacyWorkflowCompletionRow
 } from './types';
 
 interface ReadOnlyConnection {
@@ -173,6 +176,21 @@ export async function getVaultId(vaultPath: string): Promise<string | null> {
 }
 
 /**
+ * Check if workflows table exists in the database
+ * (for backward compatibility with older vaults)
+ */
+async function hasWorkflowsTable(conn: ReadOnlyConnection): Promise<boolean> {
+  try {
+    const result = await conn.get<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'"
+    );
+    return result !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extract all data from a legacy vault database
  *
  * This is the main extraction function that reads all tables.
@@ -192,7 +210,7 @@ export async function extractVaultData(
       throw new Error('Could not determine vault ID from database');
     }
 
-    onProgress?.('Extracting note types...', 0, 5);
+    onProgress?.('Extracting note types...', 0, 7);
 
     // Extract note types
     const noteTypes = await conn.all<LegacyNoteTypeRow>(
@@ -204,7 +222,7 @@ export async function extractVaultData(
       [vaultId]
     );
 
-    onProgress?.('Extracting notes...', 1, 5);
+    onProgress?.('Extracting notes...', 1, 7);
 
     // Extract notes
     const notes = await conn.all<LegacyNoteRow>(
@@ -213,7 +231,7 @@ export async function extractVaultData(
        FROM notes`
     );
 
-    onProgress?.('Extracting metadata...', 2, 5);
+    onProgress?.('Extracting metadata...', 2, 7);
 
     // Extract all metadata
     const allMetadata = await conn.all<LegacyMetadataRow>(
@@ -228,7 +246,7 @@ export async function extractVaultData(
       metadata.set(row.note_id, existing);
     }
 
-    onProgress?.('Extracting UI state...', 3, 5);
+    onProgress?.('Extracting UI state...', 3, 7);
 
     // Extract UI state
     const uiState = await conn.all<LegacyUIStateRow>(
@@ -238,7 +256,7 @@ export async function extractVaultData(
       [vaultId]
     );
 
-    onProgress?.('Extracting review items...', 4, 5);
+    onProgress?.('Extracting review items...', 4, 7);
 
     // Extract review items
     const reviewItems = await conn.all<LegacyReviewItemRow>(
@@ -250,7 +268,65 @@ export async function extractVaultData(
       [vaultId]
     );
 
-    onProgress?.('Extraction complete', 5, 5);
+    // Extract workflows (agent routines) if table exists
+    let workflows: LegacyWorkflowRow[] = [];
+    const workflowMaterials = new Map<string, LegacySupplementaryMaterialRow[]>();
+    const workflowCompletions = new Map<string, LegacyWorkflowCompletionRow[]>();
+
+    if (await hasWorkflowsTable(conn)) {
+      onProgress?.('Extracting workflows...', 5, 7);
+
+      // Extract workflows
+      workflows = await conn.all<LegacyWorkflowRow>(
+        `SELECT id, name, purpose, description, status, type, vault_id,
+                recurring_spec, due_date, last_completed, created_at, updated_at
+         FROM workflows
+         WHERE vault_id = ?`,
+        [vaultId]
+      );
+
+      onProgress?.('Extracting workflow materials...', 6, 7);
+
+      // Extract supplementary materials for all workflows
+      const allMaterials = await conn.all<LegacySupplementaryMaterialRow>(
+        `SELECT wsm.id, wsm.workflow_id, wsm.material_type, wsm.content,
+                wsm.note_id, wsm.metadata, wsm.position, wsm.created_at
+         FROM workflow_supplementary_materials wsm
+         INNER JOIN workflows w ON w.id = wsm.workflow_id
+         WHERE w.vault_id = ?
+         ORDER BY wsm.workflow_id, wsm.position`,
+        [vaultId]
+      );
+
+      // Group materials by workflow_id
+      for (const row of allMaterials) {
+        const existing = workflowMaterials.get(row.workflow_id) || [];
+        existing.push(row);
+        workflowMaterials.set(row.workflow_id, existing);
+      }
+
+      // Extract completion history (limit to 20 most recent per workflow)
+      const allCompletions = await conn.all<LegacyWorkflowCompletionRow>(
+        `SELECT wch.id, wch.workflow_id, wch.completed_at, wch.conversation_id,
+                wch.notes, wch.output_note_id, wch.metadata
+         FROM workflow_completion_history wch
+         INNER JOIN workflows w ON w.id = wch.workflow_id
+         WHERE w.vault_id = ?
+         ORDER BY wch.workflow_id, wch.completed_at DESC`,
+        [vaultId]
+      );
+
+      // Group completions by workflow_id (limit to 20 most recent per workflow)
+      for (const row of allCompletions) {
+        const existing = workflowCompletions.get(row.workflow_id) || [];
+        if (existing.length < 20) {
+          existing.push(row);
+        }
+        workflowCompletions.set(row.workflow_id, existing);
+      }
+    }
+
+    onProgress?.('Extraction complete', 7, 7);
 
     return {
       noteTypes,
@@ -258,7 +334,10 @@ export async function extractVaultData(
       metadata,
       uiState,
       reviewItems,
-      vaultId
+      vaultId,
+      workflows,
+      workflowMaterials,
+      workflowCompletions
     };
   } finally {
     await conn.close();

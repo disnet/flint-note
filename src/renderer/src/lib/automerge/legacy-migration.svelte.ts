@@ -10,7 +10,14 @@
  */
 
 import type { Repo } from '@automerge/automerge-repo';
-import type { NotesDocument, Vault, Note, NoteType, Workspace } from './types';
+import type {
+  NotesDocument,
+  Vault,
+  Note,
+  NoteType,
+  Workspace,
+  AgentRoutine
+} from './types';
 import { generateVaultId, nowISO } from './utils';
 import { getRepo, saveVaults, getVaults, setActiveVaultId } from './repo';
 import { opfsStorage } from './opfs-storage.svelte';
@@ -37,11 +44,12 @@ interface MigrationProgress {
     workspaces?: number;
     reviewItems?: number;
     epubs?: number;
+    agentRoutines?: number;
   };
 }
 
 interface MigrationError {
-  entity: 'note' | 'noteType' | 'workspace' | 'reviewItem' | 'epub';
+  entity: 'note' | 'noteType' | 'workspace' | 'reviewItem' | 'epub' | 'agentRoutine';
   entityId: string;
   message: string;
 }
@@ -67,6 +75,7 @@ interface MigrationDocumentData {
   activeWorkspaceId: string;
   noteTypes: Record<string, NoteType>;
   workspaceOrder?: string[];
+  agentRoutines?: Record<string, AgentRoutine>;
 }
 
 interface MigrationStats {
@@ -75,6 +84,7 @@ interface MigrationStats {
   epubs: number;
   workspaces: number;
   reviewItems: number;
+  agentRoutines: number;
   skipped: number;
 }
 
@@ -231,6 +241,14 @@ function createMigratedDocument(
     if (documentData.workspaceOrder) {
       doc.workspaceOrder = documentData.workspaceOrder;
     }
+
+    // Migrate agent routines
+    if (
+      documentData.agentRoutines &&
+      Object.keys(documentData.agentRoutines).length > 0
+    ) {
+      doc.agentRoutines = documentData.agentRoutines;
+    }
   });
 
   return { docUrl: handle.url };
@@ -281,7 +299,14 @@ function toMigrationError(error: {
   entityId: string;
   message: string;
 }): MigrationError {
-  const validEntities = ['note', 'noteType', 'workspace', 'reviewItem', 'epub'];
+  const validEntities = [
+    'note',
+    'noteType',
+    'workspace',
+    'reviewItem',
+    'epub',
+    'agentRoutine'
+  ];
   const entity = validEntities.includes(error.entity)
     ? (error.entity as MigrationError['entity'])
     : 'note';
@@ -450,6 +475,10 @@ export async function migrateLegacyVault(
     setActiveVaultId(vaultId);
 
     // Phase 5: Complete
+    const agentRoutineCount = documentData.agentRoutines
+      ? Object.keys(documentData.agentRoutines).length
+      : 0;
+
     migrationProgress = {
       phase: 'complete',
       message: 'Migration complete!',
@@ -459,7 +488,8 @@ export async function migrateLegacyVault(
         noteTypes: Object.keys(documentData.noteTypes).length,
         notes: Object.keys(documentData.notes).length,
         workspaces: Object.keys(documentData.workspaces).length,
-        epubs: epubFiles.length
+        epubs: epubFiles.length,
+        agentRoutines: agentRoutineCount
       }
     };
 
@@ -472,6 +502,7 @@ export async function migrateLegacyVault(
         epubs: epubFiles.length,
         workspaces: Object.keys(documentData.workspaces).length,
         reviewItems: 0, // Not tracked separately in renderer
+        agentRoutines: agentRoutineCount,
         skipped: 0
       },
       errors

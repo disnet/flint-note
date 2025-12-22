@@ -41,6 +41,7 @@ export interface MigrationProgress {
     workspaces?: number;
     reviewItems?: number;
     epubs?: number;
+    agentRoutines?: number;
   };
 }
 
@@ -65,6 +66,7 @@ export interface MigrationResult {
     epubs: number;
     workspaces: number;
     reviewItems: number;
+    agentRoutines: number;
     skipped: number;
   };
   /** Non-fatal errors encountered during migration */
@@ -81,7 +83,7 @@ export interface MigrationResult {
  */
 export interface MigrationError {
   /** Type of entity that failed */
-  entity: 'note' | 'noteType' | 'workspace' | 'reviewItem' | 'epub';
+  entity: 'note' | 'noteType' | 'workspace' | 'reviewItem' | 'epub' | 'agentRoutine';
   /** ID of the entity that failed */
   entityId: string;
   /** Error message */
@@ -190,6 +192,51 @@ export interface LegacyReviewItemRow {
 }
 
 /**
+ * A row from the workflows table
+ */
+export interface LegacyWorkflowRow {
+  id: string;
+  name: string;
+  purpose: string;
+  description: string;
+  status: string;
+  type: string;
+  vault_id: string;
+  recurring_spec: string | null;
+  due_date: string | null;
+  last_completed: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A row from the workflow_supplementary_materials table
+ */
+export interface LegacySupplementaryMaterialRow {
+  id: string;
+  workflow_id: string;
+  material_type: string;
+  content: string | null;
+  note_id: string | null;
+  metadata: string | null;
+  position: number;
+  created_at: string;
+}
+
+/**
+ * A row from the workflow_completion_history table
+ */
+export interface LegacyWorkflowCompletionRow {
+  id: string;
+  workflow_id: string;
+  completed_at: string;
+  conversation_id: string | null;
+  notes: string | null;
+  output_note_id: string | null;
+  metadata: string | null;
+}
+
+/**
  * Extracted data from a legacy vault
  */
 export interface LegacyVaultData {
@@ -205,6 +252,12 @@ export interface LegacyVaultData {
   reviewItems: LegacyReviewItemRow[];
   /** Vault ID from the database */
   vaultId: string;
+  /** Workflows (agent routines) */
+  workflows: LegacyWorkflowRow[];
+  /** Supplementary materials grouped by workflow_id */
+  workflowMaterials: Map<string, LegacySupplementaryMaterialRow[]>;
+  /** Completion history grouped by workflow_id */
+  workflowCompletions: Map<string, LegacyWorkflowCompletionRow[]>;
 }
 
 /**

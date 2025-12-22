@@ -12,6 +12,9 @@ import type {
   LegacyNoteTypeRow,
   LegacyUIStateRow,
   LegacyReviewItemRow,
+  LegacyWorkflowRow,
+  LegacySupplementaryMaterialRow,
+  LegacyWorkflowCompletionRow,
   MigrationError,
   EpubFileData
 } from './types';
@@ -22,7 +25,13 @@ import type {
   NoteType,
   Workspace,
   NotesDocument,
-  SidebarItemRef
+  SidebarItemRef,
+  AgentRoutine,
+  AgentRoutineStatus,
+  AgentRoutineType,
+  SupplementaryMaterial,
+  RoutineCompletion,
+  RecurringSpec
 } from '../../renderer/src/lib/automerge/types';
 
 // Constants matching the Automerge system
@@ -117,6 +126,7 @@ export interface TransformResult {
     epubs: number;
     workspaces: number;
     reviewItems: number;
+    agentRoutines: number;
     skipped: number;
   };
 }
@@ -358,6 +368,91 @@ function transformWorkspaces(
   return { workspaces, workspaceOrder };
 }
 
+// ============================================================================
+// Workflow (Agent Routine) Transformation
+// ============================================================================
+
+/**
+ * Map legacy workflow status to AgentRoutineStatus
+ */
+function mapRoutineStatus(legacyStatus: string): AgentRoutineStatus {
+  const validStatuses: AgentRoutineStatus[] = [
+    'active',
+    'paused',
+    'completed',
+    'archived'
+  ];
+  if (validStatuses.includes(legacyStatus as AgentRoutineStatus)) {
+    return legacyStatus as AgentRoutineStatus;
+  }
+  return 'active'; // Default
+}
+
+/**
+ * Map legacy workflow type to AgentRoutineType
+ */
+function mapRoutineType(legacyType: string): AgentRoutineType {
+  if (legacyType === 'backlog') return 'backlog';
+  return 'routine'; // Map 'workflow' to 'routine'
+}
+
+/**
+ * Transform a legacy workflow to an AgentRoutine
+ */
+function transformWorkflow(
+  legacy: LegacyWorkflowRow,
+  materials: LegacySupplementaryMaterialRow[],
+  completions: LegacyWorkflowCompletionRow[]
+): AgentRoutine {
+  // Transform supplementary materials
+  const supplementaryMaterials: SupplementaryMaterial[] | undefined =
+    materials.length > 0
+      ? materials.map((m) => ({
+          id: m.id,
+          materialType: m.material_type as 'text' | 'code' | 'note_reference',
+          content: m.content ?? undefined,
+          noteId: m.note_id ?? undefined,
+          metadata: m.metadata ? safeParseJSON(m.metadata) : undefined,
+          position: m.position,
+          createdAt: m.created_at
+        }))
+      : undefined;
+
+  // Transform completion history
+  const completionHistory: RoutineCompletion[] | undefined =
+    completions.length > 0
+      ? completions.map((c) => ({
+          id: c.id,
+          completedAt: c.completed_at,
+          conversationId: c.conversation_id ?? undefined,
+          notes: c.notes ?? undefined,
+          outputNoteId: c.output_note_id ?? undefined,
+          metadata: c.metadata ? safeParseJSON(c.metadata) : undefined
+        }))
+      : undefined;
+
+  // Parse recurring spec
+  const recurringSpec = legacy.recurring_spec
+    ? safeParseJSON<RecurringSpec>(legacy.recurring_spec)
+    : undefined;
+
+  return {
+    id: legacy.id, // Preserve original w-xxxxxxxx ID
+    name: legacy.name,
+    purpose: legacy.purpose,
+    description: legacy.description,
+    status: mapRoutineStatus(legacy.status),
+    type: mapRoutineType(legacy.type),
+    recurringSpec,
+    dueDate: legacy.due_date ?? undefined,
+    lastCompleted: legacy.last_completed ?? undefined,
+    created: legacy.created_at,
+    updated: legacy.updated_at,
+    supplementaryMaterials,
+    completionHistory
+  };
+}
+
 /**
  * Transform all legacy vault data to Automerge format
  *
@@ -497,13 +592,35 @@ export function transformVaultData(
     }
   }
 
+  // Transform workflows to agent routines
+  const agentRoutines: Record<string, AgentRoutine> = {};
+  let routineCount = 0;
+
+  for (const legacyWorkflow of data.workflows) {
+    try {
+      const materials = data.workflowMaterials.get(legacyWorkflow.id) ?? [];
+      const completions = data.workflowCompletions.get(legacyWorkflow.id) ?? [];
+
+      const routine = transformWorkflow(legacyWorkflow, materials, completions);
+      agentRoutines[routine.id] = routine;
+      routineCount++;
+    } catch (error) {
+      errors.push({
+        entity: 'agentRoutine',
+        entityId: legacyWorkflow.id,
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
   return {
     document: {
       notes,
       workspaces,
       activeWorkspaceId,
       noteTypes,
-      workspaceOrder
+      workspaceOrder,
+      agentRoutines: routineCount > 0 ? agentRoutines : undefined
     },
     epubFiles,
     errors,
@@ -514,6 +631,7 @@ export function transformVaultData(
       epubs: epubCount,
       workspaces: Object.keys(workspaces).length,
       reviewItems: data.reviewItems.filter((r) => existingNoteIds.has(r.note_id)).length,
+      agentRoutines: routineCount,
       skipped
     }
   };
