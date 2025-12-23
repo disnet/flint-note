@@ -191,6 +191,39 @@ Test files have relaxed ESLint rules allowing:
   await window.api?.saveData(serializable);
   ```
 
+## Automerge Object Cloning Guidelines
+
+**CRITICAL: Always use `clone()` when assigning objects inside `docHandle.change()` blocks**
+
+- Automerge documents use proxies internally. When you try to insert an object that already exists in an Automerge document into another location, you get: `RangeError: Cannot create a reference to an existing document object`
+- Use the `clone()` and `cloneIfObject()` utilities from `./utils` to create fresh plain objects
+- **Error symptoms**: "Cannot create a reference to an existing document object" during state mutations
+- **Standard pattern**:
+
+  ```typescript
+  import { clone, cloneIfObject } from './utils';
+
+  // ❌ WRONG - Direct assignment may reference existing document objects
+  docHandle.change((doc) => {
+    doc.config = externalConfig;
+    doc.items = externalItems;
+  });
+
+  // ✅ CORRECT - Use clone() for objects/arrays
+  docHandle.change((doc) => {
+    doc.config = clone(externalConfig);
+    doc.items = clone(externalItems);
+  });
+
+  // ✅ CORRECT - Use cloneIfObject() in loops with mixed types
+  for (const [key, value] of Object.entries(props)) {
+    note.props[key] = cloneIfObject(value);
+  }
+
+  // ✅ OK - Spread for simple string arrays (primitives don't need cloning)
+  doc.tags = [...externalTags];
+  ```
+
 - when planning migrations or breaking changes don't use progressive rollout strategy since we don't have that capability yet
 - we we need to deal with breaking changes to the DB schema we have version aware migration code in the migration-manager
 - do not try to run the app (e.g. npm run dev). ask the user to run it if you need to check something

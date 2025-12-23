@@ -2,6 +2,66 @@
  * Utility functions for Automerge integration
  */
 
+// ============================================================================
+// Deep Clone Utilities for Automerge
+// ============================================================================
+//
+// IMPORTANT: Automerge documents use proxies internally. When you try to insert
+// an object that already exists in an Automerge document into another location,
+// you get: "RangeError: Cannot create a reference to an existing document object"
+//
+// To avoid this, always use these utilities when assigning objects/arrays inside
+// `docHandle.change()` blocks:
+//
+//   docHandle.change((doc) => {
+//     // ❌ BAD - may reference existing document objects
+//     doc.something = externalObject;
+//
+//     // ✅ GOOD - creates fresh plain objects
+//     doc.something = clone(externalObject);
+//   });
+//
+// ============================================================================
+
+/**
+ * Deep clone a value, creating fresh plain objects safe for Automerge insertion.
+ *
+ * Use this when assigning objects or arrays inside `docHandle.change()` blocks
+ * to avoid "Cannot create a reference to an existing document object" errors.
+ *
+ * @example
+ * docHandle.change((doc) => {
+ *   doc.config = clone(externalConfig);
+ *   doc.items = clone(externalItems);
+ * });
+ */
+export function clone<T>(value: T): T {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value !== 'object') {
+    // Primitives don't need cloning
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
+ * Deep clone a value only if it's an object/array, otherwise return as-is.
+ * Useful in loops where values may be primitives or objects.
+ *
+ * @example
+ * for (const [key, value] of Object.entries(props)) {
+ *   note.props[key] = cloneIfObject(value);
+ * }
+ */
+export function cloneIfObject<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+  return value;
+}
+
 /**
  * Generate a random hex string of specified length
  */
