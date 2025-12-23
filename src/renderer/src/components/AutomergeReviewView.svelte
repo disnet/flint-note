@@ -29,7 +29,6 @@
   import AutomergeReviewHistoryPanel from './AutomergeReviewHistoryPanel.svelte';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
-  import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   // State machine for review flow
@@ -137,16 +136,6 @@
       window.removeEventListener('keydown', handleKeyDown);
     };
   });
-
-  // Handle wikilink clicks
-  async function handleWikilinkClick(
-    noteId: string,
-    title: string,
-    _shouldCreate?: boolean,
-    _shiftKey?: boolean
-  ): Promise<void> {
-    navigateToNote(noteId, title);
-  }
 
   // Handle note clicks in rendered markdown
   function handleNoteClick(noteId: string, _shiftKey?: boolean): void {
@@ -623,15 +612,11 @@
                 <div class="response-editor">
                   <div class="editor-label">Your Response:</div>
                   <div class="editor-wrapper">
-                    <CodeMirrorEditor
-                      content={userResponse}
-                      onContentChange={(value) => (userResponse = value)}
-                      onWikilinkClick={handleWikilinkClick}
-                      placeholder="Type your explanation here... You can use [[wikilinks]] to reference other notes."
-                      variant="default"
-                      readOnly={false}
-                      noBottomMargin={true}
-                    />
+                    <textarea
+                      class="review-textarea"
+                      bind:value={userResponse}
+                      placeholder="Type your explanation here..."
+                    ></textarea>
                   </div>
                 </div>
               {/if}
@@ -1194,25 +1179,34 @@
   .response-editor .editor-wrapper {
     border: 2px solid var(--border-light);
     border-radius: 4px;
-    max-height: 400px;
-    overflow: auto;
     transition: border-color 0.2s;
-  }
-
-  .response-editor .editor-wrapper :global(.cm-editor) {
-    height: auto;
-  }
-
-  .response-editor .editor-wrapper :global(.cm-scroller) {
-    overflow-y: visible;
-  }
-
-  .response-editor .editor-wrapper :global(.cm-content) {
-    min-height: fit-content;
   }
 
   .response-editor .editor-wrapper:focus-within {
     border-color: var(--accent-primary);
+  }
+
+  .review-textarea {
+    width: 100%;
+    min-height: 150px;
+    max-height: 400px;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .review-textarea:focus {
+    outline: none;
+  }
+
+  .review-textarea::placeholder {
+    color: var(--text-tertiary);
   }
 
   /* Feedback loading */

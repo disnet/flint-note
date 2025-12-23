@@ -1,12 +1,6 @@
 <script lang="ts">
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  import { notesStore } from '../services/noteStore.svelte';
-  import { workspacesStore } from '../stores/workspacesStore.svelte';
-  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
-  import { sidebarState } from '../stores/sidebarState.svelte';
-  import { reviewStore } from '../stores/reviewStore.svelte';
-  import { getChatService } from '../services/chatService';
 
   interface Props {
     text: string;
@@ -24,7 +18,7 @@
 
   // Load images after render
   $effect(() => {
-    // Depend on text and renderedHtml to re-run when content changes
+    // Depend on text to re-run when content changes
     const _content = text;
     void _content;
 
@@ -72,27 +66,6 @@
       }
     });
   });
-
-  // Context menu state
-  let contextMenuOpen = $state(false);
-  let contextMenuNoteId = $state<string | null>(null);
-  let contextMenuPosition = $state({ x: 0, y: 0 });
-  let contextMenuReviewEnabled = $state(false);
-  let moveSubmenuOpen = $state(false);
-  let submenuOpenLeft = $state(false);
-
-  // Get all workspaces for move menu
-  let allWorkspaces = $derived(workspacesStore.workspaces);
-
-  function handleSubmenuEnter(event: MouseEvent): void {
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const submenuWidth = 150; // approximate width
-
-    // Check if submenu would overflow right edge
-    submenuOpenLeft = rect.right + submenuWidth > window.innerWidth;
-    moveSubmenuOpen = true;
-  }
 
   interface NoteLinkPlaceholder {
     id: string;
@@ -209,14 +182,7 @@
       if (match[1]) {
         // [[note-id]] or [[note-id|display text]] format
         noteId = match[1];
-        if (match[2]) {
-          // Has display text
-          displayText = match[2];
-        } else {
-          // ID-only link - look up the note's title
-          const note = notesStore.notes.find((n) => n.id === noteId);
-          displayText = note?.title || noteId;
-        }
+        displayText = match[2] || noteId;
       } else if (match[3]) {
         // [note-id] format
         noteId = match[3];
@@ -254,18 +220,7 @@
     let result = html;
 
     noteLinks.forEach((noteLink) => {
-      // Look up the note and its type to get the icon
-      const note = notesStore.notes.find((n) => n.id === noteLink.noteId);
-      let iconHtml = '';
-
-      if (note) {
-        const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
-        if (noteType?.icon) {
-          iconHtml = `<span class="note-link-icon">${noteType.icon}</span>`;
-        }
-      }
-
-      const buttonHtml = `<button class="note-link" data-note-id="${noteLink.noteId}" title="Click to open note">${iconHtml}${noteLink.displayText}</button>`;
+      const buttonHtml = `<button class="note-link" data-note-id="${noteLink.noteId}" title="Click to open note">${noteLink.displayText}</button>`;
       result = result.replaceAll(noteLink.id, buttonHtml);
     });
 
@@ -380,153 +335,6 @@
       handleClick(event);
     }
   }
-
-  // Context menu handlers
-  async function handleContextMenu(event: MouseEvent): Promise<void> {
-    const target = event.target as HTMLElement;
-    if (!target.classList.contains('note-link')) return;
-
-    const noteId = target.getAttribute('data-note-id');
-    if (!noteId) return;
-
-    event.preventDefault();
-    contextMenuNoteId = noteId;
-
-    // Check review status for this note
-    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
-
-    // Calculate position with viewport bounds checking
-    const menuWidth = 180;
-    const menuHeight = 200;
-    const padding = 8;
-
-    let x = event.clientX;
-    let y = event.clientY;
-
-    // Adjust if menu would overflow right edge
-    if (x + menuWidth + padding > window.innerWidth) {
-      x = window.innerWidth - menuWidth - padding;
-    }
-
-    // Adjust if menu would overflow bottom edge
-    if (y + menuHeight + padding > window.innerHeight) {
-      y = window.innerHeight - menuHeight - padding;
-    }
-
-    // Ensure menu doesn't go off left or top edge
-    x = Math.max(padding, x);
-    y = Math.max(padding, y);
-
-    contextMenuPosition = { x, y };
-    contextMenuOpen = true;
-  }
-
-  function closeContextMenu(): void {
-    contextMenuOpen = false;
-    contextMenuNoteId = null;
-    moveSubmenuOpen = false;
-  }
-
-  function handleGlobalClick(event: MouseEvent): void {
-    if (contextMenuOpen) {
-      const target = event.target as Element;
-      if (!target.closest('.wikilink-context-menu')) {
-        closeContextMenu();
-      }
-    }
-  }
-
-  function handleGlobalKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && contextMenuOpen) {
-      closeContextMenu();
-    }
-  }
-
-  // Context menu action handlers
-  async function handleOpenInShelf(): Promise<void> {
-    if (!contextMenuNoteId) return;
-
-    try {
-      const note = notesStore.notes.find((n) => n.id === contextMenuNoteId);
-      if (!note) return;
-
-      const chatService = getChatService();
-      const noteContent = await chatService.getNote({ identifier: note.id });
-
-      if (noteContent) {
-        await notesShelfStore.addNote(note.id, note.title, noteContent.content);
-
-        // Open the right sidebar in notes mode if not already visible
-        if (
-          !sidebarState.rightSidebar.visible ||
-          sidebarState.rightSidebar.mode !== 'notes'
-        ) {
-          await sidebarState.setRightSidebarMode('notes');
-          if (!sidebarState.rightSidebar.visible) {
-            await sidebarState.toggleRightSidebar();
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[MarkdownRenderer] Failed to add note to shelf:', error);
-    }
-
-    closeContextMenu();
-  }
-
-  async function handleArchive(): Promise<void> {
-    if (!contextMenuNoteId) return;
-
-    try {
-      const chatService = getChatService();
-      const vault = await chatService.getCurrentVault();
-      if (!vault) {
-        console.error('No vault available');
-        return;
-      }
-
-      await chatService.archiveNote({
-        vaultId: vault.id,
-        identifier: contextMenuNoteId
-      });
-    } catch (error) {
-      console.error('[MarkdownRenderer] Failed to archive note:', error);
-    }
-
-    closeContextMenu();
-  }
-
-  async function handleToggleReview(): Promise<void> {
-    if (!contextMenuNoteId) return;
-
-    try {
-      if (contextMenuReviewEnabled) {
-        await reviewStore.disableReview(contextMenuNoteId);
-      } else {
-        await reviewStore.enableReview(contextMenuNoteId);
-      }
-    } catch (error) {
-      console.error('[MarkdownRenderer] Failed to toggle review:', error);
-    }
-
-    closeContextMenu();
-  }
-
-  async function handleOpenInWorkspace(workspaceId: string): Promise<void> {
-    if (!contextMenuNoteId) return;
-
-    try {
-      // Switch to the target workspace
-      await workspacesStore.switchWorkspace(workspaceId);
-
-      // Add the note to temporary tabs in that workspace
-      await workspacesStore.addTab(contextMenuNoteId, 'navigation');
-    } catch (error) {
-      console.error('[MarkdownRenderer] Failed to open note in workspace:', error);
-    }
-
-    closeContextMenu();
-  }
 </script>
 
 <div
@@ -534,120 +342,12 @@
   class="markdown-content"
   onclick={handleClick}
   onkeydown={handleKeydown}
-  oncontextmenu={handleContextMenu}
   role="button"
   aria-label="Rendered markdown with clickable note links"
   tabindex="0"
 >
   {@html renderedHtml}
 </div>
-
-<!-- Global event listeners for context menu -->
-<svelte:window onclick={handleGlobalClick} onkeydown={handleGlobalKeydown} />
-
-<!-- Context menu for wikilinks -->
-{#if contextMenuOpen}
-  <div
-    class="wikilink-context-menu"
-    style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
-    role="menu"
-  >
-    <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="14" y="14" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-      </svg>
-      <span class="menu-item-label">Open in Shelf</span>
-      <span class="menu-item-shortcut">⇧Click</span>
-    </button>
-    {#if allWorkspaces.length > 0}
-      <div
-        class="context-menu-item submenu-trigger"
-        role="menuitem"
-        tabindex="0"
-        onmouseenter={handleSubmenuEnter}
-        onmouseleave={() => (moveSubmenuOpen = false)}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-          <polyline points="10 17 15 12 10 7"></polyline>
-          <line x1="15" y1="12" x2="3" y2="12"></line>
-        </svg>
-        <span class="menu-item-label">Open in Workspace</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="submenu-arrow"
-        >
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-        {#if moveSubmenuOpen}
-          <div class="submenu" class:submenu-left={submenuOpenLeft} role="menu">
-            {#each allWorkspaces as workspace (workspace.id)}
-              <button
-                class="context-menu-item"
-                onclick={() => handleOpenInWorkspace(workspace.id)}
-                role="menuitem"
-              >
-                <span class="workspace-icon">{workspace.icon}</span>
-                <span class="menu-item-label">{workspace.name}</span>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-    <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-      </svg>
-      {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
-    </button>
-    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="21 8 21 21 3 21 3 8"></polyline>
-        <rect x="1" y="3" width="22" height="5"></rect>
-        <line x1="10" y1="12" x2="14" y2="12"></line>
-      </svg>
-      Archive
-    </button>
-  </div>
-{/if}
 
 <style>
   .markdown-content :global(p) {
@@ -768,14 +468,6 @@
     font-weight: 600;
   }
 
-  .markdown-content :global(.note-link-icon) {
-    font-size: 0.9em;
-    line-height: 1;
-    display: inline-block;
-    vertical-align: baseline;
-    margin-right: 0.25em;
-  }
-
   .markdown-content :global(.note-link:hover) {
     background: rgba(0, 0, 0, 0.06);
     color: #0066cc;
@@ -804,88 +496,6 @@
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
     }
-  }
-
-  /* Context menu styles */
-  .wikilink-context-menu {
-    position: fixed;
-    z-index: 1000;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 160px;
-    padding: 0.25rem;
-  }
-
-  .context-menu-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.8125rem;
-    cursor: pointer;
-    border-radius: 0.25rem;
-    text-align: left;
-    transition: background-color 0.15s ease;
-  }
-
-  .context-menu-item:hover {
-    background: var(--bg-secondary);
-  }
-
-  .context-menu-item svg {
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .menu-item-label {
-    flex: 1;
-  }
-
-  .menu-item-shortcut {
-    font-size: 0.6875rem;
-    color: var(--text-muted);
-    margin-left: auto;
-  }
-
-  /* Submenu styles */
-  .submenu-trigger {
-    position: relative;
-    cursor: pointer;
-  }
-
-  .submenu-arrow {
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-
-  .submenu {
-    position: absolute;
-    left: 100%;
-    top: 0;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 140px;
-    padding: 0.25rem;
-    z-index: 1001;
-  }
-
-  .submenu.submenu-left {
-    left: auto;
-    right: 100%;
-  }
-
-  .workspace-icon {
-    font-size: 14px;
-    line-height: 1;
-    flex-shrink: 0;
   }
 
   /* Inline image styles */

@@ -1,6 +1,5 @@
 <script lang="ts">
   import MarkdownRenderer from '../MarkdownRenderer.svelte';
-  import AgentActivityWidget from '../AgentActivityWidget.svelte';
   import type { ToolCall } from '../../services/types';
 
   /**
@@ -38,7 +37,7 @@
     collapsed = false,
     variant = 'bubble',
     toolCalls,
-    currentStepIndex,
+    currentStepIndex: _currentStepIndex,
     onNoteClick,
     noAnimation = false
   }: Props = $props();
@@ -91,7 +90,7 @@
 
   {#if toolCalls && toolCalls.length > 0}
     <div class="tool-calls">
-      <AgentActivityWidget {toolCalls} {currentStepIndex} />
+      <div class="tool-call-info">{toolCalls.length} tool call{toolCalls.length !== 1 ? 's' : ''}</div>
     </div>
   {/if}
 </div>
