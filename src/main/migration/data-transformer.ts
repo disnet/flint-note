@@ -189,12 +189,6 @@ function transformNoteType(legacy: LegacyNoteTypeRow, newId: string): NoteType {
   // 3. null/undefined
   const rawSchema = safeParseJSON<unknown>(legacy.metadata_schema);
 
-  // Debug: log the raw schema to understand its format
-  console.log(
-    `[Migration] Type "${legacy.type_name}" raw schema:`,
-    JSON.stringify(rawSchema, null, 2)
-  );
-
   let properties:
     | Array<{
         name: string;
@@ -253,12 +247,6 @@ function transformNoteType(legacy: LegacyNoteTypeRow, newId: string): NoteType {
     } else {
       schemaArray = [];
     }
-
-    // Debug: log the extracted schema array
-    console.log(
-      `[Migration] Type "${legacy.type_name}" schemaArray:`,
-      JSON.stringify(schemaArray, null, 2)
-    );
 
     // Map legacy types to valid PropertyTypes
     // Note: undefined is not valid JSON for Automerge, so we only include optional fields if defined
@@ -530,18 +518,7 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
     workspaceOrder?: string[];
   } = { workspaces: [] };
 
-  // Debug: log all ui_state keys to understand what's available
-  console.log(
-    '[Migration] UI state keys:',
-    uiState.map((s) => s.state_key)
-  );
-
   for (const state of uiState) {
-    console.log(
-      `[Migration] UI state "${state.state_key}":`,
-      state.state_value?.substring(0, 200)
-    );
-
     if (state.state_key === 'workspaces') {
       // Handle both formats:
       // 1. Array format: [{id, name, ...}, ...]
@@ -549,7 +526,6 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
       const parsed = safeParseJSON<
         ParsedWorkspace[] | { workspaces: ParsedWorkspace[]; activeWorkspaceId?: string }
       >(state.state_value);
-      console.log('[Migration] Parsed workspaces:', parsed);
       if (parsed) {
         if (Array.isArray(parsed)) {
           result.workspaces = parsed;
@@ -567,7 +543,6 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
     }
   }
 
-  console.log('[Migration] Extracted workspace result:', result);
   return result;
 }
 
@@ -606,11 +581,6 @@ function transformWorkspaces(
     // Extract pinned note IDs from either format
     // Format 1: pinnedNotes: [{noteId: "n-xxx", title: "..."}, ...]
     // Format 2: pinnedNoteIds: ["n-xxx", ...]
-    console.log(
-      `[Migration] Workspace "${parsed.name}" raw pinnedNotes:`,
-      JSON.stringify(parsed.pinnedNotes)
-    );
-
     let pinnedIds: string[] = [];
     if (parsed.pinnedNotes && Array.isArray(parsed.pinnedNotes)) {
       pinnedIds = parsed.pinnedNotes
@@ -619,7 +589,6 @@ function transformWorkspaces(
           if (typeof n === 'string') return n;
           if (n && typeof n === 'object' && 'noteId' in n) return n.noteId;
           if (n && typeof n === 'object' && 'id' in n) return (n as { id: string }).id;
-          console.log('[Migration] Unknown pinned note format:', n);
           return null;
         })
         .filter(Boolean) as string[];
@@ -628,11 +597,6 @@ function transformWorkspaces(
     }
 
     // Extract recent note IDs - may be stored as recentNotes or temporaryTabs
-    console.log(
-      `[Migration] Workspace "${parsed.name}" raw temporaryTabs:`,
-      JSON.stringify(parsed.temporaryTabs)
-    );
-
     let recentIds: string[] = [];
     // Check temporaryTabs first (legacy format)
     if (parsed.temporaryTabs && Array.isArray(parsed.temporaryTabs)) {
@@ -657,9 +621,6 @@ function transformWorkspaces(
       recentIds = parsed.recentNoteIds;
     }
 
-    console.log(`[Migration] Workspace "${parsed.name}" pinned IDs:`, pinnedIds);
-    console.log(`[Migration] Workspace "${parsed.name}" recent IDs:`, recentIds);
-
     // Convert note IDs to SidebarItemRef, filtering out any that don't exist
     const pinnedItemIds: SidebarItemRef[] = pinnedIds
       .filter((id) => existingNoteIds.has(id))
@@ -668,15 +629,6 @@ function transformWorkspaces(
     const recentItemIds: SidebarItemRef[] = recentIds
       .filter((id) => existingNoteIds.has(id))
       .map((id) => ({ type: 'note' as const, id }));
-
-    console.log(
-      `[Migration] Workspace "${parsed.name}" final pinned:`,
-      pinnedItemIds.length
-    );
-    console.log(
-      `[Migration] Workspace "${parsed.name}" final recent:`,
-      recentItemIds.length
-    );
 
     workspaces[wsId] = {
       id: wsId,
@@ -812,23 +764,16 @@ export function transformVaultData(
 
   // Build type ID mapping
   const typeIdMapping = buildTypeIdMapping(data.noteTypes);
-  console.log('[Migration] Type ID mapping:', typeIdMapping);
-  console.log('[Migration] Legacy note types count:', data.noteTypes.length);
 
   // Transform note types
   const noteTypes: Record<string, NoteType> = {};
   for (const legacyType of data.noteTypes) {
     try {
-      console.log('[Migration] Processing legacy type:', legacyType.type_name);
       const newId = typeIdMapping[legacyType.type_name];
       if (newId) {
         noteTypes[newId] = transformNoteType(legacyType, newId);
-        console.log('[Migration] Transformed type:', newId, noteTypes[newId]);
-      } else {
-        console.warn('[Migration] No mapping found for type:', legacyType.type_name);
       }
     } catch (error) {
-      console.error('[Migration] Error transforming type:', legacyType.type_name, error);
       errors.push({
         entity: 'noteType',
         entityId: legacyType.type_name,
@@ -836,7 +781,6 @@ export function transformVaultData(
       });
     }
   }
-  console.log('[Migration] Transformed note types count:', Object.keys(noteTypes).length);
 
   // Ensure default note type exists
   if (!noteTypes[DEFAULT_NOTE_TYPE_ID]) {
@@ -1047,7 +991,7 @@ export function transformVaultData(
     }
   }
 
-  // Extract and transform workspaces
+  // Extract and transform workspaces (debug logging removed)
   const parsedWorkspaceData = extractWorkspaces(data.uiState);
   const { workspaces, workspaceOrder } = transformWorkspaces(
     parsedWorkspaceData.workspaces,

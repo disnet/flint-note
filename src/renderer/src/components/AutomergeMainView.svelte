@@ -23,6 +23,7 @@
     switchVault,
     searchNotesEnhanced,
     automergeShelfStore,
+    getRoutine,
     EPUB_NOTE_TYPE_ID,
     PDF_NOTE_TYPE_ID,
     WEBPAGE_NOTE_TYPE_ID,
@@ -53,6 +54,7 @@
   import AutomergeConversationView from './AutomergeConversationView.svelte';
   import AutomergeReviewView from './AutomergeReviewView.svelte';
   import AutomergeInboxView from './AutomergeInboxView.svelte';
+  import AutomergeRoutinesView from './AutomergeRoutinesView.svelte';
   import AutomergeImportWebpageModal from './AutomergeImportWebpageModal.svelte';
   import AutomergeLegacyMigrationModal from './AutomergeLegacyMigrationModal.svelte';
   import { initializeState } from '../lib/automerge';
@@ -91,6 +93,7 @@
   let selectedConversationId = $state<string | null>(null);
   let chatPanelOpen = $state(false);
   let shelfPanelOpen = $state(false);
+  let pendingChatMessage = $state<string | null>(null);
 
   // Open shelf panel (used by "Add to Shelf" buttons)
   function openShelfPanel(): void {
@@ -188,6 +191,7 @@
       | 'conversations'
       | 'review'
       | 'inbox'
+      | 'routines'
       | null
   ): void {
     setActiveSystemView(view);
@@ -579,6 +583,18 @@
           {:else if activeSystemView === 'inbox'}
             <!-- Inbox View -->
             <AutomergeInboxView />
+          {:else if activeSystemView === 'routines'}
+            <!-- Routines View -->
+            <AutomergeRoutinesView
+              onExecuteRoutine={(routineId) => {
+                // Get routine details and start chat with execution context
+                const routine = getRoutine(routineId);
+                if (routine) {
+                  pendingChatMessage = `Execute the routine "${routine.name}". First read the routine details using get_routine to understand the full instructions, then follow them to complete the routine.`;
+                  chatPanelOpen = true;
+                }
+              }}
+            />
           {:else if activeItem?.type === 'conversation' && activeConversation}
             <!-- Conversation selected from sidebar -->
             <AutomergeConversationView
@@ -690,6 +706,8 @@
     setActiveSystemView('settings');
     chatPanelOpen = false;
   }}
+  initialMessage={pendingChatMessage ?? undefined}
+  onInitialMessageConsumed={() => (pendingChatMessage = null)}
 />
 
 <AutomergeShelfPanel

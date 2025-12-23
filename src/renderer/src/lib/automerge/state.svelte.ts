@@ -21,7 +21,16 @@ import type {
   SidebarItem,
   ActiveItem,
   SystemView,
-  InboxNote
+  InboxNote,
+  AgentRoutine,
+  RecurringSpec,
+  SupplementaryMaterial,
+  RoutineListItem,
+  RoutineDueType,
+  CreateRoutineInput,
+  UpdateRoutineInput,
+  CompleteRoutineInput,
+  ListRoutinesInput
 } from './types';
 import {
   generateNoteId,
@@ -29,6 +38,9 @@ import {
   generateNoteTypeId,
   generateConversationId,
   generateMessageId,
+  generateRoutineId,
+  generateRoutineCompletionId,
+  generateRoutineMaterialId,
   nowISO
 } from './utils';
 import {
@@ -3374,4 +3386,733 @@ export function unmarkAllNotesAsProcessed(noteIds: string[]): void {
  */
 export function isNoteProcessed(noteId: string): boolean {
   return !!currentDoc.processedNoteIds?.[noteId];
+}
+
+// ============================================================================
+// Agent Routine Operations
+// ============================================================================
+
+/**
+ * Get all non-archived routines
+ */
+export function getRoutines(): AgentRoutine[] {
+  const routines = currentDoc.agentRoutines || {};
+  return Object.values(routines).filter((r) => r.status !== 'archived');
+}
+
+/**
+ * Get all routines including archived
+ */
+export function getAllRoutines(): AgentRoutine[] {
+  const routines = currentDoc.agentRoutines || {};
+  return Object.values(routines);
+}
+
+/**
+ * Get a single routine by ID
+ */
+export function getRoutine(id: string): AgentRoutine | undefined {
+  return currentDoc.agentRoutines?.[id];
+}
+
+/**
+ * Get a routine by name (case-insensitive)
+ */
+export function getRoutineByName(name: string): AgentRoutine | undefined {
+  const routines = currentDoc.agentRoutines || {};
+  const lowerName = name.toLowerCase();
+  return Object.values(routines).find((r) => r.name.toLowerCase() === lowerName);
+}
+
+/**
+ * Format recurring spec as human-readable string
+ */
+export function formatRecurringSchedule(spec: RecurringSpec): string {
+  const { frequency, dayOfWeek, dayOfMonth, time } = spec;
+
+  const dayNames = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday'
+  ];
+
+  let schedule = '';
+
+  if (frequency === 'daily') {
+    schedule = 'Every day';
+  } else if (frequency === 'weekly' && dayOfWeek !== undefined) {
+    schedule = `Every ${dayNames[dayOfWeek]}`;
+  } else if (frequency === 'monthly' && dayOfMonth !== undefined) {
+    const suffix =
+      dayOfMonth === 1 ? 'st' : dayOfMonth === 2 ? 'nd' : dayOfMonth === 3 ? 'rd' : 'th';
+    schedule = `Every month on the ${dayOfMonth}${suffix}`;
+  } else {
+    schedule = `Every ${frequency}`;
+  }
+
+  if (time) {
+    schedule += ` at ${time}`;
+  }
+
+  return schedule;
+}
+
+/**
+ * Check if a routine is currently due
+ */
+export function isRoutineDue(routine: AgentRoutine, now?: Date): boolean {
+  const currentTime = now || new Date();
+
+  // Must be active to be due
+  if (routine.status !== 'active') {
+    return false;
+  }
+
+  // One-time routines with due date
+  if (routine.dueDate && !routine.recurringSpec) {
+    const dueDate = new Date(routine.dueDate);
+    return dueDate <= currentTime;
+  }
+
+  // Recurring routines
+  if (routine.recurringSpec) {
+    const { frequency, dayOfWeek, dayOfMonth } = routine.recurringSpec;
+
+    // If never completed, it's due
+    if (!routine.lastCompleted) {
+      return true;
+    }
+
+    const lastCompleted = new Date(routine.lastCompleted);
+    const daysSinceCompleted = Math.floor(
+      (currentTime.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    switch (frequency) {
+      case 'daily':
+        return daysSinceCompleted >= 1;
+
+      case 'weekly':
+        if (dayOfWeek === undefined) return false;
+        return daysSinceCompleted >= 7 && currentTime.getDay() === dayOfWeek;
+
+      case 'monthly':
+        if (dayOfMonth === undefined) return false;
+        return daysSinceCompleted >= 28 && currentTime.getDate() === dayOfMonth;
+
+      default:
+        return false;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculate days until a routine is next due (for recurring routines)
+ * Returns null if cannot be determined
+ */
+export function getDaysUntilNextDue(routine: AgentRoutine, now?: Date): number | null {
+  const currentTime = now || new Date();
+
+  // Only for recurring routines
+  if (!routine.recurringSpec) {
+    return null;
+  }
+
+  const { frequency, dayOfWeek, dayOfMonth } = routine.recurringSpec;
+
+  // If never completed, it's due now (return 0)
+  if (!routine.lastCompleted) {
+    return 0;
+  }
+
+  const lastCompleted = new Date(routine.lastCompleted);
+  const daysSinceCompleted = Math.floor(
+    (currentTime.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  switch (frequency) {
+    case 'daily': {
+      // Next due date is tomorrow if already completed today
+      const daysUntil = 1 - daysSinceCompleted;
+      return daysUntil < 0 ? 0 : daysUntil;
+    }
+
+    case 'weekly': {
+      if (dayOfWeek === undefined) return null;
+
+      const currentDay = currentTime.getDay();
+      const targetDay = dayOfWeek;
+
+      // Calculate days until target day of week
+      let daysUntilTargetDay = targetDay - currentDay;
+      if (daysUntilTargetDay < 0) {
+        daysUntilTargetDay += 7;
+      }
+      if (daysUntilTargetDay === 0) {
+        daysUntilTargetDay = 7; // Next week if today is the target day
+      }
+
+      // Check if we've already completed it this week
+      if (daysSinceCompleted < 7 && currentDay >= targetDay) {
+        // Completed this week, so next occurrence is next week
+        return daysUntilTargetDay;
+      }
+
+      return daysUntilTargetDay;
+    }
+
+    case 'monthly': {
+      if (dayOfMonth === undefined) return null;
+
+      const currentDay = currentTime.getDate();
+      const targetDay = dayOfMonth;
+
+      // Days until target day this month
+      let daysUntil = targetDay - currentDay;
+
+      // If target day has passed this month, or we've already completed it this month
+      if (daysUntil < 0 || (daysUntil === 0 && daysSinceCompleted < 28)) {
+        // Calculate days until next month's target day
+        const daysInCurrentMonth = new Date(
+          currentTime.getFullYear(),
+          currentTime.getMonth() + 1,
+          0
+        ).getDate();
+        const daysLeftInMonth = daysInCurrentMonth - currentDay;
+        daysUntil = daysLeftInMonth + targetDay;
+      }
+
+      return daysUntil;
+    }
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Compute due info for a routine
+ */
+function computeRoutineDueInfo(
+  routine: AgentRoutine,
+  now: Date
+): RoutineListItem['dueInfo'] | undefined {
+  const isRecurring = !!routine.recurringSpec;
+
+  if (isRecurring && routine.recurringSpec) {
+    const isDue = isRoutineDue(routine, now);
+
+    let type: RoutineDueType = 'scheduled';
+    if (isDue) {
+      type = 'due_now';
+    } else {
+      const daysUntilNext = getDaysUntilNextDue(routine, now);
+      if (daysUntilNext !== null && daysUntilNext <= 7) {
+        type = 'upcoming';
+      }
+    }
+
+    return {
+      type,
+      recurringSchedule: formatRecurringSchedule(routine.recurringSpec)
+    };
+  } else if (routine.dueDate) {
+    const dueDate = new Date(routine.dueDate);
+    const diffDays = Math.ceil(
+      (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    let type: RoutineDueType;
+    if (diffDays < 0) {
+      type = 'overdue';
+    } else if (diffDays === 0) {
+      type = 'due_now';
+    } else if (diffDays <= 7) {
+      type = 'upcoming';
+    } else {
+      type = 'scheduled';
+    }
+
+    return {
+      type,
+      dueDate: routine.dueDate
+    };
+  }
+
+  return undefined;
+}
+
+/**
+ * Get routines as list items with computed due info
+ */
+export function getRoutineListItems(input?: ListRoutinesInput): RoutineListItem[] {
+  const routines = currentDoc.agentRoutines || {};
+  const now = new Date();
+
+  let result = Object.values(routines);
+
+  // Filter by status
+  if (input?.status && input.status !== 'all') {
+    result = result.filter((r) => r.status === input.status);
+  } else if (!input?.includeArchived) {
+    result = result.filter((r) => r.status !== 'archived');
+  }
+
+  // Filter by type
+  if (input?.type && input.type !== 'all') {
+    result = result.filter((r) => r.type === input.type);
+  }
+
+  // Filter recurring only
+  if (input?.recurringOnly) {
+    result = result.filter((r) => !!r.recurringSpec);
+  }
+
+  // Convert to list items and compute due info
+  let listItems: RoutineListItem[] = result.map((r) => {
+    const dueInfo = computeRoutineDueInfo(r, now);
+    return {
+      id: r.id,
+      name: r.name,
+      purpose: r.purpose,
+      status: r.status,
+      type: r.type,
+      isRecurring: !!r.recurringSpec,
+      dueInfo,
+      lastCompleted: r.lastCompleted
+    };
+  });
+
+  // Filter by due soon
+  if (input?.dueSoon) {
+    listItems = listItems.filter(
+      (r) =>
+        r.dueInfo &&
+        (r.dueInfo.type === 'due_now' ||
+          r.dueInfo.type === 'upcoming' ||
+          r.dueInfo.type === 'overdue')
+    );
+  }
+
+  // Filter overdue only
+  if (input?.overdueOnly) {
+    listItems = listItems.filter((r) => r.dueInfo?.type === 'overdue');
+  }
+
+  // Sort
+  const sortBy = input?.sortBy || 'dueDate';
+  const sortOrder = input?.sortOrder || 'asc';
+  const multiplier = sortOrder === 'asc' ? 1 : -1;
+
+  listItems.sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return multiplier * a.name.localeCompare(b.name);
+
+      case 'created': {
+        const routineA = routines[a.id];
+        const routineB = routines[b.id];
+        return (
+          multiplier *
+          (new Date(routineA?.created || 0).getTime() -
+            new Date(routineB?.created || 0).getTime())
+        );
+      }
+
+      case 'lastCompleted': {
+        const timeA = a.lastCompleted ? new Date(a.lastCompleted).getTime() : 0;
+        const timeB = b.lastCompleted ? new Date(b.lastCompleted).getTime() : 0;
+        return multiplier * (timeA - timeB);
+      }
+
+      case 'dueDate':
+      default: {
+        // Priority: overdue > due_now > upcoming > scheduled > no due info
+        const priorityOrder: Record<RoutineDueType, number> = {
+          overdue: 1,
+          due_now: 2,
+          upcoming: 3,
+          scheduled: 4
+        };
+        const priorityA = a.dueInfo ? priorityOrder[a.dueInfo.type] : 5;
+        const priorityB = b.dueInfo ? priorityOrder[b.dueInfo.type] : 5;
+        if (priorityA !== priorityB) {
+          return multiplier * (priorityA - priorityB);
+        }
+        // Secondary sort by name
+        return a.name.localeCompare(b.name);
+      }
+    }
+  });
+
+  return listItems;
+}
+
+/**
+ * Get routines that are currently due
+ */
+export function getRoutinesDueNow(): RoutineListItem[] {
+  return getRoutineListItems({ status: 'active' }).filter(
+    (r) => r.dueInfo?.type === 'due_now' || r.dueInfo?.type === 'overdue'
+  );
+}
+
+/**
+ * Get upcoming routines (due in next N days)
+ */
+export function getUpcomingRoutines(_daysAhead: number = 7): RoutineListItem[] {
+  // TODO: Use daysAhead to filter routines by how many days ahead they're due
+  return getRoutineListItems({ status: 'active' }).filter(
+    (r) =>
+      r.dueInfo?.type === 'upcoming' ||
+      r.dueInfo?.type === 'due_now' ||
+      r.dueInfo?.type === 'overdue'
+  );
+}
+
+/**
+ * Get backlog routines
+ */
+export function getBacklogRoutines(): RoutineListItem[] {
+  return getRoutineListItems({ type: 'backlog', status: 'active' });
+}
+
+/**
+ * Create a new routine
+ * @returns The new routine's ID
+ */
+export function createRoutine(input: CreateRoutineInput): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  // Validate name length
+  if (input.name.length < 1 || input.name.length > 20) {
+    throw new Error('Routine name must be between 1 and 20 characters');
+  }
+
+  // Validate purpose length
+  if (input.purpose.length < 1 || input.purpose.length > 100) {
+    throw new Error('Routine purpose must be between 1 and 100 characters');
+  }
+
+  // Check for duplicate name
+  const existing = getRoutineByName(input.name);
+  if (existing && existing.status !== 'archived') {
+    throw new Error(`A routine named '${input.name}' already exists`);
+  }
+
+  const id = generateRoutineId();
+  const now = nowISO();
+
+  // Build supplementary materials if provided
+  const materials: SupplementaryMaterial[] = (input.supplementaryMaterials || []).map(
+    (m, index) => ({
+      id: generateRoutineMaterialId(),
+      materialType: m.type,
+      content: m.content,
+      noteId: m.noteId,
+      metadata: m.metadata as SupplementaryMaterial['metadata'],
+      position: index,
+      createdAt: now
+    })
+  );
+
+  docHandle.change((doc) => {
+    if (!doc.agentRoutines) {
+      doc.agentRoutines = {};
+    }
+
+    doc.agentRoutines[id] = {
+      id,
+      name: input.name,
+      purpose: input.purpose,
+      description: input.description,
+      status: input.status || 'active',
+      type: input.type || 'routine',
+      recurringSpec: input.recurringSpec,
+      dueDate: input.dueDate,
+      created: now,
+      updated: now,
+      supplementaryMaterials: materials.length > 0 ? materials : undefined,
+      completionHistory: []
+    };
+  });
+
+  return id;
+}
+
+/**
+ * Update an existing routine
+ */
+export function updateRoutine(input: UpdateRoutineInput): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const routine = getRoutine(input.routineId);
+  if (!routine) {
+    throw new Error(`Routine not found: ${input.routineId}`);
+  }
+
+  // Validate name if provided
+  if (input.name !== undefined) {
+    if (input.name.length < 1 || input.name.length > 20) {
+      throw new Error('Routine name must be between 1 and 20 characters');
+    }
+    // Check for duplicate name (excluding self)
+    const existing = getRoutineByName(input.name);
+    if (existing && existing.id !== input.routineId && existing.status !== 'archived') {
+      throw new Error(`A routine named '${input.name}' already exists`);
+    }
+  }
+
+  // Validate purpose if provided
+  if (input.purpose !== undefined) {
+    if (input.purpose.length < 1 || input.purpose.length > 100) {
+      throw new Error('Routine purpose must be between 1 and 100 characters');
+    }
+  }
+
+  docHandle.change((doc) => {
+    const r = doc.agentRoutines?.[input.routineId];
+    if (!r) return;
+
+    if (input.name !== undefined) r.name = input.name;
+    if (input.purpose !== undefined) r.purpose = input.purpose;
+    if (input.description !== undefined) r.description = input.description;
+    if (input.status !== undefined) r.status = input.status;
+    if (input.type !== undefined) r.type = input.type;
+
+    // Handle recurringSpec - null means remove, undefined means don't change
+    if (input.recurringSpec === null) {
+      r.recurringSpec = undefined;
+    } else if (input.recurringSpec !== undefined) {
+      r.recurringSpec = input.recurringSpec;
+    }
+
+    // Handle dueDate - null means remove, undefined means don't change
+    if (input.dueDate === null) {
+      r.dueDate = undefined;
+    } else if (input.dueDate !== undefined) {
+      r.dueDate = input.dueDate;
+    }
+
+    r.updated = nowISO();
+  });
+}
+
+/**
+ * Delete a routine (soft delete - set to archived)
+ */
+export function deleteRoutine(routineId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const routine = getRoutine(routineId);
+  if (!routine) {
+    throw new Error(`Routine not found: ${routineId}`);
+  }
+
+  docHandle.change((doc) => {
+    const r = doc.agentRoutines?.[routineId];
+    if (r) {
+      r.status = 'archived';
+      r.updated = nowISO();
+    }
+  });
+}
+
+/**
+ * Complete a routine
+ * @returns The completion ID
+ */
+export function completeRoutine(input: CompleteRoutineInput): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const routine = getRoutine(input.routineId);
+  if (!routine) {
+    throw new Error(`Routine not found: ${input.routineId}`);
+  }
+
+  const completionId = generateRoutineCompletionId();
+  const now = nowISO();
+
+  docHandle.change((doc) => {
+    const r = doc.agentRoutines?.[input.routineId];
+    if (!r) return;
+
+    // Add completion record
+    if (!r.completionHistory) {
+      r.completionHistory = [];
+    }
+
+    r.completionHistory.push({
+      id: completionId,
+      completedAt: now,
+      conversationId: input.conversationId,
+      notes: input.notes,
+      outputNoteId: input.outputNoteId,
+      metadata: input.metadata
+    });
+
+    // Update last completed
+    r.lastCompleted = now;
+    r.updated = now;
+
+    // For one-time routines, mark as completed
+    // For recurring routines, keep as active
+    if (!r.recurringSpec) {
+      r.status = 'completed';
+    }
+  });
+
+  return completionId;
+}
+
+/**
+ * Add supplementary material to a routine
+ * @returns The material ID
+ */
+export function addRoutineMaterial(
+  routineId: string,
+  material: {
+    type: 'text' | 'code' | 'note_reference';
+    content?: string;
+    noteId?: string;
+    metadata?: Record<string, unknown>;
+    position?: number;
+  }
+): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const routine = getRoutine(routineId);
+  if (!routine) {
+    throw new Error(`Routine not found: ${routineId}`);
+  }
+
+  const materialId = generateRoutineMaterialId();
+  const now = nowISO();
+
+  // Determine position
+  const currentMaterials = routine.supplementaryMaterials || [];
+  const position = material.position ?? currentMaterials.length;
+
+  docHandle.change((doc) => {
+    const r = doc.agentRoutines?.[routineId];
+    if (!r) return;
+
+    if (!r.supplementaryMaterials) {
+      r.supplementaryMaterials = [];
+    }
+
+    r.supplementaryMaterials.push({
+      id: materialId,
+      materialType: material.type,
+      content: material.content,
+      noteId: material.noteId,
+      metadata: material.metadata as SupplementaryMaterial['metadata'],
+      position,
+      createdAt: now
+    });
+
+    r.updated = now;
+  });
+
+  return materialId;
+}
+
+/**
+ * Remove supplementary material from a routine
+ */
+export function removeRoutineMaterial(routineId: string, materialId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const routine = getRoutine(routineId);
+  if (!routine) {
+    throw new Error(`Routine not found: ${routineId}`);
+  }
+
+  docHandle.change((doc) => {
+    const r = doc.agentRoutines?.[routineId];
+    if (!r || !r.supplementaryMaterials) return;
+
+    const index = r.supplementaryMaterials.findIndex((m) => m.id === materialId);
+    if (index !== -1) {
+      r.supplementaryMaterials.splice(index, 1);
+      r.updated = nowISO();
+    }
+  });
+}
+
+/**
+ * Get routine context for AI system prompt injection
+ */
+export function getRoutineContextForPrompt(): string {
+  const dueNow = getRoutinesDueNow();
+  const upcoming = getUpcomingRoutines(7).filter((r) => r.dueInfo?.type === 'upcoming');
+  const backlog = getBacklogRoutines();
+  const active = getRoutineListItems({ status: 'active', type: 'routine' });
+
+  let context = '## Available Routines\n\n';
+
+  // Due now - highest priority
+  if (dueNow.length > 0) {
+    context += '### Due Now\n';
+    for (const routine of dueNow) {
+      const schedule = routine.dueInfo?.recurringSchedule || 'one-time routine';
+      context += `- **${routine.name}**: ${routine.purpose} (${schedule})\n`;
+    }
+    context += '\n';
+  }
+
+  // Upcoming
+  if (upcoming.length > 0) {
+    context += '### Upcoming (Next 7 Days)\n';
+    for (const routine of upcoming) {
+      const schedule = routine.dueInfo?.recurringSchedule || 'one-time routine';
+      context += `- **${routine.name}**: ${routine.purpose} (${schedule})\n`;
+    }
+    context += '\n';
+  }
+
+  // Other active (on-demand)
+  const onDemand = active.filter(
+    (r) => !dueNow.some((d) => d.id === r.id) && !upcoming.some((u) => u.id === r.id)
+  );
+  if (onDemand.length > 0) {
+    context += '### On-Demand Routines\n';
+    for (const routine of onDemand) {
+      const schedule = routine.dueInfo?.recurringSchedule;
+      context += `- **${routine.name}**: ${routine.purpose}${schedule ? ` (${schedule})` : ''}\n`;
+    }
+    context += '\n';
+  }
+
+  // Backlog (if any)
+  if (backlog.length > 0) {
+    context += '### Backlog Items\n';
+    for (const routine of backlog.slice(0, 5)) {
+      context += `- **${routine.name}**: ${routine.purpose}\n`;
+    }
+    if (backlog.length > 5) {
+      context += `- ... and ${backlog.length - 5} more\n`;
+    }
+    context += '\n';
+  }
+
+  if (
+    dueNow.length > 0 ||
+    upcoming.length > 0 ||
+    onDemand.length > 0 ||
+    backlog.length > 0
+  ) {
+    context +=
+      '\n*Hint: Use `get_routine` to load full details including instructions and supplementary materials, and `complete_routine` when finished.*\n';
+  } else {
+    context = '## No Routines Defined\n\nNo active routines are currently defined.\n';
+  }
+
+  return context;
 }

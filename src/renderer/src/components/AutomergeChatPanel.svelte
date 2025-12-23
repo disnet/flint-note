@@ -28,9 +28,14 @@
     onClose: () => void;
     /** Navigate to settings callback */
     onGoToSettings: () => void;
+    /** Optional initial message to send when panel opens (for routine execution, etc.) */
+    initialMessage?: string;
+    /** Callback when initial message has been consumed */
+    onInitialMessageConsumed?: () => void;
   }
 
-  let { isOpen, onClose, onGoToSettings }: Props = $props();
+  let { isOpen, onClose, onGoToSettings, initialMessage, onInitialMessageConsumed }: Props =
+    $props();
 
   // Get chat server port from main process
   let serverPort = $state<number | null>(null);
@@ -80,6 +85,18 @@
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
   const conversationId = $derived(chatService?.conversationId ?? null);
   const activeConversation = $derived(getActiveConversation());
+
+  // Handle initial message when panel opens (for routine execution, etc.)
+  $effect(() => {
+    if (isOpen && initialMessage && chatService && apiKeyConfigured && !isLoading) {
+      // Start a new conversation and send the initial message
+      chatService.startNewConversation();
+      chatService.sendMessage(initialMessage);
+
+      // Notify parent that we've consumed the initial message
+      onInitialMessageConsumed?.();
+    }
+  });
 
   // Get conversation title
   const conversationTitle = $derived(activeConversation?.title ?? 'AI Assistant');

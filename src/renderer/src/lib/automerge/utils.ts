@@ -71,6 +71,30 @@ export function generateMessageId(): string {
 }
 
 /**
+ * Generate a routine ID
+ * Format: "w-xxxxxxxx" (preserved from legacy workflow prefix)
+ */
+export function generateRoutineId(): string {
+  return generateId('w');
+}
+
+/**
+ * Generate a routine completion ID
+ * Format: "wc-xxxxxxxx"
+ */
+export function generateRoutineCompletionId(): string {
+  return generateId('wc');
+}
+
+/**
+ * Generate a routine material ID
+ * Format: "wm-xxxxxxxx"
+ */
+export function generateRoutineMaterialId(): string {
+  return generateId('wm');
+}
+
+/**
  * Get current ISO timestamp
  */
 export function nowISO(): string {

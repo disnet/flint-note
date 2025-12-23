@@ -203,10 +203,8 @@ async function getTableColumns(
     const columns = await conn.all<{ cid: number; name: string; type: string }>(
       `PRAGMA table_info(${tableName})`
     );
-    console.log(`[Migration] PRAGMA table_info(${tableName}) returned:`, columns);
     return new Set(columns.map((c) => c.name));
-  } catch (error) {
-    console.error(`[Migration] Failed to get columns for ${tableName}:`, error);
+  } catch {
     return new Set();
   }
 }
@@ -235,10 +233,6 @@ export async function extractVaultData(
 
     // Check which columns exist in note_type_descriptions (for backward compatibility)
     const noteTypeColumns = await getTableColumns(conn, 'note_type_descriptions');
-    console.log(
-      '[Migration] note_type_descriptions columns:',
-      Array.from(noteTypeColumns)
-    );
 
     // Build dynamic column list - only include columns that exist
     // Core columns that should always exist
@@ -266,8 +260,6 @@ export async function extractVaultData(
         : // Fallback if PRAGMA failed - try with minimal columns
           coreColumns;
 
-    console.log('[Migration] Using columns:', availableColumns);
-
     // Extract note types with available columns
     const noteTypes = await conn.all<LegacyNoteTypeRow>(
       `SELECT ${availableColumns.join(', ')}
@@ -275,8 +267,6 @@ export async function extractVaultData(
        WHERE vault_id = ?`,
       [vaultId]
     );
-
-    console.log('[Migration] Extracted note types:', noteTypes.length);
 
     onProgress?.('Extracting notes...', 1, 7);
 
@@ -308,12 +298,6 @@ export async function extractVaultData(
     // Note: ui_state may use a different vault_id format (just folder name vs full path)
     // Try both the full vault_id and just the basename
     const vaultBasename = vaultId.split('/').pop() || vaultId;
-    console.log(
-      '[Migration] Looking for ui_state with vault_id:',
-      vaultId,
-      'or',
-      vaultBasename
-    );
 
     const uiState = await conn.all<LegacyUIStateRow>(
       `SELECT id, vault_id, state_key, state_value, schema_version, updated_at
@@ -321,7 +305,6 @@ export async function extractVaultData(
        WHERE vault_id = ? OR vault_id = ?`,
       [vaultId, vaultBasename]
     );
-    console.log('[Migration] Matched ui_state rows:', uiState.length);
 
     onProgress?.('Extracting review items...', 4, 7);
 
@@ -340,8 +323,15 @@ export async function extractVaultData(
     const workflowMaterials = new Map<string, LegacySupplementaryMaterialRow[]>();
     const workflowCompletions = new Map<string, LegacyWorkflowCompletionRow[]>();
 
-    if (await hasWorkflowsTable(conn)) {
+    const hasWorkflows = await hasWorkflowsTable(conn);
+
+    if (hasWorkflows) {
       onProgress?.('Extracting workflows...', 5, 7);
+
+      // Check what vault_ids exist in the workflows table
+      const vaultIdsInWorkflows = await conn.all<{ vault_id: string }>(
+        'SELECT DISTINCT vault_id FROM workflows'
+      );
 
       // Extract workflows
       workflows = await conn.all<LegacyWorkflowRow>(
@@ -352,44 +342,57 @@ export async function extractVaultData(
         [vaultId]
       );
 
-      onProgress?.('Extracting workflow materials...', 6, 7);
-
-      // Extract supplementary materials for all workflows
-      const allMaterials = await conn.all<LegacySupplementaryMaterialRow>(
-        `SELECT wsm.id, wsm.workflow_id, wsm.material_type, wsm.content,
-                wsm.note_id, wsm.metadata, wsm.position, wsm.created_at
-         FROM workflow_supplementary_materials wsm
-         INNER JOIN workflows w ON w.id = wsm.workflow_id
-         WHERE w.vault_id = ?
-         ORDER BY wsm.workflow_id, wsm.position`,
-        [vaultId]
-      );
-
-      // Group materials by workflow_id
-      for (const row of allMaterials) {
-        const existing = workflowMaterials.get(row.workflow_id) || [];
-        existing.push(row);
-        workflowMaterials.set(row.workflow_id, existing);
+      // If no workflows found, try without vault_id filter as fallback
+      if (workflows.length === 0 && vaultIdsInWorkflows.length > 0) {
+        workflows = await conn.all<LegacyWorkflowRow>(
+          `SELECT id, name, purpose, description, status, type, vault_id,
+                  recurring_spec, due_date, last_completed, created_at, updated_at
+           FROM workflows`
+        );
       }
 
-      // Extract completion history (limit to 20 most recent per workflow)
-      const allCompletions = await conn.all<LegacyWorkflowCompletionRow>(
-        `SELECT wch.id, wch.workflow_id, wch.completed_at, wch.conversation_id,
-                wch.notes, wch.output_note_id, wch.metadata
-         FROM workflow_completion_history wch
-         INNER JOIN workflows w ON w.id = wch.workflow_id
-         WHERE w.vault_id = ?
-         ORDER BY wch.workflow_id, wch.completed_at DESC`,
-        [vaultId]
-      );
+      onProgress?.('Extracting workflow materials...', 6, 7);
 
-      // Group completions by workflow_id (limit to 20 most recent per workflow)
-      for (const row of allCompletions) {
-        const existing = workflowCompletions.get(row.workflow_id) || [];
-        if (existing.length < 20) {
+      // Get workflow IDs we extracted
+      const workflowIds = workflows.map((w) => w.id);
+
+      if (workflowIds.length > 0) {
+        // Extract supplementary materials for extracted workflows
+        const placeholders = workflowIds.map(() => '?').join(',');
+        const allMaterials = await conn.all<LegacySupplementaryMaterialRow>(
+          `SELECT id, workflow_id, material_type, content,
+                  note_id, metadata, position, created_at
+           FROM workflow_supplementary_materials
+           WHERE workflow_id IN (${placeholders})
+           ORDER BY workflow_id, position`,
+          workflowIds
+        );
+
+        // Group materials by workflow_id
+        for (const row of allMaterials) {
+          const existing = workflowMaterials.get(row.workflow_id) || [];
           existing.push(row);
+          workflowMaterials.set(row.workflow_id, existing);
         }
-        workflowCompletions.set(row.workflow_id, existing);
+
+        // Extract completion history (limit to 20 most recent per workflow)
+        const allCompletions = await conn.all<LegacyWorkflowCompletionRow>(
+          `SELECT id, workflow_id, completed_at, conversation_id,
+                  notes, output_note_id, metadata
+           FROM workflow_completion_history
+           WHERE workflow_id IN (${placeholders})
+           ORDER BY workflow_id, completed_at DESC`,
+          workflowIds
+        );
+
+        // Group completions by workflow_id (limit to 20 most recent per workflow)
+        for (const row of allCompletions) {
+          const existing = workflowCompletions.get(row.workflow_id) || [];
+          if (existing.length < 20) {
+            existing.push(row);
+          }
+          workflowCompletions.set(row.workflow_id, existing);
+        }
       }
     }
 

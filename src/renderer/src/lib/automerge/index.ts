@@ -50,7 +50,21 @@ export type {
   ReviewConfig,
   ReviewSessionResult,
   ReviewSession,
-  ReviewState
+  ReviewState,
+  // Routine types
+  AgentRoutine,
+  AgentRoutineStatus,
+  AgentRoutineType,
+  RecurringSpec,
+  SupplementaryMaterial,
+  RoutineCompletion,
+  RoutineDueType,
+  RoutineListItem,
+  CreateRoutineInput,
+  UpdateRoutineInput,
+  CompleteRoutineInput,
+  ListRoutinesInput,
+  GetRoutineInput
 } from './types';
 
 // State management
@@ -251,7 +265,31 @@ export {
   unmarkNoteAsProcessed,
   markAllNotesAsProcessed,
   unmarkAllNotesAsProcessed,
-  isNoteProcessed
+  isNoteProcessed,
+
+  // Routine getters
+  getRoutines,
+  getAllRoutines,
+  getRoutine,
+  getRoutineByName,
+  getRoutineListItems,
+  getRoutinesDueNow,
+  getUpcomingRoutines,
+  getBacklogRoutines,
+
+  // Routine mutations
+  createRoutine,
+  updateRoutine,
+  deleteRoutine,
+  completeRoutine,
+  addRoutineMaterial,
+  removeRoutineMaterial,
+
+  // Routine scheduling helpers
+  isRoutineDue,
+  getDaysUntilNextDue,
+  formatRecurringSchedule,
+  getRoutineContextForPrompt
 } from './state.svelte';
 
 // OPFS storage for EPUB files
@@ -310,6 +348,9 @@ export {
   generateVaultId,
   generateConversationId,
   generateMessageId,
+  generateRoutineId,
+  generateRoutineCompletionId,
+  generateRoutineMaterialId,
   nowISO
 } from './utils';
 
@@ -342,10 +383,15 @@ export type {
 export { automergeShelfStore } from './shelf-state.svelte';
 export type { ShelfItem } from './shelf-state.svelte';
 
-// AI tools for notes, EPUBs, and PDFs
+// AI tools for notes, EPUBs, PDFs, and routines
 export { createNoteTools } from './note-tools.svelte';
 export { createEpubTools } from './epub-tools.svelte';
 export { createPdfTools } from './pdf-tools.svelte';
+export { createRoutineTools } from './routine-tools.svelte';
+
+// Routine scheduler
+export { getRoutineScheduler, resetRoutineScheduler } from './routine-scheduler.svelte';
+export type { SchedulerConfig as RoutineSchedulerConfig } from './routine-scheduler.svelte';
 
 // Deck module (filtered note lists)
 export * from './deck';

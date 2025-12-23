@@ -29,6 +29,7 @@
       | 'conversations'
       | 'review'
       | 'inbox'
+      | 'routines'
       | null;
     searchQuery: string;
     searchResults: SearchResult[];
@@ -45,6 +46,7 @@
         | 'conversations'
         | 'review'
         | 'inbox'
+        | 'routines'
         | null
     ) => void;
     onCreateNote?: () => void;

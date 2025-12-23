@@ -1,12 +1,13 @@
 <script lang="ts">
   /**
    * System navigation views for the Automerge sidebar
-   * Includes Notes, Daily, Inbox, Review, Note Types, Conversations, and Settings
+   * Includes Notes, Daily, Inbox, Review, Routines, Note Types, Conversations, and Settings
    */
   import {
     getReviewStats,
     isSessionAvailable,
-    getUnprocessedCount
+    getUnprocessedCount,
+    getRoutinesDueNow
   } from '../lib/automerge';
 
   interface Props {
@@ -19,6 +20,7 @@
       | 'conversations'
       | 'review'
       | 'inbox'
+      | 'routines'
       | null;
     onSystemViewSelect: (
       view:
@@ -29,6 +31,7 @@
         | 'conversations'
         | 'review'
         | 'inbox'
+        | 'routines'
         | null
     ) => void;
   }
@@ -43,8 +46,19 @@
   // Get inbox unprocessed count for badge
   const inboxCount = $derived(getUnprocessedCount());
 
+  // Get routines due count for badge
+  const routinesDueCount = $derived(getRoutinesDueNow().length);
+
   function setActiveView(
-    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | 'inbox'
+    view:
+      | 'notes'
+      | 'settings'
+      | 'types'
+      | 'daily'
+      | 'conversations'
+      | 'review'
+      | 'inbox'
+      | 'routines'
   ): void {
     onSystemViewSelect(view);
   }
@@ -135,6 +149,29 @@
       Review
       {#if reviewDueCount > 0}
         <span class="badge">{reviewDueCount}</span>
+      {/if}
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'routines'}
+      onclick={() => setActiveView('routines')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+        />
+      </svg>
+      Routines
+      {#if routinesDueCount > 0}
+        <span class="badge">{routinesDueCount}</span>
       {/if}
     </button>
 

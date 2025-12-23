@@ -17,6 +17,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
 import { createEpubTools } from './epub-tools.svelte';
 import { createPdfTools } from './pdf-tools.svelte';
+import { createRoutineTools } from './routine-tools.svelte';
 import {
   createConversation,
   addMessageToConversation,
@@ -80,6 +81,18 @@ When users ask about their PDF documents:
 - Use get_pdf_chunk to read text from specific page ranges
 - Use search_pdf_text to find specific text within a document
 - PDF documents are stored as notes with type "type-pdf" - you can find them using list_notes or search_notes
+
+When working with routines (recurring tasks with instructions):
+- Use list_routines to see available routines, optionally filtering by status or type
+- Use get_routine to read the full details of a routine including its instructions and materials
+- Use create_routine to make new routines with optional recurring schedules
+- Use update_routine to modify existing routines
+- Use complete_routine to mark a routine as completed (records completion history)
+- Use add_routine_material to attach supplementary materials (text, code, note references)
+- Use remove_routine_material to remove materials from a routine
+- Use delete_routine to archive a routine
+- Routines can be "routine" type (recurring scheduled tasks) or "backlog" type (one-off tasks for later)
+- When executing a routine, read its full details first to understand the instructions
 
 When referencing notes in your responses, use wikilink format so users can click to open them:
 - [[n-xxxxxxxx]] - links to a note by ID
@@ -261,11 +274,12 @@ export class ChatService {
           }
         });
 
-      // Create tools (note tools + EPUB tools + PDF tools)
+      // Create tools (note tools + EPUB tools + PDF tools + routine tools)
       const tools = {
         ...createNoteTools(),
         ...createEpubTools(),
-        ...createPdfTools()
+        ...createPdfTools(),
+        ...createRoutineTools()
       };
 
       // Create OpenRouter provider pointing to our proxy

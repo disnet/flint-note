@@ -56,6 +56,7 @@ export type SystemView =
   | 'conversations'
   | 'review'
   | 'inbox'
+  | 'routines'
   | null;
 
 /**
@@ -346,6 +347,101 @@ export interface AgentRoutine {
   supplementaryMaterials?: SupplementaryMaterial[];
   /** Embedded completion history (limited during migration) */
   completionHistory?: RoutineCompletion[];
+}
+
+/**
+ * Due status type for routine list items
+ */
+export type RoutineDueType = 'overdue' | 'due_now' | 'upcoming' | 'scheduled';
+
+/**
+ * Lightweight routine item for list views with computed due info
+ */
+export interface RoutineListItem {
+  id: string;
+  name: string;
+  purpose: string;
+  status: AgentRoutineStatus;
+  type: AgentRoutineType;
+  isRecurring: boolean;
+  dueInfo?: {
+    type: RoutineDueType;
+    dueDate?: string;
+    recurringSchedule?: string;
+  };
+  lastCompleted?: string;
+}
+
+/**
+ * Input for creating a routine
+ */
+export interface CreateRoutineInput {
+  name: string;
+  purpose: string;
+  description: string;
+  status?: AgentRoutineStatus;
+  type?: AgentRoutineType;
+  recurringSpec?: RecurringSpec;
+  dueDate?: string;
+  supplementaryMaterials?: Array<{
+    type: 'text' | 'code' | 'note_reference';
+    content?: string;
+    noteId?: string;
+    metadata?: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Input for updating a routine
+ */
+export interface UpdateRoutineInput {
+  routineId: string;
+  name?: string;
+  purpose?: string;
+  description?: string;
+  status?: AgentRoutineStatus;
+  type?: AgentRoutineType;
+  recurringSpec?: RecurringSpec | null;
+  dueDate?: string | null;
+}
+
+/**
+ * Input for completing a routine
+ */
+export interface CompleteRoutineInput {
+  routineId: string;
+  conversationId?: string;
+  notes?: string;
+  outputNoteId?: string;
+  metadata?: {
+    durationMs?: number;
+    toolCallsCount?: number;
+  };
+}
+
+/**
+ * Input for listing routines
+ */
+export interface ListRoutinesInput {
+  status?: AgentRoutineStatus | 'all';
+  type?: AgentRoutineType | 'all';
+  dueSoon?: boolean;
+  recurringOnly?: boolean;
+  overdueOnly?: boolean;
+  includeArchived?: boolean;
+  sortBy?: 'dueDate' | 'created' | 'name' | 'lastCompleted';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Input for getting a routine
+ */
+export interface GetRoutineInput {
+  routineId?: string;
+  routineName?: string;
+  includeSupplementaryMaterials?: boolean;
+  includeCompletionHistory?: boolean;
+  completionHistoryLimit?: number;
 }
 
 /**
