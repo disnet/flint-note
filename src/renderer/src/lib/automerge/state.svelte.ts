@@ -2660,3 +2660,566 @@ export function createDeckNote(title: string): string {
 
   return id;
 }
+
+// --- Review Mode ---
+
+import type {
+  ReviewRating,
+  ReviewConfig,
+  ReviewData,
+  ReviewState,
+  ReviewSession,
+  ReviewSessionResult,
+  ReviewHistoryEntry
+} from './types';
+import {
+  DEFAULT_REVIEW_CONFIG,
+  calculateNextSession,
+  createReviewHistoryEntry,
+  isNewSessionAvailable as checkSessionAvailable,
+  getNextSessionAvailableAt,
+  generateSessionId
+} from './review-scheduler';
+import type { ReviewStats } from './review-scheduler';
+
+// Re-export for convenience
+export type { ReviewStats };
+
+/**
+ * Get the current review state, with defaults if not initialized
+ */
+export function getReviewState(): ReviewState {
+  return (
+    currentDoc.reviewState ?? {
+      currentSessionNumber: 1,
+      lastSessionDate: null,
+      config: DEFAULT_REVIEW_CONFIG
+    }
+  );
+}
+
+/**
+ * Ensure reviewState exists in the document
+ */
+function ensureReviewState(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.reviewState) {
+    docHandle.change((d) => {
+      if (!d.reviewState) {
+        d.reviewState = {
+          currentSessionNumber: 1,
+          lastSessionDate: null,
+          config: { ...DEFAULT_REVIEW_CONFIG }
+        };
+      }
+    });
+  }
+}
+
+/**
+ * Get the review configuration
+ */
+export function getReviewConfig(): ReviewConfig {
+  return getReviewState().config ?? DEFAULT_REVIEW_CONFIG;
+}
+
+/**
+ * Update the review configuration
+ */
+export function updateReviewConfig(config: Partial<ReviewConfig>): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  ensureReviewState();
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState) {
+      doc.reviewState = {
+        currentSessionNumber: 1,
+        lastSessionDate: null,
+        config: { ...DEFAULT_REVIEW_CONFIG }
+      };
+    }
+    doc.reviewState.config = { ...doc.reviewState.config, ...config };
+  });
+}
+
+/**
+ * Get the current session number
+ */
+export function getCurrentSessionNumber(): number {
+  return getReviewState().currentSessionNumber;
+}
+
+/**
+ * Increment the session number (called after completing a session)
+ */
+export function incrementSessionNumber(): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  ensureReviewState();
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState) {
+      doc.reviewState = {
+        currentSessionNumber: 1,
+        lastSessionDate: null,
+        config: { ...DEFAULT_REVIEW_CONFIG }
+      };
+    }
+    doc.reviewState.currentSessionNumber++;
+    doc.reviewState.lastSessionDate = new Date().toISOString().split('T')[0];
+  });
+}
+
+/**
+ * Check if a new session is available (1 AM reset logic)
+ */
+export function isSessionAvailable(): boolean {
+  const state = getReviewState();
+  return checkSessionAvailable(state.lastSessionDate);
+}
+
+/**
+ * Get the next time a session will become available
+ */
+export function getNextSessionTime(): Date | null {
+  const state = getReviewState();
+  return getNextSessionAvailableAt(state.lastSessionDate);
+}
+
+// --- Review Operations (per-note) ---
+
+/**
+ * Enable review for a note
+ */
+export function enableReview(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const currentSession = getCurrentSessionNumber();
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    // Initialize review data if not present
+    if (!note.review) {
+      note.review = {
+        enabled: true,
+        lastReviewed: null,
+        nextSessionNumber: currentSession + 1, // Review in the next session
+        currentInterval: 1,
+        status: 'active',
+        reviewCount: 0,
+        reviewHistory: []
+      };
+    } else {
+      note.review.enabled = true;
+      note.review.status = 'active';
+      // If re-enabling a retired note, schedule for next session
+      if (note.review.nextSessionNumber < currentSession) {
+        note.review.nextSessionNumber = currentSession + 1;
+        note.review.currentInterval = 1;
+      }
+    }
+  });
+}
+
+/**
+ * Disable review for a note (keeps history)
+ */
+export function disableReview(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note?.review) return;
+
+    note.review.enabled = false;
+  });
+}
+
+/**
+ * Reactivate a retired note (put back into review rotation)
+ */
+export function reactivateReview(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const currentSession = getCurrentSessionNumber();
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note?.review) return;
+
+    note.review.status = 'active';
+    note.review.enabled = true;
+    note.review.nextSessionNumber = currentSession + 1;
+    note.review.currentInterval = 1;
+  });
+}
+
+/**
+ * Get review data for a specific note
+ */
+export function getReviewData(noteId: string): ReviewData | null {
+  const note = currentDoc.notes[noteId];
+  return note?.review ?? null;
+}
+
+/**
+ * Get all notes with review enabled (active or retired)
+ */
+export function getReviewEnabledNotes(): Note[] {
+  return Object.values(currentDoc.notes).filter(
+    (note) => !note.archived && note.review?.enabled
+  );
+}
+
+/**
+ * Get notes due for review in the current session
+ */
+export function getNotesForReview(): Note[] {
+  const currentSession = getCurrentSessionNumber();
+  const config = getReviewConfig();
+
+  const dueNotes = Object.values(currentDoc.notes)
+    .filter((note) => {
+      if (note.archived) return false;
+      if (!note.review?.enabled) return false;
+      if (note.review.status === 'retired') return false;
+      return note.review.nextSessionNumber <= currentSession;
+    })
+    .sort((a, b) => {
+      // Sort by nextSessionNumber (most overdue first), then by updated
+      const aSession = a.review?.nextSessionNumber ?? 0;
+      const bSession = b.review?.nextSessionNumber ?? 0;
+      if (aSession !== bSession) return aSession - bSession;
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+      return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+    })
+    .slice(0, config.sessionSize);
+
+  return dueNotes;
+}
+
+/**
+ * Get review statistics for the dashboard
+ */
+export function getReviewStats(): ReviewStats {
+  const currentSession = getCurrentSessionNumber();
+  const notes = Object.values(currentDoc.notes);
+
+  let dueThisSession = 0;
+  let totalEnabled = 0;
+  let retired = 0;
+
+  for (const note of notes) {
+    if (note.archived) continue;
+    if (!note.review?.enabled) continue;
+
+    totalEnabled++;
+
+    if (note.review.status === 'retired') {
+      retired++;
+    } else if (note.review.nextSessionNumber <= currentSession) {
+      dueThisSession++;
+    }
+  }
+
+  return {
+    dueThisSession,
+    totalEnabled,
+    retired,
+    currentSessionNumber: currentSession
+  };
+}
+
+/**
+ * Get all review history across all notes
+ */
+export function getAllReviewHistory(): Array<{
+  noteId: string;
+  noteTitle: string;
+  entry: ReviewHistoryEntry;
+}> {
+  const result: Array<{
+    noteId: string;
+    noteTitle: string;
+    entry: ReviewHistoryEntry;
+  }> = [];
+
+  for (const note of Object.values(currentDoc.notes)) {
+    if (note.archived) continue;
+    if (!note.review?.reviewHistory) continue;
+
+    for (const entry of note.review.reviewHistory) {
+      result.push({
+        noteId: note.id,
+        noteTitle: note.title,
+        entry
+      });
+    }
+  }
+
+  // Sort by date, most recent first
+  result.sort((a, b) => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+    return new Date(b.entry.date).getTime() - new Date(a.entry.date).getTime();
+  });
+
+  return result;
+}
+
+// --- Session Management (persisted in Automerge) ---
+
+/**
+ * Get the active session if one is in progress
+ */
+export function getActiveSession(): ReviewSession | null {
+  return getReviewState().activeSession ?? null;
+}
+
+/**
+ * Check if there's an active session
+ */
+export function hasActiveSession(): boolean {
+  return !!getActiveSession();
+}
+
+/**
+ * Start a new review session
+ */
+export function startReviewSession(noteIds: string[]): ReviewSession {
+  if (!docHandle) throw new Error('Not initialized');
+
+  ensureReviewState();
+
+  const session: ReviewSession = {
+    id: generateSessionId(),
+    startedAt: nowISO(),
+    noteIds,
+    currentIndex: 0,
+    results: [],
+    state: 'prompting'
+  };
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState) {
+      doc.reviewState = {
+        currentSessionNumber: 1,
+        lastSessionDate: null,
+        config: { ...DEFAULT_REVIEW_CONFIG }
+      };
+    }
+    doc.reviewState.activeSession = session;
+  });
+
+  return session;
+}
+
+/**
+ * Update the active session state
+ */
+export function updateSessionState(updates: Partial<ReviewSession>): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState?.activeSession) return;
+
+    const session = doc.reviewState.activeSession;
+
+    if (updates.currentIndex !== undefined) {
+      session.currentIndex = updates.currentIndex;
+    }
+    if (updates.currentPrompt !== undefined) {
+      session.currentPrompt = updates.currentPrompt;
+    }
+    if (updates.userResponse !== undefined) {
+      session.userResponse = updates.userResponse;
+    }
+    if (updates.agentFeedback !== undefined) {
+      session.agentFeedback = updates.agentFeedback;
+    }
+    if (updates.state !== undefined) {
+      session.state = updates.state;
+    }
+  });
+}
+
+/**
+ * Record a review result and update note scheduling
+ */
+export function recordReview(
+  noteId: string,
+  rating: ReviewRating,
+  prompt: string,
+  userResponse: string,
+  agentFeedback: string
+): number {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const currentSession = getCurrentSessionNumber();
+  const config = getReviewConfig();
+
+  let scheduledForSession = -1;
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note?.review) return;
+
+    const review = note.review;
+    const result = calculateNextSession(
+      currentSession,
+      review.currentInterval,
+      rating,
+      config
+    );
+
+    if (result === 'retired') {
+      review.status = 'retired';
+      review.nextSessionNumber = 999999; // Far future
+      scheduledForSession = -1;
+    } else {
+      review.nextSessionNumber = result.nextSession;
+      review.currentInterval = result.interval;
+      scheduledForSession = result.nextSession;
+    }
+
+    review.lastReviewed = nowISO();
+    review.reviewCount++;
+
+    // Add to history
+    if (!review.reviewHistory) {
+      review.reviewHistory = [];
+    }
+    review.reviewHistory.push(
+      createReviewHistoryEntry(
+        currentSession,
+        rating,
+        userResponse,
+        prompt,
+        agentFeedback
+      )
+    );
+
+    // Update session results
+    if (doc.reviewState?.activeSession) {
+      const session = doc.reviewState.activeSession;
+      const sessionResult: ReviewSessionResult = {
+        noteId,
+        noteTitle: note.title,
+        rating,
+        userResponse,
+        agentFeedback,
+        timestamp: nowISO(),
+        scheduledForSession
+      };
+
+      if (!session.results) {
+        session.results = [];
+      }
+      session.results.push(sessionResult);
+
+      // Advance to next note
+      session.currentIndex++;
+      delete session.currentPrompt;
+      delete session.userResponse;
+      delete session.agentFeedback;
+      session.state = 'prompting';
+    }
+  });
+
+  return scheduledForSession;
+}
+
+/**
+ * Complete the current session
+ */
+export function completeSession(): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState) return;
+
+    // Clear the active session
+    delete doc.reviewState.activeSession;
+
+    // Increment session number and record date
+    doc.reviewState.currentSessionNumber++;
+    doc.reviewState.lastSessionDate = new Date().toISOString().split('T')[0];
+  });
+}
+
+/**
+ * Clear the active session without completing it
+ * (e.g., if user wants to abandon a session)
+ */
+export function clearActiveSession(): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.reviewState) return;
+    delete doc.reviewState.activeSession;
+  });
+}
+
+/**
+ * Get the current note being reviewed in the active session
+ */
+export function getCurrentReviewNote(): Note | null {
+  const session = getActiveSession();
+  if (!session) return null;
+
+  const noteId = session.noteIds[session.currentIndex];
+  if (!noteId) return null;
+
+  return currentDoc.notes[noteId] ?? null;
+}
+
+/**
+ * Get all notes with review data for the queue table
+ */
+export function getReviewQueueNotes(): Array<{
+  note: Note;
+  review: ReviewData;
+  estimatedDue: Date;
+  isOverdue: boolean;
+}> {
+  const currentSession = getCurrentSessionNumber();
+  const config = getReviewConfig();
+
+  const result: Array<{
+    note: Note;
+    review: ReviewData;
+    estimatedDue: Date;
+    isOverdue: boolean;
+  }> = [];
+
+  for (const note of Object.values(currentDoc.notes)) {
+    if (note.archived) continue;
+    if (!note.review?.enabled) continue;
+
+    const review = note.review;
+    const sessionsAway = Math.max(0, review.nextSessionNumber - currentSession);
+    const daysAway = Math.round((sessionsAway / config.sessionsPerWeek) * 7);
+
+    const estimatedDue = new Date();
+    estimatedDue.setDate(estimatedDue.getDate() + daysAway);
+
+    result.push({
+      note,
+      review,
+      estimatedDue,
+      isOverdue: review.nextSessionNumber <= currentSession && review.status === 'active'
+    });
+  }
+
+  // Sort: overdue first, then by nextSessionNumber
+  result.sort((a, b) => {
+    if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+    return a.review.nextSessionNumber - b.review.nextSessionNumber;
+  });
+
+  return result;
+}

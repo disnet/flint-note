@@ -40,7 +40,16 @@ export type {
   WebpageNoteProps,
   WebpageMetadata,
   WebpageHighlight,
-  WebpageSelectionInfo
+  WebpageSelectionInfo,
+  // Review mode types
+  ReviewRating,
+  ReviewStatus,
+  ReviewHistoryEntry,
+  ReviewData,
+  ReviewConfig,
+  ReviewSessionResult,
+  ReviewSession,
+  ReviewState
 } from './types';
 
 // State management
@@ -204,7 +213,34 @@ export {
   DECK_NOTE_TYPE_ID,
   ensureDeckNoteType,
   getDeckNotes,
-  createDeckNote
+  createDeckNote,
+
+  // Review mode
+  getReviewState,
+  getReviewConfig,
+  updateReviewConfig,
+  getCurrentSessionNumber,
+  incrementSessionNumber,
+  isSessionAvailable,
+  getNextSessionTime,
+  enableReview,
+  disableReview,
+  reactivateReview,
+  getReviewData,
+  getReviewEnabledNotes,
+  getNotesForReview,
+  getReviewStats,
+  getAllReviewHistory,
+  getActiveSession,
+  hasActiveSession,
+  startReviewSession,
+  updateSessionState,
+  recordReview,
+  completeSession,
+  clearActiveSession,
+  getCurrentReviewNote,
+  getReviewQueueNotes,
+  type ReviewStats
 } from './state.svelte';
 
 // OPFS storage for EPUB files
@@ -302,3 +338,31 @@ export { createPdfTools } from './pdf-tools.svelte';
 
 // Deck module (filtered note lists)
 export * from './deck';
+
+// Review service (AI-powered prompts and feedback)
+export {
+  ReviewService,
+  getReviewService,
+  resetReviewService
+} from './review-service.svelte';
+export type { ReviewServiceStatus } from './review-service.svelte';
+
+// Review scheduler (pure functions)
+export {
+  DEFAULT_REVIEW_CONFIG,
+  RATING_MULTIPLIERS,
+  RATING_LABELS,
+  RATING_DESCRIPTIONS,
+  calculateNextSession,
+  estimateSessionDate,
+  formatSessionDate,
+  isNewSessionAvailable,
+  getNextSessionAvailableAt,
+  getOrdinal,
+  createReviewHistoryEntry,
+  getHistoryStats,
+  isPassingRating,
+  getLastReview,
+  generateSessionId
+} from './review-scheduler';
+export type { NextSessionResult } from './review-scheduler';

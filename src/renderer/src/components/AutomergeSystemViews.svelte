@@ -1,8 +1,9 @@
 <script lang="ts">
   /**
    * System navigation views for the Automerge sidebar
-   * Includes Notes, Daily, Note Types, Conversations, and Settings
+   * Includes Notes, Daily, Review, Note Types, Conversations, and Settings
    */
+  import { getReviewStats, isSessionAvailable } from '../lib/automerge';
 
   interface Props {
     activeSystemView:
@@ -12,16 +13,22 @@
       | 'types'
       | 'daily'
       | 'conversations'
+      | 'review'
       | null;
     onSystemViewSelect: (
-      view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | null
+      view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | null
     ) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
+  // Get review stats for badge
+  const reviewStats = $derived(getReviewStats());
+  const sessionAvailable = $derived(isSessionAvailable());
+  const reviewDueCount = $derived(sessionAvailable ? reviewStats.dueThisSession : 0);
+
   function setActiveView(
-    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations'
+    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review'
   ): void {
     onSystemViewSelect(view);
   }
@@ -67,6 +74,28 @@
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
       Daily
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'review'}
+      onclick={() => setActiveView('review')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+      </svg>
+      Review
+      {#if reviewDueCount > 0}
+        <span class="badge">{reviewDueCount}</span>
+      {/if}
     </button>
 
     <button
@@ -166,5 +195,17 @@
 
   .nav-item svg {
     flex-shrink: 0;
+  }
+
+  .badge {
+    margin-left: auto;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border-radius: 10px;
+    min-width: 1.25rem;
+    text-align: center;
   }
 </style>

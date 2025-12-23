@@ -54,6 +54,7 @@ export type SystemView =
   | 'types'
   | 'daily'
   | 'conversations'
+  | 'review'
   | null;
 
 /**
@@ -137,6 +138,8 @@ export interface Note {
   archived: boolean;
   /** Custom property values defined by the note's type */
   props?: Record<string, unknown>;
+  /** Review mode metadata (optional, only for notes with review enabled) */
+  review?: ReviewData;
 }
 
 /**
@@ -366,6 +369,8 @@ export interface NotesDocument {
   lastViewState?: LastViewState;
   /** Agent routines keyed by ID (optional for backward compatibility) */
   agentRoutines?: Record<string, AgentRoutine>;
+  /** Review mode state (optional for backward compatibility) */
+  reviewState?: ReviewState;
 }
 
 /**
@@ -632,4 +637,132 @@ export interface WebpageSelectionInfo {
   endOffset: number;
   /** Position for popup placement */
   position: { x: number; y: number };
+}
+
+// ============================================================================
+// Review Mode Types
+// ============================================================================
+
+/**
+ * Review rating scale (1-4)
+ * 1: Need more time - struggled, need to revisit sooner
+ * 2: Productive - good engagement, appropriate timing
+ * 3: Already familiar - could have waited longer
+ * 4: Fully processed - no more reviews needed, retire
+ */
+export type ReviewRating = 1 | 2 | 3 | 4;
+
+/**
+ * Review item status
+ */
+export type ReviewStatus = 'active' | 'retired';
+
+/**
+ * Entry in a note's review history
+ */
+export interface ReviewHistoryEntry {
+  /** ISO datetime of the review */
+  date: string;
+  /** Session number when review was completed */
+  sessionNumber: number;
+  /** Rating given by the user */
+  rating: ReviewRating;
+  /** User's response to the challenge */
+  response?: string;
+  /** AI-generated challenge prompt */
+  prompt?: string;
+  /** AI-generated feedback */
+  feedback?: string;
+}
+
+/**
+ * Review metadata stored per-note
+ */
+export interface ReviewData {
+  /** Whether review is enabled for this note */
+  enabled: boolean;
+  /** ISO datetime of last review, or null if never reviewed */
+  lastReviewed: string | null;
+  /** Next session number when this note should be reviewed */
+  nextSessionNumber: number;
+  /** Current interval in sessions */
+  currentInterval: number;
+  /** Whether the note is actively being reviewed or retired */
+  status: ReviewStatus;
+  /** Total number of reviews completed */
+  reviewCount: number;
+  /** History of all reviews for this note */
+  reviewHistory: ReviewHistoryEntry[];
+}
+
+/**
+ * Scheduling configuration for review mode
+ */
+export interface ReviewConfig {
+  /** Number of notes to review per session (default: 5) */
+  sessionSize: number;
+  /** Expected sessions per week, used for date estimates (default: 7) */
+  sessionsPerWeek: number;
+  /** Maximum interval between reviews in sessions (default: 15) */
+  maxIntervalSessions: number;
+  /** Minimum days between reviews of the same note (default: 1) */
+  minIntervalDays: number;
+}
+
+/**
+ * Result of a single review within a session
+ */
+export interface ReviewSessionResult {
+  /** Note ID that was reviewed */
+  noteId: string;
+  /** Note title at time of review */
+  noteTitle: string;
+  /** Rating given by the user */
+  rating: ReviewRating;
+  /** User's response to the challenge */
+  userResponse: string;
+  /** AI-generated feedback */
+  agentFeedback: string;
+  /** ISO datetime of completion */
+  timestamp: string;
+  /** Next session number when this note will be reviewed (-1 if retired) */
+  scheduledForSession: number;
+}
+
+/**
+ * An in-progress review session (persisted for resume)
+ */
+export interface ReviewSession {
+  /** Unique session identifier */
+  id: string;
+  /** ISO datetime when session started */
+  startedAt: string;
+  /** Ordered list of note IDs to review in this session */
+  noteIds: string[];
+  /** Current index in noteIds array */
+  currentIndex: number;
+  /** Current AI-generated challenge prompt */
+  currentPrompt?: string;
+  /** User's current response (saved for resume) */
+  userResponse?: string;
+  /** AI feedback for current note (if in feedback state) */
+  agentFeedback?: string;
+  /** Completed review results */
+  results: ReviewSessionResult[];
+  /** Current state of the review */
+  state: 'prompting' | 'feedback';
+}
+
+/**
+ * Document-level review state
+ */
+export interface ReviewState {
+  /** Current session number (increments after each completed session) */
+  currentSessionNumber: number;
+  /** ISO date of last completed session (for 1 AM reset logic), or null */
+  lastSessionDate: string | null;
+  /** Scheduling configuration */
+  config: ReviewConfig;
+  /** Active session if one is in progress (persisted for resume) */
+  activeSession?: ReviewSession;
 }

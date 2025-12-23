@@ -16,6 +16,15 @@
     getActiveItem,
     reorderPinnedItems,
     reorderRecentItems,
+    getReviewData,
+    enableReview,
+    disableReview,
+    getNote,
+    EPUB_NOTE_TYPE_ID,
+    PDF_NOTE_TYPE_ID,
+    WEBPAGE_NOTE_TYPE_ID,
+    DECK_NOTE_TYPE_ID,
+    DAILY_NOTE_TYPE_ID,
     type SidebarItem,
     type SidebarItemRef
   } from '../lib/automerge';
@@ -582,6 +591,39 @@
     }
     closeContextMenu();
   }
+
+  // Check if the context menu item is a reviewable note
+  const contextMenuNoteReviewable = $derived.by(() => {
+    if (!contextMenuItemId || contextMenuItemType !== 'note') return false;
+    const note = getNote(contextMenuItemId);
+    if (!note) return false;
+    // Exclude special note types from review
+    const excludedTypes = [
+      EPUB_NOTE_TYPE_ID,
+      PDF_NOTE_TYPE_ID,
+      WEBPAGE_NOTE_TYPE_ID,
+      DECK_NOTE_TYPE_ID,
+      DAILY_NOTE_TYPE_ID
+    ];
+    return !excludedTypes.includes(note.type);
+  });
+
+  // Check if review is enabled for context menu item
+  const contextMenuReviewEnabled = $derived.by(() => {
+    if (!contextMenuItemId || contextMenuItemType !== 'note') return false;
+    const reviewData = getReviewData(contextMenuItemId);
+    return reviewData?.enabled ?? false;
+  });
+
+  function handleToggleReview(): void {
+    if (!contextMenuItemId || contextMenuItemType !== 'note') return;
+    if (contextMenuReviewEnabled) {
+      disableReview(contextMenuItemId);
+    } else {
+      enableReview(contextMenuItemId);
+    }
+    closeContextMenu();
+  }
 </script>
 
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
@@ -754,6 +796,25 @@
       </svg>
       Archive
     </button>
+    {#if contextMenuNoteReviewable}
+      <div class="context-menu-divider"></div>
+      <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+        </svg>
+        <span class="menu-item-label">
+          {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
+        </span>
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -991,6 +1052,12 @@
   .context-menu-item svg {
     flex-shrink: 0;
     color: var(--text-secondary);
+  }
+
+  .context-menu-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.25rem 0;
   }
 
   .menu-item-label {
