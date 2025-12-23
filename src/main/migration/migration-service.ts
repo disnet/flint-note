@@ -12,9 +12,16 @@ import type {
   MigrationResult,
   MigrationProgress,
   MigrationError,
-  EpubFileData
+  EpubFileData,
+  PdfFileData,
+  WebpageFileData
 } from './types';
-import { extractVaultData, readEpubFile } from './sqlite-reader';
+import {
+  extractVaultData,
+  readEpubFile,
+  readPdfFile,
+  readWebpageFile
+} from './sqlite-reader';
 import { transformVaultData } from './data-transformer';
 import { ensureSyncDirectory, getSafeSyncDirectory } from './utils';
 
@@ -171,6 +178,9 @@ export async function migrateLegacyVault(
         noteTypes: 0,
         notes: 0,
         epubs: 0,
+        pdfs: 0,
+        webpages: 0,
+        decks: 0,
         workspaces: 0,
         reviewItems: 0,
         agentRoutines: 0,
@@ -197,6 +207,8 @@ export async function migrateLegacyVault(
 export async function getMigrationDocumentData(vaultPath: string): Promise<{
   document: unknown;
   epubFiles: EpubFileData[];
+  pdfFiles: PdfFileData[];
+  webpageFiles: WebpageFileData[];
   errors: MigrationError[];
 } | null> {
   try {
@@ -211,9 +223,27 @@ export async function getMigrationDocumentData(vaultPath: string): Promise<{
       }
     }
 
+    // Read PDF file data
+    for (const pdfFile of transformResult.pdfFiles) {
+      const fileData = readPdfFile(vaultPath, pdfFile.filePath);
+      if (fileData) {
+        pdfFile.fileData = fileData;
+      }
+    }
+
+    // Read webpage file data
+    for (const webpageFile of transformResult.webpageFiles) {
+      const htmlContent = readWebpageFile(vaultPath, webpageFile.filePath);
+      if (htmlContent) {
+        webpageFile.htmlContent = htmlContent;
+      }
+    }
+
     return {
       document: transformResult.document,
       epubFiles: transformResult.epubFiles,
+      pdfFiles: transformResult.pdfFiles,
+      webpageFiles: transformResult.webpageFiles,
       errors: transformResult.errors
     };
   } catch (error) {

@@ -121,7 +121,8 @@ export function createNewNotesDocument(r: Repo): DocHandle<NotesDocument> {
 }
 
 /**
- * Find an existing document by URL and wait for it to be ready
+ * Find an existing document by URL and wait for it to be ready.
+ * Throws an error if the document is unavailable (e.g., IndexedDB was cleared).
  */
 export async function findDocument(
   r: Repo,
@@ -130,6 +131,14 @@ export async function findDocument(
   const handle = await r.find<NotesDocument>(docUrl as AutomergeUrl);
   // Wait for the document to be ready (loaded from storage)
   await handle.whenReady();
+
+  // Check if document is actually available
+  // If IndexedDB was cleared but localStorage still has vault data,
+  // the document will be in "unavailable" state
+  if (!handle.isReady()) {
+    throw new Error(`Document ${docUrl} is unavailable`);
+  }
+
   return handle;
 }
 
@@ -212,6 +221,30 @@ export function updateVault(
  */
 export function archiveVault(id: string): void {
   updateVault(id, { archived: true });
+}
+
+/**
+ * Permanently delete a vault from localStorage
+ * Used when the vault's document is unavailable (e.g., IndexedDB was cleared)
+ */
+export function deleteVault(id: string): void {
+  const vaults = getVaults();
+  const filtered = vaults.filter((v) => v.id !== id);
+  saveVaults(filtered);
+
+  // If this was the active vault, clear that too
+  if (getActiveVaultId() === id) {
+    localStorage.removeItem(ACTIVE_VAULT_KEY);
+  }
+}
+
+/**
+ * Clear all vault data from localStorage
+ * Used when recovering from corrupted state
+ */
+export function clearAllVaults(): void {
+  localStorage.removeItem(VAULTS_KEY);
+  localStorage.removeItem(ACTIVE_VAULT_KEY);
 }
 
 /**

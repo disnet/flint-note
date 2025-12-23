@@ -51,16 +51,56 @@ All notes are migrated with their content and metadata:
 
 - `markdown` notes: Migrated as normal notes
 - `epub` notes: Type set to `type-epub`, EPUB file data included for OPFS storage
+- `pdf` notes: Type set to `type-pdf`, PDF file data included for OPFS storage
+- `webpage` notes: Type set to `type-webpage`, HTML content stored for offline access
+- `deck` notes: Type set to `type-deck`, YAML configuration preserved in content
+
+### Decks (Filtered Note Views)
+
+Deck notes are special notes that contain YAML configuration for filtered/sorted views of notes:
+
+1. The `flint_kind = 'deck'` field identifies deck notes in the legacy system
+2. The type is set to `type-deck` in Automerge
+3. The YAML configuration is wrapped in a ` ```flint-deck ` code block (Automerge format)
+4. The deck widget automatically parses and renders the YAML configuration
+
+**Content transformation:**
+
+The legacy system stores raw YAML directly in the content field. During migration, this is wrapped in a code block to match the Automerge format:
+
+Legacy format (raw YAML):
+
+```yaml
+views:
+  - name: Default
+    filters:
+      - field: flint_type
+        value: 'Task'
+```
+
+Automerge format (wrapped in code block):
+
+````markdown
+```flint-deck
+views:
+  - name: Default
+    filters:
+      - field: flint_type
+        value: "Task"
+```
+````
 
 ### EPUB Files
 
 EPUB files are fully migrated:
 
-1. The EPUB file is read from the legacy filesystem location
-2. File data is passed to the renderer via IPC
-3. Renderer stores the file in OPFS (browser storage)
-4. Note props include: `epubHash`, `epubTitle`, `epubAuthor`
-5. Reading position (`currentCfi`, `progress`) is preserved if available
+1. The EPUB file path is read from the `flint_epubPath` metadata field (not the `path` column, which points to the markdown file)
+2. The EPUB file is read from the legacy filesystem location
+3. File data is passed to the renderer via IPC
+4. Renderer validates the data is a valid ZIP/EPUB (starts with `PK` magic bytes)
+5. Renderer stores the file in OPFS (browser storage) with content-addressed hash
+6. Note props include: `epubHash`, `epubTitle`, `epubAuthor`
+7. Reading position (`currentCfi`, `progress`) is preserved if available
 
 ### Workspaces
 
@@ -309,6 +349,9 @@ After migration, statistics are reported:
 - Number of note types migrated
 - Number of notes migrated
 - Number of EPUB files migrated
+- Number of PDF files migrated
+- Number of webpage files migrated
+- Number of decks migrated
 - Number of workspaces migrated
 - Number of review items migrated
 - Number of agent routines migrated

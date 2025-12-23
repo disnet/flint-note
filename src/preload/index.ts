@@ -832,8 +832,32 @@ const api = {
     }) => electronAPI.ipcRenderer.invoke('detect-legacy-vault-at-path', params),
 
     // Get document data for migration (called after initial migration setup)
-    getMigrationDocumentData: (params: { vaultPath: string }) =>
-      electronAPI.ipcRenderer.invoke('get-migration-document-data', params),
+    getMigrationDocumentData: (params: {
+      vaultPath: string;
+    }): Promise<{
+      document: unknown;
+      epubFiles: {
+        noteId: string;
+        fileData: Uint8Array;
+        filePath: string;
+        metadata: { title?: string; author?: string };
+        readingState?: { currentCfi?: string; progress?: number };
+      }[];
+      pdfFiles: {
+        noteId: string;
+        fileData: Uint8Array;
+        filePath: string;
+        metadata: { title?: string; author?: string };
+        readingState?: { currentPage?: number; progress?: number };
+      }[];
+      webpageFiles: {
+        noteId: string;
+        htmlContent: string;
+        filePath: string;
+        metadata: { title?: string; url?: string; siteName?: string; author?: string };
+      }[];
+      errors: { entity: string; entityId: string; message: string }[];
+    } | null> => electronAPI.ipcRenderer.invoke('get-migration-document-data', params),
 
     // Listen for migration progress updates
     onMigrationProgress: (

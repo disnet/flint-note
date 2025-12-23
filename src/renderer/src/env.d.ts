@@ -856,6 +856,24 @@ declare global {
             metadata: { title?: string; author?: string };
             readingState?: { currentCfi?: string; progress?: number };
           }>;
+          pdfFiles: Array<{
+            noteId: string;
+            fileData: Uint8Array;
+            filePath: string;
+            metadata: { title?: string; author?: string };
+            readingState?: { currentPage?: number; progress?: number };
+          }>;
+          webpageFiles: Array<{
+            noteId: string;
+            htmlContent: string;
+            filePath: string;
+            metadata: {
+              title?: string;
+              url?: string;
+              siteName?: string;
+              author?: string;
+            };
+          }>;
           errors: Array<{
             entity: string;
             entityId: string;

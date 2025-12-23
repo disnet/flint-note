@@ -64,6 +64,9 @@ export interface MigrationResult {
     noteTypes: number;
     notes: number;
     epubs: number;
+    pdfs: number;
+    webpages: number;
+    decks: number;
     workspaces: number;
     reviewItems: number;
     agentRoutines: number;
@@ -279,5 +282,46 @@ export interface EpubFileData {
   readingState?: {
     currentCfi?: string;
     progress?: number;
+  };
+}
+
+/**
+ * PDF file data for migration
+ */
+export interface PdfFileData {
+  /** Note ID this PDF belongs to */
+  noteId: string;
+  /** File data as Uint8Array */
+  fileData: Uint8Array;
+  /** Original file path */
+  filePath: string;
+  /** Extracted metadata */
+  metadata: {
+    title?: string;
+    author?: string;
+  };
+  /** Reading state from legacy */
+  readingState?: {
+    currentPage?: number;
+    progress?: number;
+  };
+}
+
+/**
+ * Webpage file data for migration
+ */
+export interface WebpageFileData {
+  /** Note ID this webpage belongs to */
+  noteId: string;
+  /** HTML content as string */
+  htmlContent: string;
+  /** Original file path */
+  filePath: string;
+  /** Extracted metadata */
+  metadata: {
+    title?: string;
+    url?: string;
+    siteName?: string;
+    author?: string;
   };
 }

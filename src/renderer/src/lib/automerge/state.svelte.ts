@@ -43,7 +43,8 @@ import {
   disconnectVaultSync,
   getCurrentSyncedVaultId,
   isFileSyncAvailable,
-  selectSyncDirectory
+  selectSyncDirectory,
+  clearAllVaults
 } from './repo';
 
 // --- Private reactive state ---
@@ -104,7 +105,26 @@ export async function initializeState(vaultId?: string): Promise<void> {
     activeVaultId = targetVault.id;
 
     // Load the document
-    const handle = await findDocument(repo, targetVault.docUrl);
+    let handle;
+    try {
+      handle = await findDocument(repo, targetVault.docUrl);
+    } catch (error) {
+      // Document is unavailable - this typically happens when IndexedDB was cleared
+      // but localStorage still has vault data. Clear the orphaned vault data and
+      // go to first-time experience mode.
+      console.warn(
+        'Document unavailable, clearing orphaned vault data:',
+        error instanceof Error ? error.message : error
+      );
+
+      // Clear all vault data since the documents no longer exist
+      clearAllVaults();
+      vaults = [];
+      activeVaultId = null;
+      isInitialized = true;
+      return;
+    }
+
     docHandle = handle;
 
     // Get initial state

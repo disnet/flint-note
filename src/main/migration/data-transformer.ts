@@ -16,7 +16,9 @@ import type {
   LegacySupplementaryMaterialRow,
   LegacyWorkflowCompletionRow,
   MigrationError,
-  EpubFileData
+  EpubFileData,
+  PdfFileData,
+  WebpageFileData
 } from './types';
 
 // Import Automerge types from the renderer (these are just interfaces, safe to import)
@@ -37,6 +39,9 @@ import type {
 // Constants matching the Automerge system
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 const EPUB_NOTE_TYPE_ID = 'type-epub';
+const PDF_NOTE_TYPE_ID = 'type-pdf';
+const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
+const DECK_NOTE_TYPE_ID = 'type-deck';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
 
 /**
@@ -115,6 +120,10 @@ export interface TransformResult {
   document: Omit<NotesDocument, 'conversations' | 'shelfItems' | 'lastViewState'>;
   /** EPUB files that need to be migrated */
   epubFiles: EpubFileData[];
+  /** PDF files that need to be migrated */
+  pdfFiles: PdfFileData[];
+  /** Webpage files that need to be migrated */
+  webpageFiles: WebpageFileData[];
   /** Non-fatal errors during transformation */
   errors: MigrationError[];
   /** Mapping from legacy type names to new type IDs */
@@ -124,6 +133,9 @@ export interface TransformResult {
     noteTypes: number;
     notes: number;
     epubs: number;
+    pdfs: number;
+    webpages: number;
+    decks: number;
     workspaces: number;
     reviewItems: number;
     agentRoutines: number;
@@ -350,13 +362,22 @@ function transformNote(
   typeIdMapping: Record<string, string>,
   metadata: LegacyMetadataRow[],
   reviewItem?: LegacyReviewItemRow
-): { note: Note; isEpub: boolean } {
-  // Determine the type ID
+): { note: Note; isEpub: boolean; isPdf: boolean; isWebpage: boolean; isDeck: boolean } {
+  // Determine the type ID based on flint_kind
   const isEpub = legacy.flint_kind === 'epub';
+  const isPdf = legacy.flint_kind === 'pdf';
+  const isWebpage = legacy.flint_kind === 'webpage';
+  const isDeck = legacy.flint_kind === 'deck';
   let typeId: string;
 
   if (isEpub) {
     typeId = EPUB_NOTE_TYPE_ID;
+  } else if (isPdf) {
+    typeId = PDF_NOTE_TYPE_ID;
+  } else if (isWebpage) {
+    typeId = WEBPAGE_NOTE_TYPE_ID;
+  } else if (isDeck) {
+    typeId = DECK_NOTE_TYPE_ID;
   } else {
     typeId = typeIdMapping[legacy.type] ?? DEFAULT_NOTE_TYPE_ID;
   }
@@ -386,10 +407,25 @@ function transformNote(
     }
   }
 
+  // Determine content transformation:
+  // - EPUB/PDF/Webpage: content is stored in OPFS, not in note
+  // - Deck: wrap raw YAML in ```flint-deck code block (Automerge format)
+  // - Other: preserve as-is
+  let content: string;
+  if (isEpub || isPdf || isWebpage) {
+    content = '';
+  } else if (isDeck) {
+    // Legacy decks store raw YAML, Automerge expects ```flint-deck wrapper
+    const rawYaml = (legacy.content ?? '').trim();
+    content = rawYaml ? '```flint-deck\n' + rawYaml + '\n```' : '';
+  } else {
+    content = legacy.content ?? '';
+  }
+
   const note: Note = {
     id: legacy.id,
     title: legacy.title ?? '',
-    content: isEpub ? '' : (legacy.content ?? ''), // EPUB content is not stored in note
+    content,
     type: typeId,
     created: legacy.created ?? nowISO(),
     updated: legacy.updated ?? nowISO(),
@@ -397,7 +433,7 @@ function transformNote(
     props: Object.keys(props).length > 0 ? props : undefined
   };
 
-  return { note, isEpub };
+  return { note, isEpub, isPdf, isWebpage, isDeck };
 }
 
 /**
@@ -437,7 +473,10 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
   );
 
   for (const state of uiState) {
-    console.log(`[Migration] UI state "${state.state_key}":`, state.state_value?.substring(0, 200));
+    console.log(
+      `[Migration] UI state "${state.state_key}":`,
+      state.state_value?.substring(0, 200)
+    );
 
     if (state.state_key === 'workspaces') {
       // Handle both formats:
@@ -503,7 +542,10 @@ function transformWorkspaces(
     // Extract pinned note IDs from either format
     // Format 1: pinnedNotes: [{noteId: "n-xxx", title: "..."}, ...]
     // Format 2: pinnedNoteIds: ["n-xxx", ...]
-    console.log(`[Migration] Workspace "${parsed.name}" raw pinnedNotes:`, JSON.stringify(parsed.pinnedNotes));
+    console.log(
+      `[Migration] Workspace "${parsed.name}" raw pinnedNotes:`,
+      JSON.stringify(parsed.pinnedNotes)
+    );
 
     let pinnedIds: string[] = [];
     if (parsed.pinnedNotes && Array.isArray(parsed.pinnedNotes)) {
@@ -522,7 +564,10 @@ function transformWorkspaces(
     }
 
     // Extract recent note IDs - may be stored as recentNotes or temporaryTabs
-    console.log(`[Migration] Workspace "${parsed.name}" raw temporaryTabs:`, JSON.stringify(parsed.temporaryTabs));
+    console.log(
+      `[Migration] Workspace "${parsed.name}" raw temporaryTabs:`,
+      JSON.stringify(parsed.temporaryTabs)
+    );
 
     let recentIds: string[] = [];
     // Check temporaryTabs first (legacy format)
@@ -560,8 +605,14 @@ function transformWorkspaces(
       .filter((id) => existingNoteIds.has(id))
       .map((id) => ({ type: 'note' as const, id }));
 
-    console.log(`[Migration] Workspace "${parsed.name}" final pinned:`, pinnedItemIds.length);
-    console.log(`[Migration] Workspace "${parsed.name}" final recent:`, recentItemIds.length);
+    console.log(
+      `[Migration] Workspace "${parsed.name}" final pinned:`,
+      pinnedItemIds.length
+    );
+    console.log(
+      `[Migration] Workspace "${parsed.name}" final recent:`,
+      recentItemIds.length
+    );
 
     workspaces[wsId] = {
       id: wsId,
@@ -692,6 +743,8 @@ export function transformVaultData(
 ): TransformResult {
   const errors: MigrationError[] = [];
   const epubFiles: EpubFileData[] = [];
+  const pdfFiles: PdfFileData[] = [];
+  const webpageFiles: WebpageFileData[] = [];
 
   // Build type ID mapping
   const typeIdMapping = buildTypeIdMapping(data.noteTypes);
@@ -746,6 +799,32 @@ export function transformVaultData(
     };
   }
 
+  // Ensure PDF note type exists (needed if there are PDF notes)
+  const hasPdfs = data.notes.some((n) => n.flint_kind === 'pdf');
+  if (hasPdfs && !noteTypes[PDF_NOTE_TYPE_ID]) {
+    noteTypes[PDF_NOTE_TYPE_ID] = {
+      id: PDF_NOTE_TYPE_ID,
+      name: 'PDF',
+      purpose: 'PDF documents',
+      icon: '📄',
+      archived: false,
+      created: nowISO()
+    };
+  }
+
+  // Ensure Webpage note type exists (needed if there are webpage notes)
+  const hasWebpages = data.notes.some((n) => n.flint_kind === 'webpage');
+  if (hasWebpages && !noteTypes[WEBPAGE_NOTE_TYPE_ID]) {
+    noteTypes[WEBPAGE_NOTE_TYPE_ID] = {
+      id: WEBPAGE_NOTE_TYPE_ID,
+      name: 'Webpage',
+      purpose: 'Archived web pages',
+      icon: '🌐',
+      archived: false,
+      created: nowISO()
+    };
+  }
+
   // Build review item lookup
   const reviewItemMap = new Map<string, LegacyReviewItemRow>();
   for (const item of data.reviewItems) {
@@ -757,6 +836,9 @@ export function transformVaultData(
   const existingNoteIds = new Set<string>();
   let skipped = 0;
   let epubCount = 0;
+  let pdfCount = 0;
+  let webpageCount = 0;
+  let deckCount = 0;
 
   for (const legacyNote of data.notes) {
     try {
@@ -769,7 +851,7 @@ export function transformVaultData(
       const metadata = data.metadata.get(legacyNote.id) ?? [];
       const reviewItem = reviewItemMap.get(legacyNote.id);
 
-      const { note, isEpub } = transformNote(
+      const { note, isEpub, isPdf, isWebpage, isDeck } = transformNote(
         legacyNote,
         typeIdMapping,
         metadata,
@@ -781,22 +863,98 @@ export function transformVaultData(
 
       if (isEpub) {
         epubCount++;
-        // Add to EPUB files list for later migration
-        epubFiles.push({
-          noteId: legacyNote.id,
-          fileData: new Uint8Array(0), // Will be populated by caller
-          filePath: legacyNote.path,
-          metadata: {
-            title: legacyNote.title ?? undefined
-            // Author will be extracted when reading the EPUB
-          },
-          readingState: {
-            currentCfi: metadata.find((m) => m.key === 'currentCfi')?.value,
-            progress: metadata.find((m) => m.key === 'progress')?.value
-              ? parseFloat(metadata.find((m) => m.key === 'progress')!.value)
-              : undefined
-          }
-        });
+        // Get the actual EPUB file path from metadata (flint_epubPath)
+        // The `path` column points to the markdown file with notes/highlights
+        const epubPath = metadata.find((m) => m.key === 'flint_epubPath')?.value;
+        if (!epubPath) {
+          errors.push({
+            entity: 'epub',
+            entityId: legacyNote.id,
+            message: 'EPUB note missing flint_epubPath metadata'
+          });
+        } else {
+          // Add to EPUB files list for later migration
+          epubFiles.push({
+            noteId: legacyNote.id,
+            fileData: new Uint8Array(0), // Will be populated by caller
+            filePath: epubPath,
+            metadata: {
+              title: legacyNote.title ?? undefined
+              // Author will be extracted when reading the EPUB
+            },
+            readingState: {
+              currentCfi: metadata.find((m) => m.key === 'currentCfi')?.value,
+              progress: metadata.find((m) => m.key === 'progress')?.value
+                ? parseFloat(metadata.find((m) => m.key === 'progress')!.value)
+                : undefined
+            }
+          });
+        }
+      }
+
+      if (isPdf) {
+        pdfCount++;
+        // Get the actual PDF file path from metadata (flint_pdfPath)
+        // The `path` column points to the markdown file with notes/highlights
+        const pdfPath = metadata.find((m) => m.key === 'flint_pdfPath')?.value;
+        if (!pdfPath) {
+          errors.push({
+            entity: 'epub', // Using 'epub' as the entity type since there's no 'pdf' in MigrationError
+            entityId: legacyNote.id,
+            message: 'PDF note missing flint_pdfPath metadata'
+          });
+        } else {
+          // Add to PDF files list for later migration
+          pdfFiles.push({
+            noteId: legacyNote.id,
+            fileData: new Uint8Array(0), // Will be populated by caller
+            filePath: pdfPath,
+            metadata: {
+              title: legacyNote.title ?? undefined
+              // Author will be extracted when reading the PDF
+            },
+            readingState: {
+              currentPage: metadata.find((m) => m.key === 'currentPage')?.value
+                ? parseInt(metadata.find((m) => m.key === 'currentPage')!.value, 10)
+                : undefined,
+              progress: metadata.find((m) => m.key === 'progress')?.value
+                ? parseFloat(metadata.find((m) => m.key === 'progress')!.value)
+                : undefined
+            }
+          });
+        }
+      }
+
+      if (isWebpage) {
+        webpageCount++;
+        // Get the actual webpage file path from metadata (flint_webpagePath)
+        // The `path` column points to the markdown file with notes/highlights
+        const webpagePath = metadata.find((m) => m.key === 'flint_webpagePath')?.value;
+        if (!webpagePath) {
+          errors.push({
+            entity: 'epub', // Using 'epub' as the entity type since there's no 'webpage' in MigrationError
+            entityId: legacyNote.id,
+            message: 'Webpage note missing flint_webpagePath metadata'
+          });
+        } else {
+          // Add to webpage files list for later migration
+          webpageFiles.push({
+            noteId: legacyNote.id,
+            htmlContent: '', // Will be populated by caller
+            filePath: webpagePath,
+            metadata: {
+              title: legacyNote.title ?? undefined,
+              url: metadata.find((m) => m.key === 'flint_webpageUrl')?.value,
+              siteName: metadata.find((m) => m.key === 'flint_webpageSiteName')?.value,
+              author: metadata.find((m) => m.key === 'flint_webpageAuthor')?.value
+            }
+          });
+        }
+      }
+
+      if (isDeck) {
+        deckCount++;
+        // Deck content (YAML) is already in note.content, no special handling needed
       }
     } catch (error) {
       errors.push({
@@ -857,12 +1015,17 @@ export function transformVaultData(
       agentRoutines: routineCount > 0 ? agentRoutines : undefined
     },
     epubFiles,
+    pdfFiles,
+    webpageFiles,
     errors,
     typeIdMapping,
     stats: {
       noteTypes: Object.keys(noteTypes).length,
       notes: Object.keys(notes).length,
       epubs: epubCount,
+      pdfs: pdfCount,
+      webpages: webpageCount,
+      decks: deckCount,
       workspaces: Object.keys(workspaces).length,
       reviewItems: data.reviewItems.filter((r) => existingNoteIds.has(r.note_id)).length,
       agentRoutines: routineCount,

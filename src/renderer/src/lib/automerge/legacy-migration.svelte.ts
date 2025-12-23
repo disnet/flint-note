@@ -21,6 +21,8 @@ import type {
 import { generateVaultId, nowISO } from './utils';
 import { getRepo, saveVaults, getVaults, setActiveVaultId } from './repo';
 import { opfsStorage } from './opfs-storage.svelte';
+import { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
+import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
 
 // Types from the main process migration module
 export interface LegacyVaultInfo {
@@ -68,6 +70,32 @@ interface EpubFileData {
   };
 }
 
+interface PdfFileData {
+  noteId: string;
+  fileData: Uint8Array;
+  filePath: string;
+  metadata: {
+    title?: string;
+    author?: string;
+  };
+  readingState?: {
+    currentPage?: number;
+    progress?: number;
+  };
+}
+
+interface WebpageFileData {
+  noteId: string;
+  htmlContent: string;
+  filePath: string;
+  metadata: {
+    title?: string;
+    url?: string;
+    siteName?: string;
+    author?: string;
+  };
+}
+
 // Document data structure from main process
 interface MigrationDocumentData {
   notes: Record<string, Note>;
@@ -82,6 +110,8 @@ interface MigrationStats {
   noteTypes: number;
   notes: number;
   epubs: number;
+  pdfs: number;
+  webpages: number;
   workspaces: number;
   reviewItems: number;
   agentRoutines: number;
@@ -183,13 +213,107 @@ export async function browseForVault(): Promise<string | null> {
 }
 
 /**
+ * Validate that data looks like a valid EPUB/ZIP file
+ * EPUBs are ZIP archives and should start with "PK" (bytes 80, 75)
+ */
+function isValidEpubData(data: Uint8Array): boolean {
+  if (data.length < 4) return false;
+  // Check for ZIP magic bytes "PK\x03\x04"
+  return data[0] === 0x50 && data[1] === 0x4b && data[2] === 0x03 && data[3] === 0x04;
+}
+
+/**
+ * Validate that data looks like a valid PDF file
+ * PDFs should start with "%PDF" (bytes 37, 80, 68, 70)
+ */
+function isValidPdfData(data: Uint8Array): boolean {
+  if (data.length < 4) return false;
+  // Check for PDF magic bytes "%PDF"
+  return data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46;
+}
+
+/**
  * Store an EPUB file in OPFS and return the hash
  */
-async function storeEpubInOPFS(fileData: Uint8Array): Promise<string> {
-  // Create a new ArrayBuffer from the Uint8Array to avoid SharedArrayBuffer issues
-  const arrayBuffer = new ArrayBuffer(fileData.byteLength);
-  new Uint8Array(arrayBuffer).set(fileData);
-  return await opfsStorage.store(arrayBuffer);
+async function storeEpubInOPFS(
+  fileData: Uint8Array | ArrayLike<number>
+): Promise<string> {
+  // When data comes through Electron IPC, Uint8Array might be serialized as a plain object
+  // with numeric keys. We need to handle both cases.
+  let uint8Array: Uint8Array;
+
+  if (fileData instanceof Uint8Array) {
+    // Proper Uint8Array - create a copy to avoid SharedArrayBuffer issues
+    uint8Array = new Uint8Array(fileData.length);
+    uint8Array.set(fileData);
+  } else if (
+    typeof fileData === 'object' &&
+    fileData !== null &&
+    typeof (fileData as { length?: number }).length === 'number'
+  ) {
+    // Serialized object with numeric keys (from IPC) - convert to Uint8Array first
+    const length = (fileData as { length: number }).length;
+    uint8Array = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+      uint8Array[i] = (fileData as ArrayLike<number>)[i];
+    }
+  } else {
+    throw new Error('Invalid EPUB file data format');
+  }
+
+  // Validate the data looks like a valid EPUB/ZIP file
+  if (!isValidEpubData(uint8Array)) {
+    const preview = Array.from(uint8Array.slice(0, 20))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    console.error(
+      `[Migration] EPUB data does not appear to be a valid ZIP file. First 20 bytes: ${preview}`
+    );
+    throw new Error('EPUB data is not a valid ZIP file');
+  }
+
+  return await opfsStorage.store(uint8Array.buffer as ArrayBuffer);
+}
+
+/**
+ * Store a PDF file in OPFS and return the hash
+ */
+async function storePdfInOPFS(fileData: Uint8Array | ArrayLike<number>): Promise<string> {
+  // When data comes through Electron IPC, Uint8Array might be serialized as a plain object
+  // with numeric keys. We need to handle both cases.
+  let uint8Array: Uint8Array;
+
+  if (fileData instanceof Uint8Array) {
+    // Proper Uint8Array - create a copy to avoid SharedArrayBuffer issues
+    uint8Array = new Uint8Array(fileData.length);
+    uint8Array.set(fileData);
+  } else if (
+    typeof fileData === 'object' &&
+    fileData !== null &&
+    typeof (fileData as { length?: number }).length === 'number'
+  ) {
+    // Serialized object with numeric keys (from IPC) - convert to Uint8Array first
+    const length = (fileData as { length: number }).length;
+    uint8Array = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+      uint8Array[i] = (fileData as ArrayLike<number>)[i];
+    }
+  } else {
+    throw new Error('Invalid PDF file data format');
+  }
+
+  // Validate the data looks like a valid PDF file
+  if (!isValidPdfData(uint8Array)) {
+    const preview = Array.from(uint8Array.slice(0, 20))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    console.error(
+      `[Migration] PDF data does not appear to be a valid PDF file. First 20 bytes: ${preview}`
+    );
+    throw new Error('PDF data is not a valid PDF file');
+  }
+
+  return await pdfOpfsStorage.store(uint8Array.buffer as ArrayBuffer);
 }
 
 /**
@@ -225,6 +349,86 @@ function updateEpubNoteProps(
   }
   if (readingState?.progress !== undefined) {
     note.props.progress = readingState.progress;
+  }
+}
+
+/**
+ * Update PDF note props with the stored hash
+ */
+function updatePdfNoteProps(
+  document: MigrationDocumentData,
+  noteId: string,
+  pdfHash: string,
+  metadata: PdfFileData['metadata'],
+  readingState?: PdfFileData['readingState']
+): void {
+  const note = document.notes[noteId];
+  if (!note) return;
+
+  // Update note props with PDF-specific data
+  // Only include properties that have defined values (undefined is not valid JSON)
+  note.props = {
+    ...note.props,
+    pdfHash
+  };
+
+  if (metadata.title !== undefined) {
+    note.props.pdfTitle = metadata.title;
+  }
+  if (metadata.author !== undefined) {
+    note.props.pdfAuthor = metadata.author;
+  }
+
+  // Preserve reading state if available
+  if (readingState?.currentPage !== undefined) {
+    note.props.currentPage = readingState.currentPage;
+  }
+  if (readingState?.progress !== undefined) {
+    note.props.progress = readingState.progress;
+  }
+}
+
+/**
+ * Store a webpage HTML file in OPFS and return the hash
+ */
+async function storeWebpageInOPFS(htmlContent: string): Promise<string> {
+  if (!htmlContent || htmlContent.length === 0) {
+    throw new Error('Webpage HTML content is empty');
+  }
+
+  return await webpageOpfsStorage.store(htmlContent);
+}
+
+/**
+ * Update webpage note props with the stored hash
+ */
+function updateWebpageNoteProps(
+  document: MigrationDocumentData,
+  noteId: string,
+  webpageHash: string,
+  metadata: WebpageFileData['metadata']
+): void {
+  const note = document.notes[noteId];
+  if (!note) return;
+
+  // Update note props with webpage-specific data
+  // Only include properties that have defined values (undefined is not valid JSON)
+  note.props = {
+    ...note.props,
+    webpageHash
+  };
+
+  if (metadata.title !== undefined) {
+    note.props.webpageTitle = metadata.title;
+  }
+  if (metadata.url !== undefined) {
+    note.props.webpageUrl = metadata.url;
+  }
+  if (metadata.siteName !== undefined) {
+    note.props.webpageSiteName = metadata.siteName;
+  }
+  if (metadata.author !== undefined) {
+    note.props.webpageAuthor = metadata.author;
   }
 }
 
@@ -396,6 +600,8 @@ export async function migrateLegacyVault(
     // Cast the unknown document to our typed structure
     const documentData = mainResult.document as MigrationDocumentData;
     const epubFiles = mainResult.epubFiles;
+    const pdfFiles = mainResult.pdfFiles || [];
+    const webpageFiles = mainResult.webpageFiles || [];
     const transformErrors = mainResult.errors.map(toMigrationError);
     errors.push(...transformErrors);
 
@@ -445,6 +651,107 @@ export async function migrateLegacyVault(
             entity: 'epub',
             entityId: epubFile.noteId,
             message: `Failed to store EPUB: ${error instanceof Error ? error.message : String(error)}`
+          });
+        }
+      }
+    }
+
+    // Phase 2b: Store PDF files in OPFS
+    if (pdfFiles.length > 0) {
+      migrationProgress = {
+        phase: 'transforming',
+        message: `Storing ${pdfFiles.length} PDF files...`,
+        current: 2,
+        total: 5,
+        details: { epubs: epubFiles.length }
+      };
+
+      for (let i = 0; i < pdfFiles.length; i++) {
+        const pdfFile = pdfFiles[i];
+
+        // Update progress for each PDF
+        migrationProgress = {
+          phase: 'transforming',
+          message: `Storing PDF ${i + 1} of ${pdfFiles.length}...`,
+          current: 2,
+          total: 5,
+          details: { epubs: epubFiles.length }
+        };
+
+        try {
+          // Skip if no file data (file couldn't be read)
+          if (!pdfFile.fileData || pdfFile.fileData.length === 0) {
+            errors.push({
+              entity: 'epub', // Using 'epub' entity type as there's no 'pdf' type defined
+              entityId: pdfFile.noteId,
+              message: `PDF file data is empty: ${pdfFile.filePath}`
+            });
+            continue;
+          }
+
+          const pdfHash = await storePdfInOPFS(pdfFile.fileData);
+          updatePdfNoteProps(
+            documentData,
+            pdfFile.noteId,
+            pdfHash,
+            pdfFile.metadata,
+            pdfFile.readingState
+          );
+        } catch (error) {
+          errors.push({
+            entity: 'epub', // Using 'epub' entity type as there's no 'pdf' type defined
+            entityId: pdfFile.noteId,
+            message: `Failed to store PDF: ${error instanceof Error ? error.message : String(error)}`
+          });
+        }
+      }
+    }
+
+    // Phase 2c: Store webpage files in OPFS
+    if (webpageFiles.length > 0) {
+      migrationProgress = {
+        phase: 'transforming',
+        message: `Storing ${webpageFiles.length} webpage files...`,
+        current: 2,
+        total: 5,
+        details: { epubs: epubFiles.length }
+      };
+
+      for (let i = 0; i < webpageFiles.length; i++) {
+        const webpageFile = webpageFiles[i];
+
+        // Update progress for each webpage
+        migrationProgress = {
+          phase: 'transforming',
+          message: `Storing webpage ${i + 1} of ${webpageFiles.length}...`,
+          current: 2,
+          total: 5,
+          details: { epubs: epubFiles.length }
+        };
+
+        try {
+          // Skip if no HTML content (file couldn't be read)
+          if (!webpageFile.htmlContent || webpageFile.htmlContent.length === 0) {
+            errors.push({
+              entity: 'epub', // Using 'epub' entity type as there's no 'webpage' type defined
+              entityId: webpageFile.noteId,
+              message: `Webpage file content is empty: ${webpageFile.filePath}`
+            });
+            continue;
+          }
+
+          const webpageHash = await storeWebpageInOPFS(webpageFile.htmlContent);
+          updateWebpageNoteProps(
+            documentData,
+            webpageFile.noteId,
+            webpageHash,
+            webpageFile.metadata
+          );
+        } catch (error) {
+          errors.push({
+            entity: 'epub', // Using 'epub' entity type as there's no 'webpage' type defined
+            entityId: webpageFile.noteId,
+            message: `Failed to store webpage: ${error instanceof Error ? error.message : String(error)}`
           });
         }
       }
@@ -506,6 +813,8 @@ export async function migrateLegacyVault(
         noteTypes: Object.keys(documentData.noteTypes).length,
         notes: Object.keys(documentData.notes).length,
         epubs: epubFiles.length,
+        pdfs: pdfFiles.length,
+        webpages: webpageFiles.length,
         workspaces: Object.keys(documentData.workspaces).length,
         reviewItems: 0, // Not tracked separately in renderer
         agentRoutines: agentRoutineCount,

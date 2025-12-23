@@ -308,7 +308,12 @@ export async function extractVaultData(
     // Note: ui_state may use a different vault_id format (just folder name vs full path)
     // Try both the full vault_id and just the basename
     const vaultBasename = vaultId.split('/').pop() || vaultId;
-    console.log('[Migration] Looking for ui_state with vault_id:', vaultId, 'or', vaultBasename);
+    console.log(
+      '[Migration] Looking for ui_state with vault_id:',
+      vaultId,
+      'or',
+      vaultBasename
+    );
 
     const uiState = await conn.all<LegacyUIStateRow>(
       `SELECT id, vault_id, state_key, state_value, schema_version, updated_at
@@ -421,9 +426,63 @@ export function readEpubFile(vaultPath: string, relativePath: string): Uint8Arra
 
   try {
     const buffer = fs.readFileSync(fullPath);
-    return new Uint8Array(buffer);
+    // Create a proper Uint8Array copy (not a view) for IPC serialization
+    // Buffer.from creates a copy, then Uint8Array wraps it properly
+    const uint8Array = new Uint8Array(buffer.length);
+    for (let i = 0; i < buffer.length; i++) {
+      uint8Array[i] = buffer[i];
+    }
+    return uint8Array;
   } catch (error) {
     console.error(`Failed to read EPUB file: ${fullPath}`, error);
+    return null;
+  }
+}
+
+/**
+ * Read a PDF file from the vault
+ *
+ * @param vaultPath - The vault base path
+ * @param relativePath - The relative path to the PDF file (from the flint_pdfPath metadata)
+ * @returns The file contents as a Uint8Array, or null if not found
+ */
+export function readPdfFile(vaultPath: string, relativePath: string): Uint8Array | null {
+  // The path in the database is relative to the vault root
+  const fullPath = path.isAbsolute(relativePath)
+    ? relativePath
+    : path.join(vaultPath, relativePath);
+
+  try {
+    const buffer = fs.readFileSync(fullPath);
+    // Create a proper Uint8Array copy (not a view) for IPC serialization
+    const uint8Array = new Uint8Array(buffer.length);
+    for (let i = 0; i < buffer.length; i++) {
+      uint8Array[i] = buffer[i];
+    }
+    return uint8Array;
+  } catch (error) {
+    console.error(`Failed to read PDF file: ${fullPath}`, error);
+    return null;
+  }
+}
+
+/**
+ * Read a webpage HTML file from the vault
+ *
+ * @param vaultPath - The vault base path
+ * @param relativePath - The relative path to the HTML file (from the flint_webpagePath metadata)
+ * @returns The file contents as a string, or null if not found
+ */
+export function readWebpageFile(vaultPath: string, relativePath: string): string | null {
+  // The path in the database is relative to the vault root
+  const fullPath = path.isAbsolute(relativePath)
+    ? relativePath
+    : path.join(vaultPath, relativePath);
+
+  try {
+    return fs.readFileSync(fullPath, 'utf-8');
+  } catch (error) {
+    console.error(`Failed to read webpage file: ${fullPath}`, error);
     return null;
   }
 }
