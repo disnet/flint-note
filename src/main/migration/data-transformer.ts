@@ -169,49 +169,177 @@ export function buildTypeIdMapping(
  */
 function transformNoteType(legacy: LegacyNoteTypeRow, newId: string): NoteType {
   // Parse metadata schema to property definitions
-  const metadataSchema = safeParseJSON<
-    Array<{
-      name: string;
-      type: string;
-      description?: string;
-    }>
-  >(legacy.metadata_schema);
+  // Legacy schemas can be in different formats:
+  // 1. Array format: [{name: 'field', type: 'string', ...}, ...]
+  // 2. Object format: {fieldName: {type: 'string', ...}, ...}
+  // 3. null/undefined
+  const rawSchema = safeParseJSON<unknown>(legacy.metadata_schema);
 
-  // Map legacy types to valid PropertyTypes
-  const properties = metadataSchema?.map((field) => {
-    // Map multiSelect to array type (they serve the same purpose)
-    let mappedType = field.type;
-    if (mappedType === 'multiSelect') {
-      mappedType = 'array';
+  // Debug: log the raw schema to understand its format
+  console.log(
+    `[Migration] Type "${legacy.type_name}" raw schema:`,
+    JSON.stringify(rawSchema, null, 2)
+  );
+
+  let properties:
+    | Array<{
+        name: string;
+        type:
+          | 'string'
+          | 'number'
+          | 'boolean'
+          | 'date'
+          | 'array'
+          | 'select'
+          | 'notelink'
+          | 'notelinks';
+        description?: string;
+      }>
+    | undefined;
+
+  if (rawSchema) {
+    let schemaArray: Array<{ name: string; type: string; description?: string }>;
+
+    if (Array.isArray(rawSchema)) {
+      // Already in array format: [{name: 'field', type: 'string'}, ...]
+      schemaArray = rawSchema as Array<{
+        name: string;
+        type: string;
+        description?: string;
+      }>;
+    } else if (typeof rawSchema === 'object') {
+      const schemaObj = rawSchema as Record<string, unknown>;
+
+      // Check for wrapped format: {fields: [...]}
+      if (Array.isArray(schemaObj.fields)) {
+        schemaArray = schemaObj.fields as Array<{
+          name: string;
+          type: string;
+          description?: string;
+        }>;
+      } else {
+        // Convert object format to array format
+        // Object format: {fieldName: {type: 'string', description?: 'desc'}, ...}
+        schemaArray = Object.entries(schemaObj).map(([name, value]) => {
+          if (typeof value === 'object' && value !== null) {
+            const fieldDef = value as { type?: string; description?: string };
+            return {
+              name,
+              type: fieldDef.type ?? 'string',
+              description: fieldDef.description
+            };
+          }
+          // Handle simple format: {fieldName: 'string'}
+          return {
+            name,
+            type: typeof value === 'string' ? value : 'string'
+          };
+        });
+      }
+    } else {
+      schemaArray = [];
     }
-    return {
-      name: field.name,
-      type: mappedType as
-        | 'string'
-        | 'number'
-        | 'boolean'
-        | 'date'
-        | 'array'
-        | 'select'
-        | 'notelink'
-        | 'notelinks',
-      description: field.description
-    };
-  });
+
+    // Debug: log the extracted schema array
+    console.log(
+      `[Migration] Type "${legacy.type_name}" schemaArray:`,
+      JSON.stringify(schemaArray, null, 2)
+    );
+
+    // Map legacy types to valid PropertyTypes
+    // Note: undefined is not valid JSON for Automerge, so we only include optional fields if defined
+    properties = schemaArray.map((field) => {
+      // Map multiSelect to array type (they serve the same purpose)
+      let mappedType = field.type;
+      if (mappedType === 'multiSelect') {
+        mappedType = 'array';
+      }
+
+      // Cast field to include optional properties from legacy format
+      // Legacy format can have constraints nested: { constraints: { options: [...] } }
+      const legacyField = field as {
+        name: string;
+        type: string;
+        description?: string;
+        options?: string[];
+        required?: boolean;
+        default?: string | number | boolean | string[];
+        constraints?: { options?: string[]; min?: number; max?: number };
+      };
+
+      const prop: {
+        name: string;
+        type:
+          | 'string'
+          | 'number'
+          | 'boolean'
+          | 'date'
+          | 'array'
+          | 'select'
+          | 'notelink'
+          | 'notelinks';
+        description?: string;
+        required?: boolean;
+        default?: string | number | boolean | string[];
+        constraints?: { options?: string[] };
+      } = {
+        name: legacyField.name,
+        type: mappedType as
+          | 'string'
+          | 'number'
+          | 'boolean'
+          | 'date'
+          | 'array'
+          | 'select'
+          | 'notelink'
+          | 'notelinks'
+      };
+
+      // Add optional fields only if they have values
+      if (legacyField.description) {
+        prop.description = legacyField.description;
+      }
+      if (legacyField.required) {
+        prop.required = legacyField.required;
+      }
+      if (legacyField.default !== undefined) {
+        prop.default = legacyField.default;
+      }
+
+      // Carry over select options into constraints
+      // Check both top-level options and nested constraints.options
+      const options = legacyField.options ?? legacyField.constraints?.options;
+      if (options && Array.isArray(options) && options.length > 0) {
+        prop.constraints = { options };
+      }
+
+      return prop;
+    });
+  }
 
   const editorChips = safeParseJSON<string[]>(legacy.editor_chips);
 
-  return {
+  const noteType: NoteType = {
     id: newId,
     name: legacy.type_name,
     purpose: legacy.purpose ?? '',
     icon: legacy.icon ?? '📄',
     archived: false,
-    created: legacy.created_at ?? nowISO(),
-    properties,
-    editorChips,
-    agentInstructions: legacy.agent_instructions ?? undefined
+    created: legacy.created_at ?? nowISO()
   };
+
+  // Only include optional properties if they have values (undefined is not valid JSON for Automerge)
+  if (properties && properties.length > 0) {
+    noteType.properties = properties;
+  }
+  if (editorChips) {
+    noteType.editorChips = editorChips;
+  }
+  if (legacy.agent_instructions) {
+    noteType.agentInstructions = legacy.agent_instructions;
+  }
+
+  return noteType;
 }
 
 /**
@@ -277,7 +405,13 @@ function transformNote(
  */
 interface ParsedWorkspace {
   name: string;
-  icon: string;
+  icon?: string;
+  // Legacy format uses pinnedNotes/recentNotes as arrays of {noteId, title} or {id, ...} objects
+  pinnedNotes?: Array<{ noteId?: string; id?: string; title?: string }>;
+  recentNotes?: Array<{ noteId?: string; id?: string; title?: string }>;
+  // temporaryTabs may contain recent/open notes in legacy format
+  temporaryTabs?: Array<{ noteId?: string; id?: string }>;
+  // Or simpler string array format
   pinnedNoteIds?: string[];
   recentNoteIds?: string[];
 }
@@ -296,11 +430,32 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
     workspaceOrder?: string[];
   } = { workspaces: [] };
 
+  // Debug: log all ui_state keys to understand what's available
+  console.log(
+    '[Migration] UI state keys:',
+    uiState.map((s) => s.state_key)
+  );
+
   for (const state of uiState) {
+    console.log(`[Migration] UI state "${state.state_key}":`, state.state_value?.substring(0, 200));
+
     if (state.state_key === 'workspaces') {
-      const parsed = safeParseJSON<ParsedWorkspace[]>(state.state_value);
+      // Handle both formats:
+      // 1. Array format: [{id, name, ...}, ...]
+      // 2. Wrapped format: {workspaces: [...], activeWorkspaceId: "..."}
+      const parsed = safeParseJSON<
+        ParsedWorkspace[] | { workspaces: ParsedWorkspace[]; activeWorkspaceId?: string }
+      >(state.state_value);
+      console.log('[Migration] Parsed workspaces:', parsed);
       if (parsed) {
-        result.workspaces = parsed;
+        if (Array.isArray(parsed)) {
+          result.workspaces = parsed;
+        } else if (parsed.workspaces && Array.isArray(parsed.workspaces)) {
+          result.workspaces = parsed.workspaces;
+          if (parsed.activeWorkspaceId) {
+            result.activeWorkspaceId = parsed.activeWorkspaceId;
+          }
+        }
       }
     } else if (state.state_key === 'currentWorkspaceId') {
       result.activeWorkspaceId = state.state_value;
@@ -309,6 +464,7 @@ function extractWorkspaces(uiState: LegacyUIStateRow[]): {
     }
   }
 
+  console.log('[Migration] Extracted workspace result:', result);
   return result;
 }
 
@@ -344,14 +500,68 @@ function transformWorkspaces(
     const isDefault = i === 0 || parsed.name.toLowerCase() === 'default';
     const wsId = isDefault ? DEFAULT_WORKSPACE_ID : generateWorkspaceId();
 
+    // Extract pinned note IDs from either format
+    // Format 1: pinnedNotes: [{noteId: "n-xxx", title: "..."}, ...]
+    // Format 2: pinnedNoteIds: ["n-xxx", ...]
+    console.log(`[Migration] Workspace "${parsed.name}" raw pinnedNotes:`, JSON.stringify(parsed.pinnedNotes));
+
+    let pinnedIds: string[] = [];
+    if (parsed.pinnedNotes && Array.isArray(parsed.pinnedNotes)) {
+      pinnedIds = parsed.pinnedNotes
+        .map((n) => {
+          // Handle different possible formats
+          if (typeof n === 'string') return n;
+          if (n && typeof n === 'object' && 'noteId' in n) return n.noteId;
+          if (n && typeof n === 'object' && 'id' in n) return (n as { id: string }).id;
+          console.log('[Migration] Unknown pinned note format:', n);
+          return null;
+        })
+        .filter(Boolean) as string[];
+    } else if (parsed.pinnedNoteIds && Array.isArray(parsed.pinnedNoteIds)) {
+      pinnedIds = parsed.pinnedNoteIds;
+    }
+
+    // Extract recent note IDs - may be stored as recentNotes or temporaryTabs
+    console.log(`[Migration] Workspace "${parsed.name}" raw temporaryTabs:`, JSON.stringify(parsed.temporaryTabs));
+
+    let recentIds: string[] = [];
+    // Check temporaryTabs first (legacy format)
+    if (parsed.temporaryTabs && Array.isArray(parsed.temporaryTabs)) {
+      recentIds = parsed.temporaryTabs
+        .map((n) => {
+          if (typeof n === 'string') return n;
+          if (n && typeof n === 'object' && 'noteId' in n && n.noteId) return n.noteId;
+          if (n && typeof n === 'object' && 'id' in n && n.id) return n.id;
+          return null;
+        })
+        .filter(Boolean) as string[];
+    } else if (parsed.recentNotes && Array.isArray(parsed.recentNotes)) {
+      recentIds = parsed.recentNotes
+        .map((n) => {
+          if (typeof n === 'string') return n;
+          if (n && typeof n === 'object' && 'noteId' in n && n.noteId) return n.noteId;
+          if (n && typeof n === 'object' && 'id' in n && n.id) return n.id;
+          return null;
+        })
+        .filter(Boolean) as string[];
+    } else if (parsed.recentNoteIds && Array.isArray(parsed.recentNoteIds)) {
+      recentIds = parsed.recentNoteIds;
+    }
+
+    console.log(`[Migration] Workspace "${parsed.name}" pinned IDs:`, pinnedIds);
+    console.log(`[Migration] Workspace "${parsed.name}" recent IDs:`, recentIds);
+
     // Convert note IDs to SidebarItemRef, filtering out any that don't exist
-    const pinnedItemIds: SidebarItemRef[] = (parsed.pinnedNoteIds ?? [])
+    const pinnedItemIds: SidebarItemRef[] = pinnedIds
       .filter((id) => existingNoteIds.has(id))
       .map((id) => ({ type: 'note' as const, id }));
 
-    const recentItemIds: SidebarItemRef[] = (parsed.recentNoteIds ?? [])
+    const recentItemIds: SidebarItemRef[] = recentIds
       .filter((id) => existingNoteIds.has(id))
       .map((id) => ({ type: 'note' as const, id }));
+
+    console.log(`[Migration] Workspace "${parsed.name}" final pinned:`, pinnedItemIds.length);
+    console.log(`[Migration] Workspace "${parsed.name}" final recent:`, recentItemIds.length);
 
     workspaces[wsId] = {
       id: wsId,
@@ -398,59 +608,75 @@ function mapRoutineType(legacyType: string): AgentRoutineType {
 
 /**
  * Transform a legacy workflow to an AgentRoutine
+ * Note: undefined is not valid JSON for Automerge, so we only include properties that have values
  */
 function transformWorkflow(
   legacy: LegacyWorkflowRow,
   materials: LegacySupplementaryMaterialRow[],
   completions: LegacyWorkflowCompletionRow[]
 ): AgentRoutine {
-  // Transform supplementary materials
+  // Transform supplementary materials - filter out undefined properties
   const supplementaryMaterials: SupplementaryMaterial[] | undefined =
     materials.length > 0
-      ? materials.map((m) => ({
-          id: m.id,
-          materialType: m.material_type as 'text' | 'code' | 'note_reference',
-          content: m.content ?? undefined,
-          noteId: m.note_id ?? undefined,
-          metadata: m.metadata ? safeParseJSON(m.metadata) : undefined,
-          position: m.position,
-          createdAt: m.created_at
-        }))
+      ? materials.map((m) => {
+          const material: SupplementaryMaterial = {
+            id: m.id,
+            materialType: m.material_type as 'text' | 'code' | 'note_reference',
+            position: m.position,
+            createdAt: m.created_at
+          };
+          if (m.content != null) material.content = m.content;
+          if (m.note_id != null) material.noteId = m.note_id;
+          if (m.metadata) {
+            const parsed = safeParseJSON(m.metadata);
+            if (parsed) material.metadata = parsed;
+          }
+          return material;
+        })
       : undefined;
 
-  // Transform completion history
+  // Transform completion history - filter out undefined properties
   const completionHistory: RoutineCompletion[] | undefined =
     completions.length > 0
-      ? completions.map((c) => ({
-          id: c.id,
-          completedAt: c.completed_at,
-          conversationId: c.conversation_id ?? undefined,
-          notes: c.notes ?? undefined,
-          outputNoteId: c.output_note_id ?? undefined,
-          metadata: c.metadata ? safeParseJSON(c.metadata) : undefined
-        }))
+      ? completions.map((c) => {
+          const completion: RoutineCompletion = {
+            id: c.id,
+            completedAt: c.completed_at
+          };
+          if (c.conversation_id != null) completion.conversationId = c.conversation_id;
+          if (c.notes != null) completion.notes = c.notes;
+          if (c.output_note_id != null) completion.outputNoteId = c.output_note_id;
+          if (c.metadata) {
+            const parsed = safeParseJSON(c.metadata);
+            if (parsed) completion.metadata = parsed;
+          }
+          return completion;
+        })
       : undefined;
 
-  // Parse recurring spec
-  const recurringSpec = legacy.recurring_spec
-    ? safeParseJSON<RecurringSpec>(legacy.recurring_spec)
-    : undefined;
-
-  return {
+  // Build routine object, only including optional properties that have values
+  const routine: AgentRoutine = {
     id: legacy.id, // Preserve original w-xxxxxxxx ID
     name: legacy.name,
     purpose: legacy.purpose,
     description: legacy.description,
     status: mapRoutineStatus(legacy.status),
     type: mapRoutineType(legacy.type),
-    recurringSpec,
-    dueDate: legacy.due_date ?? undefined,
-    lastCompleted: legacy.last_completed ?? undefined,
     created: legacy.created_at,
-    updated: legacy.updated_at,
-    supplementaryMaterials,
-    completionHistory
+    updated: legacy.updated_at
   };
+
+  // Only add optional fields if they have values
+  if (legacy.recurring_spec) {
+    const parsed = safeParseJSON<RecurringSpec>(legacy.recurring_spec);
+    if (parsed) routine.recurringSpec = parsed;
+  }
+  if (legacy.due_date != null) routine.dueDate = legacy.due_date;
+  if (legacy.last_completed != null) routine.lastCompleted = legacy.last_completed;
+  if (supplementaryMaterials) routine.supplementaryMaterials = supplementaryMaterials;
+  if (completionHistory) routine.completionHistory = completionHistory;
+
+  return routine;
 }
 
 /**
@@ -469,16 +695,23 @@ export function transformVaultData(
 
   // Build type ID mapping
   const typeIdMapping = buildTypeIdMapping(data.noteTypes);
+  console.log('[Migration] Type ID mapping:', typeIdMapping);
+  console.log('[Migration] Legacy note types count:', data.noteTypes.length);
 
   // Transform note types
   const noteTypes: Record<string, NoteType> = {};
   for (const legacyType of data.noteTypes) {
     try {
+      console.log('[Migration] Processing legacy type:', legacyType.type_name);
       const newId = typeIdMapping[legacyType.type_name];
       if (newId) {
         noteTypes[newId] = transformNoteType(legacyType, newId);
+        console.log('[Migration] Transformed type:', newId, noteTypes[newId]);
+      } else {
+        console.warn('[Migration] No mapping found for type:', legacyType.type_name);
       }
     } catch (error) {
+      console.error('[Migration] Error transforming type:', legacyType.type_name, error);
       errors.push({
         entity: 'noteType',
         entityId: legacyType.type_name,
@@ -486,6 +719,7 @@ export function transformVaultData(
       });
     }
   }
+  console.log('[Migration] Transformed note types count:', Object.keys(noteTypes).length);
 
   // Ensure default note type exists
   if (!noteTypes[DEFAULT_NOTE_TYPE_ID]) {

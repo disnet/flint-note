@@ -12,7 +12,7 @@
   import { sidebarState } from '../stores/sidebarState.svelte';
   import {
     getActiveWorkspace,
-    archiveVault,
+    updateVaultInState,
     type Note,
     type Vault,
     type SearchResult,
@@ -164,7 +164,7 @@
         onVaultSelect(otherVault.id);
       }
     }
-    archiveVault(vault.id);
+    updateVaultInState(vault.id, { archived: true });
     closeVaultDropdown();
   }
 

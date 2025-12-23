@@ -191,6 +191,27 @@ async function hasWorkflowsTable(conn: ReadOnlyConnection): Promise<boolean> {
 }
 
 /**
+ * Get list of columns that exist in a table
+ * (for backward compatibility with older schema versions)
+ */
+async function getTableColumns(
+  conn: ReadOnlyConnection,
+  tableName: string
+): Promise<Set<string>> {
+  try {
+    // PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+    const columns = await conn.all<{ cid: number; name: string; type: string }>(
+      `PRAGMA table_info(${tableName})`
+    );
+    console.log(`[Migration] PRAGMA table_info(${tableName}) returned:`, columns);
+    return new Set(columns.map((c) => c.name));
+  } catch (error) {
+    console.error(`[Migration] Failed to get columns for ${tableName}:`, error);
+    return new Set();
+  }
+}
+
+/**
  * Extract all data from a legacy vault database
  *
  * This is the main extraction function that reads all tables.
@@ -212,15 +233,50 @@ export async function extractVaultData(
 
     onProgress?.('Extracting note types...', 0, 7);
 
-    // Extract note types
+    // Check which columns exist in note_type_descriptions (for backward compatibility)
+    const noteTypeColumns = await getTableColumns(conn, 'note_type_descriptions');
+    console.log(
+      '[Migration] note_type_descriptions columns:',
+      Array.from(noteTypeColumns)
+    );
+
+    // Build dynamic column list - only include columns that exist
+    // Core columns that should always exist
+    const coreColumns = ['id', 'vault_id', 'type_name'];
+    // Columns that may or may not exist depending on schema version
+    const optionalColumns = [
+      'purpose',
+      'agent_instructions',
+      'metadata_schema',
+      'icon',
+      'suggestions_config',
+      'default_review_mode',
+      'created_at',
+      'updated_at',
+      'editor_chips'
+    ];
+
+    // Filter to only columns that exist in the database
+    const availableColumns =
+      noteTypeColumns.size > 0
+        ? [
+            ...coreColumns.filter((col) => noteTypeColumns.has(col)),
+            ...optionalColumns.filter((col) => noteTypeColumns.has(col))
+          ]
+        : // Fallback if PRAGMA failed - try with minimal columns
+          coreColumns;
+
+    console.log('[Migration] Using columns:', availableColumns);
+
+    // Extract note types with available columns
     const noteTypes = await conn.all<LegacyNoteTypeRow>(
-      `SELECT id, vault_id, type_name, purpose, agent_instructions,
-              metadata_schema, icon, suggestions_config, default_review_mode,
-              editor_chips, created_at, updated_at
+      `SELECT ${availableColumns.join(', ')}
        FROM note_type_descriptions
        WHERE vault_id = ?`,
       [vaultId]
     );
+
+    console.log('[Migration] Extracted note types:', noteTypes.length);
 
     onProgress?.('Extracting notes...', 1, 7);
 
@@ -249,12 +305,18 @@ export async function extractVaultData(
     onProgress?.('Extracting UI state...', 3, 7);
 
     // Extract UI state
+    // Note: ui_state may use a different vault_id format (just folder name vs full path)
+    // Try both the full vault_id and just the basename
+    const vaultBasename = vaultId.split('/').pop() || vaultId;
+    console.log('[Migration] Looking for ui_state with vault_id:', vaultId, 'or', vaultBasename);
+
     const uiState = await conn.all<LegacyUIStateRow>(
       `SELECT id, vault_id, state_key, state_value, schema_version, updated_at
        FROM ui_state
-       WHERE vault_id = ?`,
-      [vaultId]
+       WHERE vault_id = ? OR vault_id = ?`,
+      [vaultId, vaultBasename]
     );
+    console.log('[Migration] Matched ui_state rows:', uiState.length);
 
     onProgress?.('Extracting review items...', 4, 7);
 

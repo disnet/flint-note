@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import type {
     DeckConfig,
     DeckView,
@@ -79,9 +78,11 @@
   // Pagination state
   let currentPage = $state(0);
 
-  // Schema fields for inline editing
-  let schemaFields = new SvelteMap<string, SchemaFieldInfo>();
-  let fieldsByType = new SvelteMap<string, Set<string>>();
+  // Schema fields for inline editing (non-reactive Maps since they're rebuilt in effect)
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- rebuilt completely in effect, not reactive
+  let schemaFields = new Map<string, SchemaFieldInfo>();
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- rebuilt completely in effect, not reactive
+  let fieldsByType = new Map<string, Set<string>>();
 
   // Prop picker dialog state
   let isPropPickerOpen = $state(false);
@@ -169,7 +170,7 @@
     for (const typeId of typesToCheck) {
       const noteType = noteTypesDict[typeId];
       if (noteType?.properties) {
-        const typeFields = new SvelteSet<string>();
+        const typeFields = new Set<string>();
         for (const prop of noteType.properties) {
           typeFields.add(prop.name);
           if (!schemaFields.has(prop.name)) {

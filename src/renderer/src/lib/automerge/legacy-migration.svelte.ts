@@ -206,12 +206,18 @@ function updateEpubNoteProps(
   if (!note) return;
 
   // Update note props with EPUB-specific data
+  // Only include properties that have defined values (undefined is not valid JSON)
   note.props = {
     ...note.props,
-    epubHash,
-    epubTitle: metadata.title,
-    epubAuthor: metadata.author
+    epubHash
   };
+
+  if (metadata.title !== undefined) {
+    note.props.epubTitle = metadata.title;
+  }
+  if (metadata.author !== undefined) {
+    note.props.epubAuthor = metadata.author;
+  }
 
   // Preserve reading state if available
   if (readingState?.currentCfi) {
