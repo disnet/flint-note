@@ -34,8 +34,13 @@
     onInitialMessageConsumed?: () => void;
   }
 
-  let { isOpen, onClose, onGoToSettings, initialMessage, onInitialMessageConsumed }: Props =
-    $props();
+  let {
+    isOpen,
+    onClose,
+    onGoToSettings,
+    initialMessage,
+    onInitialMessageConsumed
+  }: Props = $props();
 
   // Get chat server port from main process
   let serverPort = $state<number | null>(null);

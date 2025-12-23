@@ -17,6 +17,7 @@ import type {
   PropertyDefinition,
   Conversation,
   PersistedChatMessage,
+  PersistedToolCall,
   SidebarItemRef,
   SidebarItem,
   ActiveItem,
@@ -1066,11 +1067,12 @@ export function createNoteType(params: {
       created: nowISO()
     };
     // Only add optional fields if they're defined (Automerge doesn't allow undefined)
+    // Must deep clone to avoid "Cannot create a reference to existing document object"
     if (params.properties !== undefined) {
-      noteType.properties = params.properties;
+      noteType.properties = JSON.parse(JSON.stringify(params.properties));
     }
     if (params.editorChips !== undefined) {
-      noteType.editorChips = params.editorChips;
+      noteType.editorChips = [...params.editorChips];
     }
     doc.noteTypes[id] = noteType;
   });
@@ -1096,8 +1098,13 @@ export function updateNoteType(
     if (updates.name !== undefined) noteType.name = updates.name;
     if (updates.purpose !== undefined) noteType.purpose = updates.purpose;
     if (updates.icon !== undefined) noteType.icon = updates.icon;
-    if (updates.properties !== undefined) noteType.properties = updates.properties;
-    if (updates.editorChips !== undefined) noteType.editorChips = updates.editorChips;
+    // Must deep clone to avoid "Cannot create a reference to existing document object"
+    if (updates.properties !== undefined) {
+      noteType.properties = JSON.parse(JSON.stringify(updates.properties));
+    }
+    if (updates.editorChips !== undefined) {
+      noteType.editorChips = [...updates.editorChips];
+    }
   });
 }
 
@@ -1180,7 +1187,12 @@ export function setNoteProps(noteId: string, props: Record<string, unknown>): vo
       note.props = {};
     }
     for (const [key, value] of Object.entries(props)) {
-      note.props[key] = value;
+      // Deep clone objects to avoid "Cannot create a reference to existing document object"
+      if (value !== null && typeof value === 'object') {
+        note.props[key] = JSON.parse(JSON.stringify(value));
+      } else {
+        note.props[key] = value;
+      }
     }
     note.updated = nowISO();
   });
@@ -1753,11 +1765,36 @@ export function addMessageToConversation(
     const conv = doc.conversations?.[conversationId];
     if (!conv) return;
 
-    conv.messages.push({
-      ...message,
+    // Create the base message object (undefined is not valid JSON for Automerge)
+    const newMessage: PersistedChatMessage = {
       id: messageId,
+      role: message.role,
+      content: message.content,
       createdAt: now
-    });
+    };
+
+    // Only add toolCalls if there are any (undefined is not valid in Automerge)
+    if (message.toolCalls && message.toolCalls.length > 0) {
+      // Create fresh objects to avoid "Cannot create a reference to existing document object"
+      newMessage.toolCalls = message.toolCalls.map((tc) => {
+        const toolCall: PersistedToolCall = {
+          id: tc.id,
+          name: tc.name,
+          args: JSON.parse(JSON.stringify(tc.args)),
+          status: tc.status
+        };
+        // Only include optional fields if they have values
+        if (tc.result !== undefined) {
+          toolCall.result = JSON.parse(JSON.stringify(tc.result));
+        }
+        if (tc.error !== undefined) {
+          toolCall.error = tc.error;
+        }
+        return toolCall;
+      });
+    }
+
+    conv.messages.push(newMessage);
     conv.updated = now;
 
     // Auto-generate title from first user message
@@ -1788,7 +1825,26 @@ export function updateConversationMessage(
     if (!message) return;
 
     if (updates.content !== undefined) message.content = updates.content;
-    if (updates.toolCalls !== undefined) message.toolCalls = updates.toolCalls;
+    if (updates.toolCalls !== undefined && updates.toolCalls.length > 0) {
+      // Must create fresh objects inside the change block to avoid
+      // "Cannot create a reference to an existing document object" error
+      message.toolCalls = updates.toolCalls.map((tc) => {
+        const toolCall: PersistedToolCall = {
+          id: tc.id,
+          name: tc.name,
+          args: JSON.parse(JSON.stringify(tc.args)),
+          status: tc.status
+        };
+        // Only include optional fields if they have values (undefined not valid in Automerge)
+        if (tc.result !== undefined) {
+          toolCall.result = JSON.parse(JSON.stringify(tc.result));
+        }
+        if (tc.error !== undefined) {
+          toolCall.error = tc.error;
+        }
+        return toolCall;
+      });
+    }
     conv.updated = nowISO();
   });
 }
@@ -3809,23 +3865,24 @@ export function createRoutine(input: CreateRoutineInput): string {
   const id = generateRoutineId();
   const now = nowISO();
 
-  // Build supplementary materials if provided
-  const materials: SupplementaryMaterial[] = (input.supplementaryMaterials || []).map(
-    (m, index) => ({
-      id: generateRoutineMaterialId(),
-      materialType: m.type,
-      content: m.content,
-      noteId: m.noteId,
-      metadata: m.metadata as SupplementaryMaterial['metadata'],
-      position: index,
-      createdAt: now
-    })
-  );
-
   docHandle.change((doc) => {
     if (!doc.agentRoutines) {
       doc.agentRoutines = {};
     }
+
+    // Build supplementary materials inside change block with fresh objects
+    // to avoid "Cannot create a reference to existing document object"
+    const materials: SupplementaryMaterial[] = (input.supplementaryMaterials || []).map(
+      (m, index) => ({
+        id: generateRoutineMaterialId(),
+        materialType: m.type,
+        content: m.content,
+        noteId: m.noteId,
+        metadata: m.metadata ? JSON.parse(JSON.stringify(m.metadata)) : undefined,
+        position: index,
+        createdAt: now
+      })
+    );
 
     doc.agentRoutines[id] = {
       id,
@@ -3834,7 +3891,10 @@ export function createRoutine(input: CreateRoutineInput): string {
       description: input.description,
       status: input.status || 'active',
       type: input.type || 'routine',
-      recurringSpec: input.recurringSpec,
+      // Deep clone objects to avoid Automerge reference errors
+      recurringSpec: input.recurringSpec
+        ? JSON.parse(JSON.stringify(input.recurringSpec))
+        : undefined,
       dueDate: input.dueDate,
       created: now,
       updated: now,
@@ -3887,10 +3947,11 @@ export function updateRoutine(input: UpdateRoutineInput): void {
     if (input.type !== undefined) r.type = input.type;
 
     // Handle recurringSpec - null means remove, undefined means don't change
+    // Deep clone to avoid "Cannot create a reference to existing document object"
     if (input.recurringSpec === null) {
       r.recurringSpec = undefined;
     } else if (input.recurringSpec !== undefined) {
-      r.recurringSpec = input.recurringSpec;
+      r.recurringSpec = JSON.parse(JSON.stringify(input.recurringSpec));
     }
 
     // Handle dueDate - null means remove, undefined means don't change
@@ -4012,7 +4073,12 @@ export function addRoutineMaterial(
       materialType: material.type,
       content: material.content,
       noteId: material.noteId,
-      metadata: material.metadata as SupplementaryMaterial['metadata'],
+      // Deep clone to avoid "Cannot create a reference to existing document object"
+      metadata: material.metadata
+        ? (JSON.parse(
+            JSON.stringify(material.metadata)
+          ) as SupplementaryMaterial['metadata'])
+        : undefined,
       position,
       createdAt: now
     });
