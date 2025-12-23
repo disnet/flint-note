@@ -20,7 +20,8 @@ import type {
   SidebarItemRef,
   SidebarItem,
   ActiveItem,
-  SystemView
+  SystemView,
+  InboxNote
 } from './types';
 import {
   generateNoteId,
@@ -3222,4 +3223,155 @@ export function getReviewQueueNotes(): Array<{
   });
 
   return result;
+}
+
+// --- Inbox ---
+
+/**
+ * Get unprocessed notes (created recently but not marked as processed)
+ * @param daysBack Number of days to look back for recently created notes
+ */
+export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for cutoff calculation
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffTime = cutoffDate.getTime();
+
+  const processedNoteIds = currentDoc.processedNoteIds ?? {};
+
+  return (
+    Object.values(currentDoc.notes)
+      .filter((note) => {
+        if (note.archived) return false;
+        // Note must be created within the lookback period
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+        const createdTime = new Date(note.created).getTime();
+        if (createdTime < cutoffTime) return false;
+        // Note must not be processed
+        return !processedNoteIds[note.id];
+      })
+      .map((note) => ({
+        id: note.id,
+        title: note.title,
+        type: note.type,
+        created: note.created
+      }))
+      // Sort by created date, newest first
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+      .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+  );
+}
+
+/**
+ * Get processed notes (marked as processed recently)
+ * @param daysBack Number of days to look back for processed notes
+ */
+export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for cutoff calculation
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffTime = cutoffDate.getTime();
+
+  const processedNoteIds = currentDoc.processedNoteIds ?? {};
+
+  return (
+    Object.entries(processedNoteIds)
+      .filter(([noteId, processedAt]) => {
+        const note = currentDoc.notes[noteId];
+        if (!note || note.archived) return false;
+        // Must be processed within the lookback period
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+        const processedTime = new Date(processedAt).getTime();
+        return processedTime >= cutoffTime;
+      })
+      .map(([noteId, processedAt]) => {
+        const note = currentDoc.notes[noteId];
+        return {
+          id: note.id,
+          title: note.title,
+          type: note.type,
+          created: note.created,
+          processedAt
+        };
+      })
+      // Sort by processed date, newest first
+      .sort((a, b) => {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
+        return new Date(b.processedAt!).getTime() - new Date(a.processedAt!).getTime();
+      })
+  );
+}
+
+/**
+ * Get the count of unprocessed notes for the inbox badge
+ */
+export function getUnprocessedCount(daysBack: number = 7): number {
+  return getUnprocessedNotes(daysBack).length;
+}
+
+/**
+ * Mark a note as processed
+ */
+export function markNoteAsProcessed(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.processedNoteIds) {
+      doc.processedNoteIds = {};
+    }
+    doc.processedNoteIds[noteId] = nowISO();
+  });
+}
+
+/**
+ * Unmark a note as processed (move back to unprocessed)
+ */
+export function unmarkNoteAsProcessed(noteId: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (doc.processedNoteIds && doc.processedNoteIds[noteId]) {
+      delete doc.processedNoteIds[noteId];
+    }
+  });
+}
+
+/**
+ * Mark multiple notes as processed
+ */
+export function markAllNotesAsProcessed(noteIds: string[]): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const now = nowISO();
+  docHandle.change((doc) => {
+    if (!doc.processedNoteIds) {
+      doc.processedNoteIds = {};
+    }
+    for (const noteId of noteIds) {
+      doc.processedNoteIds[noteId] = now;
+    }
+  });
+}
+
+/**
+ * Unmark multiple notes as processed
+ */
+export function unmarkAllNotesAsProcessed(noteIds: string[]): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (!doc.processedNoteIds) return;
+    for (const noteId of noteIds) {
+      if (doc.processedNoteIds[noteId]) {
+        delete doc.processedNoteIds[noteId];
+      }
+    }
+  });
+}
+
+/**
+ * Check if a note is processed
+ */
+export function isNoteProcessed(noteId: string): boolean {
+  return !!currentDoc.processedNoteIds?.[noteId];
 }

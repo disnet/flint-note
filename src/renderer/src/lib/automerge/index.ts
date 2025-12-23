@@ -25,6 +25,7 @@ export type {
   SystemView,
   LastViewState,
   ShelfItemData,
+  InboxNote,
   // EPUB types
   EpubNoteProps,
   EpubHighlight,
@@ -240,7 +241,17 @@ export {
   clearActiveSession,
   getCurrentReviewNote,
   getReviewQueueNotes,
-  type ReviewStats
+  type ReviewStats,
+
+  // Inbox
+  getUnprocessedNotes,
+  getProcessedNotes,
+  getUnprocessedCount,
+  markNoteAsProcessed,
+  unmarkNoteAsProcessed,
+  markAllNotesAsProcessed,
+  unmarkAllNotesAsProcessed,
+  isNoteProcessed
 } from './state.svelte';
 
 // OPFS storage for EPUB files

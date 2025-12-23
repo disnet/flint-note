@@ -55,6 +55,7 @@ export type SystemView =
   | 'daily'
   | 'conversations'
   | 'review'
+  | 'inbox'
   | null;
 
 /**
@@ -371,6 +372,8 @@ export interface NotesDocument {
   agentRoutines?: Record<string, AgentRoutine>;
   /** Review mode state (optional for backward compatibility) */
   reviewState?: ReviewState;
+  /** Processed note IDs: noteId -> ISO timestamp when processed (optional for backward compatibility) */
+  processedNoteIds?: Record<string, string>;
 }
 
 /**
@@ -380,6 +383,22 @@ export interface ShelfItemData {
   type: 'note' | 'conversation';
   id: string;
   isExpanded: boolean;
+}
+
+/**
+ * Inbox note for display in the inbox view
+ */
+export interface InboxNote {
+  /** Note ID */
+  id: string;
+  /** Note title */
+  title: string;
+  /** Note type ID */
+  type: string;
+  /** ISO timestamp of creation */
+  created: string;
+  /** ISO timestamp when processed (if in processed view) */
+  processedAt?: string;
 }
 
 /**

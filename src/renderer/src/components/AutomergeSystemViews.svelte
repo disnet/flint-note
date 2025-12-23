@@ -1,9 +1,13 @@
 <script lang="ts">
   /**
    * System navigation views for the Automerge sidebar
-   * Includes Notes, Daily, Review, Note Types, Conversations, and Settings
+   * Includes Notes, Daily, Inbox, Review, Note Types, Conversations, and Settings
    */
-  import { getReviewStats, isSessionAvailable } from '../lib/automerge';
+  import {
+    getReviewStats,
+    isSessionAvailable,
+    getUnprocessedCount
+  } from '../lib/automerge';
 
   interface Props {
     activeSystemView:
@@ -14,9 +18,18 @@
       | 'daily'
       | 'conversations'
       | 'review'
+      | 'inbox'
       | null;
     onSystemViewSelect: (
-      view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | null
+      view:
+        | 'notes'
+        | 'settings'
+        | 'types'
+        | 'daily'
+        | 'conversations'
+        | 'review'
+        | 'inbox'
+        | null
     ) => void;
   }
 
@@ -27,8 +40,11 @@
   const sessionAvailable = $derived(isSessionAvailable());
   const reviewDueCount = $derived(sessionAvailable ? reviewStats.dueThisSession : 0);
 
+  // Get inbox unprocessed count for badge
+  const inboxCount = $derived(getUnprocessedCount());
+
   function setActiveView(
-    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review'
+    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | 'inbox'
   ): void {
     onSystemViewSelect(view);
   }
@@ -74,6 +90,30 @@
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
       Daily
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'inbox'}
+      onclick={() => setActiveView('inbox')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+        <path
+          d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+        ></path>
+      </svg>
+      Inbox
+      {#if inboxCount > 0}
+        <span class="badge">{inboxCount}</span>
+      {/if}
     </button>
 
     <button

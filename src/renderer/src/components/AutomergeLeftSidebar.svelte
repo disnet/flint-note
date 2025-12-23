@@ -28,6 +28,7 @@
       | 'daily'
       | 'conversations'
       | 'review'
+      | 'inbox'
       | null;
     searchQuery: string;
     searchResults: SearchResult[];
@@ -36,7 +37,15 @@
     activeVault: Vault | null;
     onItemSelect: (item: SidebarItem) => void;
     onSystemViewSelect: (
-      view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | null
+      view:
+        | 'notes'
+        | 'settings'
+        | 'types'
+        | 'daily'
+        | 'conversations'
+        | 'review'
+        | 'inbox'
+        | null
     ) => void;
     onCreateNote?: () => void;
     onCreateDeck?: () => void;

@@ -52,6 +52,7 @@
   import AutomergeConversationList from './AutomergeConversationList.svelte';
   import AutomergeConversationView from './AutomergeConversationView.svelte';
   import AutomergeReviewView from './AutomergeReviewView.svelte';
+  import AutomergeInboxView from './AutomergeInboxView.svelte';
   import AutomergeImportWebpageModal from './AutomergeImportWebpageModal.svelte';
   import AutomergeLegacyMigrationModal from './AutomergeLegacyMigrationModal.svelte';
   import { initializeState } from '../lib/automerge';
@@ -179,7 +180,15 @@
   }
 
   function handleSystemViewSelect(
-    view: 'notes' | 'settings' | 'types' | 'daily' | 'conversations' | 'review' | null
+    view:
+      | 'notes'
+      | 'settings'
+      | 'types'
+      | 'daily'
+      | 'conversations'
+      | 'review'
+      | 'inbox'
+      | null
   ): void {
     setActiveSystemView(view);
     if (view) {
@@ -567,6 +576,9 @@
           {:else if activeSystemView === 'review'}
             <!-- Review View -->
             <AutomergeReviewView />
+          {:else if activeSystemView === 'inbox'}
+            <!-- Inbox View -->
+            <AutomergeInboxView />
           {:else if activeItem?.type === 'conversation' && activeConversation}
             <!-- Conversation selected from sidebar -->
             <AutomergeConversationView
