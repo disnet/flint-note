@@ -181,6 +181,7 @@ export async function migrateLegacyVault(
         pdfs: 0,
         webpages: 0,
         decks: 0,
+        dailyNotes: 0,
         workspaces: 0,
         reviewItems: 0,
         agentRoutines: 0,

@@ -112,6 +112,8 @@ interface MigrationStats {
   epubs: number;
   pdfs: number;
   webpages: number;
+  decks: number;
+  dailyNotes: number;
   workspaces: number;
   reviewItems: number;
   agentRoutines: number;
@@ -815,6 +817,8 @@ export async function migrateLegacyVault(
         epubs: epubFiles.length,
         pdfs: pdfFiles.length,
         webpages: webpageFiles.length,
+        decks: 0, // Count available from main process stats if needed
+        dailyNotes: 0, // Count available from main process stats if needed
         workspaces: Object.keys(documentData.workspaces).length,
         reviewItems: 0, // Not tracked separately in renderer
         agentRoutines: agentRoutineCount,

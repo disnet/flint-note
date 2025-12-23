@@ -38,6 +38,7 @@ import type {
 
 // Constants matching the Automerge system
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
+const DAILY_NOTE_TYPE_ID = 'type-daily';
 const EPUB_NOTE_TYPE_ID = 'type-epub';
 const PDF_NOTE_TYPE_ID = 'type-pdf';
 const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
@@ -136,6 +137,7 @@ export interface TransformResult {
     pdfs: number;
     webpages: number;
     decks: number;
+    dailyNotes: number;
     workspaces: number;
     reviewItems: number;
     agentRoutines: number;
@@ -355,6 +357,35 @@ function transformNoteType(legacy: LegacyNoteTypeRow, newId: string): NoteType {
 }
 
 /**
+ * Extract date from a daily note path
+ * Legacy format: "daily/YYYY-MM-DD" or "daily/YYYY/MM/DD"
+ * Returns the date in YYYY-MM-DD format, or null if not a valid daily path
+ */
+function extractDateFromDailyPath(path: string): string | null {
+  // Try format: daily/YYYY-MM-DD
+  const simpleMatch = path.match(/^daily\/(\d{4}-\d{2}-\d{2})(?:\/|$)/);
+  if (simpleMatch) {
+    return simpleMatch[1];
+  }
+
+  // Try format: daily/YYYY/MM/DD
+  const nestedMatch = path.match(/^daily\/(\d{4})\/(\d{2})\/(\d{2})(?:\/|$)/);
+  if (nestedMatch) {
+    return `${nestedMatch[1]}-${nestedMatch[2]}-${nestedMatch[3]}`;
+  }
+
+  return null;
+}
+
+/**
+ * Generate a daily note ID from a date
+ * Format: "daily-YYYY-MM-DD"
+ */
+function getDailyNoteId(date: string): string {
+  return `daily-${date}`;
+}
+
+/**
  * Transform a legacy note to Automerge format
  */
 function transformNote(
@@ -362,12 +393,21 @@ function transformNote(
   typeIdMapping: Record<string, string>,
   metadata: LegacyMetadataRow[],
   reviewItem?: LegacyReviewItemRow
-): { note: Note; isEpub: boolean; isPdf: boolean; isWebpage: boolean; isDeck: boolean } {
-  // Determine the type ID based on flint_kind
+): {
+  note: Note;
+  isEpub: boolean;
+  isPdf: boolean;
+  isWebpage: boolean;
+  isDeck: boolean;
+  isDaily: boolean;
+} {
+  // Determine the type ID based on flint_kind or type
   const isEpub = legacy.flint_kind === 'epub';
   const isPdf = legacy.flint_kind === 'pdf';
   const isWebpage = legacy.flint_kind === 'webpage';
   const isDeck = legacy.flint_kind === 'deck';
+  // Daily notes are identified by type 'daily' (not flint_kind)
+  const isDaily = legacy.type === 'daily';
   let typeId: string;
 
   if (isEpub) {
@@ -378,6 +418,8 @@ function transformNote(
     typeId = WEBPAGE_NOTE_TYPE_ID;
   } else if (isDeck) {
     typeId = DECK_NOTE_TYPE_ID;
+  } else if (isDaily) {
+    typeId = DAILY_NOTE_TYPE_ID;
   } else {
     typeId = typeIdMapping[legacy.type] ?? DEFAULT_NOTE_TYPE_ID;
   }
@@ -422,9 +464,31 @@ function transformNote(
     content = legacy.content ?? '';
   }
 
+  // For daily notes, transform the ID to the Automerge format (daily-YYYY-MM-DD)
+  // and use the date as the title
+  let noteId = legacy.id;
+  let noteTitle = legacy.title ?? '';
+
+  if (isDaily) {
+    // Extract date from the path (format: daily/YYYY-MM-DD or daily/YYYY/MM/DD)
+    const dateFromPath = extractDateFromDailyPath(legacy.path);
+    if (dateFromPath) {
+      noteId = getDailyNoteId(dateFromPath);
+      // Daily notes should have the date as their title
+      noteTitle = dateFromPath;
+    } else {
+      // Fallback: try to extract date from title if it looks like a date
+      const titleDateMatch = noteTitle.match(/^(\d{4}-\d{2}-\d{2})$/);
+      if (titleDateMatch) {
+        noteId = getDailyNoteId(titleDateMatch[1]);
+      }
+      // If we can't extract the date, keep the original ID (note won't show in daily view)
+    }
+  }
+
   const note: Note = {
-    id: legacy.id,
-    title: legacy.title ?? '',
+    id: noteId,
+    title: noteTitle,
     content,
     type: typeId,
     created: legacy.created ?? nowISO(),
@@ -433,7 +497,7 @@ function transformNote(
     props: Object.keys(props).length > 0 ? props : undefined
   };
 
-  return { note, isEpub, isPdf, isWebpage, isDeck };
+  return { note, isEpub, isPdf, isWebpage, isDeck, isDaily };
 }
 
 /**
@@ -825,6 +889,19 @@ export function transformVaultData(
     };
   }
 
+  // Ensure Daily note type exists (needed if there are daily notes)
+  const hasDailyNotes = data.notes.some((n) => n.type === 'daily');
+  if (hasDailyNotes && !noteTypes[DAILY_NOTE_TYPE_ID]) {
+    noteTypes[DAILY_NOTE_TYPE_ID] = {
+      id: DAILY_NOTE_TYPE_ID,
+      name: 'Daily Note',
+      purpose: 'Daily journal entries',
+      icon: '📅',
+      archived: false,
+      created: nowISO()
+    };
+  }
+
   // Build review item lookup
   const reviewItemMap = new Map<string, LegacyReviewItemRow>();
   for (const item of data.reviewItems) {
@@ -839,6 +916,7 @@ export function transformVaultData(
   let pdfCount = 0;
   let webpageCount = 0;
   let deckCount = 0;
+  let dailyCount = 0;
 
   for (const legacyNote of data.notes) {
     try {
@@ -851,7 +929,7 @@ export function transformVaultData(
       const metadata = data.metadata.get(legacyNote.id) ?? [];
       const reviewItem = reviewItemMap.get(legacyNote.id);
 
-      const { note, isEpub, isPdf, isWebpage, isDeck } = transformNote(
+      const { note, isEpub, isPdf, isWebpage, isDeck, isDaily } = transformNote(
         legacyNote,
         typeIdMapping,
         metadata,
@@ -860,6 +938,10 @@ export function transformVaultData(
 
       notes[note.id] = note;
       existingNoteIds.add(note.id);
+
+      if (isDaily) {
+        dailyCount++;
+      }
 
       if (isEpub) {
         epubCount++;
@@ -1026,6 +1108,7 @@ export function transformVaultData(
       pdfs: pdfCount,
       webpages: webpageCount,
       decks: deckCount,
+      dailyNotes: dailyCount,
       workspaces: Object.keys(workspaces).length,
       reviewItems: data.reviewItems.filter((r) => existingNoteIds.has(r.note_id)).length,
       agentRoutines: routineCount,

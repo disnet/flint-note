@@ -54,6 +54,29 @@ All notes are migrated with their content and metadata:
 - `pdf` notes: Type set to `type-pdf`, PDF file data included for OPFS storage
 - `webpage` notes: Type set to `type-webpage`, HTML content stored for offline access
 - `deck` notes: Type set to `type-deck`, YAML configuration preserved in content
+- `daily` notes: Type set to `type-daily`, ID transformed to `daily-YYYY-MM-DD` format
+
+### Daily Notes
+
+Daily notes receive special handling during migration to ensure they work with the Automerge daily view:
+
+1. Notes with `type = 'daily'` are identified as daily notes
+2. The date is extracted from the legacy `path` field (format: `daily/YYYY-MM-DD` or `daily/YYYY/MM/DD`)
+3. The note ID is transformed from the legacy format (e.g., `n-xxxxxxxx`) to the Automerge format (`daily-YYYY-MM-DD`)
+4. The type is set to `type-daily`
+5. The title is set to the date string (YYYY-MM-DD)
+
+**ID transformation:**
+
+The Automerge daily view looks up daily notes by predictable IDs (`daily-YYYY-MM-DD`). Without this transformation, migrated daily notes would not appear in the daily view.
+
+| Legacy Field | Automerge Field | Notes                                  |
+| ------------ | --------------- | -------------------------------------- |
+| `id`         | `id`            | Transformed to `daily-YYYY-MM-DD`      |
+| `path`       | -               | Used to extract date for ID generation |
+| `title`      | `title`         | Set to date string (YYYY-MM-DD)        |
+| `type`       | `type`          | Set to `type-daily`                    |
+| `content`    | `content`       | Preserved as-is                        |
 
 ### Decks (Filtered Note Views)
 
@@ -352,6 +375,7 @@ After migration, statistics are reported:
 - Number of PDF files migrated
 - Number of webpage files migrated
 - Number of decks migrated
+- Number of daily notes migrated
 - Number of workspaces migrated
 - Number of review items migrated
 - Number of agent routines migrated

@@ -67,6 +67,7 @@ export interface MigrationResult {
     pdfs: number;
     webpages: number;
     decks: number;
+    dailyNotes: number;
     workspaces: number;
     reviewItems: number;
     agentRoutines: number;
