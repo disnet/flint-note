@@ -355,8 +355,8 @@ export {
 } from './utils';
 
 // Editor support
-export { AutomergeEditorConfig } from './editorConfig.svelte';
-export type { AutomergeEditorConfigOptions } from './editorConfig.svelte';
+export { EditorConfig } from './editorConfig.svelte';
+export type { EditorConfigOptions } from './editorConfig.svelte';
 export {
   automergeWikilinksExtension,
   forceWikilinkRefresh,

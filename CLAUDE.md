@@ -4,34 +4,15 @@
 
 This is a **unified Electron application** containing a Svelte-based UI and the integrated Flint note server. The project uses a single package structure for simplified development and building.
 
-## ⚠️ Automerge Migration In Progress
+## Automerge-Based Architecture
 
-**The codebase currently contains two versions of Flint:**
+The app uses Automerge for local-first data storage with CRDT-based data structures:
 
-1. **Legacy Version** (`App.svelte` + SQLite)
-   - Entry point: `src/renderer/src/App.svelte`
-   - Data storage: SQLite via the integrated server (`src/server/`)
-   - Uses: Traditional stores in `src/renderer/src/stores/`
-   - Status: Current production version
+- **Entry point**: `src/renderer/src/App.svelte`
+- **Data storage**: Automerge with IndexedDB (`src/renderer/src/lib/automerge/`)
+- **State management**: Unified state module in `state.svelte.ts`
 
-2. **Automerge Version** (`AutomergeApp.svelte` + IndexedDB)
-   - Entry point: `src/renderer/src/AutomergeApp.svelte`
-   - Data storage: Automerge with IndexedDB (`src/renderer/src/lib/automerge/`)
-   - Uses: Unified state module in `state.svelte.ts`
-   - Status: In development, renderer currently uses this version
-
-**Key differences:**
-
-- Automerge version is local-first with CRDT-based data structures
-- No migration from SQLite data - users create new vaults
-- See `docs/AUTOMERGE-MIGRATION.md` for full migration plan and progress
-
-**When working on this codebase:**
-
-- New feature work should target the Automerge version
-- Bug fixes may need to be applied to both versions depending on severity
-- The legacy version components are in the main `components/` directory
-- Automerge components are prefixed with `Automerge` (e.g., `AutomergeMainView.svelte`)
+See `docs/AUTOMERGE-MIGRATION.md` for architecture details and history.
 
 ## Project Structure
 

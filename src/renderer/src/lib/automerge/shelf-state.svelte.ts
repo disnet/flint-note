@@ -22,7 +22,7 @@ export type ShelfItem = ShelfItemData;
  * Shelf store that wraps Automerge shelf functions
  * Provides a consistent API for components
  */
-class AutomergeShelfStore {
+class ShelfStore {
   /**
    * Get all shelf items (reactive via Automerge)
    */
@@ -73,4 +73,4 @@ class AutomergeShelfStore {
   }
 }
 
-export const automergeShelfStore = new AutomergeShelfStore();
+export const automergeShelfStore = new ShelfStore();

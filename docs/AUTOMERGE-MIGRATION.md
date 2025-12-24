@@ -200,7 +200,7 @@ Barrel exports for all automerge functionality.
 
 Created simplified automerge-powered UI components:
 
-#### `AutomergeApp.svelte`
+#### `App.svelte`
 
 Main app component that:
 
@@ -210,7 +210,7 @@ Main app component that:
 - Routes to FirstTimeExperience or MainView based on vault existence
 - Applies theme and platform detection
 
-#### `AutomergeFirstTimeExperience.svelte`
+#### `FirstTimeExperience.svelte`
 
 First-time vault creation flow:
 
@@ -218,7 +218,7 @@ First-time vault creation flow:
 - Form to name the vault
 - Creates vault and initializes state on submit
 
-#### `AutomergeMainView.svelte`
+#### `MainView.svelte`
 
 Main interface with:
 
@@ -229,7 +229,7 @@ Main interface with:
 - Settings panel
 - Keyboard shortcuts (⌘N, ⌘K, ⌘B)
 
-#### `AutomergeLeftSidebar.svelte`
+#### `LeftSidebar.svelte`
 
 Resizable left sidebar containing:
 
@@ -239,11 +239,11 @@ Resizable left sidebar containing:
 - Workspace bar at bottom
 - Slide animations when switching workspaces
 
-#### `AutomergeSystemViews.svelte`
+#### `SystemViews.svelte`
 
 Navigation component with "All Notes" and "Settings" options.
 
-#### `AutomergeSidebarItems.svelte`
+#### `SidebarItems.svelte`
 
 Unified sidebar items component (replaces separate PinnedNotes and RecentNotes):
 
@@ -254,7 +254,7 @@ Unified sidebar items component (replaces separate PinnedNotes and RecentNotes):
 - Context menu for pin/unpin/close/archive
 - Collapsible pinned section
 
-#### `AutomergeWorkspaceBar.svelte`
+#### `WorkspaceBar.svelte`
 
 Workspace management at sidebar bottom:
 
@@ -264,7 +264,7 @@ Workspace management at sidebar bottom:
 - Context menu for edit/delete workspace
 - Workspace order persisted in `workspaceOrder` array
 
-#### `AutomergeNoteEditor.svelte`
+#### `NoteEditor.svelte`
 
 Simple text-based note editor:
 
@@ -276,7 +276,7 @@ Simple text-based note editor:
 
 ### 4. Entry Point Update
 
-Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the old `App.svelte`.
+Updated `src/renderer/src/main.ts` to use `App.svelte`.
 
 ## Architecture
 
@@ -284,14 +284,14 @@ Updated `src/renderer/src/main.ts` to use `AutomergeApp.svelte` instead of the o
 ┌─────────────────────────────────────────────────────────────┐
 │                         Renderer                            │
 ├─────────────────────────────────────────────────────────────┤
-│  AutomergeApp.svelte                                        │
-│    ├── AutomergeFirstTimeExperience.svelte                  │
-│    └── AutomergeMainView.svelte                             │
-│          ├── AutomergeLeftSidebar.svelte                    │
-│          │     ├── AutomergeSystemViews.svelte              │
-│          │     ├── AutomergeSidebarItems.svelte             │
-│          │     └── AutomergeWorkspaceBar.svelte             │
-│          └── AutomergeNoteEditor.svelte                     │
+│  App.svelte                                                 │
+│    ├── FirstTimeExperience.svelte                           │
+│    └── MainView.svelte                                      │
+│          ├── LeftSidebar.svelte                             │
+│          │     ├── SystemViews.svelte                       │
+│          │     ├── SidebarItems.svelte                      │
+│          │     └── WorkspaceBar.svelte                      │
+│          └── NoteEditor.svelte                              │
 ├─────────────────────────────────────────────────────────────┤
 │  lib/automerge/                                             │
 │    ├── state.svelte.ts  (unified reactive state)            │
@@ -409,13 +409,13 @@ Implemented enhanced search functionality with:
 
 - **New files**:
   - `src/renderer/src/lib/automerge/search.svelte.ts` - Search engine with ranking/highlighting
-  - `src/renderer/src/components/AutomergeSearchResults.svelte` - Enhanced results component
+  - `src/renderer/src/components/SearchResults.svelte` - Enhanced results component
 
 #### Note Types Management (Complete)
 
 Full note type management UI with:
 
-- **Note Types View** (`AutomergeNoteTypesView.svelte`):
+- **Note Types View** (`NoteTypesView.svelte`):
   - List all note types with icons and note counts
   - Create new note types with name, icon, and purpose
   - Edit existing note types
@@ -423,7 +423,7 @@ Full note type management UI with:
   - View all notes of a specific type
   - Create new notes directly from type detail view
 
-- **Note Type Dropdown** (`AutomergeNoteTypeDropdown.svelte`):
+- **Note Type Dropdown** (`NoteTypeDropdown.svelte`):
   - Integrated into note editor header
   - Search/filter available types
   - Keyboard navigation (arrow keys, Enter, Escape)
@@ -445,7 +445,7 @@ Full note type management UI with:
 
 Action popover system for wikilinks with:
 
-- **Action Popover** (`AutomergeWikilinkActionPopover.svelte`):
+- **Action Popover** (`WikilinkActionPopover.svelte`):
   - Appears on hover over wikilinks (300ms delay)
   - Also appears when cursor is adjacent to a wikilink
   - "Open" action to navigate to linked note (⌘Enter)
@@ -453,13 +453,13 @@ Action popover system for wikilinks with:
   - Viewport-aware positioning (avoids edges)
   - Mouse-leave timeout to prevent flickering
 
-- **Edit Popover** (`AutomergeWikilinkEditPopover.svelte`):
+- **Edit Popover** (`WikilinkEditPopover.svelte`):
   - Text input for editing wikilink display text
   - Auto-focuses and selects text on open
   - Enter to commit, Escape to cancel
   - Updates wikilink in editor in real-time
 
-- **Integration** (in `AutomergeNoteEditor.svelte`):
+- **Integration** (in `NoteEditor.svelte`):
   - Hover handler from wikilinks extension
   - Cursor-based detection for keyboard navigation
   - Proper focus management between editor and popovers
@@ -471,19 +471,19 @@ Implemented a floating shelf panel for quick access to frequently referenced not
 
 **Components:**
 
-- **`AutomergeFABMenu.svelte`** - Floating action button with hover expansion
+- **`FABMenu.svelte`** - Floating action button with hover expansion
   - Shows plus icon by default
   - On hover, expands to show Chat and Shelf buttons
   - When a panel is open, shows close button instead
   - Smooth animations and hover delay to prevent flickering
 
-- **`AutomergeShelfPanel.svelte`** - Floating shelf panel
+- **`ShelfPanel.svelte`** - Floating shelf panel
   - Slides in from the right side
   - Header with title and close button
   - Empty state with instructions
   - Scrollable list of shelf items
 
-- **`AutomergeShelfItem.svelte`** - Individual shelf item
+- **`ShelfItem.svelte`** - Individual shelf item
   - Disclosure arrow for expand/collapse
   - Type-specific icon (note emoji or chat bubble)
   - Item title
@@ -543,7 +543,7 @@ Implemented two-way sync between Automerge and markdown files on the filesystem:
 - `src/renderer/src/lib/automerge/ipc/types.ts` - IPC message types
 - `src/renderer/src/lib/automerge/ipc/IPCNetworkAdapterRenderer.ts` - Network adapter for renderer
 - `src/renderer/src/lib/automerge/ipc/index.ts` - Barrel exports
-- `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` - Sync settings UI
+- `src/renderer/src/components/VaultSyncSettings.svelte` - Sync settings UI
 
 **Main Process Side:**
 
@@ -581,23 +581,23 @@ Implemented the daily notes view for capturing daily thoughts and tracking activ
 
 **Components:**
 
-- **`AutomergeDailyView.svelte`** - Main daily view component
+- **`DailyView.svelte`** - Main daily view component
   - Week-based view showing Monday through Sunday
   - Week navigation (Previous/Next/Today buttons)
   - Keyboard shortcuts: `T` (focus today), `[` (previous week), `]` (next week), `Escape` (blur)
   - Reactive data from Automerge state
 
-- **`AutomergeDaySection.svelte`** - Individual day container
+- **`DaySection.svelte`** - Individual day container
   - Sticky day label (Mon, Tue, etc.)
   - Contains daily note editor
   - Click on day label opens note in main view
 
-- **`AutomergeWeekNavigation.svelte`** - Navigation header
+- **`WeekNavigation.svelte`** - Navigation header
   - Previous/Next week buttons
   - Week display (e.g., "Week of Dec 9")
   - "Today" button to jump to current week
 
-- **`AutomergeDailyNoteEditor.svelte`** - Per-day editor
+- **`DailyNoteEditor.svelte`** - Per-day editor
   - CodeMirror editor with markdown support
   - Collapsible with 5-line default height when unfocused
   - Smooth expansion on focus
@@ -654,11 +654,11 @@ Full EPUB file support for reading books directly in Flint:
 - `src/renderer/src/lib/automerge/opfs-storage.svelte.ts` - OPFS storage service with content-addressed hashing
 - `src/renderer/src/lib/automerge/epub-import.svelte.ts` - EPUB import flow with metadata extraction
 - `src/renderer/src/lib/automerge/epub-tools.svelte.ts` - AI tools for EPUB content access
-- `src/renderer/src/components/AutomergeEpubViewer.svelte` - Main EPUB viewer container
-- `src/renderer/src/components/AutomergeEpubReader.svelte` - foliate-js wrapper for rendering
-- `src/renderer/src/components/AutomergeEpubToc.svelte` - Table of contents panel
-- `src/renderer/src/components/AutomergeEpubHighlights.svelte` - Highlights list panel
-- `src/renderer/src/components/AutomergeEpubProgress.svelte` - Progress bar and navigation
+- `src/renderer/src/components/EpubViewer.svelte` - Main EPUB viewer container
+- `src/renderer/src/components/EpubReader.svelte` - foliate-js wrapper for rendering
+- `src/renderer/src/components/EpubToc.svelte` - Table of contents panel
+- `src/renderer/src/components/EpubHighlights.svelte` - Highlights list panel
+- `src/renderer/src/components/EpubProgress.svelte` - Progress bar and navigation
 
 **Type Definitions** (in `types.ts`):
 
@@ -708,7 +708,7 @@ interface EpubTocItem {
 **Integration:**
 
 - EPUB notes appear in sidebar like regular notes
-- View routing in `AutomergeMainView.svelte` detects EPUB type
+- View routing in `MainView.svelte` detects EPUB type
 - FAB menu includes "Import Book" option
 - Highlights stored as markdown for future migration compatibility
 
@@ -753,10 +753,10 @@ Full PDF file support for reading documents directly in Flint:
 - `src/renderer/src/lib/automerge/pdf-opfs-storage.svelte.ts` - OPFS storage service for PDFs
 - `src/renderer/src/lib/automerge/pdf-import.svelte.ts` - PDF import flow with metadata extraction
 - `src/renderer/src/lib/automerge/pdf-tools.svelte.ts` - AI tools for PDF content access
-- `src/renderer/src/components/AutomergePdfViewer.svelte` - Main PDF viewer container with controls
-- `src/renderer/src/components/AutomergePdfReader.svelte` - PDF.js wrapper for canvas rendering
-- `src/renderer/src/components/AutomergePdfOutline.svelte` - Table of contents/bookmarks panel
-- `src/renderer/src/components/AutomergePdfHighlights.svelte` - Highlights list panel
+- `src/renderer/src/components/PdfViewer.svelte` - Main PDF viewer container with controls
+- `src/renderer/src/components/PdfReader.svelte` - PDF.js wrapper for canvas rendering
+- `src/renderer/src/components/PdfOutline.svelte` - Table of contents/bookmarks panel
+- `src/renderer/src/components/PdfHighlights.svelte` - Highlights list panel
 
 **Type Definitions** (in `types.ts`):
 
@@ -819,7 +819,7 @@ interface PdfMetadata {
 **Integration:**
 
 - PDF notes appear in sidebar like regular notes
-- View routing in `AutomergeMainView.svelte` detects PDF type
+- View routing in `MainView.svelte` detects PDF type
 - FAB menu includes "Import PDF" option alongside "Import Book"
 - Full-width display mode for better reading experience
 - Highlights stored as markdown for future migration compatibility
@@ -867,9 +867,9 @@ Full webpage archiving support for saving articles and web pages for offline rea
 
 - `src/renderer/src/lib/automerge/webpage-opfs-storage.svelte.ts` - OPFS storage service for archived webpages
 - `src/renderer/src/lib/automerge/webpage-import.svelte.ts` - Webpage import flow via IPC
-- `src/renderer/src/components/AutomergeWebpageViewer.svelte` - Main webpage viewer with header and highlights
-- `src/renderer/src/components/AutomergeWebpageReader.svelte` - Shadow DOM reader with DOMPurify
-- `src/renderer/src/components/AutomergeImportWebpageModal.svelte` - URL input modal
+- `src/renderer/src/components/WebpageViewer.svelte` - Main webpage viewer with header and highlights
+- `src/renderer/src/components/WebpageReader.svelte` - Shadow DOM reader with DOMPurify
+- `src/renderer/src/components/ImportWebpageModal.svelte` - URL input modal
 
 **Type Definitions** (in `types.ts`):
 
@@ -935,7 +935,7 @@ interface WebpageHighlight {
 **Integration:**
 
 - Webpage notes appear in sidebar like regular notes
-- View routing in `AutomergeMainView.svelte` detects webpage type
+- View routing in `MainView.svelte` detects webpage type
 - FAB menu includes "Archive Webpage" option
 - 70ch max-width display matching markdown notes
 - Highlights stored as markdown for future migration compatibility
@@ -985,25 +985,25 @@ Decks are special notes that contain YAML configuration in code blocks, defining
 
 **New Files:**
 
-- `src/renderer/src/lib/automerge/deck/automerge-deck-types.ts` - Type definitions, system fields, operators
-- `src/renderer/src/lib/automerge/deck/automerge-deck-query.svelte.ts` - Client-side query engine
-- `src/renderer/src/lib/automerge/deck/automerge-deck-theme.ts` - CodeMirror theme for deck blocks
-- `src/renderer/src/lib/automerge/deck/automerge-deck-extension.svelte.ts` - CodeMirror extension for deck widgets
+- `src/renderer/src/lib/automerge/deck/deck-types.ts` - Type definitions, system fields, operators
+- `src/renderer/src/lib/automerge/deck/deck-query.svelte.ts` - Client-side query engine
+- `src/renderer/src/lib/automerge/deck/deck-theme.ts` - CodeMirror theme for deck blocks
+- `src/renderer/src/lib/automerge/deck/deck-extension.svelte.ts` - CodeMirror extension for deck widgets
 - `src/renderer/src/lib/automerge/deck/index.ts` - Barrel exports
-- `src/renderer/src/components/AutomergeDeckWidget.svelte` - Main deck widget (toolbar, filters, results)
-- `src/renderer/src/components/AutomergeDeckViewer.svelte` - Full-page deck viewer
-- `src/renderer/src/components/AutomergeDeckToolbar.svelte` - Column/sort controls
-- `src/renderer/src/components/AutomergeDeckFilterPopup.svelte` - Quick filter editing popup
-- `src/renderer/src/components/AutomergeDeckFilterBuilder.svelte` - Full filter editor
-- `src/renderer/src/components/AutomergeDeckFilterRow.svelte` - Individual filter row
-- `src/renderer/src/components/AutomergeDeckValueInput.svelte` - Filter value input (text, select, checkboxes)
-- `src/renderer/src/components/AutomergeDeckFieldSelector.svelte` - Field picker dropdown
-- `src/renderer/src/components/AutomergeDeckOperatorSelector.svelte` - Operator picker
-- `src/renderer/src/components/AutomergeDeckNoteListItem.svelte` - Result row with inline editing
-- `src/renderer/src/components/AutomergeDeckPagination.svelte` - Pagination controls
-- `src/renderer/src/components/AutomergeDeckColumnConfig.svelte` - Column visibility/order
-- `src/renderer/src/components/AutomergeDeckPropPickerDialog.svelte` - Add column dialog
-- `src/renderer/src/components/AutomergeDeckViewSwitcher.svelte` - Multi-view tabs
+- `src/renderer/src/components/DeckWidget.svelte` - Main deck widget (toolbar, filters, results)
+- `src/renderer/src/components/DeckViewer.svelte` - Full-page deck viewer
+- `src/renderer/src/components/DeckToolbar.svelte` - Column/sort controls
+- `src/renderer/src/components/DeckFilterPopup.svelte` - Quick filter editing popup
+- `src/renderer/src/components/DeckFilterBuilder.svelte` - Full filter editor
+- `src/renderer/src/components/DeckFilterRow.svelte` - Individual filter row
+- `src/renderer/src/components/DeckValueInput.svelte` - Filter value input (text, select, checkboxes)
+- `src/renderer/src/components/DeckFieldSelector.svelte` - Field picker dropdown
+- `src/renderer/src/components/DeckOperatorSelector.svelte` - Operator picker
+- `src/renderer/src/components/DeckNoteListItem.svelte` - Result row with inline editing
+- `src/renderer/src/components/DeckPagination.svelte` - Pagination controls
+- `src/renderer/src/components/DeckColumnConfig.svelte` - Column visibility/order
+- `src/renderer/src/components/DeckPropPickerDialog.svelte` - Add column dialog
+- `src/renderer/src/components/DeckViewSwitcher.svelte` - Multi-view tabs
 
 **State Management** (in `state.svelte.ts`):
 
@@ -1030,7 +1030,7 @@ Decks are special notes that contain YAML configuration in code blocks, defining
 - Deck notes appear in sidebar like regular notes
 - CodeMirror extension renders `flint-deck` blocks as interactive widgets
 - "New Deck" button in workspace bar add menu
-- Full-page viewer for deck notes (`AutomergeDeckViewer.svelte`)
+- Full-page viewer for deck notes (`DeckViewer.svelte`)
 
 **Key Differences from Legacy:**
 
@@ -1052,7 +1052,7 @@ Refactored the sidebar to support multiple item types (notes, conversations, and
 
 **Component Changes:**
 
-- Renamed `AutomergeSidebarNotes.svelte` → `AutomergeSidebarItems.svelte`
+- `SidebarItems.svelte` - unified sidebar component (replaces separate PinnedNotes and RecentNotes)
 - Items render with type-specific icons (emoji for notes, chat bubble for conversations)
 - Conversations clickable to open in main view
 - Full drag-and-drop support for reordering both notes and conversations
@@ -1108,72 +1108,72 @@ Future work for multi-device sync:
 - `src/main/automerge-sync/markdown-sync.ts` (two-way sync with file watcher)
 - `src/main/automerge-sync/utils.ts` (filename sanitization, frontmatter helpers)
 - `src/main/automerge-sync/index.ts` (barrel exports)
-- `src/renderer/src/AutomergeApp.svelte`
-- `src/renderer/src/components/AutomergeFirstTimeExperience.svelte`
-- `src/renderer/src/components/AutomergeMainView.svelte`
-- `src/renderer/src/components/AutomergeNoteEditor.svelte`
-- `src/renderer/src/components/AutomergeLeftSidebar.svelte`
-- `src/renderer/src/components/AutomergeSystemViews.svelte`
-- `src/renderer/src/components/AutomergeSidebarItems.svelte` (unified, replaces PinnedNotes + RecentNotes)
-- `src/renderer/src/components/AutomergeWorkspaceBar.svelte`
-- `src/renderer/src/components/AutomergeSearchResults.svelte`
-- `src/renderer/src/components/AutomergeNoteTypesView.svelte` (note types management view)
-- `src/renderer/src/components/AutomergeNoteTypeDropdown.svelte` (type selector dropdown)
-- `src/renderer/src/components/AutomergeWikilinkActionPopover.svelte` (wikilink action menu)
-- `src/renderer/src/components/AutomergeWikilinkEditPopover.svelte` (wikilink display text editor)
-- `src/renderer/src/components/AutomergeVaultSyncSettings.svelte` (file sync settings UI)
-- `src/renderer/src/components/AutomergeDailyView.svelte` (daily view main component)
-- `src/renderer/src/components/AutomergeDaySection.svelte` (individual day container)
-- `src/renderer/src/components/AutomergeWeekNavigation.svelte` (week navigation header)
-- `src/renderer/src/components/AutomergeDailyNoteEditor.svelte` (per-day CodeMirror editor)
-- `src/renderer/src/components/AutomergeChatPanel.svelte` (AI chat interface)
-- `src/renderer/src/components/AutomergeChatInput.svelte` (chat message input)
-- `src/renderer/src/components/AutomergeChatFAB.svelte` (floating action button for chat)
-- `src/renderer/src/components/AutomergeFABMenu.svelte` (expandable FAB with chat/shelf options)
-- `src/renderer/src/components/AutomergeShelfPanel.svelte` (floating shelf panel)
-- `src/renderer/src/components/AutomergeShelfItem.svelte` (individual shelf item with expand/collapse)
+- `src/renderer/src/App.svelte`
+- `src/renderer/src/components/FirstTimeExperience.svelte`
+- `src/renderer/src/components/MainView.svelte`
+- `src/renderer/src/components/NoteEditor.svelte`
+- `src/renderer/src/components/LeftSidebar.svelte`
+- `src/renderer/src/components/SystemViews.svelte`
+- `src/renderer/src/components/SidebarItems.svelte` (unified, replaces PinnedNotes + RecentNotes)
+- `src/renderer/src/components/WorkspaceBar.svelte`
+- `src/renderer/src/components/SearchResults.svelte`
+- `src/renderer/src/components/NoteTypesView.svelte` (note types management view)
+- `src/renderer/src/components/NoteTypeDropdown.svelte` (type selector dropdown)
+- `src/renderer/src/components/WikilinkActionPopover.svelte` (wikilink action menu)
+- `src/renderer/src/components/WikilinkEditPopover.svelte` (wikilink display text editor)
+- `src/renderer/src/components/VaultSyncSettings.svelte` (file sync settings UI)
+- `src/renderer/src/components/DailyView.svelte` (daily view main component)
+- `src/renderer/src/components/DaySection.svelte` (individual day container)
+- `src/renderer/src/components/WeekNavigation.svelte` (week navigation header)
+- `src/renderer/src/components/DailyNoteEditor.svelte` (per-day CodeMirror editor)
+- `src/renderer/src/components/ChatPanel.svelte` (AI chat interface)
+- `src/renderer/src/components/ChatInput.svelte` (chat message input)
+- `src/renderer/src/components/ChatFAB.svelte` (floating action button for chat)
+- `src/renderer/src/components/FABMenu.svelte` (expandable FAB with chat/shelf options)
+- `src/renderer/src/components/ShelfPanel.svelte` (floating shelf panel)
+- `src/renderer/src/components/ShelfItem.svelte` (individual shelf item with expand/collapse)
 - `src/renderer/src/lib/automerge/shelf-state.svelte.ts` (shelf state wrapper)
-- `src/renderer/src/components/AutomergeConversationView.svelte` (full conversation view)
-- `src/renderer/src/components/AutomergeConversationList.svelte` (conversation list in chat panel)
+- `src/renderer/src/components/ConversationView.svelte` (full conversation view)
+- `src/renderer/src/components/ConversationList.svelte` (conversation list in chat panel)
 - `src/renderer/src/lib/automerge/opfs-storage.svelte.ts` (OPFS storage with content-addressed hashing)
 - `src/renderer/src/lib/automerge/epub-import.svelte.ts` (EPUB import and metadata extraction)
 - `src/renderer/src/lib/automerge/epub-tools.svelte.ts` (AI tools for EPUB content access)
-- `src/renderer/src/components/AutomergeEpubViewer.svelte` (EPUB viewer container)
-- `src/renderer/src/components/AutomergeEpubReader.svelte` (foliate-js wrapper)
-- `src/renderer/src/components/AutomergeEpubToc.svelte` (table of contents panel)
-- `src/renderer/src/components/AutomergeEpubHighlights.svelte` (highlights list panel)
-- `src/renderer/src/components/AutomergeEpubProgress.svelte` (progress bar and navigation)
+- `src/renderer/src/components/EpubViewer.svelte` (EPUB viewer container)
+- `src/renderer/src/components/EpubReader.svelte` (foliate-js wrapper)
+- `src/renderer/src/components/EpubToc.svelte` (table of contents panel)
+- `src/renderer/src/components/EpubHighlights.svelte` (highlights list panel)
+- `src/renderer/src/components/EpubProgress.svelte` (progress bar and navigation)
 - `src/renderer/src/lib/automerge/pdf-opfs-storage.svelte.ts` (OPFS storage for PDFs)
 - `src/renderer/src/lib/automerge/pdf-import.svelte.ts` (PDF import and metadata extraction)
 - `src/renderer/src/lib/automerge/pdf-tools.svelte.ts` (AI tools for PDF content access)
-- `src/renderer/src/components/AutomergePdfViewer.svelte` (PDF viewer container)
-- `src/renderer/src/components/AutomergePdfReader.svelte` (PDF.js wrapper for canvas rendering)
-- `src/renderer/src/components/AutomergePdfOutline.svelte` (bookmarks/outline panel)
-- `src/renderer/src/components/AutomergePdfHighlights.svelte` (highlights list panel)
+- `src/renderer/src/components/PdfViewer.svelte` (PDF viewer container)
+- `src/renderer/src/components/PdfReader.svelte` (PDF.js wrapper for canvas rendering)
+- `src/renderer/src/components/PdfOutline.svelte` (bookmarks/outline panel)
+- `src/renderer/src/components/PdfHighlights.svelte` (highlights list panel)
 - `src/renderer/src/lib/automerge/webpage-opfs-storage.svelte.ts` (OPFS storage for webpages)
 - `src/renderer/src/lib/automerge/webpage-import.svelte.ts` (webpage import and archiving)
-- `src/renderer/src/components/AutomergeWebpageViewer.svelte` (webpage viewer container)
-- `src/renderer/src/components/AutomergeWebpageReader.svelte` (Shadow DOM reader with DOMPurify)
-- `src/renderer/src/components/AutomergeImportWebpageModal.svelte` (URL input modal)
-- `src/renderer/src/lib/automerge/deck/automerge-deck-types.ts` (deck type definitions)
-- `src/renderer/src/lib/automerge/deck/automerge-deck-query.svelte.ts` (client-side query engine)
-- `src/renderer/src/lib/automerge/deck/automerge-deck-theme.ts` (CodeMirror theme)
-- `src/renderer/src/lib/automerge/deck/automerge-deck-extension.svelte.ts` (CodeMirror extension)
+- `src/renderer/src/components/WebpageViewer.svelte` (webpage viewer container)
+- `src/renderer/src/components/WebpageReader.svelte` (Shadow DOM reader with DOMPurify)
+- `src/renderer/src/components/ImportWebpageModal.svelte` (URL input modal)
+- `src/renderer/src/lib/automerge/deck/deck-types.ts` (deck type definitions)
+- `src/renderer/src/lib/automerge/deck/deck-query.svelte.ts` (client-side query engine)
+- `src/renderer/src/lib/automerge/deck/deck-theme.ts` (CodeMirror theme)
+- `src/renderer/src/lib/automerge/deck/deck-extension.svelte.ts` (CodeMirror extension)
 - `src/renderer/src/lib/automerge/deck/index.ts` (barrel exports)
-- `src/renderer/src/components/AutomergeDeckWidget.svelte` (main deck widget)
-- `src/renderer/src/components/AutomergeDeckViewer.svelte` (full-page deck viewer)
-- `src/renderer/src/components/AutomergeDeckToolbar.svelte` (column/sort controls)
-- `src/renderer/src/components/AutomergeDeckFilterPopup.svelte` (quick filter popup)
-- `src/renderer/src/components/AutomergeDeckFilterBuilder.svelte` (full filter editor)
-- `src/renderer/src/components/AutomergeDeckFilterRow.svelte` (individual filter row)
-- `src/renderer/src/components/AutomergeDeckValueInput.svelte` (filter value input)
-- `src/renderer/src/components/AutomergeDeckFieldSelector.svelte` (field picker)
-- `src/renderer/src/components/AutomergeDeckOperatorSelector.svelte` (operator picker)
-- `src/renderer/src/components/AutomergeDeckNoteListItem.svelte` (result row)
-- `src/renderer/src/components/AutomergeDeckPagination.svelte` (pagination controls)
-- `src/renderer/src/components/AutomergeDeckColumnConfig.svelte` (column config)
-- `src/renderer/src/components/AutomergeDeckPropPickerDialog.svelte` (add column dialog)
-- `src/renderer/src/components/AutomergeDeckViewSwitcher.svelte` (multi-view tabs)
+- `src/renderer/src/components/DeckWidget.svelte` (main deck widget)
+- `src/renderer/src/components/DeckViewer.svelte` (full-page deck viewer)
+- `src/renderer/src/components/DeckToolbar.svelte` (column/sort controls)
+- `src/renderer/src/components/DeckFilterPopup.svelte` (quick filter popup)
+- `src/renderer/src/components/DeckFilterBuilder.svelte` (full filter editor)
+- `src/renderer/src/components/DeckFilterRow.svelte` (individual filter row)
+- `src/renderer/src/components/DeckValueInput.svelte` (filter value input)
+- `src/renderer/src/components/DeckFieldSelector.svelte` (field picker)
+- `src/renderer/src/components/DeckOperatorSelector.svelte` (operator picker)
+- `src/renderer/src/components/DeckNoteListItem.svelte` (result row)
+- `src/renderer/src/components/DeckPagination.svelte` (pagination controls)
+- `src/renderer/src/components/DeckColumnConfig.svelte` (column config)
+- `src/renderer/src/components/DeckPropPickerDialog.svelte` (add column dialog)
+- `src/renderer/src/components/DeckViewSwitcher.svelte` (multi-view tabs)
 - `vite.renderer.config.ts`
 - `electron.vite.main-preload.config.ts`
 
@@ -1187,22 +1187,22 @@ Future work for multi-device sync:
 - `src/renderer/src/lib/automerge/state.svelte.ts` (sync state management)
 - `src/preload/index.ts` (automergeSync IPC methods)
 - `src/main/index.ts` (IPC handlers for sync)
-- `src/renderer/src/components/AutomergeMainView.svelte` (integrated sync settings, daily view)
-- `src/renderer/src/components/AutomergeSystemViews.svelte` (added Daily nav item)
-- `src/renderer/src/components/AutomergeLeftSidebar.svelte` (updated view types)
+- `src/renderer/src/components/MainView.svelte` (integrated sync settings, daily view)
+- `src/renderer/src/components/SystemViews.svelte` (added Daily nav item)
+- `src/renderer/src/components/LeftSidebar.svelte` (updated view types)
 - `src/renderer/src/lib/automerge/index.ts` (exported daily view functions, EPUB functions)
 - `src/renderer/src/lib/automerge/types.ts` (added EpubNoteProps, EpubHighlight, EpubTocItem, EpubLocation, EpubMetadata, PdfNoteProps, PdfHighlight, PdfOutlineItem, PdfMetadata, WebpageNoteProps, WebpageMetadata, WebpageHighlight, WebpageSelectionInfo)
 - `src/renderer/src/lib/automerge/state.svelte.ts` (added EPUB, PDF, and Webpage functions: createEpubNote, createPdfNote, createWebpageNote, updateEpubReadingState, updatePdfReadingState, updateWebpageReadingState, etc.)
 - `src/renderer/src/lib/automerge/chat-service.svelte.ts` (integrated EPUB and PDF AI tools)
-- `src/renderer/src/components/AutomergeMainView.svelte` (EPUB, PDF, and Webpage view routing, full-width content mode for EPUB/PDF)
-- `src/renderer/src/components/AutomergeFABMenu.svelte` (added Import Book, Import PDF, and Archive Webpage options)
+- `src/renderer/src/components/MainView.svelte` (EPUB, PDF, and Webpage view routing, full-width content mode for EPUB/PDF)
+- `src/renderer/src/components/FABMenu.svelte` (added Import Book, Import PDF, and Archive Webpage options)
 - `src/renderer/src/lib/automerge/index.ts` (exported PDF, Webpage, and Deck functions and types)
 - `src/main/index.ts` (added archive-webpage IPC handler)
 - `src/renderer/src/lib/automerge/state.svelte.ts` (added deck functions: createDeckNote, getDeckNotes, ensureDeckNoteType)
 - `src/renderer/src/lib/automerge/editorConfig.svelte.ts` (integrated deck CodeMirror extension)
-- `src/renderer/src/components/AutomergeMainView.svelte` (deck viewer routing, deck creation handler)
-- `src/renderer/src/components/AutomergeWorkspaceBar.svelte` (added "New Deck" to add menu)
-- `src/renderer/src/components/AutomergeLeftSidebar.svelte` (passed onCreateDeck prop)
+- `src/renderer/src/components/MainView.svelte` (deck viewer routing, deck creation handler)
+- `src/renderer/src/components/WorkspaceBar.svelte` (added "New Deck" to add menu)
+- `src/renderer/src/components/LeftSidebar.svelte` (passed onCreateDeck prop)
 - `src/preload/index.ts` (added archiveWebpage IPC definition)
 - `src/renderer/src/env.d.ts` (added archiveWebpage type definition)
 

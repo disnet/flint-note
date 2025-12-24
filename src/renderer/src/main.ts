@@ -3,7 +3,7 @@ import { mount } from 'svelte';
 import './assets/main.css';
 import './assets/fonts.css';
 
-import App from './AutomergeApp.svelte';
+import App from './App.svelte';
 
 const app = mount(App, {
   target: document.getElementById('app')!

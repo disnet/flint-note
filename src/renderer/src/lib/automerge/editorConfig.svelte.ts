@@ -23,9 +23,9 @@ import {
   type WikilinkClickHandler,
   type WikilinkHoverHandler
 } from './wikilinks.svelte';
-import { automergeDeckExtension } from './deck';
+import { deckExtension } from './deck';
 
-export interface AutomergeEditorConfigOptions {
+export interface EditorConfigOptions {
   onWikilinkClick?: WikilinkClickHandler;
   onWikilinkHover?: WikilinkHoverHandler;
   onContentChange?: (content: string) => void;
@@ -36,12 +36,12 @@ export interface AutomergeEditorConfigOptions {
   onDeckNoteOpen?: (noteId: string) => void;
 }
 
-export class AutomergeEditorConfig {
+export class EditorConfig {
   isDarkMode = $state(false);
 
   private mediaQuery: MediaQueryList | null = null;
 
-  constructor(private options: AutomergeEditorConfigOptions = {}) {}
+  constructor(private options: EditorConfigOptions = {}) {}
 
   // Base theme shared by all variants
   private getBaseTheme(): Extension {
@@ -162,7 +162,7 @@ export class AutomergeEditorConfig {
       // Deck extension for flint-deck code blocks
       ...(this.options.onDeckNoteOpen
         ? [
-            automergeDeckExtension({
+            deckExtension({
               onNoteOpen: this.options.onDeckNoteOpen,
               onConfigChange: (_from, _to, _config) => {
                 // Config changes are handled by the widget itself via updateDeckBlock

@@ -1,6 +1,6 @@
 /**
- * Automerge Deck Module
- * Provides deck functionality (filtered note lists) for the Automerge version
+ * Deck Module
+ * Provides deck functionality (filtered note lists)
  */
 
 // Types
@@ -18,14 +18,14 @@ export type {
 } from '../../../../../shared/deck-yaml-utils';
 
 export type {
-  AutomergeFieldType,
-  AutomergeFilterFieldInfo,
-  AutomergeDeckResultNote,
-  AutomergeDeckQueryResult,
-  AutomergeDeckQueryOptions,
-  AutomergeDeckHandlers,
-  AutomergeDeckBlock
-} from './automerge-deck-types';
+  FieldType,
+  FilterFieldInfo,
+  DeckResultNote,
+  DeckQueryResult,
+  DeckQueryOptions,
+  DeckHandlers,
+  DeckBlock
+} from './deck-types';
 
 // Constants
 export {
@@ -35,7 +35,7 @@ export {
   OPERATORS_BY_TYPE,
   SYSTEM_FIELDS,
   SYSTEM_COLUMNS
-} from './automerge-deck-types';
+} from './deck-types';
 
 // YAML utilities (re-exported from shared)
 export {
@@ -46,7 +46,7 @@ export {
   getActiveView,
   getView,
   columnHasCustomSettings
-} from './automerge-deck-types';
+} from './deck-types';
 
 // Type utilities
 export {
@@ -55,26 +55,22 @@ export {
   getFormatsForType,
   getFormatLabel,
   noteToResultNote
-} from './automerge-deck-types';
+} from './deck-types';
 
 // Query service
-export {
-  runAutomergeDeckQuery,
-  getFieldValues,
-  getAvailableFields
-} from './automerge-deck-query.svelte';
+export { runDeckQuery, getFieldValues, getAvailableFields } from './deck-query.svelte';
 
 // View utilities
-export { normalizeColumn, createDefaultView } from './automerge-deck-types';
+export { normalizeColumn, createDefaultView } from './deck-types';
 
 // Theme
-export { automergeDeckTheme } from './automerge-deck-theme';
+export { deckTheme } from './deck-theme';
 
 // CodeMirror extension
 export {
-  automergeDeckExtension,
+  deckExtension,
   updateDeckBlock,
   forceDeckRefresh,
   insertDeckEmbed,
   insertDeckBlock
-} from './automerge-deck-extension.svelte';
+} from './deck-extension.svelte';

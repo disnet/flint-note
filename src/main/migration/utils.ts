@@ -51,7 +51,7 @@ export function getSafeSyncDirectory(vaultPath: string): string {
 /**
  * Check if a directory is an Automerge sync directory
  */
-export function isAutomergeSyncDirectory(dirPath: string): boolean {
+export function isSyncDirectory(dirPath: string): boolean {
   const markerPath = path.join(dirPath, AUTOMERGE_MARKER);
   return fs.existsSync(markerPath);
 }

@@ -18,7 +18,7 @@ import {
  *
  * This is called from the renderer via IPC, passing the current vault list.
  */
-export function hasExistingAutomergeVault(
+export function hasExistingVault(
   vaultPath: string,
   existingVaults: Array<{ baseDirectory?: string }>
 ): boolean {
@@ -40,7 +40,7 @@ export async function getLegacyVaultInfo(
     const counts = await getNoteCounts(vaultPath);
     const modTime = getDatabaseModTime(vaultPath);
     const syncDirName = getSafeSyncDirectory(vaultPath);
-    const hasExisting = hasExistingAutomergeVault(vaultPath, existingVaults);
+    const hasExisting = hasExistingVault(vaultPath, existingVaults);
 
     return {
       path: vaultPath,

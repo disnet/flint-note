@@ -25,7 +25,7 @@ export {
   detectLegacyVaults,
   detectLegacyVaultAtPath,
   getLegacyVaultInfo,
-  hasExistingAutomergeVault
+  hasExistingVault
 } from './legacy-vault-detector';
 
 // SQLite reading
@@ -52,7 +52,7 @@ export { migrateLegacyVault, getMigrationDocumentData } from './migration-servic
 // Utilities
 export {
   getSafeSyncDirectory,
-  isAutomergeSyncDirectory,
+  isSyncDirectory,
   ensureSyncDirectory,
   getVaultNameFromPath,
   containsLegacyVault,

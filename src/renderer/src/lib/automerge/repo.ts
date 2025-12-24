@@ -15,7 +15,7 @@ const isElectron =
   !!(window as { api?: { automergeSync?: ElectronSyncAPI } }).api?.automergeSync;
 
 // Get the automergeSync API from window.api
-function getAutomergeSyncAPI(): ElectronSyncAPI | null {
+function getSyncAPI(): ElectronSyncAPI | null {
   if (!isElectron) return null;
   return (
     (window as { api?: { automergeSync?: ElectronSyncAPI } }).api?.automergeSync || null
@@ -293,7 +293,7 @@ export function getNonArchivedVaults(): Vault[] {
  * Only works in Electron when the vault has a baseDirectory set.
  */
 export async function connectVaultSync(r: Repo, vault: Vault): Promise<void> {
-  const syncAPI = getAutomergeSyncAPI();
+  const syncAPI = getSyncAPI();
   if (!syncAPI || !vault.baseDirectory) {
     return;
   }
@@ -330,7 +330,7 @@ export async function connectVaultSync(r: Repo, vault: Vault): Promise<void> {
  * Disconnect the current vault from file system sync.
  */
 export async function disconnectVaultSync(): Promise<void> {
-  const syncAPI = getAutomergeSyncAPI();
+  const syncAPI = getSyncAPI();
   if (!syncAPI || !currentSyncedVaultId) {
     return;
   }
@@ -363,14 +363,14 @@ export function getCurrentSyncedVaultId(): string | null {
  * Check if file sync is available (running in Electron with API)
  */
 export function isFileSyncAvailable(): boolean {
-  return isElectron && getAutomergeSyncAPI() !== null;
+  return isElectron && getSyncAPI() !== null;
 }
 
 /**
  * Select a sync directory via the system dialog
  */
 export async function selectSyncDirectory(): Promise<string | null> {
-  const syncAPI = getAutomergeSyncAPI();
+  const syncAPI = getSyncAPI();
   if (!syncAPI) {
     return null;
   }
