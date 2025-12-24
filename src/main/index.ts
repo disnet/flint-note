@@ -11,32 +11,15 @@ import { promises as fsPromises } from 'fs';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
-import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
-import { ToolService } from './tool-service';
 import { ChatServer } from './chat-server';
-
-// Type for accessing private properties of AIService
-type AIServiceWithPrivateProps = {
-  customFunctionsApi: CustomFunctionsApi;
-  toolService: ToolService;
-};
-import { NoteService } from './note-service';
-import { WorkflowService } from './workflow-service';
 import { SecureStorageService } from './secure-storage-service';
 import { SettingsStorageService, type WindowState } from './settings-storage-service';
 import {
   VaultDataStorageService,
   type CursorPosition
 } from './vault-data-storage-service';
-import type {
-  MetadataFieldDefinition,
-  MetadataSchema
-} from '../server/core/metadata-schema';
-import type { NoteMetadata } from '../server/types';
 import { logger } from './logger';
 import { AutoUpdaterService } from './auto-updater-service';
-import { publishNoteEvent } from './note-events';
-import { publishReviewEvent } from './review-events';
 import { setupApplicationMenu } from './menu';
 import {
   initializeVaultRepo,
@@ -51,8 +34,31 @@ import {
 } from './migration';
 
 // Module-level service references
-let noteService: NoteService | null = null;
 let chatServerInstance: ChatServer | null = null;
+
+// Legacy service stubs - these services have been removed in the Automerge-only version
+// The handlers that use them will throw errors at runtime
+type NoteMetadata = Record<string, unknown>;
+type MetadataFieldDefinition = Record<string, unknown>;
+type MetadataSchema = Record<string, unknown>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const noteService: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+const workflowService: any = null;
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+const publishNoteEvent = (_event: any): void => {
+  /* Legacy event publisher - no-op */
+};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+const publishReviewEvent = (_event: any): void => {
+  /* Legacy event publisher - no-op */
+};
+
+// Legacy type stub for AI service internals
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AIServiceWithPrivateProps = any;
 
 interface FrontendMessage {
   id: string;
@@ -448,41 +454,6 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Initialize Note service
-  try {
-    noteService = new NoteService();
-    await noteService.initialize();
-
-    const status = noteService.getStatus();
-    if (status.canPerformNoteOperations) {
-      logger.info('Note Service initialized successfully with vault support');
-
-      // Ensure default 'note' type exists in current vault
-      try {
-        const currentVault = await noteService.getCurrentVault();
-        if (currentVault) {
-          await noteService.ensureDefaultNoteType(currentVault.id);
-        }
-      } catch (error) {
-        logger.warn('Failed to ensure default note type in current vault:', { error });
-      }
-    } else if (status.hasVaults) {
-      logger.info('Note Service initialized but vault operations limited');
-    } else {
-      logger.info(
-        'Note Service initialized in vault-management mode (no vaults available)'
-      );
-      logger.info('First-time user experience will be shown');
-    }
-  } catch (error) {
-    logger.error('Failed to initialize Note Service', { error });
-    logger.warn('Note operations will not be available');
-    // Still create a basic noteService for vault management even if initialization fails
-    if (!noteService) {
-      noteService = new NoteService();
-    }
-  }
-
   // Initialize Secure Storage service
   const secureStorageService = new SecureStorageService();
 
@@ -505,38 +476,9 @@ app.whenReady().then(async () => {
   const vaultDataStorageService = new VaultDataStorageService();
   await vaultDataStorageService.initialize();
 
-  // Initialize Workflow service
-  let workflowService: WorkflowService | null = null;
-  if (noteService && noteService.isReady()) {
-    try {
-      const db = await noteService.getDatabaseConnection();
-      workflowService = new WorkflowService(noteService, db);
-      logger.info('Workflow Service initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize Workflow Service', { error });
-      logger.warn('Workflow operations will not be available');
-    }
-  } else {
-    logger.info('Workflow Service not initialized - no vault configured yet');
-  }
-
   // Initialize AI service
   let aiService: AIService | null = null;
   try {
-    // Get workspace root from current vault for custom functions support
-    let workspaceRoot: string | undefined;
-    if (noteService) {
-      try {
-        const currentVault = await noteService.getCurrentVault();
-        if (currentVault) {
-          workspaceRoot = currentVault.path;
-          logger.info('Using workspace root for custom functions', { workspaceRoot });
-        }
-      } catch (error) {
-        logger.warn('Could not get current vault for workspace root', { error });
-      }
-    }
-
     // Load provider from settings (default to openrouter for backward compatibility)
     let provider: 'openrouter' | 'anthropic' = 'openrouter';
     try {
@@ -553,13 +495,7 @@ app.whenReady().then(async () => {
       logger.warn('Failed to load provider from settings, using default', { error });
     }
 
-    aiService = await AIService.of(
-      secureStorageService,
-      noteService,
-      workspaceRoot,
-      workflowService,
-      provider
-    );
+    aiService = await AIService.of(secureStorageService, provider);
 
     // Set up global usage tracking listener
     aiService.on('usage-recorded', (usageData) => {
@@ -1621,73 +1557,28 @@ app.whenReady().then(async () => {
     return await flintApi.getNotesForReview({ vaultId: vault.id });
   });
 
-  ipcMain.handle('generate-review-prompt', async (_event, noteId: string) => {
-    if (!aiService) {
-      throw new Error('AI service not available');
-    }
-    try {
-      // Ensure API key is loaded before attempting to generate
-      const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
-      if (!apiKeyLoaded) {
-        return {
-          success: false,
-          error: 'API key not configured',
-          prompt: 'Explain the main concepts in this note in your own words.'
-        };
-      }
-
-      const result = await aiService.generateReviewPrompt(noteId);
-      return { success: true, ...result };
-    } catch (error) {
-      logger.error('Failed to generate review prompt', { error, noteId });
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        prompt: 'Explain the main concepts in this note in your own words.'
-      };
-    }
+  // Legacy review handlers - disabled in Automerge-only version
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ipcMain.handle('generate-review-prompt', async (_event, _noteId: string) => {
+    return {
+      success: false,
+      error: 'Review functionality not available in Automerge version',
+      prompt: 'Explain the main concepts in this note in your own words.'
+    };
   });
 
   ipcMain.handle(
     'analyze-review-response',
-    async (_event, params: { noteId: string; prompt: string; userResponse: string }) => {
-      if (!aiService) {
-        throw new Error('AI service not available');
-      }
-      try {
-        // Ensure API key is loaded before attempting to analyze
-        const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
-        if (!apiKeyLoaded) {
-          return {
-            success: false,
-            error: 'API key not configured',
-            feedback: {
-              feedback: 'Thank you for your response.',
-              error: 'Analysis failed - API key not configured'
-            }
-          };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_event, _params: { noteId: string; prompt: string; userResponse: string }) => {
+      return {
+        success: false,
+        error: 'Review functionality not available in Automerge version',
+        feedback: {
+          feedback: 'Thank you for your response.',
+          error: 'Review analysis not available'
         }
-
-        const result = await aiService.analyzeReviewResponse(
-          params.noteId,
-          params.prompt,
-          params.userResponse
-        );
-        return { success: true, feedback: result };
-      } catch (error) {
-        logger.error('Failed to analyze review response', {
-          error,
-          noteId: params.noteId
-        });
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          feedback: {
-            feedback: 'Thank you for your response.',
-            error: 'Analysis failed'
-          }
-        };
-      }
+      };
     }
   );
 
@@ -2620,15 +2511,12 @@ app.whenReady().then(async () => {
     }
   );
 
-  // Todo Plan IPC handlers
+  // Todo Plan IPC handlers - disabled in Automerge-only version
   ipcMain.handle(
     'todo-plan:get-active',
-    async (_event, params: { conversationId: string }) => {
-      if (!aiService) {
-        throw new Error('AI service not available');
-      }
-      const todoPlanService = aiService.getTodoPlanService();
-      return todoPlanService.getActivePlan(params.conversationId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_event, _params: { conversationId: string }) => {
+      return null; // No active plan in Automerge version
     }
   );
 

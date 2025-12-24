@@ -1,17 +1,14 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { generateText, streamText, ModelMessage, stepCountIs, Tool } from 'ai';
+import { generateText, streamText, ModelMessage } from 'ai';
 import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
-import { NoteService } from './note-service';
-import { ToolService } from './tool-service';
-import { WorkflowService } from './workflow-service';
-import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
-import { TodoPlanService } from './todo-plan-service';
-import { REVIEW_AGENT_SYSTEM_PROMPT } from './review-agent-prompt';
+
+// Legacy services removed during Automerge migration
+// AI tools for note manipulation are not available - chat only mode
 
 export type AIProvider = 'openrouter' | 'anthropic';
 type ProviderClient =
@@ -71,17 +68,9 @@ export class AIService extends EventEmitter {
   private currentConversationId: string | null = null;
   private providerClient: ProviderClient;
   private systemPrompt: string;
-  private reviewPrompt: string;
-  private noteService: NoteService | null;
-  private workflowService: WorkflowService | null;
-  private toolService: ToolService;
-  private customFunctionsApi: CustomFunctionsApi;
-  private todoPlanService: TodoPlanService;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
   private activeAbortControllers: Map<string, AbortController> = new Map();
-  private inReviewMode: boolean = false;
-  private currentReviewNoteId: string | null = null;
   private cacheConfig: CacheConfig = {
     enableSystemMessageCaching: true,
     enableHistoryCaching: false, // Start with system message caching only
@@ -101,33 +90,16 @@ export class AIService extends EventEmitter {
   };
   private performanceMonitoringInterval?: NodeJS.Timeout;
 
-  constructor(
-    providerClient: ProviderClient,
-    provider: AIProvider,
-    noteService: NoteService | null,
-    workspaceRoot?: string,
-    workflowService?: WorkflowService | null
-  ) {
+  constructor(providerClient: ProviderClient, provider: AIProvider) {
     super();
     this.currentProvider = provider;
     this.currentModelName = 'anthropic/claude-haiku-4.5'; // Default for OpenRouter
     this.systemPrompt = this.loadSystemPrompt();
-    this.reviewPrompt = this.loadReviewPrompt();
     logger.info('AI Service constructed', {
       provider: this.currentProvider,
       model: this.currentModelName
     });
     this.providerClient = providerClient;
-    this.noteService = noteService;
-    this.workflowService = workflowService || null;
-    this.todoPlanService = new TodoPlanService();
-    this.toolService = new ToolService(
-      noteService,
-      workspaceRoot,
-      this.todoPlanService,
-      this.workflowService || undefined
-    );
-    this.customFunctionsApi = new CustomFunctionsApi(workspaceRoot || process.cwd());
   }
 
   /**
@@ -227,21 +199,12 @@ export class AIService extends EventEmitter {
 
   static async of(
     _secureStorage: SecureStorageService,
-    noteService: NoteService | null = null,
-    workspaceRoot?: string,
-    workflowService?: WorkflowService | null,
     provider: AIProvider = 'openrouter'
   ): Promise<AIService> {
     // Initialize with undefined API key to avoid triggering keychain access on startup
     // secureStorage will be passed to lazy loading methods when needed
     const providerClient = AIService.createProviderClient(provider, undefined);
-    return new AIService(
-      providerClient,
-      provider,
-      noteService,
-      workspaceRoot,
-      workflowService
-    );
+    return new AIService(providerClient, provider);
   }
 
   /**
@@ -302,44 +265,6 @@ When responding be sure to format references to notes using ID-only wikilinks. F
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
     }
-  }
-
-  private loadReviewPrompt(): string {
-    return REVIEW_AGENT_SYSTEM_PROMPT;
-  }
-
-  /**
-   * Detect if a message is starting a review session
-   * Format: "Review note: {noteId}"
-   */
-  private detectReviewMode(message: string): { isReview: boolean; noteId?: string } {
-    const reviewMatch = message.match(/^Review note:\s*(.+)$/i);
-    if (reviewMatch) {
-      return {
-        isReview: true,
-        noteId: reviewMatch[1].trim()
-      };
-    }
-    return { isReview: false };
-  }
-
-  /**
-   * Enter review mode for a specific note
-   */
-  private enterReviewMode(noteId: string): void {
-    this.inReviewMode = true;
-    this.currentReviewNoteId = noteId;
-    logger.info('Entered review mode', { noteId });
-  }
-
-  /**
-   * Get appropriate tools based on current mode (review vs normal)
-   */
-  private getAppropriateTools(): Record<string, Tool> | undefined {
-    if (this.inReviewMode) {
-      return this.toolService.getReviewTools();
-    }
-    return this.toolService.getTools();
   }
 
   public estimateTokens(content: string | ModelMessage[]): number {
@@ -413,10 +338,9 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   /**
-   * Get Tier 2 vault context (compact listing of note types and custom functions)
-   * This is designed to be cached efficiently per vault
+   * Get context information (date, timezone)
    */
-  private async getVaultContext(): Promise<string> {
+  private getContext(): string {
     const today = new Date().toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -424,141 +348,18 @@ Use these tools to help users manage their notes effectively and answer their qu
     });
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-    const contextualInfo =
+    return (
       `\n\n## Current Context\n\n` +
       `- **Today's Date**: ${today} (${dayOfWeek})\n` +
-      `- **Timezone**: ${Intl.DateTimeFormat().resolvedOptions().timeZone}\n`;
-
-    let noteTypeInfo = '';
-    if (this.noteService) {
-      try {
-        // Get current vault to retrieve note types
-        const currentVault = await this.noteService.getCurrentVault();
-        if (currentVault) {
-          const noteTypes = await this.noteService.listNoteTypes(currentVault.id);
-          if (noteTypes.length > 0) {
-            noteTypeInfo = `\n## Available Note Types\n\n`;
-            noteTypeInfo += `Your vault has ${noteTypes.length} note type(s):\n`;
-            noteTypeInfo += noteTypes
-              .map((nt) => `- **${nt.name}**: ${nt.purpose || 'No description'}`)
-              .join('\n');
-            noteTypeInfo += `\n\nNote: Full agent instructions for each type will be provided when relevant.\n`;
-          }
-        }
-      } catch (error) {
-        logger.warn('Failed to load note types for system message:', { error });
-        // Continue without note type info if vault access fails
-      }
-    }
-
-    // Add compact custom functions listing to system prompt
-    let customFunctionsInfo = '';
-    try {
-      customFunctionsInfo = await this.customFunctionsApi.getCompactSystemPromptSection();
-    } catch (error) {
-      logger.warn('Failed to load custom functions for system message:', { error });
-      // Continue without custom functions info if loading fails
-    }
-
-    // Add workflow context to system prompt
-    let workflowInfo = '';
-    if (this.workflowService && this.workflowService.isReady()) {
-      try {
-        workflowInfo = await this.workflowService.getWorkflowContextForPrompt();
-        if (workflowInfo) {
-          workflowInfo = '\n' + workflowInfo;
-        }
-      } catch (error) {
-        logger.warn('Failed to load workflow context for system message:', { error });
-        // Continue without workflow info if loading fails
-      }
-    }
-
-    return contextualInfo + noteTypeInfo + customFunctionsInfo + workflowInfo;
+      `- **Timezone**: ${Intl.DateTimeFormat().resolvedOptions().timeZone}\n`
+    );
   }
 
   /**
-   * Get complete system message (Tier 1 + Tier 2)
-   * In review mode, returns review prompt + note context instead
+   * Get complete system message
    */
   private async getSystemMessage(): Promise<string> {
-    if (this.inReviewMode && this.currentReviewNoteId) {
-      // In review mode, get the note content and use review prompt
-      let noteContext = '';
-      try {
-        if (this.noteService) {
-          const flintApi = this.noteService.getFlintNoteApi();
-          const currentVault = await this.noteService.getCurrentVault();
-          if (currentVault) {
-            const note = await flintApi.getNote(
-              currentVault.id,
-              this.currentReviewNoteId
-            );
-            noteContext = `\n\n# Note to Review\n\nTitle: ${note.title}\nID: ${note.id}\nType: ${note.type}\n\nContent:\n${note.content}`;
-          }
-        }
-      } catch (error) {
-        logger.error('Failed to load note for review', {
-          error,
-          noteId: this.currentReviewNoteId
-        });
-      }
-      return this.reviewPrompt + noteContext;
-    }
-
-    // Normal mode - return standard system prompt with vault context
-    const vaultContext = await this.getVaultContext();
-    return this.systemPrompt + vaultContext;
-  }
-
-  /**
-   * Get the TodoPlanService instance
-   */
-  getTodoPlanService(): TodoPlanService {
-    return this.todoPlanService;
-  }
-
-  /**
-   * Get plan context for the current conversation
-   */
-  private getPlanContext(): string | null {
-    if (!this.currentConversationId) {
-      return null;
-    }
-    return this.todoPlanService.getPlanContext(this.currentConversationId);
-  }
-
-  /**
-   * Inject plan context into messages if there's an active plan
-   */
-  private getMessagesWithPlanContext(messages: ModelMessage[]): ModelMessage[] {
-    const planContext = this.getPlanContext();
-
-    if (!planContext) {
-      return messages;
-    }
-
-    // Inject plan context as a user message before the last user message
-    const messagesWithContext = [...messages];
-
-    // Find the last user message index
-    let lastUserIndex = -1;
-    for (let i = messagesWithContext.length - 1; i >= 0; i--) {
-      if (messagesWithContext[i].role === 'user') {
-        lastUserIndex = i;
-        break;
-      }
-    }
-
-    if (lastUserIndex >= 0) {
-      // Insert plan context before the last user message
-      messagesWithContext.splice(lastUserIndex, 0, {
-        role: 'user',
-        content: planContext
-      });
-    }
-
-    return messagesWithContext;
+    return this.systemPrompt + this.getContext();
   }
 
   private async getSystemMessageWithCaching(): Promise<ModelMessage> {
@@ -1363,12 +1164,6 @@ ${
         this.createConversation();
       }
 
-      // Detect review mode from message
-      const reviewDetection = this.detectReviewMode(userMessage);
-      if (reviewDetection.isReview && reviewDetection.noteId) {
-        this.enterReviewMode(reviewDetection.noteId);
-      }
-
       // Get conversation history
       const currentHistory = this.getConversationMessages(this.currentConversationId!);
 
@@ -1378,9 +1173,6 @@ ${
       // Update conversation history with length management
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
-      // Set the conversation ID in tool service so tools can access it
-      this.toolService.setCurrentConversationId(this.currentConversationId!);
-
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
@@ -1388,16 +1180,12 @@ ${
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      let messages: ModelMessage[] = [systemMessage, ...cachedHistory];
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
-      // Inject plan context if there's an active plan
-      messages = this.getMessagesWithPlanContext(messages);
-
-      const tools = this.getAppropriateTools();
+      // Chat only mode - no tools available in Automerge version
       const result = await generateText({
         model: this.providerClient(this.currentModelName),
         messages,
-        tools,
         onStepFinish: (step) => {
           logger.info('AI step finished', { step });
         }
@@ -1615,12 +1403,6 @@ ${
         this.createConversation();
       }
 
-      // Detect review mode from message
-      const reviewDetection = this.detectReviewMode(userMessage);
-      if (reviewDetection.isReview && reviewDetection.noteId) {
-        this.enterReviewMode(reviewDetection.noteId);
-      }
-
       // Get conversation history
       const currentHistory = this.getConversationMessages(this.currentConversationId!);
 
@@ -1630,9 +1412,6 @@ ${
       // Update conversation history with length management
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
-      // Set the conversation ID in tool service so tools can access it
-      this.toolService.setCurrentConversationId(this.currentConversationId!);
-
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
@@ -1640,78 +1419,31 @@ ${
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      let messages: ModelMessage[] = [systemMessage, ...cachedHistory];
-
-      // Inject plan context if there's an active plan
-      messages = this.getMessagesWithPlanContext(messages);
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
       this.emit('stream-start', { requestId });
 
-      const tools = this.getAppropriateTools();
-
+      // Chat only mode - no tools available in Automerge version
       try {
         const result = streamText({
           model: this.providerClient(this.currentModelName),
           messages,
-          tools,
-          stopWhen: stepCountIs(20), // Allow up to 20 steps for multi-turn tool calling
           abortSignal: abortController.signal
         });
 
         let fullText = '';
         let finalFinishReason: string | undefined;
-        let stepIndex = 0; // Current step index (0-based)
 
-        // Use fullStream to get real-time tool call events as they happen
+        // Stream text responses
         for await (const event of result.fullStream) {
           if (event.type === 'text-delta') {
             // Handle text streaming
             fullText += event.text;
             this.emit('stream-chunk', { requestId, chunk: event.text });
-          } else if (event.type === 'tool-call') {
-            // Handle tool calls as they arrive (before execution)
-            // Include stepIndex so frontend can group tool calls by step
-            const toolCallData = {
-              id: event.toolCallId,
-              name: event.toolName,
-              arguments: event.input || {},
-              result: undefined,
-              error: undefined,
-              stepIndex // Add step index to group tool calls
-            };
-            this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
-          } else if (event.type === 'tool-result') {
-            // Update tool call with result when it completes
-            // Note: Frontend should match by toolCallId and update
-            const toolCallData = {
-              id: event.toolCallId,
-              name: event.toolName,
-              arguments: {},
-              result: event.output,
-              error: undefined,
-              stepIndex // Include step index for consistency
-            };
-            this.emit('stream-tool-result', { requestId, toolCall: toolCallData });
-          } else if (event.type === 'finish-step') {
-            // Step completed - increment for next step
-            stepIndex++;
-            logger.info('Step finished', {
-              requestId,
-              stepIndex,
-              finishReason: event.finishReason
-            });
-          } else if (event.type === 'finish') {
-            // Final finish event with overall finishReason
-            finalFinishReason = event.finishReason;
-            logger.info('Stream finished', {
-              requestId,
-              finishReason: event.finishReason,
-              totalUsage: event.totalUsage
-            });
           }
         }
 
-        logger.info('Stream completed', { requestId, finalFinishReason, stepIndex });
+        logger.info('Stream completed', { requestId, finalFinishReason });
 
         // Add assistant response to conversation history
         const finalHistory = this.getConversationMessages(this.currentConversationId!);
@@ -1763,30 +1495,9 @@ ${
           undefined // Streaming doesn't provide providerMetadata in the same way
         );
 
-        // Check if we hit the tool call limit
-        // When stopWhen condition (stepCountIs) is triggered, we get:
-        // - finishReason of 'tool-calls' (stopped after executing tools)
-        // - stepIndex equals or exceeds our limit (since we increment after each step)
-        const maxSteps = 20; // Same as stepCountIs(20)
-        const stoppedAtLimit =
-          stepIndex >= maxSteps && finalFinishReason === 'tool-calls';
-
-        if (stoppedAtLimit) {
-          logger.info('Tool call limit reached', {
-            requestId,
-            stepIndex,
-            maxSteps,
-            finalFinishReason
-          });
-        }
-
         this.emit('stream-end', {
           requestId,
-          fullText,
-          stoppedAtLimit,
-          stepCount: stoppedAtLimit ? stepIndex : undefined,
-          maxSteps: stoppedAtLimit ? maxSteps : undefined,
-          canContinue: stoppedAtLimit ? true : undefined
+          fullText
         });
 
         // Clean up abort controller
@@ -1978,418 +1689,6 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
     } catch (error) {
       logger.error('Failed to generate note suggestions', { error });
       throw error;
-    }
-  }
-
-  /**
-   * Select relevant review history entries using smart selection:
-   * - All reviews with rating 1 (Need more time - to focus on struggle areas)
-   * - Last 3-5 reviews with ratings 2-3 (to build on understanding)
-   * Returns up to 7 most relevant entries
-   */
-  private selectRelevantHistory(
-    history: Array<{
-      date: string;
-      rating: 1 | 2 | 3 | 4;
-      sessionNumber: number;
-      response?: string;
-      prompt?: string;
-    }>
-  ): Array<{
-    date: string;
-    rating: 1 | 2 | 3 | 4;
-    sessionNumber: number;
-    response?: string;
-    prompt?: string;
-  }> {
-    // Separate by rating: 1 = struggled, 2-3 = productive, 4 = retired
-    const struggled = history.filter((entry) => entry.rating === 1);
-    const productive = history.filter((entry) => entry.rating >= 2 && entry.rating <= 3);
-
-    // Take all struggled reviews + last 3-5 productive reviews
-    const recentProductive = productive.slice(-5);
-
-    // Combine and sort by date (most recent last)
-    const selected = [...struggled, ...recentProductive].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    // Limit to 7 entries to avoid context bloat
-    return selected.slice(-7);
-  }
-
-  /**
-   * Format review history for agent context
-   */
-  private formatReviewHistory(
-    history: Array<{
-      date: string;
-      rating: 1 | 2 | 3 | 4;
-      sessionNumber: number;
-      response?: string;
-      prompt?: string;
-    }>
-  ): string {
-    if (history.length === 0) {
-      return 'This is the first review for this note.';
-    }
-
-    const ratingLabels: Record<number, string> = {
-      1: 'Need more time',
-      2: 'Productive',
-      3: 'Already familiar',
-      4: 'Fully processed'
-    };
-
-    const entries = history
-      .map((entry, index) => {
-        const date = new Date(entry.date).toLocaleDateString();
-        const outcome = ratingLabels[entry.rating] || 'Unknown';
-        const prompt = entry.prompt ? `\nChallenge: ${entry.prompt}` : '';
-        const response = entry.response
-          ? `\nUser Response: ${entry.response.substring(0, 200)}${entry.response.length > 200 ? '...' : ''}`
-          : '';
-
-        return `Review ${index + 1} (${date}) - ${outcome}${prompt}${response}`;
-      })
-      .join('\n\n');
-
-    return `# Previous Review History\n\n${entries}`;
-  }
-
-  /**
-   * Generate a review prompt for a specific note
-   * Uses the review agent with tools to create a contextual review challenge
-   */
-  async generateReviewPrompt(
-    noteId: string
-  ): Promise<{ prompt: string; error?: string }> {
-    logger.info('generateReviewPrompt called', { noteId });
-
-    try {
-      if (!this.noteService) {
-        throw new Error('Note service not available');
-      }
-
-      const flintApi = this.noteService.getFlintNoteApi();
-      const currentVault = await this.noteService.getCurrentVault();
-      if (!currentVault) {
-        throw new Error('No active vault');
-      }
-
-      // Get the note content
-      const note = await flintApi.getNote(currentVault.id, noteId);
-      logger.info('Retrieved note for review prompt generation', {
-        noteId,
-        noteTitle: note.title,
-        contentLength: note.content?.length || 0
-      });
-
-      // Get review history for this note
-      const reviewItem = await flintApi.getReviewItem({
-        noteId,
-        vaultId: currentVault.id
-      });
-      const reviewHistory = reviewItem ? reviewItem.reviewHistory : [];
-
-      // Select and format relevant history
-      const relevantHistory = this.selectRelevantHistory(reviewHistory);
-      const formattedHistory = this.formatReviewHistory(relevantHistory);
-
-      logger.info('Review history retrieved', {
-        noteId,
-        totalHistoryCount: reviewHistory.length,
-        relevantHistoryCount: relevantHistory.length
-      });
-
-      // Build minimal context - agent will fetch full content via tools to avoid context window issues
-      const noteContext = `# Note to Review
-
-Title: ${note.title}
-ID: ${note.id}
-Type: ${note.type}
-
-The note has ${note.content?.length || 0} characters of content. Use the get_note_full tool to retrieve the full content.
-
-${formattedHistory}`;
-
-      // Use review tools to allow agent to fetch additional context
-      const tools = this.toolService.getReviewTools();
-
-      // Ask the agent to generate a review prompt using streamText for proper tool handling
-      // Enhanced system prompt with review history guidance
-      const minimalSystemPrompt = `You generate review prompts for notes using spaced repetition principles.
-
-After using get_note_full to read the note, create a challenging question that tests understanding.
-
-IMPORTANT - Use the review history provided to:
-1. **Avoid repetition**: Don't ask questions similar to previous challenges
-2. **Focus on struggle areas**: If the user failed previous reviews, target those concepts
-3. **Build progressively**: Reference or extend what was covered in earlier reviews
-4. **Track progress**: Consider how their understanding has evolved
-
-If this is the first review, create a foundational question. If there's history showing failed reviews, focus on those weak areas with a different approach.
-
-You can include thinking/context before the question if helpful, but MUST wrap your final question in <question> tags.
-
-Example output:
-I see this is the third review. Previous challenges focused on theory, but the user struggled. Let me create a practical application question instead.
-
-<question>
-How would you apply the concept of elaborative encoding to improve retention when learning a new programming language?
-</question>
-
-The <question> tags are REQUIRED.`;
-
-      const userMessage =
-        noteContext +
-        '\n\nUse get_note_full to read the note content, explore connections with other tools if helpful, then output a review prompt question.';
-
-      // Log request details before sending
-      logger.info('Review prompt generation - request details', {
-        noteId,
-        systemPromptLength: minimalSystemPrompt.length,
-        userMessageLength: userMessage.length,
-        toolCount: tools ? Object.keys(tools).length : 0,
-        toolNames: tools ? Object.keys(tools) : [],
-        toolDefinitionsSize: tools ? JSON.stringify(tools).length : 0
-      });
-
-      const result = streamText({
-        model: this.providerClient(this.currentModelName),
-        messages: [
-          {
-            role: 'system',
-            content: minimalSystemPrompt
-          },
-          {
-            role: 'user',
-            content: userMessage
-          }
-        ],
-        tools,
-        stopWhen: stepCountIs(10), // Allow up to 10 steps for tool calling
-        abortSignal: AbortSignal.timeout(30000) // 30 second timeout for tool calls
-      });
-
-      // Collect the final text from the stream
-      let fullText = '';
-      for await (const chunk of result.textStream) {
-        fullText += chunk;
-      }
-
-      // Wait for completion to get metadata
-      const finalResult = await result;
-
-      // Log the raw response from the agent
-      logger.info('Review prompt generation - raw response', {
-        noteId,
-        rawText: fullText,
-        textLength: fullText.length,
-        finishReason: finalResult.finishReason,
-        usage: finalResult.usage
-      });
-
-      // Extract the question from <question> tags
-      let prompt = fullText.trim();
-
-      // Try to extract content from <question> tags
-      const questionMatch = prompt.match(/<question>\s*([\s\S]*?)\s*<\/question>/i);
-      if (questionMatch) {
-        prompt = questionMatch[1].trim();
-        logger.info('Extracted question from tags', {
-          noteId,
-          originalLength: fullText.length,
-          extractedLength: prompt.length
-        });
-      } else {
-        logger.warn('No <question> tags found in response, using full text', {
-          noteId,
-          responsePreview: fullText.substring(0, 200)
-        });
-      }
-
-      logger.info('Review prompt generation - final result', {
-        noteId,
-        finalPrompt: prompt,
-        promptLength: prompt.length
-      });
-
-      return { prompt: prompt.trim() };
-    } catch (error) {
-      logger.error('Failed to generate review prompt', { error, noteId });
-
-      // Provide a fallback simple prompt if agent fails
-      const fallbackPrompt =
-        'Explain the main concepts in this note in your own words. What are the key ideas and how do they relate to each other?';
-
-      return {
-        prompt: fallbackPrompt,
-        error: 'Agent timed out or failed, using simple fallback prompt'
-      };
-    }
-  }
-
-  /**
-   * Analyze a user's review response and provide feedback
-   * Uses the review agent to evaluate understanding and suggest connections
-   */
-  async analyzeReviewResponse(
-    noteId: string,
-    prompt: string,
-    userResponse: string
-  ): Promise<{ feedback: string; suggestedLinks?: string[]; error?: string }> {
-    logger.info('analyzeReviewResponse called', {
-      noteId,
-      promptLength: prompt.length,
-      userResponseLength: userResponse.length
-    });
-
-    try {
-      if (!this.noteService) {
-        throw new Error('Note service not available');
-      }
-
-      const flintApi = this.noteService.getFlintNoteApi();
-      const currentVault = await this.noteService.getCurrentVault();
-      if (!currentVault) {
-        throw new Error('No active vault');
-      }
-
-      // Get the note content for context
-      const note = await flintApi.getNote(currentVault.id, noteId);
-      logger.info('Retrieved note for feedback generation', {
-        noteId,
-        noteTitle: note.title
-      });
-
-      // Build minimal context - agent will fetch full content via tools to avoid context window issues
-      const noteContext = `# Note Being Reviewed
-
-Title: ${note.title}
-ID: ${note.id}
-
-The note has ${note.content?.length || 0} characters. Use get_note_full if you need the full content.
-
----
-
-# Review Prompt That Was Asked
-
-${prompt}
-
----
-
-# User's Response
-
-${userResponse}`;
-
-      // Use review tools to allow agent to suggest connections
-      const tools = this.toolService.getReviewTools();
-
-      // Ask the agent to analyze the response using streamText for proper tool handling
-      // Use a minimal system prompt to avoid context window issues
-      const minimalFeedbackPrompt = `Analyze a user's review response.
-
-You can include thinking before your feedback if helpful, but MUST wrap your final feedback in <feedback> tags.
-
-Your feedback should:
-1. Acknowledge what they got right
-2. Point out gaps or areas to expand
-3. Suggest connections to other notes (use [[note-id]] wikilinks)
-4. Be encouraging and supportive
-
-Example output:
-I'll analyze their understanding of the concept...
-
-<feedback>
-Great explanation! You correctly identified the key mechanism. To deepen your understanding, consider how this connects to [[related-concept]]. Could you explore the implications for real-world applications?
-</feedback>
-
-The <feedback> tags are REQUIRED.`;
-
-      const result = streamText({
-        model: this.providerClient(this.currentModelName),
-        messages: [
-          {
-            role: 'system',
-            content: minimalFeedbackPrompt
-          },
-          {
-            role: 'user',
-            content: noteContext
-          }
-        ],
-        tools,
-        stopWhen: stepCountIs(10), // Allow up to 10 steps for tool calling
-        abortSignal: AbortSignal.timeout(30000) // 30 second timeout for tool calls
-      });
-
-      // Collect the final text from the stream
-      let fullText = '';
-      for await (const chunk of result.textStream) {
-        fullText += chunk;
-      }
-
-      // Wait for completion to get metadata
-      const finalResult = await result;
-
-      // Log the raw response
-      logger.info('Review feedback - raw response', {
-        noteId,
-        rawText: fullText,
-        textLength: fullText.length,
-        finishReason: finalResult.finishReason,
-        usage: finalResult.usage
-      });
-
-      // Extract the feedback from <feedback> tags
-      let feedback = fullText.trim();
-
-      // Try to extract content from <feedback> tags
-      const feedbackMatch = feedback.match(/<feedback>\s*([\s\S]*?)\s*<\/feedback>/i);
-      if (feedbackMatch) {
-        feedback = feedbackMatch[1].trim();
-        logger.info('Extracted feedback from tags', {
-          noteId,
-          originalLength: fullText.length,
-          extractedLength: feedback.length
-        });
-      } else {
-        logger.warn('No <feedback> tags found in response, using full text', {
-          noteId,
-          responsePreview: fullText.substring(0, 200)
-        });
-      }
-
-      // Extract wikilinks from the feedback to identify suggested links
-      const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
-      const suggestedLinks: string[] = [];
-      let match;
-      while ((match = wikilinkPattern.exec(feedback)) !== null) {
-        suggestedLinks.push(match[1]);
-      }
-
-      logger.info('Review feedback - final result', {
-        noteId,
-        feedbackLength: feedback.length,
-        suggestedLinksCount: suggestedLinks.length
-      });
-
-      return {
-        feedback: feedback.trim(),
-        suggestedLinks: suggestedLinks.length > 0 ? suggestedLinks : undefined
-      };
-    } catch (error) {
-      logger.error('Failed to analyze review response', { error, noteId });
-
-      // Provide fallback feedback if agent fails
-      const fallbackFeedback =
-        'Thank you for your response. Your explanation shows engagement with the material. Consider reviewing the note content to deepen your understanding.';
-
-      return {
-        feedback: fallbackFeedback,
-        error: 'Agent timed out or failed, using simple fallback feedback'
-      };
     }
   }
 }

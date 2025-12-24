@@ -1,33 +1,17 @@
 /// <reference types="vite/client" />
 
-import type {
-  MetadataFieldDefinition,
-  MetadataSchema
-} from '../server/core/metadata-schema';
-import type {
-  NoteInfo,
-  Note,
-  UpdateResult,
-  DeleteNoteResult,
-  NoteListItem
-} from '../server/core/notes';
-import type { NoteTypeListItem } from '../server/core/note-types';
-import type { NoteMetadata } from '../server/types';
-import type { MoveNoteResult } from '../server/core/notes';
-import type {
-  CustomFunction,
-  CustomFunctionParameter,
-  ValidationResult,
-  CustomFunctionExecutionResult
-} from '../server/types/custom-functions';
-import type { SearchResult } from '../server/database/search-manager';
-import type {
-  CoreVaultInfo as VaultInfo,
-  CoreNoteLinkRow as NoteLinkRow,
-  CoreNoteTypeInfo as NoteTypeInfo
-} from '../server/api/types';
-import type { ExternalLinkRow } from '../server/database/schema';
 import type { ChatResponse } from './services/types';
+
+// Legacy type stubs - these types were from the server but are no longer used in Automerge version
+type MetadataFieldDefinition = unknown;
+type MetadataSchema = unknown;
+type NoteMetadata = unknown;
+type Note = unknown;
+type UpdateResult = unknown;
+type CustomFunction = unknown;
+type CustomFunctionParameter = unknown;
+type ValidationResult = unknown;
+type CustomFunctionExecutionResult = unknown;
 
 interface FrontendMessage {
   id: string;
@@ -101,7 +85,7 @@ declare global {
         message: string;
         conversationId?: string;
         model?: string;
-      }) => Promise<any>;
+      }) => Promise<ChatResponse>;
       sendMessageStream: (
         params: {
           message: string;
@@ -132,8 +116,8 @@ declare global {
           canContinue: boolean;
         }) => void
       ) => void;
-      clearConversation: () => Promise<any>;
-      cancelMessageStream: (params: { requestId: string }) => Promise<any>;
+      clearConversation: () => Promise<unknown>;
+      cancelMessageStream: (params: { requestId: string }) => Promise<unknown>;
       switchAiProvider: (params: {
         provider: 'openrouter' | 'anthropic';
         modelName: string;
@@ -141,325 +125,135 @@ declare global {
       syncConversation: (params: {
         conversationId: string;
         messages: FrontendMessage[];
-      }) => Promise<any>;
+      }) => Promise<unknown>;
       setActiveConversation: (params: {
         conversationId: string;
         messages?: FrontendMessage[] | string;
-      }) => Promise<any>;
+      }) => Promise<unknown>;
 
-      // Note operations
-      createNote: (params: {
-        type: string;
-        kind?: 'markdown' | 'epub' | string;
-        identifier: string;
-        content: string;
-        vaultId?: string;
-        metadata?: NoteMetadata;
-      }) => Promise<any>;
-      getNote: (params: { identifier: string; vaultId?: string }) => Promise<any>;
-      updateNote: (params: {
-        identifier: string;
-        content: string;
-        vaultId?: string;
-        metadata?: NoteMetadata;
-        silent?: boolean;
-      }) => Promise<any>;
-      deleteNote: (params: { identifier: string; vaultId?: string }) => Promise<any>;
-      renameNote: (params: {
-        identifier: string;
-        newIdentifier: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      moveNote: (params: {
-        identifier: string;
-        newType: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      archiveNote: (params: {
-        identifier: string;
-        vaultId?: string;
-      }) => Promise<{ id: string; archived: boolean; timestamp: string }>;
-      unarchiveNote: (params: {
-        identifier: string;
-        vaultId?: string;
-      }) => Promise<{ id: string; archived: boolean; timestamp: string }>;
+      // Legacy note operations - these will throw errors at runtime
+      createNote: (params: unknown) => Promise<unknown>;
+      getNote: (params: unknown) => Promise<unknown>;
+      updateNote: (params: unknown) => Promise<unknown>;
+      deleteNote: (params: unknown) => Promise<unknown>;
+      renameNote: (params: unknown) => Promise<unknown>;
+      moveNote: (params: unknown) => Promise<unknown>;
+      archiveNote: (params: unknown) => Promise<unknown>;
+      unarchiveNote: (params: unknown) => Promise<unknown>;
 
-      // Note suggestion operations
-      getNoteSuggestions: (params: { noteId: string; vaultId?: string }) => Promise<any>;
-      generateNoteSuggestions: (params: {
-        noteId: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      dismissNoteSuggestion: (params: {
-        noteId: string;
-        suggestionId: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      clearNoteSuggestions: (params: {
-        noteId: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      updateNoteSuggestionConfig: (params: {
-        noteType: string;
-        config: {
-          enabled: boolean;
-          prompt_guidance: string;
-          suggestion_types?: string[];
-        };
-        vaultId?: string;
-      }) => Promise<any>;
-      updateNoteTypeDefaultReviewMode: (params: {
-        noteType: string;
-        defaultReviewMode: boolean;
-        vaultId?: string;
-      }) => Promise<any>;
+      // Note suggestion operations (legacy)
+      getNoteSuggestions: (params: unknown) => Promise<unknown>;
+      generateNoteSuggestions: (params: unknown) => Promise<unknown>;
+      dismissNoteSuggestion: (params: unknown) => Promise<unknown>;
+      clearNoteSuggestions: (params: unknown) => Promise<unknown>;
+      updateNoteSuggestionConfig: (params: unknown) => Promise<unknown>;
+      updateNoteTypeDefaultReviewMode: (params: unknown) => Promise<unknown>;
 
-      // Note lifecycle tracking (for file watcher)
-      // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
-
-      // Review operations (spaced repetition)
+      // Review operations (legacy - will throw errors)
       enableReview: (noteId: string) => Promise<{ success: boolean }>;
       disableReview: (noteId: string) => Promise<{ success: boolean }>;
       isReviewEnabled: (noteId: string) => Promise<{ enabled: boolean }>;
-      getReviewStats: () => Promise<{
-        dueThisSession: number;
-        totalEnabled: number;
-        retired: number;
-        currentSessionNumber: number;
-      }>;
-      getNotesForReview: () => Promise<
-        Array<{
-          id: string;
-          title: string;
-          content: string | null;
-          reviewItem: {
-            reviewCount: number;
-            nextSessionNumber: number;
-            currentInterval: number;
-          };
-        }>
-      >;
+      getReviewStats: () => Promise<unknown>;
+      getNotesForReview: () => Promise<unknown>;
       generateReviewPrompt: (noteId: string) => Promise<{
         success: boolean;
         prompt?: string;
         error?: string;
       }>;
-      analyzeReviewResponse: (params: {
-        noteId: string;
-        prompt: string;
-        userResponse: string;
-      }) => Promise<{
-        success: boolean;
-        feedback?: {
-          feedback: string;
-          suggestedLinks?: string[];
-        };
-        error?: string;
-      }>;
-      completeReview: (params: {
-        noteId: string;
-        rating: 1 | 2 | 3 | 4;
-        userResponse?: string;
-        prompt?: string;
-        feedback?: string;
-      }) => Promise<{
-        nextSessionNumber: number;
-        nextReviewDate: string;
-        reviewCount: number;
-        retired: boolean;
-      }>;
-      getReviewItem: (
-        noteId: string
-      ) => Promise<import('./types/review').ReviewItem | null>;
-      getAllReviewHistory: () => Promise<import('./types/review').ReviewItem[]>;
+      analyzeReviewResponse: (params: unknown) => Promise<unknown>;
+      completeReview: (params: unknown) => Promise<unknown>;
+      getReviewItem: (noteId: string) => Promise<unknown>;
+      getAllReviewHistory: () => Promise<unknown>;
       getCurrentSession: () => Promise<{ sessionNumber: number }>;
       incrementSession: () => Promise<{ sessionNumber: number }>;
       isNewSessionAvailable: () => Promise<{ available: boolean }>;
       getNextSessionAvailableAt: () => Promise<{ nextAvailableAt: string | null }>;
-      getReviewConfig: () => Promise<{
-        sessionSize: number;
-        sessionsPerWeek: number;
-        maxIntervalSessions: number;
-        minIntervalDays: number;
-      }>;
-      updateReviewConfig: (params: {
-        sessionSize?: number;
-        sessionsPerWeek?: number;
-        maxIntervalSessions?: number;
-        minIntervalDays?: number;
-      }) => Promise<{
-        sessionSize: number;
-        sessionsPerWeek: number;
-        maxIntervalSessions: number;
-        minIntervalDays: number;
-      }>;
+      getReviewConfig: () => Promise<unknown>;
+      updateReviewConfig: (params: unknown) => Promise<unknown>;
       reactivateNote: (noteId: string) => Promise<{ success: boolean }>;
-      getRetiredItems: () => Promise<import('./types/review').ReviewItem[]>;
-      // FileWriteQueue now handles all internal write tracking
+      getRetiredItems: () => Promise<unknown>;
 
-      // Search operations
-      searchNotes: (params: {
-        query: string;
-        vaultId?: string;
-        limit?: number;
-      }) => Promise<any>;
-      searchNotesAdvanced: (params: {
-        query: string;
-        type?: string;
-        tags?: string[];
-        dateFrom?: string;
-        dateTo?: string;
-        limit?: number;
-        vaultId?: string;
-      }) => Promise<any>;
-      queryNotesForDataview: (params: {
-        type?: string | string[];
-        type_operator?: '=' | '!=' | 'IN';
-        metadata_filters?: Array<{
-          key: string;
-          value: string | string[];
-          operator?:
-            | '='
-            | '!='
-            | '>'
-            | '<'
-            | '>='
-            | '<='
-            | 'LIKE'
-            | 'IN'
-            | 'NOT IN'
-            | 'BETWEEN';
-        }>;
-        sort?: Array<{
-          field: string;
-          order: 'asc' | 'desc';
-        }>;
-        limit?: number;
-        offset?: number;
-        vaultId?: string;
-      }) => Promise<{
-        results: Array<{
-          id: string;
-          title: string;
-          type: string;
-          flint_kind?: string;
-          created: string;
-          updated: string;
-          metadata: Record<string, unknown>;
-        }>;
-        total: number;
-        has_more: boolean;
-        query_time_ms: number;
-      }>;
+      // Search operations (legacy)
+      searchNotes: (params: unknown) => Promise<unknown>;
+      searchNotesAdvanced: (params: unknown) => Promise<unknown>;
+      queryNotesForDataview: (params: unknown) => Promise<unknown>;
 
-      // Note type operations
-      listNoteTypes: () => Promise<any>;
-      createNoteType: (params: {
-        typeName: string;
-        description: string;
-        agentInstructions?: string[];
-        metadataSchema?: MetadataSchema;
-        vaultId?: string;
-      }) => Promise<any>;
-      getNoteTypeInfo: (params: { typeName: string; vaultId?: string }) => Promise<any>;
-      updateNoteType: (params: {
-        typeName: string;
-        description?: string;
-        instructions?: string[];
-        metadataSchema?: MetadataFieldDefinition[];
-        vaultId?: string;
-      }) => Promise<any>;
-      deleteNoteType: (params: {
-        typeName: string;
-        action: 'error' | 'migrate' | 'delete';
-        targetType?: string;
-        vaultId?: string;
-      }) => Promise<any>;
-      listNotesByType: (params: {
-        type: string;
-        vaultId?: string;
-        limit?: number;
-        includeArchived?: boolean;
-      }) => Promise<any>;
+      // Note type operations (legacy)
+      listNoteTypes: () => Promise<unknown>;
+      createNoteType: (params: unknown) => Promise<unknown>;
+      getNoteTypeInfo: (params: unknown) => Promise<unknown>;
+      updateNoteType: (params: unknown) => Promise<unknown>;
+      deleteNoteType: (params: unknown) => Promise<unknown>;
+      listNotesByType: (params: unknown) => Promise<unknown>;
 
-      // Vault operations
-      listVaults: () => Promise<any>;
-      getCurrentVault: () => Promise<any>;
-      createVault: (params: {
-        name: string;
-        path: string;
-        description?: string;
-        templateId?: string;
-      }) => Promise<any>;
-      switchVault: (params: { vaultId: string }) => Promise<any>;
-      removeVault: (params: { vaultId: string }) => Promise<any>;
-      listTemplates: () => Promise<
-        Array<{ id: string; name: string; description: string; icon?: string }>
-      >;
-      reinitializeNoteService: () => Promise<{
-        success: boolean;
-        status?: {
-          isInitialized: boolean;
-          hasVaults: boolean;
-          canPerformNoteOperations: boolean;
-        };
-        error?: string;
-      }>;
+      // Vault operations (legacy)
+      listVaults: () => Promise<unknown>;
+      getCurrentVault: () => Promise<unknown>;
+      createVault: (params: unknown) => Promise<unknown>;
+      switchVault: (params: { vaultId: string }) => Promise<unknown>;
+      removeVault: (params: { vaultId: string }) => Promise<unknown>;
+      listTemplates: () => Promise<unknown>;
+      reinitializeNoteService: () => Promise<unknown>;
 
       // File system operations
-      showDirectoryPicker: () => Promise<any>;
+      showDirectoryPicker: () => Promise<unknown>;
       showItemInFolder: (params: { path: string }) => Promise<{
         success: boolean;
         error?: string;
       }>;
 
-      // Link operations
-      getNoteLinks: (params: { identifier: string; vaultId?: string }) => Promise<any>;
-      getBacklinks: (params: { identifier: string; vaultId?: string }) => Promise<any>;
-      findBrokenLinks: (params: { vaultId?: string }) => Promise<any>;
+      // Link operations (legacy)
+      getNoteLinks: (params: unknown) => Promise<unknown>;
+      getBacklinks: (params: unknown) => Promise<unknown>;
+      findBrokenLinks: (params: unknown) => Promise<unknown>;
 
       // Service status
-      noteServiceReady: () => Promise<any>;
+      noteServiceReady: () => Promise<boolean>;
 
       // Secure storage operations
-      secureStorageAvailable: () => Promise<any>;
+      secureStorageAvailable: () => Promise<boolean>;
       storeApiKey: (params: {
         provider: 'anthropic' | 'openrouter';
         key: string;
         orgId?: string;
-      }) => Promise<any>;
-      getApiKey: (params: { provider: 'anthropic' | 'openrouter' }) => Promise<any>;
-      testApiKey: (params: { provider: 'anthropic' | 'openrouter' }) => Promise<any>;
-      getAllApiKeys: () => Promise<any>;
-      clearApiKeys: () => Promise<any>;
+      }) => Promise<unknown>;
+      getApiKey: (params: {
+        provider: 'anthropic' | 'openrouter';
+      }) => Promise<{ key: string; orgId?: string }>;
+      testApiKey: (params: { provider: 'anthropic' | 'openrouter' }) => Promise<boolean>;
+      getAllApiKeys: () => Promise<{ openrouter: string; anthropic: string }>;
+      clearApiKeys: () => Promise<unknown>;
       getOpenRouterCredits: () => Promise<{
         total_credits: number;
         used_credits: number;
         remaining_credits: number;
       } | null>;
 
-      // Chat server operations (for useChat integration)
+      // Chat server operations
       getChatServerPort: () => Promise<number>;
 
       // Pinned notes storage operations
-      loadPinnedNotes: (params: { vaultId: string }) => Promise<any>;
-      savePinnedNotes: (params: { vaultId: string; notes: unknown[] }) => Promise<any>;
-      clearPinnedNotes: (params: { vaultId: string }) => Promise<any>;
+      loadPinnedNotes: (params: { vaultId: string }) => Promise<unknown>;
+      savePinnedNotes: (params: {
+        vaultId: string;
+        notes: unknown[];
+      }) => Promise<unknown>;
+      clearPinnedNotes: (params: { vaultId: string }) => Promise<unknown>;
 
       // Cache monitoring operations
-      getCacheMetrics: () => Promise<any>;
-      getCachePerformanceSnapshot: () => Promise<any>;
-      getCacheConfig: () => Promise<any>;
-      setCacheConfig: (config: Partial<CacheConfig>) => Promise<any>;
-      getCachePerformanceReport: () => Promise<any>;
-      getCacheHealthCheck: () => Promise<any>;
-      optimizeCacheConfig: () => Promise<any>;
-      resetCacheMetrics: () => Promise<any>;
-      startPerformanceMonitoring: (intervalMinutes?: number) => Promise<any>;
-      stopPerformanceMonitoring: () => Promise<any>;
-      warmupSystemCache: () => Promise<any>;
+      getCacheMetrics: () => Promise<unknown>;
+      getCachePerformanceSnapshot: () => Promise<unknown>;
+      getCacheConfig: () => Promise<unknown>;
+      setCacheConfig: (config: Partial<CacheConfig>) => Promise<unknown>;
+      getCachePerformanceReport: () => Promise<unknown>;
+      getCacheHealthCheck: () => Promise<unknown>;
+      optimizeCacheConfig: () => Promise<unknown>;
+      resetCacheMetrics: () => Promise<unknown>;
+      startPerformanceMonitoring: (intervalMinutes?: number) => Promise<unknown>;
+      stopPerformanceMonitoring: () => Promise<unknown>;
+      warmupSystemCache: () => Promise<unknown>;
 
-      // Context usage monitoring operations
+      // Context usage monitoring
       getContextUsage: (params?: { conversationId?: string }) => Promise<ContextUsage>;
       canAcceptMessage: (params: {
         estimatedTokens: number;
@@ -473,7 +267,7 @@ declare global {
       // Auto-updater operations
       checkForUpdates: () => Promise<{
         success: boolean;
-        updateInfo?: any;
+        updateInfo?: unknown;
         error?: string;
       }>;
       downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -584,64 +378,22 @@ declare global {
       }) => Promise<{ success: boolean }>;
       clearUIState: (params: { vaultId: string }) => Promise<{ success: boolean }>;
 
-      // Custom functions operations
-      listCustomFunctions: (params?: {
-        tags?: string[];
-        searchQuery?: string;
-      }) => Promise<CustomFunction[]>;
-      createCustomFunction: (params: {
-        name: string;
-        description: string;
-        parameters: Record<string, CustomFunctionParameter>;
-        returnType: string;
-        code: string;
-        tags?: string[];
-      }) => Promise<CustomFunction>;
-      getCustomFunction: (params: {
-        id?: string;
-        name?: string;
-      }) => Promise<CustomFunction | null>;
-      updateCustomFunction: (params: {
-        id: string;
-        name?: string;
-        description?: string;
-        parameters?: Record<string, CustomFunctionParameter>;
-        returnType?: string;
-        code?: string;
-        tags?: string[];
-      }) => Promise<CustomFunction>;
+      // Custom functions operations (legacy)
+      listCustomFunctions: (params?: unknown) => Promise<CustomFunction[]>;
+      createCustomFunction: (params: unknown) => Promise<CustomFunction>;
+      getCustomFunction: (params: unknown) => Promise<CustomFunction | null>;
+      updateCustomFunction: (params: unknown) => Promise<CustomFunction>;
       deleteCustomFunction: (params: { id: string }) => Promise<{ success: boolean }>;
-      validateCustomFunction: (params: {
-        name: string;
-        description: string;
-        parameters: Record<string, CustomFunctionParameter>;
-        returnType: string;
-        code: string;
-        tags?: string[];
-      }) => Promise<ValidationResult>;
-      testCustomFunction: (params: {
-        functionId: string;
-        parameters: Record<string, unknown>;
-      }) => Promise<CustomFunctionExecutionResult>;
-      getCustomFunctionStats: (params?: { functionId?: string }) => Promise<{
-        totalFunctions: number;
-        totalUsage: number;
-        averageUsage: number;
-        mostUsedFunction?: string;
-        functionStats?: {
-          id: string;
-          name: string;
-          usageCount: number;
-          lastUsed?: string;
-        };
-      }>;
+      validateCustomFunction: (params: unknown) => Promise<ValidationResult>;
+      testCustomFunction: (params: unknown) => Promise<CustomFunctionExecutionResult>;
+      getCustomFunctionStats: (params?: unknown) => Promise<unknown>;
       exportCustomFunctions: () => Promise<{ data: string; filename: string }>;
       importCustomFunctions: (params: {
         backupData: string;
       }) => Promise<{ imported: number; skipped: number; errors: string[] }>;
       getChangelog: (
         version: string,
-        isCanaray: boolean
+        isCanary: boolean
       ) => Promise<{ success: boolean; changelog?: string; error?: string }>;
 
       // Todo plan operations
@@ -649,66 +401,34 @@ declare global {
         getActive: (params: { conversationId: string }) => Promise<TodoPlan | null>;
       };
 
-      // Workflow operations
+      // Workflow operations (legacy)
       workflow: {
-        create: (input: unknown) => Promise<any>;
-        update: (input: unknown) => Promise<any>;
+        create: (input: unknown) => Promise<unknown>;
+        update: (input: unknown) => Promise<unknown>;
         delete: (workflowId: string) => Promise<void>;
-        list: (input?: unknown) => Promise<any>;
-        get: (input: unknown) => Promise<any>;
-        complete: (input: unknown) => Promise<any>;
+        list: (input?: unknown) => Promise<unknown>;
+        get: (input: unknown) => Promise<unknown>;
+        complete: (input: unknown) => Promise<unknown>;
         addMaterial: (workflowId: string, material: unknown) => Promise<string>;
         removeMaterial: (materialId: string) => Promise<void>;
       };
 
-      // Daily View operations
-      getOrCreateDailyNote: (params: {
-        date: string;
-        vaultId: string;
-      }) => Promise<Note | null>;
-      getWeekData: (params: { startDate: string; vaultId: string }) => Promise<{
-        startDate: string;
-        endDate: string;
-        days: Array<{
-          date: string;
-          dailyNote: Note | null;
-          createdNotes: Array<{ id: string; title: string; type: string }>;
-          modifiedNotes: Array<{ id: string; title: string; type: string }>;
-          totalActivity: number;
-        }>;
-      }>;
-      getNotesByDate: (params: { date: string; vaultId: string }) => Promise<{
-        created: Array<{ id: string; title: string; type: string; created: string }>;
-        modified: Array<{ id: string; title: string; type: string; updated: string }>;
-      }>;
-      updateDailyNote: (params: {
-        date: string;
-        content: string;
-        vaultId: string;
-      }) => Promise<UpdateResult>;
+      // Daily View operations (legacy)
+      getOrCreateDailyNote: (params: unknown) => Promise<Note | null>;
+      getWeekData: (params: unknown) => Promise<unknown>;
+      getNotesByDate: (params: unknown) => Promise<unknown>;
+      updateDailyNote: (params: unknown) => Promise<UpdateResult>;
 
-      // Inbox operations
-      getRecentUnprocessedNotes: (params: {
-        vaultId: string;
-        daysBack?: number;
-      }) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
-      getRecentProcessedNotes: (params: {
-        vaultId: string;
-        daysBack?: number;
-      }) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
-      markNoteAsProcessed: (params: {
-        noteId: string;
-        vaultId: string;
-      }) => Promise<{ success: boolean }>;
-      unmarkNoteAsProcessed: (params: {
-        noteId: string;
-        vaultId: string;
-      }) => Promise<{ success: boolean }>;
+      // Inbox operations (legacy)
+      getRecentUnprocessedNotes: (params: unknown) => Promise<unknown>;
+      getRecentProcessedNotes: (params: unknown) => Promise<unknown>;
+      markNoteAsProcessed: (params: unknown) => Promise<{ success: boolean }>;
+      unmarkNoteAsProcessed: (params: unknown) => Promise<{ success: boolean }>;
 
-      // Database operations
-      rebuildDatabase: (params: {
-        vaultId?: string;
-      }) => Promise<{ success: boolean; noteCount: number }>;
+      // Database operations (legacy)
+      rebuildDatabase: (
+        params: unknown
+      ) => Promise<{ success: boolean; noteCount: number }>;
 
       // Migration operations
       getMigrationMapping: () => Promise<Record<string, string> | null>;
@@ -722,15 +442,13 @@ declare global {
       importPdf: () => Promise<{ filename: string; path: string; title?: string } | null>;
       readPdfFile: (params: { relativePath: string }) => Promise<Uint8Array>;
 
-      // Combined file import (PDF/EPUB) - supports multiple file selection
+      // Combined file import
       importFile: () => Promise<Array<{
         type: 'pdf' | 'epub';
         filename: string;
         path: string;
         title?: string;
       }> | null>;
-
-      // Import file from dropped data (PDF/EPUB)
       importFileFromData: (params: {
         fileData: Uint8Array;
         filename: string;
@@ -752,7 +470,6 @@ declare global {
         excerpt?: string;
       } | null>;
       readWebpageFile: (params: { relativePath: string }) => Promise<string>;
-      // Archive webpage for Automerge (returns HTML content for OPFS storage)
       archiveWebpage: (params: { url: string }) => Promise<{
         html: string;
         metadata: {
@@ -778,13 +495,9 @@ declare global {
       readImageFile: (params: { relativePath: string }) => Promise<Uint8Array>;
       getImageAbsolutePath: (params: { relativePath: string }) => Promise<string>;
 
-      // Event listener for note events from main process
+      // Event listeners
       onNoteEvent: (callback: (event: unknown) => void) => () => void;
-
-      // Event listener for workflow events from main process
       onWorkflowEvent: (callback: (event: unknown) => void) => () => void;
-
-      // Event listener for review events from main process
       onReviewEvent: (callback: (event: unknown) => void) => () => void;
 
       // Menu event listeners
@@ -802,7 +515,7 @@ declare global {
         activeWorkspaceId: string;
       }) => void;
 
-      // Trigger menu actions from custom title bar menu (Windows/Linux)
+      // Trigger menu actions
       triggerMenuNavigate: (view: string) => void;
       triggerMenuAction: (action: string, ...args: unknown[]) => void;
 

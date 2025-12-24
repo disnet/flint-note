@@ -90,7 +90,9 @@
 
   {#if toolCalls && toolCalls.length > 0}
     <div class="tool-calls">
-      <div class="tool-call-info">{toolCalls.length} tool call{toolCalls.length !== 1 ? 's' : ''}</div>
+      <div class="tool-call-info">
+        {toolCalls.length} tool call{toolCalls.length !== 1 ? 's' : ''}
+      </div>
     </div>
   {/if}
 </div>

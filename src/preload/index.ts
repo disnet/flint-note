@@ -1,7 +1,11 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import { MetadataFieldDefinition, MetadataSchema } from '../server/core/metadata-schema';
 import type { CursorPosition } from '../main/vault-data-storage-service';
+
+// Legacy type stubs (no longer used in Automerge version)
+type MetadataFieldDefinition = Record<string, unknown>;
+type MetadataSchema = Record<string, unknown>;
+type NoteMetadata = Record<string, unknown>;
 
 interface FrontendMessage {
   id: string;
@@ -29,6 +33,7 @@ interface ContextUsage {
   estimatedMessagesRemaining: number;
 }
 
+// Legacy types for todo plan (deprecated in Automerge version)
 interface TodoItem {
   id: string;
   content: string;
@@ -49,8 +54,6 @@ interface TodoPlan {
   created: Date;
   updated: Date;
 }
-
-import type { NoteMetadata } from '../server/types';
 
 export type ToolCallData = {
   toolCallId: string;

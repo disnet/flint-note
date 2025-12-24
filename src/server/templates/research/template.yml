@@ -1,7 +1,0 @@
-id: research
-name: 'Research Vault'
-description: 'A vault for academic research, literature review, and organizing research papers'
-icon: '🔬'
-author: 'Flint Team'
-version: '1.0.0'
-initialNote: 'note/research-workflow.md'
