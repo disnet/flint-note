@@ -16,14 +16,6 @@ Flint is a note-taking app that helps you capture ideas, connect them together, 
 
 Flint is currently in **beta**. Expect some bugs and unfinished polish as development continues. We welcome feedback and contributions!
 
-### Automerge Migration
-
-The codebase is undergoing a migration from SQLite to [Automerge](https://automerge.org/) for local-first data storage. During this transition:
-
-- **Two versions exist**: Legacy (SQLite-based) and Automerge (IndexedDB/CRDT-based)
-- **New development** targets the Automerge version
-- See [`docs/AUTOMERGE-MIGRATION.md`](docs/AUTOMERGE-MIGRATION.md) for technical details
-
 ## The Deep Knowledge Cycle
 
 **Flint aim is to build deep knowledge by supporting the complete learning cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
