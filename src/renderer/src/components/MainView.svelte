@@ -274,20 +274,25 @@
   }
 
   // Keyboard shortcuts
+  const isMac = navigator.platform.startsWith('Mac');
+
   function handleKeyDown(event: KeyboardEvent): void {
-    // Cmd/Ctrl + N: New note
-    if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
+    // Use Cmd on macOS, Ctrl on Windows/Linux
+    const modifierPressed = isMac ? event.metaKey : event.ctrlKey;
+
+    // Cmd/Ctrl + Shift + N: New note
+    if (modifierPressed && event.shiftKey && event.key === 'N') {
       event.preventDefault();
       handleCreateNote();
     }
     // Cmd/Ctrl + K: Focus search
-    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+    if (modifierPressed && event.key === 'k') {
       event.preventDefault();
       const searchInput = document.getElementById('search-input');
       searchInput?.focus();
     }
     // Cmd/Ctrl + B: Toggle sidebar
-    if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+    if (modifierPressed && event.key === 'b') {
       event.preventDefault();
       toggleLeftSidebar();
     }
