@@ -455,7 +455,7 @@
   /* Sidebar Header */
   .sidebar-header {
     flex-shrink: 0;
-    padding: 0.5rem 0.75rem;
+    padding: 0 0.75rem 0.5rem;
     -webkit-app-region: drag;
   }
 
@@ -463,8 +463,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    height: 28px;
-    margin-bottom: 0.5rem;
+    height: 38px; /* Match safe-zone height for traffic light alignment */
   }
 
   .traffic-light-space {

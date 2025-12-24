@@ -773,6 +773,7 @@
 
   .floating-sidebar-toggle {
     padding: 0.25rem;
+    margin-left: 0.5rem;
     border: none;
     background: none;
     color: var(--text-secondary);
