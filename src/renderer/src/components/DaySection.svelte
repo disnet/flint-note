@@ -99,7 +99,7 @@
     position: sticky;
     top: 0;
     height: fit-content;
-    padding: 1rem 0.5rem;
+    padding: 0.5rem;
     z-index: 10;
   }
 
@@ -108,7 +108,7 @@
     width: 100%;
     background: none;
     border: none;
-    padding: 0.5rem;
+    padding: 0;
     text-align: left;
     cursor: pointer;
     font-family: inherit;
@@ -130,7 +130,6 @@
   }
 
   .day-content {
-    padding-top: 1rem;
     padding-bottom: 1rem;
     padding-right: 0.5rem;
   }
@@ -142,16 +141,15 @@
     }
 
     .day-gutter {
-      padding: 0.75rem 0.25rem;
+      padding: 0.5rem 0.25rem;
     }
 
     .day-label {
       font-size: 0.75rem;
-      padding: 0.25rem;
     }
 
     .day-content {
-      padding: 0.75rem 0;
+      padding-bottom: 0.75rem;
     }
   }
 </style>

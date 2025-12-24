@@ -4,6 +4,8 @@
    * Uses CodeMirror with collapsible expansion behavior
    */
   import { onMount } from 'svelte';
+  import { fade, fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import {
@@ -32,25 +34,42 @@
   let isManuallyExpanded = $state(false);
   let showControlsDelayed = $state(true);
   let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isContentClipped = $state(false);
 
-  // Calculate max height based on focus and expansion state
+  // Check if content is empty
+  const hasContent = $derived(content.trim().length > 0);
+
+  // Calculate max height based on focus, expansion state, and content
   const maxHeight = $derived.by(() => {
     if (isFocused || isManuallyExpanded) {
-      return '10000px'; // Very large height for smooth transition
+      return 'none'; // No constraint when focused - match content height
     }
-    return '240px'; // 5 lines default
+    if (!hasContent) {
+      return '72px'; // ~2-3 lines for empty entries
+    }
+    return '168px'; // ~7 lines for entries with content
   });
 
-  // Show expand button and fade gradient when not focused
+  // Show expand button when not focused and content is clipped
   const showExpandControls = $derived(
-    !isFocused && !isManuallyExpanded && showControlsDelayed
+    !isFocused &&
+      !isManuallyExpanded &&
+      showControlsDelayed &&
+      hasContent &&
+      isContentClipped
+  );
+
+  // Show fade gradient when content is clipped (even without expand button visible)
+  const showFadeGradient = $derived(
+    !isFocused && !isManuallyExpanded && hasContent && isContentClipped
   );
 
   // Editor config
   const editorConfig = new EditorConfig({
     onWikilinkClick: handleWikilinkClick,
     onContentChange: handleEditorContentChange,
-    placeholder: 'Start typing to create entry...'
+    placeholder: 'Start typing to create entry...',
+    variant: 'daily-note'
   });
 
   function handleEditorContentChange(newContent: string): void {
@@ -140,6 +159,7 @@
     });
 
     measureAndUpdateMarkerWidths();
+    checkContentClipped();
   }
 
   function measureAndUpdateMarkerWidths(): void {
@@ -151,6 +171,20 @@
         updateCSSCustomProperties(widths);
       }
     }, 10);
+  }
+
+  // Check if content is being clipped (scrollHeight > clientHeight)
+  function checkContentClipped(): void {
+    if (!editorContainer) {
+      isContentClipped = false;
+      return;
+    }
+    // Give time for layout to settle
+    setTimeout(() => {
+      if (editorContainer) {
+        isContentClipped = editorContainer.scrollHeight > editorContainer.clientHeight;
+      }
+    }, 50);
   }
 
   // Update editor content when prop changes
@@ -207,6 +241,16 @@
     updateEditorContent();
   });
 
+  // Check if content is clipped when content, focus, or expansion state changes
+  $effect(() => {
+    void content;
+    void isFocused;
+    void isManuallyExpanded;
+    if (!isFocused && !isManuallyExpanded) {
+      checkContentClipped();
+    }
+  });
+
   // Refresh wikilinks when notes change
   $effect(() => {
     void getAllNotes();
@@ -256,22 +300,30 @@
     style:overflow={isFocused || isManuallyExpanded ? 'visible' : 'hidden'}
   ></div>
 
-  {#if showExpandControls && content.trim()}
-    <div class="expand-controls">
+  {#if showFadeGradient}
+    <div class="fade-overlay" transition:fade={{ duration: 200, easing: cubicOut }}>
       <div class="fade-gradient"></div>
-      <button class="expand-btn" onclick={toggleExpansion} type="button">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
+      {#if showExpandControls}
+        <button
+          class="expand-btn"
+          onclick={toggleExpansion}
+          type="button"
+          in:fly={{ y: 8, duration: 250, delay: 100, easing: cubicOut }}
+          out:fade={{ duration: 150 }}
         >
-          <polyline points="6,9 12,15 18,9"></polyline>
-        </svg>
-        Expand
-      </button>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <polyline points="6,9 12,15 18,9"></polyline>
+          </svg>
+          <span>Show more</span>
+        </button>
+      {/if}
     </div>
   {/if}
 </div>
@@ -281,55 +333,71 @@
     position: relative;
     width: 100%;
     border-radius: 0.5rem;
-    border: 2px solid transparent;
-    transition:
-      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .daily-note-editor-wrapper.focused {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+    box-shadow:
+      0 0 0 2px var(--accent-primary),
+      0 0 10px rgba(99, 102, 241, 0.3);
   }
 
   .editor-container {
-    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0.25rem;
+    transition: max-height 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 
-  .expand-controls {
-    position: relative;
-    width: 100%;
+  .fade-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1;
   }
 
   .fade-gradient {
     position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    height: 40px;
-    background: linear-gradient(to bottom, transparent, var(--bg-primary));
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 0%, var(--bg-primary) 85%);
     pointer-events: none;
   }
 
   .expand-btn {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    width: 100%;
-    padding: 0.5rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    margin-bottom: 0.25rem;
     border: none;
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 500;
     cursor: pointer;
-    border-radius: 0 0 0.375rem 0.375rem;
-    transition: all 0.2s ease;
+    border-radius: 1rem;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      transform 0.15s ease,
+      box-shadow 0.2s ease;
+    opacity: 0.95;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .expand-btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+    transform: scale(1.02);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+
+  .expand-btn:active {
+    transform: scale(0.98);
   }
 </style>

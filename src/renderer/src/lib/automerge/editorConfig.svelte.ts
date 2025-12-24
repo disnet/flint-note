@@ -45,10 +45,11 @@ export class EditorConfig {
 
   // Base theme shared by all variants
   private getBaseTheme(): Extension {
+    const isDailyNote = this.options.variant === 'daily-note';
     return EditorView.theme({
       '&': {
         height: 'auto',
-        minHeight: '300px',
+        minHeight: isDailyNote ? '0' : '300px',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
         fontSize: 'var(--font-editor-size) !important',
@@ -69,7 +70,8 @@ export class EditorConfig {
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
         color: 'var(--text-primary)',
-        caretColor: 'var(--text-primary)'
+        caretColor: 'var(--text-primary)',
+        ...(isDailyNote ? { padding: '0' } : {})
       },
       '.cm-cursor': {
         borderLeftColor: 'var(--text-primary)'
@@ -95,13 +97,14 @@ export class EditorConfig {
 
   // Default variant theme
   private getDefaultTheme(): Extension {
+    const isDailyNote = this.options.variant === 'daily-note';
     return EditorView.theme({
       '.cm-scroller': {
         width: '100%',
         overflow: 'visible !important',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
-        paddingBottom: '25vh'
+        paddingBottom: isDailyNote ? '0' : '25vh'
       }
     });
   }

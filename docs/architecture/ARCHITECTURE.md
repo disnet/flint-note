@@ -214,7 +214,7 @@ export function createNote(params) {
     doc.notes[noteId] = clone({
       id: noteId,
       title: params.title,
-      content: params.content,
+      content: params.content
       // ... other fields
     });
   });
@@ -298,13 +298,13 @@ const tools = {
     parameters: z.object({
       title: z.string(),
       content: z.string(),
-      type: z.string().optional(),
+      type: z.string().optional()
     }),
     execute: async ({ title, content, type }) => {
       const note = createNote({ title, content, type });
       return { success: true, noteId: note.id };
-    },
-  },
+    }
+  }
 };
 ```
 
@@ -417,15 +417,15 @@ interface Workspace {
 
 ### Standard Note Types
 
-| Type ID          | Purpose                  | Storage                     |
-| ---------------- | ------------------------ | --------------------------- |
-| `type-default`   | General markdown notes   | Automerge                   |
-| `type-daily`     | Daily capture notes      | Automerge (ID: daily-DATE)  |
-| `type-deck`      | Filtered note views      | Automerge (YAML in content) |
-| `type-epub`      | E-books                  | Automerge + OPFS            |
-| `type-pdf`       | PDF documents            | Automerge + OPFS            |
-| `type-webpage`   | Archived web pages       | Automerge + OPFS            |
-| User-created     | Custom note types        | Automerge                   |
+| Type ID        | Purpose                | Storage                     |
+| -------------- | ---------------------- | --------------------------- |
+| `type-default` | General markdown notes | Automerge                   |
+| `type-daily`   | Daily capture notes    | Automerge (ID: daily-DATE)  |
+| `type-deck`    | Filtered note views    | Automerge (YAML in content) |
+| `type-epub`    | E-books                | Automerge + OPFS            |
+| `type-pdf`     | PDF documents          | Automerge + OPFS            |
+| `type-webpage` | Archived web pages     | Automerge + OPFS            |
+| User-created   | Custom note types      | Automerge                   |
 
 ### Binary File Storage Pattern
 
