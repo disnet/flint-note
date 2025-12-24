@@ -31,6 +31,7 @@
     const queueNotes = getReviewQueueNotes();
     const sessionAvailable = isSessionAvailable();
 
+    /* eslint-disable svelte/prefer-svelte-reactivity -- local computation variables */
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -56,6 +57,7 @@
           : null
       };
     });
+    /* eslint-enable svelte/prefer-svelte-reactivity */
   });
 
   // Filtered items based on search query
@@ -96,11 +98,13 @@
   }
 
   function formatDate(date: Date): string {
+    /* eslint-disable svelte/prefer-svelte-reactivity -- local computation variables */
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const target = new Date(date);
     target.setHours(0, 0, 0, 0);
+    /* eslint-enable svelte/prefer-svelte-reactivity */
 
     const diffDays = Math.round(
       (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)

@@ -7,6 +7,8 @@
  * - Vault management (localStorage for metadata)
  */
 
+/* eslint-disable svelte/prefer-svelte-reactivity -- Date used for computation in utility functions */
+
 import type { DocHandle } from '@automerge/automerge-repo';
 import type {
   Note,
@@ -331,12 +333,9 @@ export async function switchVault(
  * Get all non-archived notes, sorted by updated time (newest first)
  */
 export function getNotes(): Note[] {
-  return (
-    Object.values(currentDoc.notes)
-      .filter((note) => !note.archived)
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
-      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  );
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived)
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
@@ -366,29 +365,23 @@ export function getNoteTypesDict(): Record<string, NoteType> {
 export function searchNotes(query: string): Note[] {
   if (!query.trim()) return [];
   const lowerQuery = query.toLowerCase();
-  return (
-    Object.values(currentDoc.notes)
-      .filter((note) => !note.archived)
-      .filter(
-        (note) =>
-          note.title.toLowerCase().includes(lowerQuery) ||
-          note.content.toLowerCase().includes(lowerQuery)
-      )
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
-      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  );
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived)
+    .filter(
+      (note) =>
+        note.title.toLowerCase().includes(lowerQuery) ||
+        note.content.toLowerCase().includes(lowerQuery)
+    )
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
  * Get notes by type
  */
 export function getNotesByType(typeId: string): Note[] {
-  return (
-    Object.values(currentDoc.notes)
-      .filter((note) => !note.archived && note.type === typeId)
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
-      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  );
+  return Object.values(currentDoc.notes)
+    .filter((note) => !note.archived && note.type === typeId)
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 // --- Note mutations ---
@@ -893,7 +886,6 @@ export function reorderWorkspaces(fromIndex: number, toIndex: number): void {
       // Build order from existing workspaces sorted by created time
       const workspaceValues = Object.values(doc.workspaces) as Workspace[];
       doc.workspaceOrder = workspaceValues
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
         .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime())
         .map((w) => w.id);
     }
@@ -1403,7 +1395,6 @@ export function getBacklinks(
 
     const contexts: ContextBlock[] = [];
     const lines = note.content.split('\n');
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Set used only for local computation, not reactive state
     const matchedLineIndices = new Set<number>();
 
     // Find all lines containing links to this note
@@ -1689,12 +1680,9 @@ export function getConversations(): Conversation[] {
   if (!workspace) return [];
 
   const conversations = currentDoc.conversations ?? {};
-  return (
-    Object.values(conversations)
-      .filter((conv) => !conv.archived && conv.workspaceId === workspace.id)
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
-      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  );
+  return Object.values(conversations)
+    .filter((conv) => !conv.archived && conv.workspaceId === workspace.id)
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
@@ -2198,7 +2186,6 @@ export function getEpubNotes(): Note[] {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as EpubNoteProps | undefined)?.lastRead || a.updated;
       const bLastRead = (b.props as EpubNoteProps | undefined)?.lastRead || b.updated;
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
       return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
     });
 }
@@ -2363,7 +2350,6 @@ export function getPdfNotes(): Note[] {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as PdfNoteProps | undefined)?.lastRead || a.updated;
       const bLastRead = (b.props as PdfNoteProps | undefined)?.lastRead || b.updated;
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
       return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
     });
 }
@@ -2530,7 +2516,6 @@ export function getWebpageNotes(): Note[] {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as WebpageNoteProps | undefined)?.lastRead || a.updated;
       const bLastRead = (b.props as WebpageNoteProps | undefined)?.lastRead || b.updated;
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
       return new Date(bLastRead).getTime() - new Date(aLastRead).getTime();
     });
 }
@@ -2681,7 +2666,6 @@ export function getDeckNotes(): Note[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === DECK_NOTE_TYPE_ID)
     .sort((a, b) => {
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison, not reactive state
       return new Date(b.updated).getTime() - new Date(a.updated).getTime();
     });
 }
@@ -2961,7 +2945,6 @@ export function getNotesForReview(): Note[] {
       const aSession = a.review?.nextSessionNumber ?? 0;
       const bSession = b.review?.nextSessionNumber ?? 0;
       if (aSession !== bSession) return aSession - bSession;
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
       return new Date(b.updated).getTime() - new Date(a.updated).getTime();
     })
     .slice(0, config.sessionSize);
@@ -3030,7 +3013,6 @@ export function getAllReviewHistory(): Array<{
 
   // Sort by date, most recent first
   result.sort((a, b) => {
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
     return new Date(b.entry.date).getTime() - new Date(a.entry.date).getTime();
   });
 
@@ -3297,7 +3279,6 @@ export function getReviewQueueNotes(): Array<{
  * @param daysBack Number of days to look back for recently created notes
  */
 export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for cutoff calculation
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
   const cutoffTime = cutoffDate.getTime();
@@ -3309,7 +3290,6 @@ export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
       .filter((note) => {
         if (note.archived) return false;
         // Note must be created within the lookback period
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
         const createdTime = new Date(note.created).getTime();
         if (createdTime < cutoffTime) return false;
         // Note must not be processed
@@ -3322,7 +3302,6 @@ export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
         created: note.created
       }))
       // Sort by created date, newest first
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
       .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
   );
 }
@@ -3332,7 +3311,6 @@ export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
  * @param daysBack Number of days to look back for processed notes
  */
 export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for cutoff calculation
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
   const cutoffTime = cutoffDate.getTime();
@@ -3345,7 +3323,6 @@ export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
         const note = currentDoc.notes[noteId];
         if (!note || note.archived) return false;
         // Must be processed within the lookback period
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
         const processedTime = new Date(processedAt).getTime();
         return processedTime >= cutoffTime;
       })
@@ -3361,7 +3338,6 @@ export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
       })
       // Sort by processed date, newest first
       .sort((a, b) => {
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used only for comparison
         return new Date(b.processedAt!).getTime() - new Date(a.processedAt!).getTime();
       })
   );

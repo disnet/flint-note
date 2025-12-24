@@ -37,7 +37,6 @@
     collapsed = false,
     variant = 'bubble',
     toolCalls,
-    currentStepIndex: _currentStepIndex,
     onNoteClick,
     noAnimation = false
   }: Props = $props();

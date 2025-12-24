@@ -42,7 +42,7 @@
   <div class="panel-header">
     <h3>Start a Routine</h3>
     {#if onClose}
-      <button class="btn-close" onclick={onClose}>
+      <button class="btn-close" onclick={onClose} aria-label="Close">
         <svg
           width="16"
           height="16"

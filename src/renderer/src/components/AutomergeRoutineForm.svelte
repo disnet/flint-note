@@ -197,8 +197,8 @@
       {/if}
     </div>
 
-    <div class="form-group">
-      <label>Schedule</label>
+    <fieldset class="form-group">
+      <legend>Schedule</legend>
       <div class="radio-group">
         <label class="radio-option">
           <input type="radio" bind:group={scheduleType} value="none" />
@@ -213,7 +213,7 @@
           <span>Recurring</span>
         </label>
       </div>
-    </div>
+    </fieldset>
 
     {#if scheduleType === 'one-time'}
       <div class="form-group">
@@ -237,7 +237,7 @@
           <div class="form-group">
             <label for="dayOfWeek">Day of Week</label>
             <select id="dayOfWeek" bind:value={dayOfWeek}>
-              {#each dayNames as day, index}
+              {#each dayNames as day, index (index)}
                 <option value={index}>{day}</option>
               {/each}
             </select>
@@ -248,7 +248,7 @@
           <div class="form-group">
             <label for="dayOfMonth">Day of Month</label>
             <select id="dayOfMonth" bind:value={dayOfMonth}>
-              {#each Array.from({ length: 31 }, (_, i) => i + 1) as day}
+              {#each Array.from({ length: 31 }, (_, i) => i + 1) as day (day)}
                 <option value={day}>{day}</option>
               {/each}
             </select>
@@ -323,6 +323,20 @@
   .form-group {
     margin-bottom: 1rem;
     position: relative;
+  }
+
+  fieldset.form-group {
+    border: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+  }
+
+  fieldset.form-group legend {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0;
   }
 
   .form-group label {

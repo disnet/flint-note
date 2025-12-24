@@ -170,6 +170,7 @@
     for (const typeId of typesToCheck) {
       const noteType = noteTypesDict[typeId];
       if (noteType?.properties) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation variable
         const typeFields = new Set<string>();
         for (const prop of noteType.properties) {
           typeFields.add(prop.name);

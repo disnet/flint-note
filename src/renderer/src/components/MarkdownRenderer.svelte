@@ -9,64 +9,6 @@
 
   let { text, onNoteClick }: Props = $props();
 
-  // Reference to the markdown content container for image loading
-  let markdownContainer: HTMLDivElement;
-
-  // Cache for blob URLs (non-reactive, just for performance)
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity
-  const imageBlobCache = new Map<string, string>();
-
-  // Load images after render
-  $effect(() => {
-    // Depend on text to re-run when content changes
-    const _content = text;
-    void _content;
-
-    if (!markdownContainer) return;
-
-    // Find all images that need loading
-    const images = markdownContainer.querySelectorAll('img[data-image-path]');
-    images.forEach(async (img) => {
-      const imgElement = img as HTMLImageElement;
-      const path = imgElement.dataset.imagePath;
-      if (!path) return;
-
-      // Check cache first
-      if (imageBlobCache.has(path)) {
-        imgElement.src = imageBlobCache.get(path)!;
-        imgElement.classList.remove('rendered-image-loading');
-        return;
-      }
-
-      try {
-        const imageData = await window.api?.readImageFile({ relativePath: path });
-        if (imageData) {
-          const ext = path.split('.').pop()?.toLowerCase() || 'png';
-          const mimeTypes: Record<string, string> = {
-            png: 'image/png',
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            gif: 'image/gif',
-            webp: 'image/webp'
-          };
-          // Create a new Uint8Array with a proper ArrayBuffer to satisfy TypeScript
-          const buffer = new Uint8Array(imageData).buffer;
-          const blob = new Blob([buffer], { type: mimeTypes[ext] || 'image/png' });
-          const blobUrl = URL.createObjectURL(blob);
-          imageBlobCache.set(path, blobUrl);
-          imgElement.src = blobUrl;
-          imgElement.classList.remove('rendered-image-loading');
-        } else {
-          imgElement.classList.add('rendered-image-error');
-          imgElement.alt = `Failed to load: ${path}`;
-        }
-      } catch (error) {
-        console.error('Failed to load image:', path, error);
-        imgElement.classList.add('rendered-image-error');
-      }
-    });
-  });
-
   interface NoteLinkPlaceholder {
     id: string;
     noteId: string;
@@ -97,72 +39,6 @@
       result = result.replace(`__CODE_SPAN_${index}__`, codeSpan);
     });
     return result;
-  }
-
-  interface InlineImagePlaceholder {
-    id: string;
-    altText: string;
-    path: string;
-  }
-
-  function extractInlineImages(text: string): {
-    text: string;
-    images: InlineImagePlaceholder[];
-  } {
-    const images: InlineImagePlaceholder[] = [];
-    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    let match;
-    let result = text;
-
-    while ((match = imageRegex.exec(text)) !== null) {
-      // Only process images from attachments/images directory
-      if (match[2].startsWith('attachments/images/')) {
-        const placeholder: InlineImagePlaceholder = {
-          id: `__IMAGE_PLACEHOLDER_${images.length}__`,
-          altText: match[1],
-          path: match[2]
-        };
-        images.push(placeholder);
-        result = result.replace(match[0], placeholder.id);
-      }
-    }
-
-    return { text: result, images };
-  }
-
-  function restoreInlineImages(html: string, images: InlineImagePlaceholder[]): string {
-    let result = html;
-
-    for (const image of images) {
-      const imageHtml = `
-        <div class="inline-image-wrapper">
-          <img
-            class="rendered-image rendered-image-loading"
-            alt="${escapeHtml(image.altText)}"
-            data-image-path="${escapeHtml(image.path)}"
-          />
-          <div class="image-control-bar">
-            <span class="image-alt-text">${escapeHtml(image.altText) || '(no alt text)'}</span>
-            <button class="image-path-button" data-path="${escapeHtml(image.path)}" title="Open in file explorer">
-              ${escapeHtml(image.path)}
-            </button>
-          </div>
-        </div>
-      `;
-
-      result = result.replace(image.id, imageHtml);
-    }
-
-    return result;
-  }
-
-  function escapeHtml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   }
 
   function extractNoteLinks(text: string): {
@@ -231,16 +107,13 @@
     // Step 1: Extract code spans to preserve them from note link parsing
     const { text: textWithoutCode, codeSpans } = extractCodeSpans(text);
 
-    // Step 2: Extract inline images from text (but not from code spans)
-    const { text: textWithoutImages, images } = extractInlineImages(textWithoutCode);
+    // Step 2: Extract note links from text (but not from code spans)
+    const { text: textWithoutNotes, noteLinks } = extractNoteLinks(textWithoutCode);
 
-    // Step 3: Extract note links from text (but not from code spans or images)
-    const { text: textWithoutNotes, noteLinks } = extractNoteLinks(textWithoutImages);
-
-    // Step 4: Restore code spans before markdown processing
+    // Step 3: Restore code spans before markdown processing
     const textWithRestoredCode = restoreCodeSpans(textWithoutNotes, codeSpans);
 
-    // Step 5: Parse markdown
+    // Step 4: Parse markdown
     let html: string;
     const parsedResult = marked.parse(textWithRestoredCode);
     if (typeof parsedResult === 'string') {
@@ -251,13 +124,10 @@
       return '<div>Loading...</div>';
     }
 
-    // Step 6: Restore note links as HTML buttons
+    // Step 5: Restore note links as HTML buttons
     html = restoreNoteLinks(html, noteLinks);
 
-    // Step 7: Restore inline images as HTML
-    html = restoreInlineImages(html, images);
-
-    // Step 8: Sanitize HTML
+    // Step 6: Sanitize HTML
     const sanitized = DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
         'p',
@@ -283,15 +153,7 @@
         'div',
         'img'
       ],
-      ALLOWED_ATTR: [
-        'class',
-        'data-note-id',
-        'title',
-        'alt',
-        'src',
-        'data-image-path',
-        'data-path'
-      ],
+      ALLOWED_ATTR: ['class', 'data-note-id', 'title'],
       ALLOW_DATA_ATTR: true,
       KEEP_CONTENT: true
     });
@@ -307,26 +169,6 @@
         const mouseEvent = event as MouseEvent;
         onNoteClick?.(noteId, mouseEvent.shiftKey);
       }
-    } else if (target.classList.contains('image-path-button')) {
-      event.preventDefault();
-      event.stopPropagation();
-      const path = target.getAttribute('data-path');
-      if (path) {
-        handleImagePathClick(path);
-      }
-    }
-  }
-
-  async function handleImagePathClick(relativePath: string): Promise<void> {
-    try {
-      const absolutePath = await window.api?.getImageAbsolutePath({
-        relativePath
-      });
-      if (absolutePath) {
-        await window.api?.showItemInFolder({ path: absolutePath });
-      }
-    } catch (error) {
-      console.error('Failed to open image location:', error);
     }
   }
 
@@ -338,7 +180,6 @@
 </script>
 
 <div
-  bind:this={markdownContainer}
   class="markdown-content"
   onclick={handleClick}
   onkeydown={handleKeydown}
@@ -496,71 +337,5 @@
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
     }
-  }
-
-  /* Inline image styles */
-  .markdown-content :global(.inline-image-wrapper) {
-    display: block;
-    margin: 0.75em 0;
-  }
-
-  .markdown-content :global(.rendered-image) {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    border: 1px solid var(--border-light, #e0e0e0);
-    display: block;
-  }
-
-  .markdown-content :global(.rendered-image-loading) {
-    min-height: 100px;
-    background: var(--bg-secondary, #f5f5f5);
-  }
-
-  .markdown-content :global(.rendered-image-error) {
-    min-height: 60px;
-    background: var(--bg-secondary, #f5f5f5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-error, #d32f2f);
-    font-size: 0.8125rem;
-    padding: 1rem;
-    border: 1px dashed var(--border-light, #e0e0e0);
-  }
-
-  .markdown-content :global(.image-control-bar) {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    background: var(--bg-secondary, #f5f5f5);
-    border-radius: 4px;
-    font-size: 0.8125rem;
-    align-items: center;
-  }
-
-  .markdown-content :global(.image-alt-text) {
-    flex: 1;
-    color: var(--text-secondary, #666);
-  }
-
-  .markdown-content :global(.image-path-button) {
-    padding: 0.125rem 0.5rem;
-    border: none;
-    background: transparent;
-    color: var(--text-muted, #999);
-    font-size: 0.75rem;
-    cursor: pointer;
-    text-decoration: underline;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-    font-family: inherit;
-  }
-
-  .markdown-content :global(.image-path-button:hover) {
-    color: var(--accent-primary, #2196f3);
   }
 </style>
