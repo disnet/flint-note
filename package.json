@@ -47,6 +47,7 @@
     "@ai-sdk/gateway": "^1.0.0",
     "@ai-sdk/svelte": "^3.0.113",
     "@automerge/automerge": "^3.2.1",
+    "@automerge/automerge-codemirror": "^0.2.0",
     "@automerge/automerge-repo": "^2.5.1",
     "@automerge/automerge-repo-storage-indexeddb": "^2.5.1",
     "@automerge/automerge-repo-storage-nodefs": "^2.5.1",

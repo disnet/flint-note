@@ -9,6 +9,7 @@
 
 /* eslint-disable svelte/prefer-svelte-reactivity -- Date used for computation in utility functions */
 
+import * as Automerge from '@automerge/automerge';
 import type { DocHandle } from '@automerge/automerge-repo';
 import type {
   Note,
@@ -246,6 +247,14 @@ export function getActiveVaultId(): string | null {
   return activeVaultId;
 }
 
+/**
+ * Get the current DocHandle for direct automerge-codemirror integration
+ * @returns The DocHandle or null if not initialized
+ */
+export function getDocHandle(): DocHandle<NotesDocument> | null {
+  return docHandle;
+}
+
 // --- Vault mutations ---
 
 /**
@@ -425,6 +434,7 @@ export function createNote(params: {
 
 /**
  * Update an existing note
+ * Uses Automerge.updateText() for title/content to enable fine-grained CRDT updates
  */
 export function updateNote(
   id: string,
@@ -436,8 +446,14 @@ export function updateNote(
     const note = doc.notes[id];
     if (!note) return;
 
-    if (updates.title !== undefined) note.title = updates.title;
-    if (updates.content !== undefined) note.content = updates.content;
+    // Use updateText for fine-grained CRDT updates on text fields
+    if (updates.title !== undefined) {
+      Automerge.updateText(doc, ['notes', id, 'title'], updates.title);
+    }
+    if (updates.content !== undefined) {
+      Automerge.updateText(doc, ['notes', id, 'content'], updates.content);
+    }
+    // Type is not a text field, direct assignment is fine
     if (updates.type !== undefined) note.type = updates.type;
     note.updated = nowISO();
   });

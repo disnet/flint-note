@@ -11,7 +11,6 @@
     dayData: DayData;
     dayHeader: string;
     isToday: boolean;
-    onDailyNoteUpdate?: (date: string, content: string) => void;
     onDailyNoteTitleClick?: (date: string) => void;
     onDailyNoteTitleClickSidebar?: (date: string) => void;
   }
@@ -20,7 +19,6 @@
     dayData,
     dayHeader,
     isToday,
-    onDailyNoteUpdate,
     onDailyNoteTitleClick,
     onDailyNoteTitleClickSidebar
   }: Props = $props();
@@ -35,13 +33,6 @@
     const date = parseISODate(dayData.date);
     return date.toLocaleDateString('en-US', { weekday: 'short' });
   });
-
-  function handleDailyNoteContentChange(content: string): void {
-    // Only trigger update if content is not empty or if we're clearing existing content
-    if (content.trim() || dayData.dailyNote) {
-      onDailyNoteUpdate?.(dayData.date, content);
-    }
-  }
 
   function handleDayLabelClick(event: MouseEvent): void {
     if (event.shiftKey) {
@@ -81,11 +72,9 @@
   </div>
 
   <div class="day-content">
-    <DailyNoteEditor
-      bind:this={editorRef}
-      content={dayData.dailyNote?.content || ''}
-      onContentChange={handleDailyNoteContentChange}
-    />
+    {#if dayData.dailyNote}
+      <DailyNoteEditor bind:this={editorRef} noteId={dayData.dailyNote.id} />
+    {/if}
   </div>
 </div>
 

@@ -78,6 +78,9 @@ export {
   getActiveVault,
   getActiveVaultId,
 
+  // DocHandle access for automerge-codemirror
+  getDocHandle,
+
   // Vault mutations
   initVaultState,
   addVaultToState,

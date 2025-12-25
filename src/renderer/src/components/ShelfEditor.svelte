@@ -1,11 +1,13 @@
 <script lang="ts">
   /**
    * Shelf editor component for Automerge notes
-   * Uses CodeMirror for full editing capabilities
+   * Uses CodeMirror with automergeSyncPlugin for CRDT text editing
    */
   import { onMount } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
+  import type { DocHandle } from '@automerge/automerge-repo';
+  import type { NotesDocument } from '../lib/automerge';
   import {
     getAllNotes,
     createNote,
@@ -20,25 +22,17 @@
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
-    content: string;
-    onContentChange?: (content: string) => void;
+    docHandle: DocHandle<NotesDocument>;
+    noteId: string;
   }
 
-  let { content, onContentChange }: Props = $props();
+  let { docHandle, noteId }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
 
-  // Editor config
-  const editorConfig = new EditorConfig({
-    onWikilinkClick: handleWikilinkClick,
-    onContentChange: handleEditorContentChange,
-    placeholder: 'Start typing...'
-  });
-
-  function handleEditorContentChange(newContent: string): void {
-    onContentChange?.(newContent);
-  }
+  // Track current noteId for reactivity
+  let currentNoteId = $state(noteId);
 
   function handleWikilinkClick(
     targetId: string,
@@ -69,12 +63,35 @@
     }
   }
 
+  // Create editor config with automerge sync
+  function createEditorConfig(noteIdForSync: string): EditorConfig {
+    return new EditorConfig({
+      onWikilinkClick: handleWikilinkClick,
+      automergeSync: {
+        handle: docHandle,
+        path: ['notes', noteIdForSync, 'content']
+      },
+      placeholder: 'Start typing...'
+    });
+  }
+
+  let editorConfig = createEditorConfig(noteId);
+
+  // Get initial content from the Automerge document
+  function getInitialContent(): string {
+    const doc = docHandle.docSync();
+    if (doc && doc.notes && doc.notes[currentNoteId]) {
+      return doc.notes[currentNoteId].content || '';
+    }
+    return '';
+  }
+
   // Create the editor
   function createEditor(): void {
     if (!editorContainer || editorView) return;
 
     const startState = EditorState.create({
-      doc: content,
+      doc: getInitialContent(),
       extensions: editorConfig.getExtensions()
     });
 
@@ -97,19 +114,18 @@
     }, 10);
   }
 
-  // Update editor content when prop changes
-  function updateEditorContent(): void {
-    if (editorView && content !== undefined) {
-      const currentDoc = editorView.state.doc.toString();
-      if (currentDoc !== content) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: currentDoc.length,
-            insert: content
-          }
-        });
-      }
+  // Recreate editor when noteId changes
+  function recreateEditor(): void {
+    if (editorView) {
+      editorView.destroy();
+      editorView = null;
+    }
+    editorConfig.destroy();
+    editorConfig = createEditorConfig(currentNoteId);
+    editorConfig.initializeTheme();
+
+    if (editorContainer) {
+      createEditor();
     }
   }
 
@@ -131,6 +147,14 @@
     }
   });
 
+  // Handle noteId changes - recreate editor with new automerge path
+  $effect(() => {
+    if (noteId !== currentNoteId) {
+      currentNoteId = noteId;
+      recreateEditor();
+    }
+  });
+
   // Reconfigure editor when theme changes
   $effect(() => {
     void editorConfig.isDarkMode;
@@ -140,12 +164,6 @@
       });
       measureAndUpdateMarkerWidths();
     }
-  });
-
-  // Update editor content when prop changes
-  $effect(() => {
-    void content;
-    updateEditorContent();
   });
 
   // Refresh wikilinks when notes change

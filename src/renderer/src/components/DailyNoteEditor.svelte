@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Daily note editor component for the Automerge daily view
-   * Uses CodeMirror with collapsible expansion behavior
+   * Uses CodeMirror with collapsible expansion behavior and automerge-codemirror sync
    */
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
@@ -16,17 +16,18 @@
     addNoteToWorkspace,
     addItemToWorkspace,
     EditorConfig,
-    forceWikilinkRefresh
+    forceWikilinkRefresh,
+    getDocHandle,
+    getNote
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
-    content: string;
-    onContentChange?: (content: string) => void;
+    noteId: string;
   }
 
-  let { content, onContentChange }: Props = $props();
+  let { noteId }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
@@ -35,6 +36,10 @@
   let showControlsDelayed = $state(true);
   let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
   let isContentClipped = $state(false);
+
+  // Get note and its content
+  const note = $derived(getNote(noteId));
+  const content = $derived(note?.content ?? '');
 
   // Check if content is empty
   const hasContent = $derived(content.trim().length > 0);
@@ -64,17 +69,21 @@
     !isFocused && !isManuallyExpanded && hasContent && isContentClipped
   );
 
-  // Editor config
+  // Get doc handle for automerge sync
+  const docHandle = getDocHandle();
+
+  // Editor config with automerge sync
   const editorConfig = new EditorConfig({
     onWikilinkClick: handleWikilinkClick,
-    onContentChange: handleEditorContentChange,
     placeholder: 'Start typing to create entry...',
-    variant: 'daily-note'
+    variant: 'daily-note',
+    automergeSync: docHandle
+      ? {
+          handle: docHandle,
+          path: ['notes', noteId, 'content']
+        }
+      : undefined
   });
-
-  function handleEditorContentChange(newContent: string): void {
-    onContentChange?.(newContent);
-  }
 
   function handleWikilinkClick(
     targetId: string,
@@ -187,22 +196,6 @@
     }, 50);
   }
 
-  // Update editor content when prop changes
-  function updateEditorContent(): void {
-    if (editorView && content !== undefined) {
-      const currentDoc = editorView.state.doc.toString();
-      if (currentDoc !== content) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: currentDoc.length,
-            insert: content
-          }
-        });
-      }
-    }
-  }
-
   onMount(() => {
     editorConfig.initializeTheme();
     return () => {
@@ -233,12 +226,6 @@
       });
       measureAndUpdateMarkerWidths();
     }
-  });
-
-  // Update editor content when prop changes
-  $effect(() => {
-    void content;
-    updateEditorContent();
   });
 
   // Check if content is clipped when content, focus, or expansion state changes

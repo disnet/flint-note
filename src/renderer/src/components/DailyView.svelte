@@ -8,7 +8,6 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import {
     getWeekData,
-    updateDailyNote,
     getOrCreateDailyNote,
     setActiveNoteId,
     addNoteToWorkspace,
@@ -40,10 +39,6 @@
 
   function handleNavigateToWeek(startDate: string): void {
     currentWeekStart = startDate;
-  }
-
-  function handleDailyNoteUpdate(date: string, content: string): void {
-    updateDailyNote(date, content);
   }
 
   function handleDailyNoteTitleClick(date: string): void {
@@ -176,7 +171,6 @@
             {dayData}
             dayHeader={formatDayHeader(dayData.date)}
             isToday={isToday(dayData.date)}
-            onDailyNoteUpdate={handleDailyNoteUpdate}
             onDailyNoteTitleClick={handleDailyNoteTitleClick}
             onDailyNoteTitleClickSidebar={handleDailyNoteTitleClickSidebar}
           />

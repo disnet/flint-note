@@ -638,7 +638,6 @@
               <NoteEditor
                 note={activeNote}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
-                onContentChange={(content) => updateNote(activeNote.id, { content })}
                 onArchive={() => handleArchiveNote(activeNote.id)}
               />
             {/if}

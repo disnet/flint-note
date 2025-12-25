@@ -5,7 +5,7 @@
    * Displays a note or conversation on the shelf with expand/collapse functionality.
    * Notes use a full CodeMirror editor for editing.
    */
-  import { getNote, getConversation, getNoteType, updateNote } from '../lib/automerge';
+  import { getNote, getConversation, getNoteType, getDocHandle } from '../lib/automerge';
   import ShelfEditor from './ShelfEditor.svelte';
 
   interface Props {
@@ -56,15 +56,8 @@
     return false;
   });
 
-  // For notes: get current content for editor
-  const noteContent = $derived(note?.content || '');
-
-  // Handle content changes from editor
-  function handleContentChange(newContent: string): void {
-    if (itemType === 'note' && note) {
-      updateNote(itemId, { content: newContent });
-    }
-  }
+  // Get docHandle for automerge sync in ShelfEditor
+  const docHandle = $derived(getDocHandle());
 
   // For conversations: show last few messages
   const recentMessages = $derived.by(() => {
@@ -175,9 +168,9 @@
     <!-- Expanded content -->
     {#if isExpanded}
       <div class="item-content">
-        {#if itemType === 'note'}
-          <!-- Note content editor -->
-          <ShelfEditor content={noteContent} onContentChange={handleContentChange} />
+        {#if itemType === 'note' && docHandle}
+          <!-- Note content editor with CRDT sync -->
+          <ShelfEditor {docHandle} noteId={itemId} />
         {:else if itemType === 'conversation'}
           <!-- Conversation messages preview -->
           {#if recentMessages.length > 0}

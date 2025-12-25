@@ -24,16 +24,25 @@ import {
   type WikilinkHoverHandler
 } from './wikilinks.svelte';
 import { deckExtension } from './deck';
+import { automergeSyncPlugin } from '@automerge/automerge-codemirror';
+import type { DocHandle } from '@automerge/automerge-repo';
+import type { NotesDocument } from './types';
 
 export interface EditorConfigOptions {
   onWikilinkClick?: WikilinkClickHandler;
   onWikilinkHover?: WikilinkHoverHandler;
+  /** @deprecated Use automergeSync instead for CRDT text editing */
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   placeholder?: string;
   variant?: 'default' | 'daily-note';
   /** Handler for opening notes from deck widgets */
   onDeckNoteOpen?: (noteId: string) => void;
+  /** Automerge sync configuration for CRDT text editing */
+  automergeSync?: {
+    handle: DocHandle<NotesDocument>;
+    path: (string | number)[];
+  };
 }
 
 export class EditorConfig {
@@ -131,15 +140,6 @@ export class EditorConfig {
   }
 
   getExtensions(): Extension[] {
-    const updateListener = EditorView.updateListener.of((update) => {
-      if (update.selectionSet && !update.docChanged) {
-        this.options.onCursorChange?.();
-      }
-      if (update.docChanged) {
-        this.options.onContentChange?.(update.state.doc.toString());
-      }
-    });
-
     const extensions: Extension[] = [
       minimalSetup,
       dropCursor(),
@@ -175,9 +175,31 @@ export class EditorConfig {
           ]
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
-      EditorView.editable.of(true),
-      updateListener
+      EditorView.editable.of(true)
     ];
+
+    // Add automerge sync plugin for CRDT text editing
+    if (this.options.automergeSync) {
+      extensions.push(
+        automergeSyncPlugin({
+          handle: this.options.automergeSync.handle,
+          path: this.options.automergeSync.path
+        })
+      );
+    }
+
+    // Add legacy update listener for onContentChange and onCursorChange callbacks
+    if (this.options.onContentChange || this.options.onCursorChange) {
+      const updateListener = EditorView.updateListener.of((update) => {
+        if (update.selectionSet && !update.docChanged) {
+          this.options.onCursorChange?.();
+        }
+        if (update.docChanged) {
+          this.options.onContentChange?.(update.state.doc.toString());
+        }
+      });
+      extensions.push(updateListener);
+    }
 
     // Add placeholder if provided
     if (this.options.placeholder) {

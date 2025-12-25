@@ -19,7 +19,8 @@
     forceWikilinkRefresh,
     getSelectedWikilink,
     getNoteType,
-    setNoteProp
+    setNoteProp,
+    getDocHandle
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
@@ -31,19 +32,18 @@
   interface Props {
     note: Note;
     onTitleChange: (title: string) => void;
-    onContentChange: (content: string) => void;
     onArchive: () => void;
     onNavigate?: (noteId: string) => void;
   }
 
-  let { note, onTitleChange, onContentChange, onNavigate }: Props = $props();
+  let { note, onTitleChange, onNavigate }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
   let titleTextarea: HTMLTextAreaElement | null = $state(null);
 
-  // Debounce content changes
-  let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Track current note ID for detecting note switches
+  let currentNoteId = $state(note.id);
 
   // Edit popover state
   let editPopoverVisible = $state(false);
@@ -80,23 +80,37 @@
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Editor config
-  const editorConfig = new EditorConfig({
-    onWikilinkClick: handleWikilinkClick,
-    onWikilinkHover: handleWikilinkHover,
-    onContentChange: handleEditorContentChange,
-    placeholder: 'Start writing...',
-    // Deck widget support - navigate to notes when clicked in embedded decks
-    onDeckNoteOpen: (noteId) => {
-      if (onNavigate) {
-        onNavigate(noteId);
-      } else {
-        // Fallback to default navigation
-        setActiveNoteId(noteId);
-        addNoteToWorkspace(noteId);
-      }
-    }
-  });
+  // Get doc handle for automerge sync
+  const docHandle = getDocHandle();
+
+  // Create editor config factory function for note-specific configuration
+  function createEditorConfig(noteId: string): EditorConfig {
+    return new EditorConfig({
+      onWikilinkClick: handleWikilinkClick,
+      onWikilinkHover: handleWikilinkHover,
+      placeholder: 'Start writing...',
+      // Deck widget support - navigate to notes when clicked in embedded decks
+      onDeckNoteOpen: (deckNoteId) => {
+        if (onNavigate) {
+          onNavigate(deckNoteId);
+        } else {
+          // Fallback to default navigation
+          setActiveNoteId(deckNoteId);
+          addNoteToWorkspace(deckNoteId);
+        }
+      },
+      // Automerge sync for CRDT text editing
+      automergeSync: docHandle
+        ? {
+            handle: docHandle,
+            path: ['notes', noteId, 'content']
+          }
+        : undefined
+    });
+  }
+
+  // Initial editor config
+  let editorConfig = createEditorConfig(note.id);
 
   function handleTitleInput(event: Event): void {
     const target = event.target as HTMLTextAreaElement;
@@ -139,16 +153,6 @@
       resizeObserver.disconnect();
     };
   });
-
-  function handleEditorContentChange(content: string): void {
-    // Debounce content updates
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-    }
-    debounceTimeout = setTimeout(() => {
-      onContentChange(content);
-    }, 300);
-  }
 
   function handleWikilinkClick(
     targetId: string,
@@ -228,22 +232,6 @@
     }, 10);
   }
 
-  // Update editor content when note changes
-  function updateEditorContent(): void {
-    if (editorView && note.content !== undefined) {
-      const currentDoc = editorView.state.doc.toString();
-      if (currentDoc !== note.content) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: currentDoc.length,
-            insert: note.content
-          }
-        });
-      }
-    }
-  }
-
   onMount(() => {
     editorConfig.initializeTheme();
     return () => {
@@ -262,6 +250,36 @@
     }
   });
 
+  // Handle note switching - reconfigure automerge sync with new path
+  $effect(() => {
+    if (note.id !== currentNoteId && editorView) {
+      // Note changed - create new config with updated path
+      editorConfig.destroy();
+      editorConfig = createEditorConfig(note.id);
+      editorConfig.initializeTheme();
+
+      // Reconfigure editor with new extensions (including new automerge sync path)
+      editorView.dispatch({
+        effects: StateEffect.reconfigure.of(editorConfig.getExtensions())
+      });
+
+      // Update editor content to match new note
+      const currentDoc = editorView.state.doc.toString();
+      if (currentDoc !== note.content) {
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: currentDoc.length,
+            insert: note.content
+          }
+        });
+      }
+
+      currentNoteId = note.id;
+      measureAndUpdateMarkerWidths();
+    }
+  });
+
   // Reconfigure editor when theme changes
   $effect(() => {
     // Track isDarkMode to trigger on theme change
@@ -272,13 +290,6 @@
       });
       measureAndUpdateMarkerWidths();
     }
-  });
-
-  // Update editor content when note changes
-  $effect(() => {
-    // Track note.content to trigger on change
-    void note.content;
-    updateEditorContent();
   });
 
   // Refresh wikilinks when notes change
