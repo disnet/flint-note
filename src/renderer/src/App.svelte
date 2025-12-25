@@ -24,6 +24,10 @@
   // Initialize automerge state
   onMount(async () => {
     try {
+      // Trigger font loading and wait for it to complete to prevent flash of unstyled text
+      // We need to explicitly load the font since it's not used during the splash screen
+      await document.fonts.load("16px 'iA Writer Quattro'");
+
       await initializeState();
       // Check if we have vaults after initialization
       const vaults = getNonArchivedVaults();
