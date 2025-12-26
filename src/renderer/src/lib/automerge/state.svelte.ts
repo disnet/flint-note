@@ -1823,10 +1823,19 @@ export function updateConversationMessage(
     const conv = doc.conversations?.[conversationId];
     if (!conv) return;
 
-    const message = conv.messages.find((m) => m.id === messageId);
-    if (!message) return;
+    const messageIndex = conv.messages.findIndex((m) => m.id === messageId);
+    if (messageIndex === -1) return;
 
-    if (updates.content !== undefined) message.content = updates.content;
+    const message = conv.messages[messageIndex];
+
+    // Use updateText for fine-grained CRDT updates on message content
+    if (updates.content !== undefined) {
+      Automerge.updateText(
+        doc,
+        ['conversations', conversationId, 'messages', messageIndex, 'content'],
+        updates.content
+      );
+    }
     if (updates.toolCalls !== undefined && updates.toolCalls.length > 0) {
       // Use clone() to create fresh objects safe for Automerge
       message.toolCalls = updates.toolCalls.map((tc) => {
@@ -1863,7 +1872,10 @@ export function updateConversation(
     const conv = doc.conversations?.[id];
     if (!conv) return;
 
-    if (updates.title !== undefined) conv.title = updates.title;
+    // Use updateText for fine-grained CRDT updates on conversation title
+    if (updates.title !== undefined) {
+      Automerge.updateText(doc, ['conversations', id, 'title'], updates.title);
+    }
     conv.updated = nowISO();
   });
 }
