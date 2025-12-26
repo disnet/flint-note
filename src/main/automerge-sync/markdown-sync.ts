@@ -45,6 +45,120 @@ const contentHandles = new Map<string, Map<string, DocHandle<SyncNoteContentDocu
 // Map of vaultId -> Map<noteId, content string> for tracking content changes
 const contentCache = new Map<string, Map<string, string>>();
 
+interface ExistingFileInfo {
+  relativePath: string;
+  title: string;
+  type: string;
+}
+
+/**
+ * Scan existing markdown files and build initial mappings.
+ * Returns a map of noteId -> file info for files that have valid frontmatter.
+ */
+function scanExistingFiles(baseDirectory: string): Map<string, ExistingFileInfo> {
+  const existingFiles = new Map<string, ExistingFileInfo>();
+  const notesDir = path.join(baseDirectory, 'notes');
+
+  try {
+    if (!fs.existsSync(notesDir)) {
+      return existingFiles;
+    }
+
+    const typeDirs = fs.readdirSync(notesDir, { withFileTypes: true });
+    for (const dirent of typeDirs) {
+      if (dirent.isDirectory()) {
+        const typeDir = dirent.name;
+        const typeDirPath = path.join(notesDir, typeDir);
+        const files = fs.readdirSync(typeDirPath);
+
+        for (const file of files) {
+          if (file.endsWith('.md')) {
+            const relativePath = `${typeDir}/${file}`;
+            const filePath = path.join(typeDirPath, file);
+
+            try {
+              const fileContent = fs.readFileSync(filePath, 'utf-8');
+              const parsed = parseMarkdownFile(fileContent);
+
+              if (parsed && parsed.id) {
+                existingFiles.set(parsed.id, {
+                  relativePath,
+                  title: parsed.title,
+                  type: parsed.type
+                });
+              }
+            } catch {
+              // Skip files that can't be read
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Directory might not exist yet
+  }
+
+  return existingFiles;
+}
+
+/**
+ * Determine which notes need their content loaded for syncing.
+ * Returns noteIds that need content (new notes, renamed notes, or notes with missing files).
+ */
+function getNotesNeedingContentLoad(
+  notes: Record<string, SyncNoteMetadata>,
+  noteTypes: Record<string, SyncNoteType> | undefined,
+  existingFiles: Map<string, ExistingFileInfo>,
+  mappings: Map<string, string>
+): string[] {
+  const needsContent: string[] = [];
+
+  // First, populate mappings from all existing files so getUniqueFilename
+  // can properly detect filename collisions
+  for (const [noteId, fileInfo] of existingFiles) {
+    mappings.set(noteId, fileInfo.relativePath);
+  }
+
+  for (const [noteId, note] of Object.entries(notes)) {
+    if (note.archived) continue;
+
+    const existing = existingFiles.get(noteId);
+    if (!existing) {
+      // File doesn't exist, need to create it
+      console.log(
+        `[MarkdownSync] Note needs sync (no file): ${noteId}\n` +
+          `  title: "${note.title}"`
+      );
+      needsContent.push(noteId);
+      continue;
+    }
+
+    // Check if file path matches expected path (title or type changed)
+    const typeName = getTypeName(noteTypes, note.type);
+    const expectedPath = getUniqueFilename(
+      typeName,
+      toSafeFilename(note.title),
+      noteId,
+      mappings
+    );
+
+    // Use case-insensitive comparison since macOS/Windows filesystems are case-insensitive
+    if (existing.relativePath.toLowerCase() !== expectedPath.toLowerCase()) {
+      // Path changed (title or type rename), need to rewrite
+      console.log(
+        `[MarkdownSync] Note needs sync: ${noteId}\n` +
+          `  title: "${note.title}"\n` +
+          `  existing path: "${existing.relativePath}"\n` +
+          `  expected path: "${expectedPath}"`
+      );
+      needsContent.push(noteId);
+    }
+    // Note: mapping already set above from existingFiles
+  }
+
+  return needsContent;
+}
+
 /**
  * Sync a single note to a markdown file.
  * Files are organized by type: notes/<TypeName>/<note-title>.md
@@ -144,75 +258,6 @@ function removeNoteFile(
     // Remove from writing set after a short delay
     setTimeout(() => writing.delete(relativePath), 100);
   }
-}
-
-/**
- * Perform full sync of all notes to markdown files.
- * Returns list of orphaned files (files not matching any note) for import.
- * Orphaned files are returned as relative paths: "TypeName/filename.md"
- *
- * @param baseDirectory - Base directory for the vault
- * @param notes - Note metadata (without content)
- * @param noteTypes - Map of note type definitions
- * @param mappings - Map of noteId to file path
- * @param vaultId - Vault ID
- * @param vaultContentCache - Cache of note content by noteId
- */
-function fullSync(
-  baseDirectory: string,
-  notes: Record<string, SyncNoteMetadata>,
-  noteTypes: Record<string, SyncNoteType> | undefined,
-  mappings: Map<string, string>,
-  vaultId: string,
-  vaultContentCache: Map<string, string>
-): string[] {
-  const notesDir = ensureNotesDir(baseDirectory);
-
-  // Get set of note IDs that should exist
-  const activeNoteIds = new Set<string>();
-
-  // Sync all non-archived notes
-  for (const [noteId, note] of Object.entries(notes)) {
-    if (!note.archived) {
-      activeNoteIds.add(noteId);
-      const content = vaultContentCache.get(noteId) || '';
-      syncNoteToFile(baseDirectory, note, content, noteTypes, mappings, vaultId);
-    }
-  }
-
-  // Remove files for archived/deleted notes
-  for (const [noteId] of mappings) {
-    if (!activeNoteIds.has(noteId)) {
-      removeNoteFile(baseDirectory, noteId, mappings, vaultId);
-    }
-  }
-
-  // Find orphaned .md files not in our mappings (to be imported)
-  // Need to scan all type subdirectories
-  const orphanedFiles: string[] = [];
-  const expectedFiles = new Set(mappings.values());
-  try {
-    const typeDirs = fs.readdirSync(notesDir, { withFileTypes: true });
-    for (const dirent of typeDirs) {
-      if (dirent.isDirectory()) {
-        const typeDir = dirent.name;
-        const typeDirPath = path.join(notesDir, typeDir);
-        const files = fs.readdirSync(typeDirPath);
-        for (const file of files) {
-          if (file.endsWith('.md')) {
-            const relativePath = `${typeDir}/${file}`;
-            if (!expectedFiles.has(relativePath)) {
-              orphanedFiles.push(relativePath);
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Directory might not exist yet, that's ok
-  }
-
-  return orphanedFiles;
 }
 
 /**
@@ -714,27 +759,66 @@ export function setupMarkdownSync(
         const noteTypes = doc.noteTypes;
         const contentUrls = doc.contentUrls || {};
 
-        // Load all content documents for non-archived notes
-        const loadPromises: Promise<void>[] = [];
-        for (const [noteId, note] of Object.entries(doc.notes) as [
-          string,
-          SyncNoteMetadata
-        ][]) {
-          if (!note.archived && contentUrls[noteId]) {
-            loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
-          }
-        }
-        await Promise.all(loadPromises);
+        // Scan existing files to avoid loading content for notes that don't need syncing
+        const existingFiles = scanExistingFiles(baseDirectory);
 
-        // Perform initial full sync
-        const orphanedFiles = fullSync(
-          baseDirectory,
+        // Determine which notes actually need their content loaded
+        const notesNeedingContent = getNotesNeedingContentLoad(
           doc.notes,
           noteTypes,
-          mappings,
-          vaultId,
-          vaultContentCache
+          existingFiles,
+          mappings
         );
+
+        console.log(`Notes needing content: ${JSON.stringify(notesNeedingContent)}`);
+
+        // Find orphaned files (files not matching any note in the document)
+        const activeNoteIds = new Set(
+          (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
+            .filter(([, note]) => !note.archived)
+            .map(([id]) => id)
+        );
+        const orphanedFiles: string[] = [];
+        for (const [noteId, fileInfo] of existingFiles) {
+          if (!activeNoteIds.has(noteId)) {
+            orphanedFiles.push(fileInfo.relativePath);
+          }
+        }
+
+        // Remove files for archived/deleted notes (files that exist but note is archived/deleted)
+        for (const [noteId] of existingFiles) {
+          const note = doc.notes[noteId];
+          if (note && note.archived) {
+            removeNoteFile(baseDirectory, noteId, mappings, vaultId);
+          }
+        }
+
+        // Load content documents ONLY for notes that need syncing
+        if (notesNeedingContent.length > 0) {
+          logger.info(
+            `[MarkdownSync] Loading ${notesNeedingContent.length} content docs (${Object.keys(doc.notes).length - notesNeedingContent.length} already up to date)`
+          );
+          const loadPromises: Promise<void>[] = [];
+          for (const noteId of notesNeedingContent) {
+            if (contentUrls[noteId]) {
+              loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
+            }
+          }
+          await Promise.all(loadPromises);
+
+          // Sync only the notes that need it
+          for (const noteId of notesNeedingContent) {
+            const note = doc.notes[noteId];
+            if (note && !note.archived) {
+              const content = vaultContentCache.get(noteId) || '';
+              syncNoteToFile(baseDirectory, note, content, noteTypes, mappings, vaultId);
+            }
+          }
+        } else {
+          logger.info(
+            `[MarkdownSync] All ${Object.keys(doc.notes).length} notes already up to date`
+          );
+        }
 
         // Import any orphaned files (created while sync wasn't running)
         for (const filename of orphanedFiles) {

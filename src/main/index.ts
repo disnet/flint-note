@@ -385,7 +385,7 @@ async function createWindow(
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
+  // mainWindow.webContents.openDevTools({ mode: 'detach' });
 }
 
 // This method will be called when Electron has finished
@@ -1169,7 +1169,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('automerge-repo-message', async (event, message) => {
+  ipcMain.on('automerge-repo-message', (event, message) => {
     const adapter = getNetworkAdapterForWebContents(event.sender.id);
     if (adapter) {
       adapter.handleMessage(message);

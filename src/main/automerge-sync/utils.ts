@@ -116,12 +116,20 @@ export function getUniqueFilename(
   let relativePath = `${safeTypeName}/${filename}`;
   let counter = 1;
 
-  for (const [id, existingPath] of existingMappings) {
-    if (id !== noteId && existingPath === relativePath) {
-      // Collision detected, add counter
-      filename = `${baseFilename} (${counter}).md`;
-      relativePath = `${safeTypeName}/${filename}`;
-      counter++;
+  // Use case-insensitive comparison for collision detection on case-insensitive filesystems
+  // Keep checking until we find a path with no collisions
+  let hasCollision = true;
+  while (hasCollision) {
+    hasCollision = false;
+    for (const [id, existingPath] of existingMappings) {
+      if (id !== noteId && existingPath.toLowerCase() === relativePath.toLowerCase()) {
+        // Collision detected, add counter and restart check
+        filename = `${baseFilename} (${counter}).md`;
+        relativePath = `${safeTypeName}/${filename}`;
+        counter++;
+        hasCollision = true;
+        break; // Restart the check with new path
+      }
     }
   }
 

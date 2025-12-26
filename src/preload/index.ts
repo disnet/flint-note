@@ -362,7 +362,7 @@ const api = {
         documentId?: string;
         data?: number[];
       };
-    }) => electronAPI.ipcRenderer.invoke('automerge-repo-message', message),
+    }) => electronAPI.ipcRenderer.send('automerge-repo-message', message),
 
     onRepoMessage: (
       callback: (message: {
