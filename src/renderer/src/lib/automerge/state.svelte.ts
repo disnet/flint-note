@@ -173,6 +173,15 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Connect file sync if vault has baseDirectory
     if (targetVault.baseDirectory) {
       await connectVaultSync(repo, targetVault);
+
+      // Set up file sync listener for files added from filesystem
+      // Using dynamic import to avoid circular dependency with file-sync.svelte.ts
+      try {
+        const { setupFileSyncListener } = await import('./file-sync.svelte');
+        setupFileSyncListener();
+      } catch (error) {
+        console.error('[FileSync] Failed to set up file sync listener:', error);
+      }
     }
 
     isInitialized = true;
@@ -2161,6 +2170,24 @@ export async function enableFileSync(): Promise<string | null> {
   // Connect sync
   const repo = getRepo();
   await connectVaultSync(repo, updatedVault);
+
+  // Perform initial file sync (OPFS -> filesystem and filesystem -> OPFS)
+  // Using dynamic import to avoid circular dependency with file-sync.svelte.ts
+  try {
+    const { performInitialFileSync, performReverseFileSync, setupFileSyncListener } =
+      await import('./file-sync.svelte');
+
+    // Sync existing OPFS files to filesystem
+    await performInitialFileSync();
+
+    // Import any files already on filesystem into OPFS
+    await performReverseFileSync();
+
+    // Set up listener for new files added to filesystem
+    setupFileSyncListener();
+  } catch (error) {
+    console.error('[FileSync] Failed to perform initial file sync:', error);
+  }
 
   return directory;
 }

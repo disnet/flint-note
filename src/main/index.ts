@@ -23,8 +23,17 @@ import {
   initializeVaultRepo,
   disposeVaultRepo,
   getNetworkAdapterForWebContents,
+  getActiveVaultId,
+  getActiveVaultBaseDirectory,
   disposeAllVaultRepos
 } from './automerge-sync';
+import {
+  writeFile as writeFileToFilesystem,
+  readFile as readFileFromFilesystem,
+  fileExists as fileExistsOnFilesystem,
+  listFiles as listFilesInFilesystem,
+  type FileType
+} from './automerge-sync/file-sync';
 import {
   detectLegacyVaults,
   detectLegacyVaultAtPath,
@@ -1142,6 +1151,117 @@ app.whenReady().then(async () => {
 
     return result.filePaths[0];
   });
+
+  // Binary file sync IPC handlers (PDFs, EPUBs, web archives, images)
+  ipcMain.handle(
+    'write-file-to-filesystem',
+    async (
+      event,
+      params: {
+        fileType: FileType;
+        hash: string;
+        data: Uint8Array;
+        extension?: string;
+        metadata?: Record<string, unknown>;
+        baseDirectory?: string; // Optional: for use during migration when vault doesn't exist yet
+      }
+    ) => {
+      // Use provided baseDirectory (migration) or look up from active vault
+      const baseDirectory = params.baseDirectory || getActiveVaultBaseDirectory(event.sender.id);
+      if (!baseDirectory) {
+        throw new Error('No vault with file sync enabled for this window');
+      }
+      // Use provided baseDirectory as vaultId during migration, otherwise look up
+      const vaultId = params.baseDirectory || getActiveVaultId(event.sender.id);
+      if (!vaultId) {
+        throw new Error('No active vault for this window');
+      }
+
+      await writeFileToFilesystem(
+        baseDirectory,
+        params.fileType,
+        params.hash,
+        Buffer.from(params.data),
+        vaultId,
+        { extension: params.extension, metadata: params.metadata }
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'file-exists-on-filesystem',
+    async (
+      event,
+      params: {
+        fileType: FileType;
+        hash: string;
+        extension?: string;
+      }
+    ) => {
+      const baseDirectory = getActiveVaultBaseDirectory(event.sender.id);
+      if (!baseDirectory) {
+        return false;
+      }
+
+      return fileExistsOnFilesystem(
+        baseDirectory,
+        params.fileType,
+        params.hash,
+        params.extension
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'list-files-in-filesystem',
+    async (
+      event,
+      params: {
+        fileType: FileType;
+      }
+    ) => {
+      const baseDirectory = getActiveVaultBaseDirectory(event.sender.id);
+      if (!baseDirectory) {
+        return [];
+      }
+
+      return listFilesInFilesystem(baseDirectory, params.fileType);
+    }
+  );
+
+  ipcMain.handle(
+    'read-file-from-filesystem',
+    async (
+      event,
+      params: {
+        fileType: FileType;
+        hash: string;
+        extension?: string;
+      }
+    ) => {
+      const baseDirectory = getActiveVaultBaseDirectory(event.sender.id);
+      if (!baseDirectory) {
+        return null;
+      }
+
+      const result = await readFileFromFilesystem(
+        baseDirectory,
+        params.fileType,
+        params.hash,
+        params.extension
+      );
+
+      if (!result) {
+        return null;
+      }
+
+      // Convert Buffer to Uint8Array for IPC
+      return {
+        data: new Uint8Array(result.data),
+        metadata: result.metadata
+      };
+    }
+  );
 
   // Legacy vault migration IPC handlers
   ipcMain.handle(

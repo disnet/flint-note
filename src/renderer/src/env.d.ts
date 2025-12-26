@@ -282,6 +282,42 @@ declare global {
         }) => Promise<{ success: boolean }>;
         disposeVaultSync: (params: { vaultId: string }) => Promise<void>;
         selectSyncDirectory: () => Promise<string | null>;
+
+        // Binary file sync operations (PDFs, EPUBs, web archives, images)
+        writeFileToFilesystem: (params: {
+          fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+          hash: string;
+          data: Uint8Array;
+          extension?: string;
+          metadata?: Record<string, unknown>;
+          baseDirectory?: string; // Optional: for use during migration when vault doesn't exist yet
+        }) => Promise<void>;
+        fileExistsOnFilesystem: (params: {
+          fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+          hash: string;
+          extension?: string;
+        }) => Promise<boolean>;
+        listFilesInFilesystem: (params: {
+          fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+        }) => Promise<Array<{ hash: string; extension?: string; size: number }>>;
+        readFileFromFilesystem: (params: {
+          fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+          hash: string;
+          extension?: string;
+        }) => Promise<{
+          data: Uint8Array;
+          metadata?: Record<string, unknown>;
+        } | null>;
+        onFileAddedFromFilesystem: (
+          callback: (data: {
+            fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+            hash: string;
+            extension?: string;
+            data: Uint8Array;
+            metadata?: Record<string, unknown>;
+          }) => void
+        ) => void;
+        removeFileAddedListener: () => void;
       };
 
       // Legacy vault migration operations

@@ -6,9 +6,12 @@
  * 2. Clipboard paste (Cmd+V)
  *
  * Images are stored in OPFS with content-addressed filenames.
+ * Images are synced to filesystem if file sync is enabled.
  */
 
 import { imageOpfsStorage } from './image-opfs-storage.svelte';
+import { getIsFileSyncEnabled } from './state.svelte';
+import { syncFileToFilesystem } from './file-sync.svelte';
 
 /**
  * Result of an image import operation
@@ -98,6 +101,13 @@ export async function importImageFile(file: File): Promise<ImageImportResult> {
   // Store in OPFS
   const result = await imageOpfsStorage.store(arrayBuffer, extension);
 
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('image', result.shortHash, new Uint8Array(arrayBuffer), {
+      extension: result.extension
+    });
+  }
+
   // Build markdown syntax
   const markdownSyntax = buildMarkdownImageSyntax(result.shortHash, result.extension);
 
@@ -129,6 +139,13 @@ export async function importImageFromData(
 
   // Store in OPFS
   const result = await imageOpfsStorage.store(arrayBuffer, extension);
+
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('image', result.shortHash, new Uint8Array(arrayBuffer), {
+      extension: result.extension
+    });
+  }
 
   // Build markdown syntax
   const markdownSyntax = buildMarkdownImageSyntax(result.shortHash, result.extension);

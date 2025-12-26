@@ -10,6 +10,7 @@ import { Repo, type AutomergeUrl } from '@automerge/automerge-repo';
 import { NodeFSStorageAdapter } from '@automerge/automerge-repo-storage-nodefs';
 import { IPCNetworkAdapterMain } from './IPCNetworkAdapterMain';
 import { setupMarkdownSync } from './markdown-sync';
+import { setupFileSync } from './file-sync';
 import { logger } from '../logger';
 
 interface VaultRepoEntry {
@@ -18,6 +19,7 @@ interface VaultRepoEntry {
   baseDirectory: string;
   docUrl: string;
   unsubscribeMarkdownSync: () => void;
+  unsubscribeFileSync: () => void;
 }
 
 // Map of vaultId -> VaultRepoEntry
@@ -76,12 +78,16 @@ export function initializeVaultRepo(
   // Set up markdown file sync
   const unsubscribeMarkdownSync = setupMarkdownSync(vaultId, repo, docUrl, baseDirectory);
 
+  // Set up binary file sync (PDFs, EPUBs, web archives, images)
+  const unsubscribeFileSync = setupFileSync(vaultId, baseDirectory, webContents);
+
   vaultRepos.set(vaultId, {
     repo,
     networkAdapter,
     baseDirectory,
     docUrl,
-    unsubscribeMarkdownSync
+    unsubscribeMarkdownSync,
+    unsubscribeFileSync
   });
 
   // Track which vault is active for this webContents
@@ -102,6 +108,10 @@ export function disposeVaultRepo(vaultId: string): void {
     // Clean up markdown sync listener
     if (entry.unsubscribeMarkdownSync) {
       entry.unsubscribeMarkdownSync();
+    }
+    // Clean up file sync watcher
+    if (entry.unsubscribeFileSync) {
+      entry.unsubscribeFileSync();
     }
     entry.networkAdapter.disconnect();
     vaultRepos.delete(vaultId);
@@ -127,6 +137,18 @@ export function getNetworkAdapterForWebContents(
  */
 export function getActiveVaultId(webContentsId: number): string | undefined {
   return activeVaultByWebContents.get(webContentsId);
+}
+
+/**
+ * Get the base directory for the active vault of a webContents.
+ */
+export function getActiveVaultBaseDirectory(webContentsId: number): string | undefined {
+  const vaultId = activeVaultByWebContents.get(webContentsId);
+  if (vaultId) {
+    const entry = vaultRepos.get(vaultId);
+    return entry?.baseDirectory;
+  }
+  return undefined;
 }
 
 /**

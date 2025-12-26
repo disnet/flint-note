@@ -393,7 +393,57 @@ const api = {
     disposeVaultSync: (params: { vaultId: string }) =>
       electronAPI.ipcRenderer.invoke('dispose-vault-sync', params),
 
-    selectSyncDirectory: () => electronAPI.ipcRenderer.invoke('select-sync-directory')
+    selectSyncDirectory: () => electronAPI.ipcRenderer.invoke('select-sync-directory'),
+
+    // Binary file sync operations (PDFs, EPUBs, web archives, images)
+    writeFileToFilesystem: (params: {
+      fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+      hash: string;
+      data: Uint8Array;
+      extension?: string; // Required for images
+      metadata?: Record<string, unknown>; // For webpages
+      baseDirectory?: string; // Optional: for use during migration when vault doesn't exist yet
+    }): Promise<void> =>
+      electronAPI.ipcRenderer.invoke('write-file-to-filesystem', params),
+
+    fileExistsOnFilesystem: (params: {
+      fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+      hash: string;
+      extension?: string; // Required for images
+    }): Promise<boolean> =>
+      electronAPI.ipcRenderer.invoke('file-exists-on-filesystem', params),
+
+    listFilesInFilesystem: (params: {
+      fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+    }): Promise<Array<{ hash: string; extension?: string; size: number }>> =>
+      electronAPI.ipcRenderer.invoke('list-files-in-filesystem', params),
+
+    readFileFromFilesystem: (params: {
+      fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+      hash: string;
+      extension?: string; // Required for images
+    }): Promise<{
+      data: Uint8Array;
+      metadata?: Record<string, unknown>;
+    } | null> => electronAPI.ipcRenderer.invoke('read-file-from-filesystem', params),
+
+    onFileAddedFromFilesystem: (
+      callback: (data: {
+        fileType: 'pdf' | 'epub' | 'webpage' | 'image';
+        hash: string;
+        extension?: string;
+        data: Uint8Array;
+        metadata?: Record<string, unknown>;
+      }) => void
+    ) => {
+      electronAPI.ipcRenderer.on('file-added-from-filesystem', (_event, data) =>
+        callback(data)
+      );
+    },
+
+    removeFileAddedListener: () => {
+      electronAPI.ipcRenderer.removeAllListeners('file-added-from-filesystem');
+    }
   },
 
   // Legacy vault migration operations

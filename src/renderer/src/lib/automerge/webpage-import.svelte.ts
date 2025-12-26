@@ -5,10 +5,17 @@
  * 1. Fetch and extract article content via IPC (uses Defuddle in main process)
  * 2. Store HTML in OPFS (content-addressed)
  * 3. Create note with webpage type
+ * 4. Sync to filesystem if file sync is enabled
  */
 
 import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
-import { createWebpageNote, setActiveItem, addItemToWorkspace } from './state.svelte';
+import {
+  createWebpageNote,
+  setActiveItem,
+  addItemToWorkspace,
+  getIsFileSyncEnabled
+} from './state.svelte';
+import { syncFileToFilesystem } from './file-sync.svelte';
 import type { WebpageMetadata } from './types';
 
 /**
@@ -70,6 +77,14 @@ export async function importWebpageFromUrl(url: string): Promise<WebpageImportRe
     metadata as unknown as Record<string, unknown>
   );
 
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    const encoder = new TextEncoder();
+    await syncFileToFilesystem('webpage', hash, encoder.encode(html), {
+      metadata: metadata as unknown as Record<string, unknown>
+    });
+  }
+
   // Create the note
   const noteId = createWebpageNote({
     title: metadata.title || 'Untitled',
@@ -116,4 +131,58 @@ export async function getWebpageMetadata(hash: string): Promise<WebpageMetadata 
   const data = await webpageOpfsStorage.retrieveMetadata(hash);
   if (!data) return null;
   return data as unknown as WebpageMetadata;
+}
+
+/**
+ * Import a webpage from filesystem (reverse sync).
+ * Used when a webpage file is added directly to the sync folder.
+ *
+ * @param hash - The content hash from the filename
+ * @param htmlContent - The HTML content
+ * @param metadata - Optional metadata from the .meta.json file
+ * @returns Import result with note ID, hash, and metadata
+ */
+export async function importWebpageFromFilesystem(
+  _hash: string,
+  htmlContent: string,
+  metadata?: Record<string, unknown>
+): Promise<WebpageImportResult> {
+  // Store HTML in OPFS (should deduplicate since hash matches)
+  const storedHash = await webpageOpfsStorage.store(htmlContent);
+
+  // Store metadata if provided
+  if (metadata) {
+    await webpageOpfsStorage.storeMetadata(storedHash, metadata);
+  }
+
+  // Extract metadata for note creation
+  const title = (metadata?.title as string) || 'Imported Webpage';
+  const url = (metadata?.url as string) || '';
+  const author = metadata?.author as string | undefined;
+  const siteName = metadata?.siteName as string | undefined;
+  const excerpt = metadata?.excerpt as string | undefined;
+
+  // Create the note
+  const noteId = createWebpageNote({
+    title,
+    webpageHash: storedHash,
+    webpageUrl: url,
+    webpageTitle: title,
+    webpageAuthor: author,
+    webpageSiteName: siteName,
+    webpageExcerpt: excerpt
+  });
+
+  // Add to workspace and set as active
+  addItemToWorkspace({ type: 'note', id: noteId });
+  setActiveItem({ type: 'note', id: noteId });
+
+  return {
+    noteId,
+    hash: storedHash,
+    title,
+    url,
+    author,
+    siteName
+  };
 }

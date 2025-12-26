@@ -5,11 +5,18 @@
  * 1. Store binary in OPFS (content-addressed)
  * 2. Extract metadata (title, author)
  * 3. Create note with EPUB type
+ * 4. Sync to filesystem if file sync is enabled
  */
 
 import { unzipSync } from 'fflate';
 import { opfsStorage } from './opfs-storage.svelte';
-import { createEpubNote, setActiveItem, addItemToWorkspace } from './state.svelte';
+import {
+  createEpubNote,
+  setActiveItem,
+  addItemToWorkspace,
+  getIsFileSyncEnabled
+} from './state.svelte';
+import { syncFileToFilesystem } from './file-sync.svelte';
 import type { EpubMetadata } from './types';
 
 /**
@@ -143,6 +150,11 @@ export async function importEpubFile(file: File): Promise<EpubImportResult> {
   // Store in OPFS (content-addressed by hash)
   const hash = await opfsStorage.store(arrayBuffer);
 
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('epub', hash, new Uint8Array(arrayBuffer));
+  }
+
   // Extract metadata
   const metadata = extractEpubMetadata(arrayBuffer, file.name);
 
@@ -187,8 +199,13 @@ export async function importEpubFromData(
   // Store in OPFS
   const hash = await opfsStorage.store(arrayBuffer);
 
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('epub', hash, new Uint8Array(arrayBuffer));
+  }
+
   // Extract metadata
-  const metadata = await extractEpubMetadata(arrayBuffer, filename);
+  const metadata = extractEpubMetadata(arrayBuffer, filename);
 
   // Create the note
   const noteId = createEpubNote({

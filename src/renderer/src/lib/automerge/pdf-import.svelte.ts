@@ -5,12 +5,19 @@
  * 1. Store binary in OPFS (content-addressed)
  * 2. Extract metadata (title, author, page count)
  * 3. Create note with PDF type
+ * 4. Sync to filesystem if file sync is enabled
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
-import { createPdfNote, setActiveItem, addItemToWorkspace } from './state.svelte';
+import {
+  createPdfNote,
+  setActiveItem,
+  addItemToWorkspace,
+  getIsFileSyncEnabled
+} from './state.svelte';
+import { syncFileToFilesystem } from './file-sync.svelte';
 import type { PdfMetadata } from './types';
 
 // Configure PDF.js worker (using Vite's URL import for local bundling)
@@ -100,6 +107,11 @@ export async function importPdfFile(file: File): Promise<PdfImportResult> {
   // Store in OPFS (content-addressed by hash)
   const hash = await pdfOpfsStorage.store(arrayBuffer);
 
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('pdf', hash, new Uint8Array(arrayBuffer));
+  }
+
   // Extract metadata
   const metadata = await extractPdfMetadata(arrayBuffer, file.name);
 
@@ -145,6 +157,11 @@ export async function importPdfFromData(
 
   // Store in OPFS
   const hash = await pdfOpfsStorage.store(arrayBuffer);
+
+  // Sync to filesystem if file sync is enabled
+  if (getIsFileSyncEnabled()) {
+    await syncFileToFilesystem('pdf', hash, new Uint8Array(arrayBuffer));
+  }
 
   // Extract metadata
   const metadata = await extractPdfMetadata(arrayBuffer, filename);

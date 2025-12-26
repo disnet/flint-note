@@ -8,6 +8,8 @@ export {
   disposeVaultRepo,
   getNetworkAdapterForWebContents,
   getActiveVaultId,
+  getActiveVaultBaseDirectory,
   disposeAllVaultRepos
 } from './vault-manager';
 export { setupMarkdownSync } from './markdown-sync';
+export { setupFileSync, cleanupFileSync, cleanupAllFileSync } from './file-sync';

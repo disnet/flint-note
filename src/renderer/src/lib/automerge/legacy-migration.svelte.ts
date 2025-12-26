@@ -28,6 +28,46 @@ import { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
 import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
 import { imageOpfsStorage } from './image-opfs-storage.svelte';
 
+// Helper to check if filesystem sync API is available
+function getFileSyncAPI() {
+  return (window as { api?: { automergeSync?: typeof window.api.automergeSync } }).api
+    ?.automergeSync;
+}
+
+/**
+ * Sync a file to the filesystem during migration.
+ * This bypasses the normal file sync state check since the vault doesn't exist yet.
+ */
+async function syncFileToFilesystemDuringMigration(
+  baseDirectory: string,
+  fileType: 'pdf' | 'epub' | 'webpage' | 'image',
+  hash: string,
+  data: Uint8Array,
+  options?: {
+    extension?: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<void> {
+  const syncAPI = getFileSyncAPI();
+  if (!syncAPI?.writeFileToFilesystem) {
+    return;
+  }
+
+  try {
+    await syncAPI.writeFileToFilesystem({
+      fileType,
+      hash,
+      data,
+      extension: options?.extension,
+      metadata: options?.metadata,
+      baseDirectory
+    });
+  } catch (error) {
+    // Log but don't fail migration if filesystem sync fails
+    console.warn(`[Migration] Failed to sync ${fileType} to filesystem:`, error);
+  }
+}
+
 // Types from the main process migration module
 export interface LegacyVaultInfo {
   path: string;
@@ -243,7 +283,8 @@ function isValidPdfData(data: Uint8Array): boolean {
  * Store an EPUB file in OPFS and return the hash
  */
 async function storeEpubInOPFS(
-  fileData: Uint8Array | ArrayLike<number>
+  fileData: Uint8Array | ArrayLike<number>,
+  baseDirectory: string
 ): Promise<string> {
   // When data comes through Electron IPC, Uint8Array might be serialized as a plain object
   // with numeric keys. We need to handle both cases.
@@ -279,13 +320,21 @@ async function storeEpubInOPFS(
     throw new Error('EPUB data is not a valid ZIP file');
   }
 
-  return await opfsStorage.store(uint8Array.buffer as ArrayBuffer);
+  const hash = await opfsStorage.store(uint8Array.buffer as ArrayBuffer);
+
+  // Also sync to filesystem for file sync feature
+  await syncFileToFilesystemDuringMigration(baseDirectory, 'epub', hash, uint8Array);
+
+  return hash;
 }
 
 /**
  * Store a PDF file in OPFS and return the hash
  */
-async function storePdfInOPFS(fileData: Uint8Array | ArrayLike<number>): Promise<string> {
+async function storePdfInOPFS(
+  fileData: Uint8Array | ArrayLike<number>,
+  baseDirectory: string
+): Promise<string> {
   // When data comes through Electron IPC, Uint8Array might be serialized as a plain object
   // with numeric keys. We need to handle both cases.
   let uint8Array: Uint8Array;
@@ -320,7 +369,12 @@ async function storePdfInOPFS(fileData: Uint8Array | ArrayLike<number>): Promise
     throw new Error('PDF data is not a valid PDF file');
   }
 
-  return await pdfOpfsStorage.store(uint8Array.buffer as ArrayBuffer);
+  const hash = await pdfOpfsStorage.store(uint8Array.buffer as ArrayBuffer);
+
+  // Also sync to filesystem for file sync feature
+  await syncFileToFilesystemDuringMigration(baseDirectory, 'pdf', hash, uint8Array);
+
+  return hash;
 }
 
 /**
@@ -398,12 +452,24 @@ function updatePdfNoteProps(
 /**
  * Store a webpage HTML file in OPFS and return the hash
  */
-async function storeWebpageInOPFS(htmlContent: string): Promise<string> {
+async function storeWebpageInOPFS(
+  htmlContent: string,
+  baseDirectory: string,
+  metadata?: Record<string, unknown>
+): Promise<string> {
   if (!htmlContent || htmlContent.length === 0) {
     throw new Error('Webpage HTML content is empty');
   }
 
-  return await webpageOpfsStorage.store(htmlContent);
+  const hash = await webpageOpfsStorage.store(htmlContent);
+
+  // Also sync to filesystem for file sync feature
+  const encoder = new TextEncoder();
+  await syncFileToFilesystemDuringMigration(baseDirectory, 'webpage', hash, encoder.encode(htmlContent), {
+    metadata
+  });
+
+  return hash;
 }
 
 /**
@@ -459,7 +525,8 @@ type ImageUrlMapping = Record<string, string>;
  */
 async function storeImageInOPFS(
   fileData: Uint8Array | ArrayLike<number>,
-  extension: string
+  extension: string,
+  baseDirectory: string
 ): Promise<{ shortHash: string; extension: string }> {
   // Convert IPC serialized data to Uint8Array
   let uint8Array: Uint8Array;
@@ -485,6 +552,12 @@ async function storeImageInOPFS(
     uint8Array.buffer as ArrayBuffer,
     extension
   );
+
+  // Also sync to filesystem for file sync feature
+  await syncFileToFilesystemDuringMigration(baseDirectory, 'image', result.shortHash, uint8Array, {
+    extension: result.extension
+  });
+
   return { shortHash: result.shortHash, extension: result.extension };
 }
 
@@ -762,7 +835,7 @@ export async function migrateLegacyVault(
             continue;
           }
 
-          const epubHash = await storeEpubInOPFS(epubFile.fileData);
+          const epubHash = await storeEpubInOPFS(epubFile.fileData, vaultPath);
           updateEpubNoteProps(
             documentData,
             epubFile.noteId,
@@ -813,7 +886,7 @@ export async function migrateLegacyVault(
             continue;
           }
 
-          const pdfHash = await storePdfInOPFS(pdfFile.fileData);
+          const pdfHash = await storePdfInOPFS(pdfFile.fileData, vaultPath);
           updatePdfNoteProps(
             documentData,
             pdfFile.noteId,
@@ -864,7 +937,11 @@ export async function migrateLegacyVault(
             continue;
           }
 
-          const webpageHash = await storeWebpageInOPFS(webpageFile.htmlContent);
+          const webpageHash = await storeWebpageInOPFS(
+            webpageFile.htmlContent,
+            vaultPath,
+            webpageFile.metadata
+          );
           updateWebpageNoteProps(
             documentData,
             webpageFile.noteId,
@@ -913,7 +990,7 @@ export async function migrateLegacyVault(
             continue;
           }
 
-          const result = await storeImageInOPFS(imageFile.fileData, imageFile.extension);
+          const result = await storeImageInOPFS(imageFile.fileData, imageFile.extension, vaultPath);
           // Map old filename to new opfs:// URL
           imageUrlMapping[imageFile.filename] =
             `opfs://images/${result.shortHash}.${result.extension}`;

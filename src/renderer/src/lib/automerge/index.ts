@@ -336,6 +336,7 @@ export type { PdfImportResult } from './pdf-import.svelte';
 // Webpage import
 export {
   importWebpageFromUrl,
+  importWebpageFromFilesystem,
   webpageExists,
   getWebpageHtml,
   getWebpageMetadata
@@ -461,3 +462,15 @@ export {
   generateSessionId
 } from './review-scheduler';
 export type { NextSessionResult } from './review-scheduler';
+
+// File sync (PDFs, EPUBs, web archives, images)
+export {
+  syncFileToFilesystem,
+  fileExistsOnFilesystem,
+  handleFileAddedFromFilesystem,
+  performInitialFileSync,
+  performReverseFileSync,
+  setupFileSyncListener,
+  isFileSyncAvailable
+} from './file-sync.svelte';
+export type { FileType as FileSyncFileType } from './file-sync.svelte';
