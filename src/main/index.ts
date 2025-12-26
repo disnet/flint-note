@@ -1,9 +1,21 @@
-import { app, shell, BrowserWindow, ipcMain, Menu, dialog, nativeTheme } from 'electron';
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  dialog,
+  nativeTheme,
+  contentTracing
+} from 'electron';
 import { setupDevUserDataPath, getAppUserModelId } from './build-type';
 
 // Must be called before app.whenReady() and before any code uses app.getPath('userData')
 // This isolates dev builds from production on case-insensitive filesystems (macOS)
 setupDevUserDataPath();
+
+// Check if startup tracing is enabled via env var
+const enableStartupTracing = process.env.TRACE_STARTUP === '1';
 
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
@@ -278,8 +290,17 @@ async function createWindow(
     updateWindowState();
   });
 
-  mainWindow.on('ready-to-show', () => {
+  mainWindow.on('ready-to-show', async () => {
     mainWindow.show();
+
+    // Stop startup tracing if it was enabled
+    if (enableStartupTracing) {
+      // Wait a bit for initial render to complete
+      setTimeout(async () => {
+        const path = await contentTracing.stopRecording();
+        console.log('Startup trace saved to:', path);
+      }, 9000);
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -364,13 +385,30 @@ async function createWindow(
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools({ mode: 'detach' });
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  // Start tracing as early as possible after app is ready
+  if (enableStartupTracing) {
+    await contentTracing.startRecording({
+      included_categories: [
+        'devtools.timeline',
+        'disabled-by-default-devtools.timeline',
+        'disabled-by-default-devtools.timeline.frame',
+        'blink',
+        'blink.user_timing',
+        'v8.execute',
+        'cc',
+        'gpu'
+      ]
+    });
+    console.log('Startup tracing started...');
+  }
+
   logger.info('Application ready, initializing main process');
 
   // Set app user model id for windows (varies by build type: dev, canary, production)

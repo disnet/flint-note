@@ -25,6 +25,7 @@
     "check": "npm run lint && npm run typecheck",
     "clean": "rm -rf out dist node_modules/.vite",
     "dev": "npm run build && electron .",
+    "dev:debug": "npm run build && TRACE_STARTUP=1 electron . --remote-debugging-port=9222",
     "build:renderer": "vite build --config vite.renderer.config.ts",
     "build:electron": "electron-vite build --config electron.vite.main-preload.config.ts",
     "build": "npm run typecheck && npm run build:electron && npm run build:renderer",
