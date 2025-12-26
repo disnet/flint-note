@@ -29,7 +29,7 @@ import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
 import { imageOpfsStorage } from './image-opfs-storage.svelte';
 
 // Helper to check if filesystem sync API is available
-function getFileSyncAPI() {
+function getFileSyncAPI(): typeof window.api.automergeSync | undefined {
   return (window as { api?: { automergeSync?: typeof window.api.automergeSync } }).api
     ?.automergeSync;
 }
@@ -465,9 +465,15 @@ async function storeWebpageInOPFS(
 
   // Also sync to filesystem for file sync feature
   const encoder = new TextEncoder();
-  await syncFileToFilesystemDuringMigration(baseDirectory, 'webpage', hash, encoder.encode(htmlContent), {
-    metadata
-  });
+  await syncFileToFilesystemDuringMigration(
+    baseDirectory,
+    'webpage',
+    hash,
+    encoder.encode(htmlContent),
+    {
+      metadata
+    }
+  );
 
   return hash;
 }
@@ -554,9 +560,15 @@ async function storeImageInOPFS(
   );
 
   // Also sync to filesystem for file sync feature
-  await syncFileToFilesystemDuringMigration(baseDirectory, 'image', result.shortHash, uint8Array, {
-    extension: result.extension
-  });
+  await syncFileToFilesystemDuringMigration(
+    baseDirectory,
+    'image',
+    result.shortHash,
+    uint8Array,
+    {
+      extension: result.extension
+    }
+  );
 
   return { shortHash: result.shortHash, extension: result.extension };
 }
@@ -990,7 +1002,11 @@ export async function migrateLegacyVault(
             continue;
           }
 
-          const result = await storeImageInOPFS(imageFile.fileData, imageFile.extension, vaultPath);
+          const result = await storeImageInOPFS(
+            imageFile.fileData,
+            imageFile.extension,
+            vaultPath
+          );
           // Map old filename to new opfs:// URL
           imageUrlMapping[imageFile.filename] =
             `opfs://images/${result.shortHash}.${result.extension}`;

@@ -400,7 +400,7 @@ export function setupFileSync(
   // Debounce map for file events
   const debounceTimers = new Map<string, NodeJS.Timeout>();
 
-  const handleFileAdd = async (filePath: string) => {
+  const handleFileAdd = async (filePath: string): Promise<void> => {
     const relativePath = path.relative(baseDirectory, filePath);
     const writing = filesBeingWritten.get(vaultId);
 

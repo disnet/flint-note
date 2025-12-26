@@ -1167,7 +1167,8 @@ app.whenReady().then(async () => {
       }
     ) => {
       // Use provided baseDirectory (migration) or look up from active vault
-      const baseDirectory = params.baseDirectory || getActiveVaultBaseDirectory(event.sender.id);
+      const baseDirectory =
+        params.baseDirectory || getActiveVaultBaseDirectory(event.sender.id);
       if (!baseDirectory) {
         throw new Error('No vault with file sync enabled for this window');
       }

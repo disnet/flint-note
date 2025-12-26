@@ -21,6 +21,7 @@ import {
   getImageFiles,
   buildMarkdownImageSyntax
 } from './image-import.svelte';
+import { getActiveVault } from './state.svelte';
 
 // Regex to match OPFS image markdown: ![alt](opfs://images/hash.ext)
 const IMAGE_REGEX = /!\[([^\]]*)\]\((opfs:\/\/images\/([a-f0-9]{8})\.(\w+))\)/gi;
@@ -193,7 +194,7 @@ function isInCodeContext(state: EditorState, pos: number): boolean {
 }
 
 /**
- * Image widget for rendering inline images
+ * Image widget for rendering inline images with editing controls
  */
 class ImageWidget extends WidgetType {
   constructor(
@@ -202,13 +203,17 @@ class ImageWidget extends WidgetType {
     private altText: string,
     private blobUrl: string | null,
     private isLoading: boolean,
-    private error: string | null
+    private error: string | null,
+    private view: EditorView,
+    private from: number,
+    private to: number,
+    private vaultBasePath: string | undefined
   ) {
     super();
   }
 
   toDOM(): HTMLElement {
-    const container = document.createElement('span');
+    const container = document.createElement('div');
     container.className = 'cm-image-widget';
 
     if (this.isLoading) {
@@ -240,6 +245,73 @@ class ImageWidget extends WidgetType {
       };
 
       container.appendChild(img);
+
+      // Add controls row below image
+      const controlsRow = document.createElement('div');
+      controlsRow.className = 'cm-image-controls';
+
+      // Alt text input
+      const altInput = document.createElement('input');
+      altInput.type = 'text';
+      altInput.className = 'cm-image-alt-input';
+      altInput.placeholder = 'Alt text...';
+      altInput.value = this.altText;
+
+      // Update alt text on blur or enter
+      const updateAltText = (): void => {
+        const newAltText = altInput.value;
+        if (newAltText !== this.altText) {
+          const newMarkdown = `![${newAltText}](opfs://images/${this.shortHash}.${this.extension})`;
+          try {
+            this.view.dispatch({
+              changes: {
+                from: this.from,
+                to: this.to,
+                insert: newMarkdown
+              }
+            });
+          } catch {
+            // View may have been destroyed
+          }
+        }
+      };
+
+      altInput.addEventListener('blur', updateAltText);
+      altInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          altInput.blur();
+        }
+        // Stop propagation to prevent editor from handling these keys
+        e.stopPropagation();
+      });
+      // Prevent input events from bubbling to editor
+      altInput.addEventListener('input', (e) => e.stopPropagation());
+
+      controlsRow.appendChild(altInput);
+
+      // File link (only if vault has base path)
+      if (this.vaultBasePath) {
+        const filePath = `files/images/${this.shortHash}.${this.extension}`;
+        const fullPath = `${this.vaultBasePath}/${filePath}`;
+
+        const fileLink = document.createElement('a');
+        fileLink.className = 'cm-image-file-link';
+        fileLink.href = '#';
+        fileLink.textContent = filePath;
+        fileLink.title = `Open in Finder: ${fullPath}`;
+
+        fileLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // Open in system file explorer
+          window.api?.showItemInFolder({ path: fullPath });
+        });
+
+        controlsRow.appendChild(fileLink);
+      }
+
+      container.appendChild(controlsRow);
     } else {
       container.classList.add('cm-image-missing');
       const missing = document.createElement('span');
@@ -258,11 +330,25 @@ class ImageWidget extends WidgetType {
       this.altText === other.altText &&
       this.blobUrl === other.blobUrl &&
       this.isLoading === other.isLoading &&
-      this.error === other.error
+      this.error === other.error &&
+      this.from === other.from &&
+      this.to === other.to &&
+      this.vaultBasePath === other.vaultBasePath
     );
   }
 
-  ignoreEvent(): boolean {
+  ignoreEvent(event: Event): boolean {
+    // Allow input, click, and keyboard events for the controls
+    if (
+      event.type === 'input' ||
+      event.type === 'click' ||
+      event.type === 'keydown' ||
+      event.type === 'keyup' ||
+      event.type === 'focus' ||
+      event.type === 'blur'
+    ) {
+      return false;
+    }
     return true;
   }
 }
@@ -274,6 +360,10 @@ function createImageDecorations(state: EditorState, view: EditorView): Decoratio
   const decorations: Range<Decoration>[] = [];
   const text = state.doc.toString();
   const images = parseImages(text);
+
+  // Get vault base path for file links
+  const vault = getActiveVault();
+  const vaultBasePath = vault?.baseDirectory;
 
   for (const image of images) {
     // Skip images inside code blocks
@@ -295,14 +385,18 @@ function createImageDecorations(state: EditorState, view: EditorView): Decoratio
       image.altText,
       imageState.blobUrl,
       imageState.isLoading,
-      imageState.error
+      imageState.error,
+      view,
+      image.from,
+      image.to,
+      vaultBasePath
     );
 
     decorations.push(
       Decoration.replace({
         widget,
         inclusive: false,
-        block: false
+        block: true // Make it a block widget for better layout
       }).range(image.from, image.to)
     );
   }
@@ -423,9 +517,8 @@ function createImageDomEventHandlers(): Extension {
  */
 const imageStyles = EditorView.baseTheme({
   '.cm-image-widget': {
-    display: 'inline-block',
-    verticalAlign: 'middle',
-    margin: '4px 0'
+    display: 'block',
+    margin: '8px 0'
   },
   '.cm-inline-image': {
     maxWidth: '100%',
@@ -433,6 +526,47 @@ const imageStyles = EditorView.baseTheme({
     objectFit: 'contain',
     borderRadius: '4px',
     display: 'block'
+  },
+  '.cm-image-controls': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '4px',
+    padding: '4px 0',
+    fontSize: '12px',
+    width: '100%'
+  },
+  '.cm-image-alt-input': {
+    flex: '1 1 auto',
+    minWidth: '100px',
+    padding: '4px 8px',
+    border: '1px solid var(--border-color, #ddd)',
+    borderRadius: '4px',
+    fontSize: '12px',
+    backgroundColor: 'var(--bg-primary, #fff)',
+    color: 'var(--text-primary, #333)',
+    outline: 'none',
+    '&:focus': {
+      borderColor: 'var(--accent-color, #007bff)',
+      boxShadow: '0 0 0 2px var(--accent-color-subtle, rgba(0,123,255,0.25))'
+    },
+    '&::placeholder': {
+      color: 'var(--text-tertiary, #999)'
+    }
+  },
+  '.cm-image-file-link': {
+    color: 'var(--text-secondary, #666)',
+    textDecoration: 'none',
+    fontFamily: 'monospace',
+    fontSize: '11px',
+    padding: '2px 6px',
+    borderRadius: '3px',
+    backgroundColor: 'var(--bg-secondary, #f5f5f5)',
+    '&:hover': {
+      color: 'var(--accent-color, #007bff)',
+      backgroundColor: 'var(--bg-tertiary, #eee)',
+      textDecoration: 'underline'
+    }
   },
   '.cm-image-loading, .cm-image-error, .cm-image-missing': {
     display: 'inline-block',
