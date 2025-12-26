@@ -1,6 +1,7 @@
 <script lang="ts">
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  import { getNote } from '../lib/automerge/state.svelte';
 
   interface Props {
     text: string;
@@ -86,11 +87,12 @@
       if (match[1]) {
         // [[note-id]] or [[note-id|display text]] format
         noteId = match[1];
-        displayText = match[2] || noteId;
+        // Use explicit display text, or look up note title, or fall back to noteId
+        displayText = match[2] || getNote(noteId)?.title || noteId;
       } else if (match[3]) {
         // [note-id] format
         noteId = match[3];
-        displayText = match[3];
+        displayText = getNote(noteId)?.title || noteId;
       } else if (match[4]) {
         // note.md format
         noteId = match[4];
