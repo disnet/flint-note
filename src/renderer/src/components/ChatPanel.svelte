@@ -7,6 +7,7 @@
    */
   import {
     createChatService,
+    TOOL_BREAK_MARKER,
     type ChatService,
     type ChatMessage
   } from '../lib/automerge/chat-service.svelte';
@@ -139,6 +140,13 @@
   // Helper to get text content from ChatMessage
   function getMessageText(message: ChatMessage): string {
     return message.content;
+  }
+
+  // Helper to split message content into segments (pre-tool and post-tool)
+  function getMessageSegments(message: ChatMessage): string[] {
+    if (!message.content) return [];
+    const segments = message.content.split(TOOL_BREAK_MARKER);
+    return segments.filter((s) => s.trim());
   }
 
   // Check if message has tool calls
@@ -302,46 +310,74 @@
                     class:user={message.role === 'user'}
                     class:assistant={message.role === 'assistant'}
                   >
-                    {#if hasToolCalls(message)}
-                      <!-- Show tool calls indicator -->
-                      <div class="tool-calls-indicator">
-                        {#each message.toolCalls ?? [] as toolCall (toolCall.id)}
-                          <div
-                            class="tool-call"
-                            class:running={toolCall.status === 'running'}
-                            class:completed={toolCall.status === 'completed'}
-                          >
-                            <span class="tool-icon">
-                              {#if toolCall.status === 'running'}
-                                <span class="tool-spinner"></span>
-                              {:else}
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                >
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                              {/if}
-                            </span>
-                            <span class="tool-name"
-                              >{toolCall.name.replace(/_/g, ' ')}</span
+                    {#if message.role === 'user'}
+                      <!-- User messages: render as single block -->
+                      {#if getMessageText(message)}
+                        <ConversationMessage
+                          content={getMessageText(message)}
+                          role="user"
+                          variant="bubble"
+                          noAnimation={true}
+                          onNoteClick={handleNoteClick}
+                        />
+                      {/if}
+                    {:else}
+                      <!-- Assistant messages: render segments with tool calls in between -->
+                      {@const segments = getMessageSegments(message)}
+                      {#if segments.length > 0}
+                        <!-- First segment (before tool calls) -->
+                        <ConversationMessage
+                          content={segments[0]}
+                          role="agent"
+                          variant="bubble"
+                          noAnimation={true}
+                          onNoteClick={handleNoteClick}
+                        />
+                      {/if}
+                      {#if hasToolCalls(message)}
+                        <!-- Show tool calls indicator -->
+                        <div class="tool-calls-indicator">
+                          {#each message.toolCalls ?? [] as toolCall (toolCall.id)}
+                            <div
+                              class="tool-call"
+                              class:running={toolCall.status === 'running'}
+                              class:completed={toolCall.status === 'completed'}
                             >
-                          </div>
+                              <span class="tool-icon">
+                                {#if toolCall.status === 'running'}
+                                  <span class="tool-spinner"></span>
+                                {:else}
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                  >
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                  </svg>
+                                {/if}
+                              </span>
+                              <span class="tool-name"
+                                >{toolCall.name.replace(/_/g, ' ')}</span
+                              >
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+                      {#if segments.length > 1}
+                        <!-- Remaining segments (after tool calls) -->
+                        {#each segments.slice(1) as segment, i (i)}
+                          <ConversationMessage
+                            content={segment}
+                            role="agent"
+                            variant="bubble"
+                            noAnimation={true}
+                            onNoteClick={handleNoteClick}
+                          />
                         {/each}
-                      </div>
-                    {/if}
-                    {#if getMessageText(message)}
-                      <ConversationMessage
-                        content={getMessageText(message)}
-                        role={message.role === 'user' ? 'user' : 'agent'}
-                        variant="bubble"
-                        noAnimation={true}
-                        onNoteClick={handleNoteClick}
-                      />
+                      {/if}
                     {/if}
                   </div>
                 {/each}
@@ -586,6 +622,9 @@
 
   .message-wrapper.assistant {
     align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .empty-chat {

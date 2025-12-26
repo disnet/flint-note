@@ -105,6 +105,12 @@ Be concise and helpful. When showing note content, format it nicely. Always conf
 /**
  * Chat Service class that manages AI conversations with tool support
  */
+/**
+ * Marker inserted between text segments when tool calls occur.
+ * Used to visually separate pre-tool and post-tool content in the UI.
+ */
+export const TOOL_BREAK_MARKER = '\n\n<!-- tool-break -->\n\n';
+
 export class ChatService {
   private proxyUrl: string;
   private _messages = $state<ChatMessage[]>([]);
@@ -113,6 +119,9 @@ export class ChatService {
   private _conversationId = $state<string | null>(null);
   private abortController: AbortController | null = null;
   private currentAssistantMessageId: string | null = null;
+  // Track if we've had tool calls in the current message (to know when to insert breaks)
+  private hasHadToolCalls = false;
+  private hasTextAfterTools = false;
 
   constructor(proxyPort: number) {
     this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
@@ -222,6 +231,9 @@ export class ChatService {
       toolCalls: []
     });
     this.currentAssistantMessageId = assistantMessageId;
+    // Reset tool tracking for new message
+    this.hasHadToolCalls = false;
+    this.hasTextAfterTools = false;
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
@@ -305,6 +317,16 @@ export class ChatService {
       for await (const event of result.fullStream) {
         switch (event.type) {
           case 'text-delta':
+            // If we've had tool calls and this is new text after them, insert a break marker
+            if (this.hasHadToolCalls && !this.hasTextAfterTools) {
+              this.hasTextAfterTools = true;
+              this.updateLastAssistantMessage((msg) => {
+                // Only insert marker if there was content before the tools
+                if (msg.content.trim()) {
+                  msg.content += TOOL_BREAK_MARKER;
+                }
+              });
+            }
             // Append text to assistant message
             this.updateLastAssistantMessage((msg) => {
               msg.content += event.text;
@@ -312,6 +334,8 @@ export class ChatService {
             break;
 
           case 'tool-call':
+            // Mark that we've seen tool calls
+            this.hasHadToolCalls = true;
             // Add tool call to assistant message
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];

@@ -15,6 +15,34 @@
     displayText: string;
   }
 
+  /**
+   * Normalize markdown to ensure proper spacing for elements that require blank lines.
+   * Fixes issues where AI-generated content runs together without proper separation.
+   */
+  function normalizeMarkdown(input: string): string {
+    let result = input;
+
+    // Ensure headings have a blank line before them (unless at start of text)
+    // Match: non-newline character followed by newline then heading
+    result = result.replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2');
+
+    // Also handle case where heading directly follows text without any newline
+    result = result.replace(/([^\n\s])(#{1,6}\s)/g, '$1\n\n$2');
+
+    // Ensure horizontal rules (--- or ***) have blank lines around them
+    result = result.replace(/([^\n])\n([-*]{3,})\n/g, '$1\n\n$2\n\n');
+    result = result.replace(/\n([-*]{3,})\n([^\n])/g, '\n\n$1\n\n$2');
+
+    // Ensure code blocks have blank lines around them
+    result = result.replace(/([^\n])\n(```)/g, '$1\n\n$2');
+    result = result.replace(/(```)\n([^\n`])/g, '$1\n\n$2');
+
+    // Ensure blockquotes have a blank line before them (unless at start)
+    result = result.replace(/([^\n>])\n(>\s)/g, '$1\n\n$2');
+
+    return result;
+  }
+
   function extractCodeSpans(text: string): {
     text: string;
     codeSpans: string[];
@@ -104,8 +132,11 @@
   }
 
   const renderedHtml = $derived.by(() => {
+    // Step 0: Normalize markdown spacing (before any other processing)
+    const normalizedText = normalizeMarkdown(text);
+
     // Step 1: Extract code spans to preserve them from note link parsing
-    const { text: textWithoutCode, codeSpans } = extractCodeSpans(text);
+    const { text: textWithoutCode, codeSpans } = extractCodeSpans(normalizedText);
 
     // Step 2: Extract note links from text (but not from code spans)
     const { text: textWithoutNotes, noteLinks } = extractNoteLinks(textWithoutCode);
