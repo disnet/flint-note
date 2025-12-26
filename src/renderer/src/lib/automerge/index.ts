@@ -66,7 +66,11 @@ export type {
   UpdateRoutineInput,
   CompleteRoutineInput,
   ListRoutinesInput,
-  GetRoutineInput
+  GetRoutineInput,
+  // Note filter types
+  NoteFilterOperator,
+  NoteFilter,
+  NoteFilterInput
 } from './types';
 
 // State management
@@ -95,6 +99,7 @@ export {
   getAllNotes,
   searchNotes,
   getNotesByType,
+  filterNotes,
 
   // Note mutations
   createNote,

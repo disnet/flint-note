@@ -7,12 +7,16 @@ import type { NoteMetadata, NoteType } from '../types';
 import type {
   DeckConfig,
   DeckFilter,
-  DeckSort,
-  FilterOperator
+  DeckSort
 } from '../../../../../shared/deck-yaml-utils';
 import { getActiveView, DEFAULT_PAGE_SIZE } from '../../../../../shared/deck-yaml-utils';
 import type { DeckQueryResult, DeckQueryOptions, FilterFieldInfo } from './deck-types';
 import { noteToResultNote, EMPTY_FILTER_VALUE } from './deck-types';
+import {
+  getFilterFieldValue,
+  applyFilterOperator,
+  compareValues
+} from '../filter-utils.svelte';
 
 /**
  * Execute a deck query against the provided notes
@@ -81,8 +85,8 @@ function matchesFilter(
 ): boolean {
   const { field, operator = '=', value } = filter;
 
-  // Get the value to compare
-  const noteValue = getFieldValue(note, field, noteTypes);
+  // Get the value to compare (uses shared utility)
+  const noteValue = getFilterFieldValue(note, field, noteTypes);
 
   // Handle empty filter value
   if (value === EMPTY_FILTER_VALUE) {
@@ -99,153 +103,8 @@ function matchesFilter(
     return false;
   }
 
-  return applyOperator(noteValue, operator, value);
-}
-
-/**
- * Get the value of a field from a note
- */
-function getFieldValue(
-  note: NoteMetadata,
-  field: string,
-  noteTypes: Record<string, NoteType>
-): unknown {
-  // System fields (prefixed with flint_)
-  switch (field) {
-    case 'flint_type':
-      // Return the type name for comparison (UI shows type names)
-      return noteTypes[note.type]?.name || note.type;
-    case 'flint_title':
-      return note.title;
-    case 'flint_created':
-      return note.created;
-    case 'flint_updated':
-      return note.updated;
-    case 'flint_archived':
-      return note.archived;
-    default:
-      // Custom field from note.props
-      return note.props?.[field];
-  }
-}
-
-/**
- * Apply a filter operator to compare values
- */
-function applyOperator(
-  noteValue: unknown,
-  operator: FilterOperator,
-  filterValue: string | string[]
-): boolean {
-  // Convert note value to string for comparison
-  const noteStr = Array.isArray(noteValue) ? noteValue.map(String) : String(noteValue);
-
-  switch (operator) {
-    case '=':
-      if (Array.isArray(noteStr)) {
-        // For array fields, check if the filter value is in the array
-        return noteStr.includes(String(filterValue));
-      }
-      return noteStr === String(filterValue);
-
-    case '!=':
-      if (Array.isArray(noteStr)) {
-        return !noteStr.includes(String(filterValue));
-      }
-      return noteStr !== String(filterValue);
-
-    case '>':
-      return compareValues(noteValue, filterValue) > 0;
-
-    case '<':
-      return compareValues(noteValue, filterValue) < 0;
-
-    case '>=':
-      return compareValues(noteValue, filterValue) >= 0;
-
-    case '<=':
-      return compareValues(noteValue, filterValue) <= 0;
-
-    case 'LIKE': {
-      // SQL LIKE pattern matching: % matches any sequence, _ matches any single char
-      const pattern = String(filterValue).replace(/%/g, '.*').replace(/_/g, '.');
-      const regex = new RegExp(`^${pattern}$`, 'i');
-      if (Array.isArray(noteStr)) {
-        return noteStr.some((v) => regex.test(v));
-      }
-      return regex.test(noteStr);
-    }
-
-    case 'IN': {
-      const values = Array.isArray(filterValue)
-        ? filterValue
-        : String(filterValue)
-            .split(',')
-            .map((v) => v.trim());
-      if (Array.isArray(noteStr)) {
-        // For array fields, check if any note value is in the filter values
-        return noteStr.some((v) => values.includes(v));
-      }
-      return values.includes(noteStr);
-    }
-
-    case 'NOT IN': {
-      const values = Array.isArray(filterValue)
-        ? filterValue
-        : String(filterValue)
-            .split(',')
-            .map((v) => v.trim());
-      if (Array.isArray(noteStr)) {
-        return !noteStr.some((v) => values.includes(v));
-      }
-      return !values.includes(noteStr);
-    }
-
-    case 'BETWEEN': {
-      const values = Array.isArray(filterValue)
-        ? filterValue
-        : String(filterValue)
-            .split(',')
-            .map((v) => v.trim());
-      if (values.length !== 2) return false;
-      const [min, max] = values;
-      return compareValues(noteValue, min) >= 0 && compareValues(noteValue, max) <= 0;
-    }
-
-    default:
-      return noteStr === String(filterValue);
-  }
-}
-
-/**
- * Compare two values, handling dates and numbers appropriately
- */
-function compareValues(a: unknown, b: unknown): number {
-  // Try to parse as dates first (ISO format)
-  const aStr = String(a);
-  const bStr = String(b);
-
-  // Check if both look like ISO dates
-  if (isISODate(aStr) && isISODate(bStr)) {
-    return new Date(aStr).getTime() - new Date(bStr).getTime();
-  }
-
-  // Try to parse as numbers
-  const aNum = parseFloat(aStr);
-  const bNum = parseFloat(bStr);
-  if (!isNaN(aNum) && !isNaN(bNum)) {
-    return aNum - bNum;
-  }
-
-  // Fall back to string comparison
-  return aStr.localeCompare(bStr);
-}
-
-/**
- * Check if a string looks like an ISO date
- */
-function isISODate(str: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}/.test(str);
+  // Use shared filter operator logic
+  return applyFilterOperator(noteValue, operator, value);
 }
 
 /**
@@ -314,7 +173,7 @@ export function getFieldValues(
 
   for (const note of allNotes) {
     if (note.archived) continue;
-    const value = getFieldValue(note, field, noteTypes);
+    const value = getFilterFieldValue(note, field, noteTypes);
     if (value === undefined || value === null) continue;
 
     if (Array.isArray(value)) {

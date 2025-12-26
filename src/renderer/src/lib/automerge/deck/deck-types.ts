@@ -173,8 +173,9 @@ export function getFormatLabel(
 /**
  * Special marker value for filtering on empty/null values.
  * When used as a filter value, matches notes where the field is empty or doesn't exist.
+ * Re-exported from filter-utils for backward compatibility.
  */
-export const EMPTY_FILTER_VALUE = '__empty__';
+export { EMPTY_FILTER_VALUE } from '../filter-utils.svelte';
 
 /**
  * A note returned from a deck query, flattened for display

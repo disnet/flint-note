@@ -150,6 +150,47 @@ export interface Note {
  */
 export type NoteMetadata = Omit<Note, 'content'>;
 
+// ============================================================================
+// Note Filter Types (for agent search tool)
+// ============================================================================
+
+/**
+ * Filter operator for note queries
+ */
+export type NoteFilterOperator =
+  | '='
+  | '!='
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  | 'LIKE'
+  | 'IN'
+  | 'NOT IN'
+  | 'BETWEEN';
+
+/**
+ * A single filter condition for note queries
+ */
+export interface NoteFilter {
+  /** Field to filter on (system: type, title, created, updated, archived; or custom prop name) */
+  field: string;
+  /** Comparison operator (default: =) */
+  operator?: NoteFilterOperator;
+  /** Value to compare against (array for IN/NOT IN/BETWEEN) */
+  value: string | string[];
+}
+
+/**
+ * Input for filtering notes
+ */
+export interface NoteFilterInput {
+  /** Array of filter conditions */
+  filters?: NoteFilter[];
+  /** How to combine filters: AND (all must match) or OR (any can match) */
+  logic?: 'AND' | 'OR';
+}
+
 /**
  * Separate Automerge document for note content.
  * Each note has its own content document for lazy loading and better sync performance.

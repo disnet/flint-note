@@ -36,8 +36,15 @@ import type {
   CreateRoutineInput,
   UpdateRoutineInput,
   CompleteRoutineInput,
-  ListRoutinesInput
+  ListRoutinesInput,
+  NoteFilter,
+  NoteFilterInput
 } from './types';
+import {
+  getFilterFieldValue,
+  applyFilterOperator,
+  EMPTY_FILTER_VALUE
+} from './filter-utils.svelte';
 import {
   generateNoteId,
   generateWorkspaceId,
@@ -439,6 +446,59 @@ export function getNotesByType(typeId: string): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === typeId)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+}
+
+/**
+ * Filter notes by metadata and custom props
+ * Supports comparison operators and AND/OR logic
+ */
+export function filterNotes(
+  notes: NoteMetadata[],
+  input?: NoteFilterInput
+): NoteMetadata[] {
+  if (!input?.filters || input.filters.length === 0) {
+    return notes;
+  }
+
+  const logic = input.logic ?? 'AND';
+  const noteTypes = currentDoc.noteTypes;
+
+  return notes.filter((note) => {
+    if (logic === 'AND') {
+      return input.filters!.every((filter) => matchesNoteFilter(note, filter, noteTypes));
+    } else {
+      return input.filters!.some((filter) => matchesNoteFilter(note, filter, noteTypes));
+    }
+  });
+}
+
+/**
+ * Check if a note matches a single filter condition
+ */
+function matchesNoteFilter(
+  note: NoteMetadata,
+  filter: NoteFilter,
+  noteTypes: Record<string, NoteType>
+): boolean {
+  const { field, operator = '=', value } = filter;
+  const noteValue = getFilterFieldValue(note, field, noteTypes);
+
+  // Handle empty filter value
+  if (value === EMPTY_FILTER_VALUE) {
+    const isEmpty = noteValue === undefined || noteValue === null || noteValue === '';
+    return operator === '=' ? isEmpty : !isEmpty;
+  }
+
+  // Handle null/undefined note values
+  if (noteValue === undefined || noteValue === null) {
+    // For !=, notes without the field should match (they don't equal any value)
+    if (operator === '!=') return true;
+    // For boolean fields filtering on 'false', treat missing as false
+    if (operator === '=' && value === 'false') return true;
+    return false;
+  }
+
+  return applyFilterOperator(noteValue, operator, value);
 }
 
 // --- Note mutations ---

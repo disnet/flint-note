@@ -17,7 +17,8 @@ import {
   archiveNote,
   getBacklinks,
   getNoteType,
-  getNoteContent
+  getNoteContent,
+  filterNotes
 } from './state.svelte';
 import type { NoteMetadata } from './types';
 
@@ -67,23 +68,87 @@ function toNoteResultFromMetadata(
 export function createNoteTools(): Record<string, Tool> {
   return {
     /**
-     * Search notes by query string
+     * Search and filter notes
      */
     search_notes: tool({
       description:
-        'Search notes by query string. Searches note titles and content. Returns matching notes sorted by relevance.',
+        'Search and filter notes. Searches note titles by query string. ' +
+        'Optionally filter by type, date ranges, and custom properties. ' +
+        'Returns matching notes sorted by relevance.',
       inputSchema: z.object({
-        query: z.string().describe('Search query to find in note titles and content'),
+        query: z
+          .string()
+          .optional()
+          .describe('Search query to find in note titles. Optional if using filters.'),
+        filters: z
+          .array(
+            z.object({
+              field: z
+                .string()
+                .describe(
+                  'Field to filter on. System fields: type (note type name), title, created, updated, archived. ' +
+                    'Custom props: use the property name directly (e.g., "status", "priority").'
+                ),
+              operator: z
+                .enum([
+                  '=',
+                  '!=',
+                  '>',
+                  '<',
+                  '>=',
+                  '<=',
+                  'LIKE',
+                  'IN',
+                  'NOT IN',
+                  'BETWEEN'
+                ])
+                .optional()
+                .default('=')
+                .describe(
+                  'Comparison operator (default: =). Use >, <, >=, <= for dates (ISO format) and numbers. ' +
+                    'Use LIKE with % for pattern matching. Use IN/NOT IN for multiple values.'
+                ),
+              value: z
+                .union([z.string(), z.array(z.string())])
+                .describe(
+                  'Value to compare. For dates use ISO format (YYYY-MM-DD). ' +
+                    'For IN/NOT IN/BETWEEN, use an array of values.'
+                )
+            })
+          )
+          .optional()
+          .describe('Filter conditions to apply'),
+        logic: z
+          .enum(['AND', 'OR'])
+          .optional()
+          .default('AND')
+          .describe(
+            'How to combine multiple filters: AND (all must match) or OR (any can match)'
+          ),
         limit: z
           .number()
           .optional()
           .default(10)
           .describe('Maximum number of results to return (default: 10)')
       }),
-      execute: async ({ query, limit }) => {
+      execute: async ({ query, filters, logic, limit }) => {
         try {
-          const results = searchNotes(query);
+          let results: NoteMetadata[];
+
+          // Start with search results if query provided, otherwise all non-archived notes
+          if (query && query.trim()) {
+            results = searchNotes(query);
+          } else {
+            results = getNotes();
+          }
+
+          // Apply filters if provided
+          if (filters && filters.length > 0) {
+            results = filterNotes(results, { filters, logic });
+          }
+
           const limitedResults = results.slice(0, limit);
+
           // Load content for each note
           const noteResults = await Promise.all(
             limitedResults.map(async (n) => {
@@ -91,6 +156,7 @@ export function createNoteTools(): Record<string, Tool> {
               return toNoteResultFromMetadata(n, content);
             })
           );
+
           return {
             success: true,
             notes: noteResults,
@@ -157,22 +223,75 @@ export function createNoteTools(): Record<string, Tool> {
     }),
 
     /**
-     * List notes (recent or all)
+     * List notes with optional filtering
      */
     list_notes: tool({
       description:
-        'List notes in the vault. Returns notes sorted by last updated time (newest first). Use this to see what notes exist.',
+        'List notes in the vault with optional filtering. Returns notes sorted by last updated time (newest first). ' +
+        'Use this to browse notes by type, date, or custom properties without requiring a search query.',
       inputSchema: z.object({
+        filters: z
+          .array(
+            z.object({
+              field: z
+                .string()
+                .describe(
+                  'Field to filter on. System fields: type (note type name), title, created, updated, archived. ' +
+                    'Custom props: use the property name directly (e.g., "status", "priority").'
+                ),
+              operator: z
+                .enum([
+                  '=',
+                  '!=',
+                  '>',
+                  '<',
+                  '>=',
+                  '<=',
+                  'LIKE',
+                  'IN',
+                  'NOT IN',
+                  'BETWEEN'
+                ])
+                .optional()
+                .default('=')
+                .describe(
+                  'Comparison operator (default: =). Use >, <, >=, <= for dates (ISO format) and numbers. ' +
+                    'Use LIKE with % for pattern matching. Use IN/NOT IN for multiple values.'
+                ),
+              value: z
+                .union([z.string(), z.array(z.string())])
+                .describe(
+                  'Value to compare. For dates use ISO format (YYYY-MM-DD). ' +
+                    'For IN/NOT IN/BETWEEN, use an array of values.'
+                )
+            })
+          )
+          .optional()
+          .describe('Filter conditions to apply'),
+        logic: z
+          .enum(['AND', 'OR'])
+          .optional()
+          .default('AND')
+          .describe(
+            'How to combine multiple filters: AND (all must match) or OR (any can match)'
+          ),
         limit: z
           .number()
           .optional()
           .default(20)
           .describe('Maximum number of notes to return (default: 20)')
       }),
-      execute: async ({ limit }) => {
+      execute: async ({ filters, logic, limit }) => {
         try {
-          const notes = getNotes();
+          let notes = getNotes();
+
+          // Apply filters if provided
+          if (filters && filters.length > 0) {
+            notes = filterNotes(notes, { filters, logic });
+          }
+
           const limitedNotes = notes.slice(0, limit);
+
           // Load content for each note
           const noteResults = await Promise.all(
             limitedNotes.map(async (n) => {
@@ -180,6 +299,7 @@ export function createNoteTools(): Record<string, Tool> {
               return toNoteResultFromMetadata(n, content, 200); // Shorter content for list
             })
           );
+
           return {
             success: true,
             notes: noteResults,
