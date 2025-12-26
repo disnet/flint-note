@@ -14,7 +14,8 @@
     getNotesForReview,
     getNextSessionTime,
     incrementSessionNumber,
-    navigateToNote
+    navigateToNote,
+    getNoteContent
   } from '../lib/automerge';
   import type { ReviewRating } from '../lib/automerge/types';
   import { RATING_LABELS, RATING_DESCRIPTIONS } from '../lib/automerge/review-scheduler';
@@ -52,6 +53,7 @@
   let currentPrompt = $state('');
   let userResponse = $state('');
   let agentFeedback = $state<string | null>(null);
+  let currentNoteContent = $state('');
 
   // Note drawer
   let isNoteDrawerOpen = $state(false);
@@ -225,12 +227,15 @@
       userResponse = '';
       agentFeedback = null;
 
+      // Load content from content doc
+      currentNoteContent = await getNoteContent(note.id);
+
       // Switch to prompting state so user can see streaming text
       sessionState = 'prompting';
 
       // Generate review prompt with streaming
       if (reviewService) {
-        await reviewService.generatePrompt(note.title, note.content || '', (text) => {
+        await reviewService.generatePrompt(note.title, currentNoteContent, (text) => {
           currentPrompt = text;
         });
       } else {
@@ -264,8 +269,8 @@
       isGeneratingPrompt = true;
       currentPrompt = '';
 
-      // Generate with streaming
-      await reviewService.generatePrompt(note.title, note.content || '', (text) => {
+      // Generate with streaming (use already loaded content)
+      await reviewService.generatePrompt(note.title, currentNoteContent, (text) => {
         currentPrompt = text;
       });
 
@@ -293,10 +298,10 @@
       sessionState = 'feedback';
 
       if (reviewService) {
-        // Stream the feedback
+        // Stream the feedback (use already loaded content)
         await reviewService.analyzeResponse(
           note.title,
-          note.content || '',
+          currentNoteContent,
           currentPrompt,
           userResponse,
           (text) => {
@@ -782,7 +787,7 @@
     <NoteContentDrawer
       isOpen={isNoteDrawerOpen}
       noteTitle={currentNote.title}
-      noteContent={currentNote.content || ''}
+      noteContent={currentNoteContent}
       onClose={toggleNoteDrawer}
     />
   {/if}

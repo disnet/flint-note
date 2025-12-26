@@ -3,7 +3,7 @@
  * Replaces server-side SQL queries with in-memory filtering
  */
 
-import type { Note, NoteType } from '../types';
+import type { NoteMetadata, NoteType } from '../types';
 import type {
   DeckConfig,
   DeckFilter,
@@ -20,7 +20,7 @@ import { noteToResultNote, EMPTY_FILTER_VALUE } from './deck-types';
  */
 export function runDeckQuery(
   config: DeckConfig,
-  allNotes: Note[],
+  allNotes: NoteMetadata[],
   noteTypes: Record<string, NoteType>,
   options: DeckQueryOptions = {}
 ): DeckQueryResult {
@@ -64,7 +64,7 @@ export function runDeckQuery(
  * Check if a note matches all filters
  */
 function matchesFilters(
-  note: Note,
+  note: NoteMetadata,
   filters: DeckFilter[],
   noteTypes: Record<string, NoteType>
 ): boolean {
@@ -75,7 +75,7 @@ function matchesFilters(
  * Check if a note matches a single filter
  */
 function matchesFilter(
-  note: Note,
+  note: NoteMetadata,
   filter: DeckFilter,
   noteTypes: Record<string, NoteType>
 ): boolean {
@@ -106,7 +106,7 @@ function matchesFilter(
  * Get the value of a field from a note
  */
 function getFieldValue(
-  note: Note,
+  note: NoteMetadata,
   field: string,
   noteTypes: Record<string, NoteType>
 ): unknown {
@@ -252,10 +252,10 @@ function isISODate(str: string): boolean {
  * Sort notes by the specified field and order
  */
 function sortNotes(
-  notes: Note[],
+  notes: NoteMetadata[],
   sort: DeckSort,
   noteTypes: Record<string, NoteType>
-): Note[] {
+): NoteMetadata[] {
   const { field, order } = sort;
   const multiplier = order === 'desc' ? -1 : 1;
 
@@ -276,7 +276,7 @@ function sortNotes(
  * Get the value to use for sorting from a note
  */
 function getSortValue(
-  note: Note,
+  note: NoteMetadata,
   field: string,
   noteTypes: Record<string, NoteType>
 ): unknown {
@@ -305,7 +305,7 @@ function getSortValue(
  * Get unique values for a field across all notes (for filter suggestions)
  */
 export function getFieldValues(
-  allNotes: Note[],
+  allNotes: NoteMetadata[],
   field: string,
   noteTypes: Record<string, NoteType>
 ): string[] {
@@ -331,7 +331,7 @@ export function getFieldValues(
  * Get all available fields for filtering (system + custom props)
  */
 export function getAvailableFields(
-  allNotes: Note[],
+  allNotes: NoteMetadata[],
   _noteTypes: Record<string, NoteType>
 ): FilterFieldInfo[] {
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state

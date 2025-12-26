@@ -13,6 +13,8 @@ import * as Automerge from '@automerge/automerge';
 import type { DocHandle } from '@automerge/automerge-repo';
 import type {
   Note,
+  NoteMetadata,
+  NoteContentDocument,
   NoteType,
   NotesDocument,
   Vault,
@@ -65,6 +67,11 @@ import {
   selectSyncDirectory,
   clearAllVaults
 } from './repo';
+import {
+  getContentHandle,
+  findContentHandle,
+  clearContentCache
+} from './content-docs.svelte';
 
 // --- Private reactive state ---
 
@@ -304,6 +311,9 @@ export async function switchVault(
 
   const repo = getRepo();
 
+  // Clear content cache from previous vault
+  clearContentCache();
+
   // Update active vault
   activeVaultId = vaultId;
   setActiveVaultIdStorage(vaultId);
@@ -339,25 +349,25 @@ export async function switchVault(
 // --- Note getters (reactive) ---
 
 /**
- * Get all non-archived notes, sorted by updated time (newest first)
+ * Get all non-archived notes (metadata only), sorted by updated time (newest first)
  */
-export function getNotes(): Note[] {
+export function getNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
- * Get all notes including archived
+ * Get all notes including archived (metadata only)
  */
-export function getAllNotes(): Note[] {
+export function getAllNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes);
 }
 
 /**
- * Get all notes as a dictionary (for deck queries)
+ * Get all notes as a dictionary (metadata only, for deck queries)
  */
-export function getNotesDict(): Record<string, Note> {
+export function getNotesDict(): Record<string, NoteMetadata> {
   return currentDoc.notes;
 }
 
@@ -369,25 +379,54 @@ export function getNoteTypesDict(): Record<string, NoteType> {
 }
 
 /**
- * Search notes by title or content
+ * Search notes by title only (synchronous, metadata-based search)
+ * For full-text search including content, use searchNotesWithContent
  */
-export function searchNotes(query: string): Note[] {
+export function searchNotes(query: string): NoteMetadata[] {
   if (!query.trim()) return [];
   const lowerQuery = query.toLowerCase();
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived)
-    .filter(
-      (note) =>
-        note.title.toLowerCase().includes(lowerQuery) ||
-        note.content.toLowerCase().includes(lowerQuery)
-    )
+    .filter((note) => note.title.toLowerCase().includes(lowerQuery))
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
- * Get notes by type
+ * Search notes by title and content (async, loads content on demand)
  */
-export function getNotesByType(typeId: string): Note[] {
+export async function searchNotesWithContent(query: string): Promise<Note[]> {
+  if (!query.trim()) return [];
+  if (!activeVaultId) return [];
+
+  const lowerQuery = query.toLowerCase();
+  const results: Note[] = [];
+
+  const notes = Object.values(currentDoc.notes).filter((note) => !note.archived);
+
+  for (const note of notes) {
+    // Check title first (cheap)
+    if (note.title.toLowerCase().includes(lowerQuery)) {
+      const content = await getNoteContent(note.id);
+      results.push({ ...note, content });
+      continue;
+    }
+
+    // Load and check content
+    const content = await getNoteContent(note.id);
+    if (content.toLowerCase().includes(lowerQuery)) {
+      results.push({ ...note, content });
+    }
+  }
+
+  return results.sort(
+    (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
+  );
+}
+
+/**
+ * Get notes by type (metadata only)
+ */
+export function getNotesByType(typeId: string): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === typeId)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -396,29 +435,47 @@ export function getNotesByType(typeId: string): Note[] {
 // --- Note mutations ---
 
 /**
- * Create a new note
+ * Create a new note with content in a separate document
  * @returns The new note's ID
  */
-export function createNote(params: {
+export async function createNote(params: {
   title?: string;
   content?: string;
   type?: string;
-}): string {
+}): Promise<string> {
   if (!docHandle) throw new Error('Not initialized');
+  if (!activeVaultId) throw new Error('No active vault');
 
   const id = generateNoteId();
   const now = nowISO();
+  const repo = getRepo();
 
+  // Create content document first
+  const contentHandle = await getContentHandle(repo, activeVaultId, id);
+
+  // Write initial content if provided
+  if (params.content) {
+    contentHandle.change((doc) => {
+      doc.content = params.content || '';
+    });
+  }
+
+  // Create note metadata in root doc (no content field)
   docHandle.change((doc) => {
     doc.notes[id] = {
       id,
       title: params.title || '',
-      content: params.content || '',
       type: params.type || DEFAULT_NOTE_TYPE_ID,
       created: now,
       updated: now,
       archived: false
     };
+
+    // Store content URL in root doc for main process access
+    if (!doc.contentUrls) {
+      doc.contentUrls = {};
+    }
+    doc.contentUrls[id] = contentHandle.url;
 
     // Auto-add to recent items in active workspace
     const workspaceId = doc.activeWorkspaceId;
@@ -433,12 +490,12 @@ export function createNote(params: {
 }
 
 /**
- * Update an existing note
- * Uses Automerge.updateText() for title/content to enable fine-grained CRDT updates
+ * Update note metadata (title, type) - does not update content
+ * Uses Automerge.updateText() for title to enable fine-grained CRDT updates
  */
 export function updateNote(
   id: string,
-  updates: Partial<Pick<Note, 'title' | 'content' | 'type'>>
+  updates: Partial<Pick<NoteMetadata, 'title' | 'type'>>
 ): void {
   if (!docHandle) throw new Error('Not initialized');
 
@@ -446,17 +503,79 @@ export function updateNote(
     const note = doc.notes[id];
     if (!note) return;
 
-    // Use updateText for fine-grained CRDT updates on text fields
+    // Use updateText for fine-grained CRDT updates on title
     if (updates.title !== undefined) {
       Automerge.updateText(doc, ['notes', id, 'title'], updates.title);
-    }
-    if (updates.content !== undefined) {
-      Automerge.updateText(doc, ['notes', id, 'content'], updates.content);
     }
     // Type is not a text field, direct assignment is fine
     if (updates.type !== undefined) note.type = updates.type;
     note.updated = nowISO();
   });
+}
+
+/**
+ * Update note content in its separate content document
+ * Uses Automerge.updateText() for fine-grained CRDT updates
+ */
+export async function updateNoteContent(id: string, content: string): Promise<void> {
+  if (!docHandle) throw new Error('Not initialized');
+  if (!activeVaultId) throw new Error('No active vault');
+
+  const repo = getRepo();
+  const contentUrl = currentDoc.contentUrls?.[id];
+  const contentHandle = await getContentHandle(repo, activeVaultId, id, contentUrl);
+
+  contentHandle.change((doc) => {
+    Automerge.updateText(doc, ['content'], content);
+  });
+
+  // Update timestamp in root doc
+  docHandle.change((doc) => {
+    const note = doc.notes[id];
+    if (note) {
+      note.updated = nowISO();
+    }
+  });
+}
+
+/**
+ * Get note content from its separate content document
+ */
+export async function getNoteContent(noteId: string): Promise<string> {
+  if (!activeVaultId) return '';
+
+  const repo = getRepo();
+  const contentUrl = currentDoc.contentUrls?.[noteId];
+  const handle = await findContentHandle(repo, activeVaultId, noteId, contentUrl);
+
+  if (!handle) return '';
+
+  const doc = handle.doc();
+  return doc?.content || '';
+}
+
+/**
+ * Get full note with content loaded (async)
+ */
+export async function getFullNote(noteId: string): Promise<Note | undefined> {
+  const metadata = currentDoc.notes[noteId];
+  if (!metadata) return undefined;
+
+  const content = await getNoteContent(noteId);
+  return { ...metadata, content };
+}
+
+/**
+ * Get the content document handle for a note (for editor integration)
+ */
+export async function getNoteContentHandle(
+  noteId: string
+): Promise<DocHandle<NoteContentDocument> | null> {
+  if (!activeVaultId) return null;
+
+  const repo = getRepo();
+  const contentUrl = currentDoc.contentUrls?.[noteId];
+  return getContentHandle(repo, activeVaultId, noteId, contentUrl);
 }
 
 /**
@@ -649,17 +768,16 @@ function refToSidebarItem(
     const note = currentDoc.notes[ref.id];
     if (!note || note.archived) return null;
     const noteType = noteTypes[note.type];
-    const displayText = note.title || note.content.trim().slice(0, 50) || 'Untitled';
-    const isPreview = !note.title;
+    const displayText = note.title || 'Untitled';
     return {
       id: note.id,
       type: 'note',
-      title: displayText + (isPreview && note.content.length > 50 ? '...' : ''),
+      title: displayText,
       icon: noteType?.icon || '📝',
       updated: note.updated,
       metadata: {
         noteTypeId: note.type,
-        isPreview
+        isPreview: !note.title
       }
     };
   } else if (ref.type === 'conversation') {
@@ -1159,9 +1277,9 @@ export function getNoteProps(noteId: string): Record<string, unknown> {
 }
 
 /**
- * Get a single note by ID
+ * Get a single note metadata by ID (without content)
  */
-export function getNote(noteId: string): Note | undefined {
+export function getNote(noteId: string): NoteMetadata | undefined {
   return currentDoc.notes[noteId];
 }
 
@@ -1283,9 +1401,9 @@ export function setActiveSystemView(view: SystemView): void {
 }
 
 /**
- * Get the currently active note (convenience getter)
+ * Get the currently active note metadata (convenience getter)
  */
-export function getActiveNote(): Note | undefined {
+export function getActiveNote(): NoteMetadata | undefined {
   if (!activeItem || activeItem.type !== 'note') return undefined;
   return currentDoc.notes[activeItem.id];
 }
@@ -1352,14 +1470,14 @@ export function addNoteToWorkspace(noteId: string): void {
  * @param options - Options for navigation (shouldCreate, targetType)
  * @returns The ID that was navigated to (either existing or newly created)
  */
-export function navigateToNote(
+export async function navigateToNote(
   targetId: string,
   title: string,
   options?: {
     shouldCreate?: boolean;
     targetType?: 'note' | 'conversation';
   }
-): string {
+): Promise<string> {
   const targetType = options?.targetType || 'note';
   const shouldCreate = options?.shouldCreate || false;
 
@@ -1372,7 +1490,7 @@ export function navigateToNote(
     // Note handling
     if (shouldCreate) {
       // Create a new note with the given title
-      const newId = createNote({ title });
+      const newId = await createNote({ title });
       addItemToWorkspace({ type: 'note', id: newId });
       setActiveItem({ type: 'note', id: newId });
       return newId;
@@ -1400,17 +1518,20 @@ export interface ContextBlock {
 
 /**
  * Get backlinks to a note (other notes that link to it)
+ * Loads content from separate content documents
  */
-export function getBacklinks(
+export async function getBacklinks(
   noteId: string
-): Array<{ note: Note; contexts: ContextBlock[] }> {
-  const backlinks: Array<{ note: Note; contexts: ContextBlock[] }> = [];
+): Promise<Array<{ note: NoteMetadata; contexts: ContextBlock[] }>> {
+  const backlinks: Array<{ note: NoteMetadata; contexts: ContextBlock[] }> = [];
 
   for (const note of Object.values(currentDoc.notes)) {
     if (note.archived || note.id === noteId) continue;
 
+    // Load content for this note
+    const content = await getNoteContent(note.id);
     const contexts: ContextBlock[] = [];
-    const lines = note.content.split('\n');
+    const lines = content.split('\n');
     const matchedLineIndices = new Set<number>();
 
     // Find all lines containing links to this note
@@ -1471,9 +1592,9 @@ export const DAILY_NOTE_TYPE_ID = 'type-daily';
  */
 export interface DayData {
   date: string; // ISO date string (YYYY-MM-DD)
-  dailyNote: Note | null;
-  createdNotes: Note[];
-  modifiedNotes: Note[];
+  dailyNote: NoteMetadata | null;
+  createdNotes: NoteMetadata[];
+  modifiedNotes: NoteMetadata[];
   totalActivity: number;
 }
 
@@ -1521,19 +1642,20 @@ export function getDailyNoteId(date: string): string {
 }
 
 /**
- * Get daily note for a specific date
+ * Get daily note for a specific date (metadata only)
  */
-export function getDailyNote(date: string): Note | undefined {
+export function getDailyNote(date: string): NoteMetadata | undefined {
   const dailyNoteId = getDailyNoteId(date);
   return currentDoc.notes[dailyNoteId];
 }
 
 /**
  * Get or create a daily note for a specific date
- * @returns The daily note
+ * @returns The daily note metadata
  */
-export function getOrCreateDailyNote(date: string): Note {
+export async function getOrCreateDailyNote(date: string): Promise<NoteMetadata> {
   if (!docHandle) throw new Error('Not initialized');
+  if (!activeVaultId) throw new Error('No active vault');
 
   // Ensure daily note type exists
   ensureDailyNoteType();
@@ -1545,18 +1667,26 @@ export function getOrCreateDailyNote(date: string): Note {
     return existing;
   }
 
+  // Create content document first
+  const repo = getRepo();
+  if (!repo) throw new Error('No repo available');
+
+  const contentHandle = await getContentHandle(repo, activeVaultId, dailyNoteId);
+
   // Create new daily note with predictable ID
   const now = nowISO();
   docHandle.change((doc) => {
     doc.notes[dailyNoteId] = {
       id: dailyNoteId,
       title: date, // Title is the date itself
-      content: '',
       type: DAILY_NOTE_TYPE_ID,
       created: now,
       updated: now,
       archived: false
     };
+    // Store content URL
+    if (!doc.contentUrls) doc.contentUrls = {};
+    doc.contentUrls[dailyNoteId] = contentHandle.url;
   });
 
   return currentDoc.notes[dailyNoteId];
@@ -1565,7 +1695,7 @@ export function getOrCreateDailyNote(date: string): Note {
 /**
  * Update daily note content
  */
-export function updateDailyNote(date: string, content: string): void {
+export async function updateDailyNote(date: string, content: string): Promise<void> {
   if (!docHandle) throw new Error('Not initialized');
 
   const dailyNoteId = getDailyNoteId(date);
@@ -1576,26 +1706,13 @@ export function updateDailyNote(date: string, content: string): void {
     return;
   }
 
-  // Create or update
-  if (existing) {
-    docHandle.change((doc) => {
-      const note = doc.notes[dailyNoteId];
-      if (note) {
-        note.content = content;
-        note.updated = nowISO();
-      }
-    });
-  } else {
-    // Create the note with content
-    getOrCreateDailyNote(date);
-    docHandle.change((doc) => {
-      const note = doc.notes[dailyNoteId];
-      if (note) {
-        note.content = content;
-        note.updated = nowISO();
-      }
-    });
+  // Create the note if it doesn't exist
+  if (!existing) {
+    await getOrCreateDailyNote(date);
   }
+
+  // Update content in content document
+  await updateNoteContent(dailyNoteId, content);
 }
 
 /**
@@ -2207,7 +2324,7 @@ export function ensureEpubNoteType(): void {
 /**
  * Get all non-archived EPUB notes, sorted by last read (most recent first)
  */
-export function getEpubNotes(): Note[] {
+export function getEpubNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === EPUB_NOTE_TYPE_ID)
     .sort((a, b) => {
@@ -2371,7 +2488,7 @@ export function ensurePdfNoteType(): void {
 /**
  * Get all non-archived PDF notes, sorted by last read (most recent first)
  */
-export function getPdfNotes(): Note[] {
+export function getPdfNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === PDF_NOTE_TYPE_ID)
     .sort((a, b) => {
@@ -2537,7 +2654,7 @@ export function ensureWebpageNoteType(): void {
 /**
  * Get all non-archived webpage notes, sorted by last read (most recent first)
  */
-export function getWebpageNotes(): Note[] {
+export function getWebpageNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === WEBPAGE_NOTE_TYPE_ID)
     .sort((a, b) => {
@@ -2690,7 +2807,7 @@ export function ensureDeckNoteType(): void {
 /**
  * Get all non-archived Deck notes, sorted by updated (most recent first)
  */
-export function getDeckNotes(): Note[] {
+export function getDeckNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
     .filter((note) => !note.archived && note.type === DECK_NOTE_TYPE_ID)
     .sort((a, b) => {
@@ -2946,18 +3063,18 @@ export function getReviewData(noteId: string): ReviewData | null {
 }
 
 /**
- * Get all notes with review enabled (active or retired)
+ * Get all notes with review enabled (active or retired) - metadata only
  */
-export function getReviewEnabledNotes(): Note[] {
+export function getReviewEnabledNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes).filter(
     (note) => !note.archived && note.review?.enabled
   );
 }
 
 /**
- * Get notes due for review in the current session
+ * Get notes due for review in the current session - metadata only
  */
-export function getNotesForReview(): Note[] {
+export function getNotesForReview(): NoteMetadata[] {
   const currentSession = getCurrentSessionNumber();
   const config = getReviewConfig();
 
@@ -3243,7 +3360,7 @@ export function clearActiveSession(): void {
 /**
  * Get the current note being reviewed in the active session
  */
-export function getCurrentReviewNote(): Note | null {
+export function getCurrentReviewNote(): NoteMetadata | null {
   const session = getActiveSession();
   if (!session) return null;
 
@@ -3257,7 +3374,7 @@ export function getCurrentReviewNote(): Note | null {
  * Get all notes with review data for the queue table
  */
 export function getReviewQueueNotes(): Array<{
-  note: Note;
+  note: NoteMetadata;
   review: ReviewData;
   estimatedDue: Date;
   isOverdue: boolean;
@@ -3266,7 +3383,7 @@ export function getReviewQueueNotes(): Array<{
   const config = getReviewConfig();
 
   const result: Array<{
-    note: Note;
+    note: NoteMetadata;
     review: ReviewData;
     estimatedDue: Date;
     isOverdue: boolean;

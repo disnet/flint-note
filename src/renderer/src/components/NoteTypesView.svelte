@@ -13,7 +13,7 @@
     createNote,
     setActiveNoteId,
     addNoteToWorkspace,
-    type Note,
+    type NoteMetadata,
     type PropertyDefinition
   } from '../lib/automerge';
   import EmojiPicker from './EmojiPicker.svelte';
@@ -38,7 +38,7 @@
   }
 
   // Get notes for a specific type
-  function getNotesForType(typeId: string): Note[] {
+  function getNotesForType(typeId: string): NoteMetadata[] {
     return allNotes
       .filter((n) => !n.archived && n.type === typeId)
       .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -122,9 +122,9 @@
   }
 
   // Create a new note of the selected type
-  function handleCreateNote(): void {
+  async function handleCreateNote(): Promise<void> {
     if (!selectedTypeId) return;
-    const noteId = createNote({ type: selectedTypeId });
+    const noteId = await createNote({ type: selectedTypeId });
     setActiveNoteId(noteId);
     addNoteToWorkspace(noteId);
     onNoteSelect?.(noteId);

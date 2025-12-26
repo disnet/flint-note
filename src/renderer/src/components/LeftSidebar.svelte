@@ -13,7 +13,7 @@
   import {
     getActiveWorkspace,
     updateVaultInState,
-    type Note,
+    type NoteMetadata,
     type Vault,
     type SearchResult,
     type SidebarItem
@@ -55,7 +55,7 @@
     onSearchFocus: () => void;
     onSearchBlur: () => void;
     onSearchKeyDown: (event: KeyboardEvent) => void;
-    onSearchResultSelect: (note: Note) => void;
+    onSearchResultSelect: (note: NoteMetadata) => void;
     onVaultSelect: (vaultId: string) => void;
     onCreateVault: () => void;
     onToggleSidebar: () => void;

@@ -2,12 +2,12 @@
   /**
    * Enhanced search results component with highlighting
    */
-  import type { Note, SearchResult, TextSegment } from '../lib/automerge';
+  import type { NoteMetadata, SearchResult, TextSegment } from '../lib/automerge';
   import { highlightMatch } from '../lib/automerge';
 
   interface Props {
     results: SearchResult[];
-    onSelect: (note: Note) => void;
+    onSelect: (note: NoteMetadata) => void;
     maxResults?: number;
   }
 
@@ -40,7 +40,7 @@
    * Get the best match preview for a result
    */
   function getPreview(result: SearchResult): string {
-    // Prefer content matches for preview
+    // Prefer content matches for preview (currently disabled)
     if (result.contentMatches.length > 0) {
       const match = result.contentMatches[0];
       const segments = highlightMatch(match);
@@ -52,8 +52,8 @@
       const segments = highlightMatch(match);
       return renderSegments(segments);
     }
-    // No matches to highlight, show content preview
-    return escapeHtml(result.note.content.slice(0, 100) || 'No content');
+    // No matches to highlight, just show title
+    return escapeHtml(result.note.title || 'Untitled');
   }
 
   /**

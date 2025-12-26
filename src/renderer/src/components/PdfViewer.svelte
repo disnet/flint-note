@@ -12,7 +12,7 @@
 
   import { onMount, onDestroy, tick } from 'svelte';
   import type {
-    Note,
+    NoteMetadata,
     PdfNoteProps,
     PdfOutlineItem,
     PdfHighlight
@@ -21,7 +21,8 @@
     pdfOpfsStorage,
     updatePdfReadingState,
     updatePdfZoomLevel,
-    updateNote
+    updateNoteContent,
+    getNoteContent
   } from '../lib/automerge';
   import { nowISO } from '../lib/automerge/utils';
   import PdfReader from './PdfReader.svelte';
@@ -34,11 +35,12 @@
     note,
     onTitleChange = (_title: string) => {}
   }: {
-    note: Note;
+    note: NoteMetadata;
     onTitleChange?: (title: string) => void;
   } = $props();
 
   // State
+  let noteContent = $state<string>('');
   let pdfData = $state<ArrayBuffer | null>(null);
   let currentHash = $state<string>('');
   let isLoading = $state(true);
@@ -147,6 +149,10 @@ ${highlightLines.join('\n\n')}
     currentHash = hash;
 
     try {
+      // Load content from content doc
+      const content = await getNoteContent(note.id);
+      noteContent = content;
+
       const data = await pdfOpfsStorage.retrieve(hash);
       if (!data) {
         loadError = 'PDF file not found in storage';
@@ -155,7 +161,7 @@ ${highlightLines.join('\n\n')}
       }
 
       pdfData = data;
-      highlights = parseHighlights(note.content);
+      highlights = parseHighlights(noteContent);
       totalPages = pdfProps().totalPages || 0;
       currentPage = pdfProps().currentPage || 1;
       isLoading = false;
@@ -207,8 +213,9 @@ ${highlightLines.join('\n\n')}
     highlights = [...highlights, newHighlight];
 
     // Update note content
-    const newContent = serializeHighlights(note.content, highlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = serializeHighlights(noteContent, highlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
 
     return id;
   }
@@ -218,8 +225,9 @@ ${highlightLines.join('\n\n')}
     highlights = highlights.filter((h) => h.id !== id);
 
     // Update note content
-    const newContent = serializeHighlights(note.content, highlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = serializeHighlights(noteContent, highlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
   }
 
   // Navigate to page from outline

@@ -4,7 +4,7 @@
     isSessionAvailable,
     navigateToNote
   } from '../lib/automerge';
-  import type { Note, ReviewData } from '../lib/automerge/types';
+  import type { NoteMetadata, ReviewData } from '../lib/automerge/types';
   import { isPassingRating } from '../lib/automerge/review-scheduler';
   import ReviewHistoryPanel from './ReviewHistoryPanel.svelte';
 
@@ -16,7 +16,7 @@
   let { onReviewNote, searchQuery = '' }: Props = $props();
 
   interface EnrichedReviewItem {
-    note: Note;
+    note: NoteMetadata;
     review: ReviewData;
     estimatedDue: Date;
     isOverdue: boolean;

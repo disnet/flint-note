@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
-  import type { Note, EpubNoteProps, EpubTocItem, EpubHighlight } from '../lib/automerge';
+  import type {
+    NoteMetadata,
+    EpubNoteProps,
+    EpubTocItem,
+    EpubHighlight
+  } from '../lib/automerge';
   import {
     opfsStorage,
     updateEpubReadingState,
     updateEpubTextSize,
-    updateNote
+    updateNoteContent,
+    getNoteContent
   } from '../lib/automerge';
   import { nowISO } from '../lib/automerge/utils';
   import EpubReader from './EpubReader.svelte';
@@ -18,11 +24,12 @@
     note,
     onTitleChange = (_title: string) => {}
   }: {
-    note: Note;
+    note: NoteMetadata;
     onTitleChange?: (title: string) => void;
   } = $props();
 
   // State
+  let noteContent = $state<string>('');
   let epubData = $state<ArrayBuffer | null>(null);
   let currentHash = $state<string>('');
   let isLoading = $state(true);
@@ -123,6 +130,10 @@ ${highlightLines.join('\n\n')}
     currentHash = hash;
 
     try {
+      // Load content from content doc
+      const content = await getNoteContent(note.id);
+      noteContent = content;
+
       const data = await opfsStorage.retrieve(hash);
       if (!data) {
         loadError = 'EPUB file not found in storage';
@@ -131,7 +142,7 @@ ${highlightLines.join('\n\n')}
       }
 
       epubData = data;
-      highlights = parseHighlights(note.content);
+      highlights = parseHighlights(noteContent);
       isLoading = false;
     } catch (error) {
       console.error('[EPUB Viewer] Failed to load EPUB:', error);
@@ -193,8 +204,9 @@ ${highlightLines.join('\n\n')}
     highlights = [...highlights, newHighlight];
 
     // Update note content
-    const newContent = serializeHighlights(note.content, highlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = serializeHighlights(noteContent, highlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
 
     return id;
   }
@@ -204,8 +216,9 @@ ${highlightLines.join('\n\n')}
     highlights = highlights.filter((h) => h.id !== id);
 
     // Update note content
-    const newContent = serializeHighlights(note.content, highlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = serializeHighlights(noteContent, highlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
   }
 
   // Navigate to TOC item

@@ -2,8 +2,12 @@
   import { onMount, tick } from 'svelte';
   import WebpageReader from './WebpageReader.svelte';
   import NoteTypeDropdown from './NoteTypeDropdown.svelte';
-  import type { Note, WebpageNoteProps } from '../lib/automerge';
-  import { updateWebpageReadingState, updateNote } from '../lib/automerge';
+  import type { NoteMetadata, WebpageNoteProps } from '../lib/automerge';
+  import {
+    updateWebpageReadingState,
+    updateNoteContent,
+    getNoteContent
+  } from '../lib/automerge';
   import { webpageOpfsStorage } from '../lib/automerge/webpage-opfs-storage.svelte';
   import type { WebpageHighlight, WebpageSelectionInfo } from '../lib/automerge/types';
 
@@ -12,11 +16,12 @@
     note,
     onTitleChange = (_title: string) => {}
   }: {
-    note: Note;
+    note: NoteMetadata;
     onTitleChange?: (title: string) => void;
   } = $props();
 
   // State
+  let noteContent = $state<string>('');
   let htmlContent = $state<string | null>(null);
   let highlights = $state<WebpageHighlight[]>([]);
   let isLoading = $state(true);
@@ -51,9 +56,9 @@
     }
   });
 
-  // Parse highlights when note content changes
+  // Parse highlights when noteContent changes
   $effect(() => {
-    void note.content;
+    void noteContent;
     parseHighlights();
   });
 
@@ -67,6 +72,10 @@
       if (!hash) {
         throw new Error('Webpage hash not found in note');
       }
+
+      // Load content from content doc
+      const content = await getNoteContent(note.id);
+      noteContent = content;
 
       // Load HTML from OPFS
       const html = await webpageOpfsStorage.retrieve(hash);
@@ -89,12 +98,12 @@
   }
 
   function parseHighlights(): void {
-    if (!note?.content) {
+    if (!noteContent) {
       highlights = [];
       return;
     }
 
-    const parsed = parseWebpageHighlightsFromContent(note.content);
+    const parsed = parseWebpageHighlightsFromContent(noteContent);
     highlights = parsed;
   }
 
@@ -137,8 +146,9 @@
     highlights = newHighlights;
 
     // Update note content with serialized highlights
-    const newContent = updateWebpageContentWithHighlights(note.content, newHighlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = updateWebpageContentWithHighlights(noteContent, newHighlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
 
     // Clear selection
     currentSelection = null;
@@ -153,8 +163,9 @@
     highlights = newHighlights;
 
     // Update note content
-    const newContent = updateWebpageContentWithHighlights(note.content, newHighlights);
-    updateNote(note.id, { content: newContent });
+    const newContent = updateWebpageContentWithHighlights(noteContent, newHighlights);
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
   }
 
   function handleOpenOriginalUrl(): void {

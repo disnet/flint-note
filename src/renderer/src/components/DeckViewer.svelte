@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Note } from '../lib/automerge';
-  import { updateNote } from '../lib/automerge';
+  import type { NoteMetadata } from '../lib/automerge';
+  import { updateNoteContent, getNoteContent } from '../lib/automerge';
   import type { DeckConfig } from '../lib/automerge/deck';
   import {
     parseDeckYamlWithWarnings,
@@ -10,10 +10,10 @@
   import type { DeckValidationWarning } from '../../../shared/deck-yaml-utils';
   import DeckWidget from './DeckWidget.svelte';
   import NoteTypeDropdown from './NoteTypeDropdown.svelte';
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
 
   interface Props {
-    note: Note;
+    note: NoteMetadata;
     onNoteOpen?: (noteId: string) => void;
     onTitleChange?: (title: string) => void;
   }
@@ -22,10 +22,27 @@
 
   // UI state
   let titleTextarea: HTMLTextAreaElement | null = $state(null);
+  let noteContent = $state<string>('');
+
+  // Load content on mount and when note changes
+  async function loadContent(): Promise<void> {
+    const content = await getNoteContent(note.id);
+    noteContent = content;
+  }
+
+  onMount(() => {
+    loadContent();
+  });
+
+  // Reload when note id changes
+  $effect(() => {
+    void note.id;
+    loadContent();
+  });
 
   // Extract deck config from note content
   const parsedResult = $derived.by(() => {
-    const content = note.content || '';
+    const content = noteContent || '';
 
     // Look for flint-deck code block
     const deckBlockMatch = content.match(/```flint-deck\n([\s\S]*?)```/);
@@ -62,7 +79,7 @@
    * Update the note content with new deck config
    */
   function handleConfigChange(newConfig: DeckConfig): void {
-    const content = note.content || '';
+    const content = noteContent || '';
     const yamlStr = serializeDeckConfig(newConfig);
     const newBlock = '```flint-deck\n' + yamlStr + '```';
 
@@ -75,7 +92,8 @@
       newContent = content.trim() ? newBlock + '\n\n' + content.trim() : newBlock;
     }
 
-    updateNote(note.id, { content: newContent });
+    noteContent = newContent;
+    updateNoteContent(note.id, newContent);
   }
 
   // Title handling

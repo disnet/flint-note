@@ -121,7 +121,7 @@ export interface PropertyDefinition {
 }
 
 /**
- * A note in the Flint system
+ * A note in the Flint system (full note with content loaded)
  */
 export interface Note {
   /** Unique identifier, format: "n-xxxxxxxx" (8 hex chars) */
@@ -142,6 +142,23 @@ export interface Note {
   props?: Record<string, unknown>;
   /** Review mode metadata (optional, only for notes with review enabled) */
   review?: ReviewData;
+}
+
+/**
+ * Note metadata stored in the root document (without content).
+ * Content is stored in a separate NoteContentDocument.
+ */
+export type NoteMetadata = Omit<Note, 'content'>;
+
+/**
+ * Separate Automerge document for note content.
+ * Each note has its own content document for lazy loading and better sync performance.
+ */
+export interface NoteContentDocument {
+  /** Reference to the note this content belongs to */
+  noteId: string;
+  /** The markdown content */
+  content: string;
 }
 
 /**
@@ -448,8 +465,8 @@ export interface GetRoutineInput {
  * The root Automerge document structure
  */
 export interface NotesDocument {
-  /** All notes keyed by ID */
-  notes: Record<string, Note>;
+  /** All note metadata keyed by ID (content is in separate NoteContentDocument) */
+  notes: Record<string, NoteMetadata>;
   /** All workspaces keyed by ID */
   workspaces: Record<string, Workspace>;
   /** Currently active workspace ID */
@@ -470,6 +487,8 @@ export interface NotesDocument {
   reviewState?: ReviewState;
   /** Processed note IDs: noteId -> ISO timestamp when processed (optional for backward compatibility) */
   processedNoteIds?: Record<string, string>;
+  /** Mapping of noteId -> Automerge URL for content documents */
+  contentUrls?: Record<string, string>;
 }
 
 /**

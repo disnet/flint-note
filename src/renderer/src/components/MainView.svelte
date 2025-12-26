@@ -29,7 +29,7 @@
     WEBPAGE_NOTE_TYPE_ID,
     DECK_NOTE_TYPE_ID,
     createDeckNote,
-    type Note,
+    type NoteMetadata,
     type SearchResult,
     type Conversation,
     type SidebarItem,
@@ -130,7 +130,7 @@
     searchInputFocused = false;
   }
 
-  function handleNoteSelect(note: Note): void {
+  function handleNoteSelect(note: NoteMetadata): void {
     setActiveItem({ type: 'note', id: note.id });
     addItemToWorkspace({ type: 'note', id: note.id });
     setActiveSystemView(null);
@@ -138,7 +138,7 @@
     searchInputFocused = false;
   }
 
-  function handleSearchResultSelect(note: Note): void {
+  function handleSearchResultSelect(note: NoteMetadata): void {
     handleNoteSelect(note);
   }
 
@@ -166,14 +166,14 @@
     }
   }
 
-  function handleCreateNote(): void {
-    const id = createNote({ title: '', content: '' });
+  async function handleCreateNote(): Promise<void> {
+    const id = await createNote({ title: '' });
     setActiveItem({ type: 'note', id });
     setActiveSystemView(null);
   }
 
-  function handleCreateDeck(): void {
-    const id = createDeckNote('');
+  async function handleCreateDeck(): Promise<void> {
+    const id = await createDeckNote('');
     setActiveItem({ type: 'note', id });
     setActiveSystemView(null);
   }
@@ -563,9 +563,6 @@
                     </div>
                     <div class="note-card-content">
                       <span class="note-card-title">{note.title || 'Untitled'}</span>
-                      <span class="note-card-preview"
-                        >{note.content.slice(0, 100) || 'No content'}</span
-                      >
                       <span class="note-card-date"
                         >{new Date(note.updated).toLocaleDateString()}</span
                       >
@@ -1087,16 +1084,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .note-card-preview {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
 
   .note-card-date {

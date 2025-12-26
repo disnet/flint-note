@@ -26,7 +26,7 @@ import {
 } from '../../../../../shared/deck-yaml-utils';
 import type { DeckConfig } from './deck-types';
 import DeckWidget from '../../../components/DeckWidget.svelte';
-import { getNote, getNoteType, updateNote } from '../state.svelte';
+import { getNote, getNoteType, updateNoteContent, getNoteContent } from '../state.svelte';
 
 /**
  * Handlers for deck events
@@ -227,9 +227,9 @@ class EmbeddedDeckWidgetType extends WidgetType {
   }
 
   /**
-   * Load the deck config from Automerge document
+   * Load the deck config from Automerge document (async)
    */
-  private loadDeckConfig(): void {
+  private async loadDeckConfig(): Promise<void> {
     try {
       const note = getNote(this.noteId);
       if (!note) {
@@ -248,8 +248,11 @@ class EmbeddedDeckWidgetType extends WidgetType {
         }
       }
 
+      // Load content from separate document
+      const content = await getNoteContent(this.noteId);
+
       // Parse the deck note's content as YAML (with warnings)
-      const result = parseDeckYamlWithWarnings(note.content || '');
+      const result = parseDeckYamlWithWarnings(content || '');
       if (!result) {
         this.loadError = 'Invalid deck configuration';
         return;
@@ -268,7 +271,8 @@ class EmbeddedDeckWidgetType extends WidgetType {
   private saveConfigToSourceNote(newConfig: DeckConfig): void {
     try {
       const yamlContent = serializeDeckConfig(newConfig);
-      updateNote(this.noteId, { content: yamlContent });
+      // Update content in the content document
+      updateNoteContent(this.noteId, yamlContent);
       this.config = newConfig;
     } catch (err) {
       console.error('Failed to save deck config:', err);
@@ -292,50 +296,60 @@ class EmbeddedDeckWidgetType extends WidgetType {
       e.stopPropagation();
     });
 
-    // Load the deck config synchronously from Automerge
-    this.loadDeckConfig();
+    // Show loading state initially
+    container.innerHTML = `
+      <div class="deck-loading">
+        <span class="deck-loading-text">Loading deck...</span>
+      </div>
+    `;
 
-    if (this.loadError) {
-      container.innerHTML = `
-        <div class="deck-error-widget">
-          <div class="deck-error-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <div class="deck-error-text">
-              <strong>${this.loadError}</strong>
+    // Load the deck config asynchronously
+    this.loadDeckConfig().then(() => {
+      // Clear loading state
+      container.innerHTML = '';
+
+      if (this.loadError) {
+        container.innerHTML = `
+          <div class="deck-error-widget">
+            <div class="deck-error-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div class="deck-error-text">
+                <strong>${this.loadError}</strong>
+              </div>
             </div>
           </div>
-        </div>
-      `;
-      return container;
-    }
-
-    if (!this.config) {
-      container.innerHTML = `
-        <div class="deck-loading">
-          <span class="deck-loading-text">No deck configuration found</span>
-        </div>
-      `;
-      return container;
-    }
-
-    // Mount the component
-    this.component = mount(DeckWidget, {
-      target: container,
-      props: {
-        config: this.config,
-        validationWarnings: this.validationWarnings,
-        onConfigChange: (newConfig: DeckConfig) => {
-          // Save to source deck note
-          this.saveConfigToSourceNote(newConfig);
-        },
-        onNoteOpen: (noteId: string) => {
-          this.handlers.onNoteOpen(noteId);
-        }
+        `;
+        return;
       }
+
+      if (!this.config) {
+        container.innerHTML = `
+          <div class="deck-loading">
+            <span class="deck-loading-text">No deck configuration found</span>
+          </div>
+        `;
+        return;
+      }
+
+      // Mount the component
+      this.component = mount(DeckWidget, {
+        target: container,
+        props: {
+          config: this.config,
+          validationWarnings: this.validationWarnings,
+          onConfigChange: (newConfig: DeckConfig) => {
+            // Save to source deck note
+            this.saveConfigToSourceNote(newConfig);
+          },
+          onNoteOpen: (noteId: string) => {
+            this.handlers.onNoteOpen(noteId);
+          }
+        }
+      });
     });
 
     return container;

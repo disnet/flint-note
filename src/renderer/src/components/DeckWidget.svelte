@@ -262,8 +262,8 @@
       }
     }
 
-    // Create note via Automerge state
-    const noteId = createNote({
+    // Create note via Automerge state (async)
+    const noteId = await createNote({
       title: '',
       content: '',
       type: noteTypeId

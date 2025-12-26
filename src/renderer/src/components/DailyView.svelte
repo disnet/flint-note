@@ -11,7 +11,7 @@
     getOrCreateDailyNote,
     setActiveNoteId,
     addNoteToWorkspace,
-    type Note,
+    type NoteMetadata,
     type WeekData
   } from '../lib/automerge';
   import {
@@ -23,7 +23,7 @@
   } from '../utils/dateUtils';
 
   interface Props {
-    onNoteSelect?: (note: Note) => void;
+    onNoteSelect?: (note: NoteMetadata) => void;
   }
 
   let { onNoteSelect }: Props = $props();
@@ -41,9 +41,9 @@
     currentWeekStart = startDate;
   }
 
-  function handleDailyNoteTitleClick(date: string): void {
+  async function handleDailyNoteTitleClick(date: string): Promise<void> {
     // Open the daily note, creating it if necessary
-    const dailyNote = getOrCreateDailyNote(date);
+    const dailyNote = await getOrCreateDailyNote(date);
     if (dailyNote) {
       setActiveNoteId(dailyNote.id);
       addNoteToWorkspace(dailyNote.id);

@@ -7,7 +7,7 @@
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { DocHandle } from '@automerge/automerge-repo';
-  import type { NotesDocument } from '../lib/automerge';
+  import type { NoteContentDocument } from '../lib/automerge';
   import {
     getAllNotes,
     createNote,
@@ -16,17 +16,17 @@
     addNoteToWorkspace,
     addItemToWorkspace,
     EditorConfig,
-    forceWikilinkRefresh
+    forceWikilinkRefresh,
+    getNoteContentHandle
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
-    docHandle: DocHandle<NotesDocument>;
     noteId: string;
   }
 
-  let { docHandle, noteId }: Props = $props();
+  let { noteId }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
@@ -34,14 +34,35 @@
   // Track current noteId for reactivity
   let currentNoteId = $state(noteId);
 
-  function handleWikilinkClick(
+  // Content handle and state (loaded async)
+  let contentHandle = $state<DocHandle<NoteContentDocument> | null>(null);
+  let isLoadingContent = $state(true);
+  let initialContent = $state('');
+
+  // Load content handle when noteId changes
+  $effect(() => {
+    const id = noteId;
+    isLoadingContent = true;
+    contentHandle = null;
+
+    getNoteContentHandle(id).then((handle) => {
+      if (handle && noteId === id) {
+        contentHandle = handle;
+        const doc = handle.doc();
+        initialContent = doc?.content || '';
+        isLoadingContent = false;
+      }
+    });
+  });
+
+  async function handleWikilinkClick(
     targetId: string,
     title: string,
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
     }
-  ): void {
+  ): Promise<void> {
     const targetType = options?.targetType || 'note';
     const shouldCreate = options?.shouldCreate || false;
 
@@ -53,7 +74,7 @@
       // Note handling
       if (shouldCreate) {
         // Create a new note with the given title
-        const newId = createNote({ title });
+        const newId = await createNote({ title });
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
       } else {
@@ -64,34 +85,29 @@
   }
 
   // Create editor config with automerge sync
-  function createEditorConfig(noteIdForSync: string): EditorConfig {
+  function createEditorConfig(
+    handle: DocHandle<NoteContentDocument> | null
+  ): EditorConfig {
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
-      automergeSync: {
-        handle: docHandle,
-        path: ['notes', noteIdForSync, 'content']
-      },
+      automergeSync: handle
+        ? {
+            handle: handle,
+            path: ['content']
+          }
+        : undefined,
       placeholder: 'Start typing...'
     });
   }
 
-  let editorConfig = createEditorConfig(noteId);
-
-  // Get initial content from the Automerge document
-  function getInitialContent(): string {
-    const doc = docHandle.docSync();
-    if (doc && doc.notes && doc.notes[currentNoteId]) {
-      return doc.notes[currentNoteId].content || '';
-    }
-    return '';
-  }
+  let editorConfig = createEditorConfig(null);
 
   // Create the editor
   function createEditor(): void {
     if (!editorContainer || editorView) return;
 
     const startState = EditorState.create({
-      doc: getInitialContent(),
+      doc: initialContent,
       extensions: editorConfig.getExtensions()
     });
 
@@ -114,14 +130,14 @@
     }, 10);
   }
 
-  // Recreate editor when noteId changes
+  // Recreate editor when content handle changes
   function recreateEditor(): void {
     if (editorView) {
       editorView.destroy();
       editorView = null;
     }
     editorConfig.destroy();
-    editorConfig = createEditorConfig(currentNoteId);
+    editorConfig = createEditorConfig(contentHandle);
     editorConfig.initializeTheme();
 
     if (editorContainer) {
@@ -140,16 +156,19 @@
     };
   });
 
-  // Create editor when container is available
+  // Create editor when container is available and content is loaded
   $effect(() => {
-    if (editorContainer && !editorView) {
+    if (editorContainer && !editorView && !isLoadingContent && contentHandle) {
+      editorConfig.destroy();
+      editorConfig = createEditorConfig(contentHandle);
+      editorConfig.initializeTheme();
       createEditor();
     }
   });
 
-  // Handle noteId changes - recreate editor with new automerge path
+  // Handle noteId changes - content handle will be reloaded by the effect above
   $effect(() => {
-    if (noteId !== currentNoteId) {
+    if (noteId !== currentNoteId && contentHandle && !isLoadingContent) {
       currentNoteId = noteId;
       recreateEditor();
     }

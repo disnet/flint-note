@@ -3,7 +3,7 @@
  * Adapted from legacy deck types, removing server-side dependencies
  */
 
-import type { Note, NoteType } from '../types';
+import type { NoteMetadata, NoteType } from '../types';
 
 // Re-export core deck types from shared utils
 export {
@@ -231,10 +231,10 @@ export interface DeckHandlers {
 }
 
 /**
- * Convert a Note to DeckResultNote
+ * Convert a NoteMetadata to DeckResultNote
  */
 export function noteToResultNote(
-  note: Note,
+  note: NoteMetadata,
   noteTypes: Record<string, NoteType>
 ): DeckResultNote {
   const noteType = noteTypes[note.type];

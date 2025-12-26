@@ -24,7 +24,7 @@ import {
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import type { Note, Conversation } from './types';
+import type { NoteMetadata, Conversation } from './types';
 import {
   getAllNotes,
   getNoteTypes,
@@ -184,7 +184,7 @@ function findConversationByIdentifier(identifier: string): Conversation | null {
 /**
  * Parse wikilinks from text content
  */
-export function parseWikilinks(text: string, notes: Note[]): WikilinkMatch[] {
+export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMatch[] {
   const matches: WikilinkMatch[] = [];
   let match;
 
@@ -244,7 +244,10 @@ export function parseWikilinks(text: string, notes: Note[]): WikilinkMatch[] {
 /**
  * Find a note by identifier (note ID or title)
  */
-function findNoteByIdentifier(identifier: string, notes: Note[]): Note | null {
+function findNoteByIdentifier(
+  identifier: string,
+  notes: NoteMetadata[]
+): NoteMetadata | null {
   const normalizedIdentifier = identifier.toLowerCase().trim();
 
   // First try exact ID match

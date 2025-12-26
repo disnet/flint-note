@@ -5,7 +5,8 @@
   import { onMount, untrack, tick } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
-  import type { Note } from '../lib/automerge';
+  import type { DocHandle } from '@automerge/automerge-repo';
+  import type { NoteMetadata, NoteContentDocument } from '../lib/automerge';
   import {
     getBacklinks,
     getAllNotes,
@@ -20,7 +21,8 @@
     getSelectedWikilink,
     getNoteType,
     setNoteProp,
-    getDocHandle
+    getNoteContentHandle,
+    type ContextBlock
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
@@ -30,7 +32,7 @@
   import EditorChips from './EditorChips.svelte';
 
   interface Props {
-    note: Note;
+    note: NoteMetadata;
     onTitleChange: (title: string) => void;
     onArchive: () => void;
     onNavigate?: (noteId: string) => void;
@@ -80,11 +82,18 @@
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Get doc handle for automerge sync
-  const docHandle = getDocHandle();
+  // Content handle for automerge sync (loaded async)
+  let contentHandle = $state<DocHandle<NoteContentDocument> | null>(null);
+  let isLoadingContent = $state(true);
+  let initialContent = $state('');
+
+  // Track which note's content is currently loaded (plain variable, not reactive)
+  let loadedNoteId: string | null = null;
 
   // Create editor config factory function for note-specific configuration
-  function createEditorConfig(noteId: string): EditorConfig {
+  function createEditorConfig(
+    handle: DocHandle<NoteContentDocument> | null
+  ): EditorConfig {
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
       onWikilinkHover: handleWikilinkHover,
@@ -99,18 +108,41 @@
           addNoteToWorkspace(deckNoteId);
         }
       },
-      // Automerge sync for CRDT text editing
-      automergeSync: docHandle
+      // Automerge sync for CRDT text editing - uses content document
+      automergeSync: handle
         ? {
-            handle: docHandle,
-            path: ['notes', noteId, 'content']
+            handle: handle,
+            path: ['content']
           }
         : undefined
     });
   }
 
-  // Initial editor config
-  let editorConfig = createEditorConfig(note.id);
+  // Initial editor config (without sync until content handle loads)
+  let editorConfig = createEditorConfig(null);
+
+  // Load content handle when note ID changes
+  $effect(() => {
+    const noteId = note.id;
+
+    // Only reload if the note ID actually changed
+    if (noteId === loadedNoteId) {
+      return;
+    }
+    loadedNoteId = noteId;
+
+    isLoadingContent = true;
+    contentHandle = null;
+
+    getNoteContentHandle(noteId).then((handle) => {
+      if (handle && note.id === noteId) {
+        contentHandle = handle;
+        const doc = handle.doc();
+        initialContent = doc?.content || '';
+        isLoadingContent = false;
+      }
+    });
+  });
 
   function handleTitleInput(event: Event): void {
     const target = event.target as HTMLTextAreaElement;
@@ -154,14 +186,14 @@
     };
   });
 
-  function handleWikilinkClick(
+  async function handleWikilinkClick(
     targetId: string,
     title: string,
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
     }
-  ): void {
+  ): Promise<void> {
     const targetType = options?.targetType || 'note';
     const shouldCreate = options?.shouldCreate || false;
 
@@ -173,7 +205,7 @@
       // Note handling
       if (shouldCreate) {
         // Create a new note with the given title
-        const newId = createNote({ title });
+        const newId = await createNote({ title });
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
         onNavigate?.(newId);
@@ -185,8 +217,18 @@
     }
   }
 
-  // Get backlinks for this note
-  const backlinks = $derived(getBacklinks(note.id));
+  // Backlinks state (loaded async)
+  let backlinks = $state<Array<{ note: NoteMetadata; contexts: ContextBlock[] }>>([]);
+
+  // Load backlinks when note changes
+  $effect(() => {
+    const noteId = note.id;
+    getBacklinks(noteId).then((result) => {
+      if (note.id === noteId) {
+        backlinks = result;
+      }
+    });
+  });
 
   // Get the note type for property definitions
   const noteType = $derived(getNoteType(note.type));
@@ -209,7 +251,7 @@
     if (!editorContainer || editorView) return;
 
     const startState = EditorState.create({
-      doc: note.content,
+      doc: initialContent,
       extensions: editorConfig.getExtensions()
     });
 
@@ -243,40 +285,30 @@
     };
   });
 
-  // Create editor when container is available
+  // Create or recreate editor when container is available and content is loaded
   $effect(() => {
-    if (editorContainer && !editorView) {
-      createEditor();
-    }
-  });
+    if (editorContainer && !isLoadingContent && contentHandle) {
+      // Check if we need to create/recreate the editor
+      const needsNewEditor = !editorView || note.id !== currentNoteId;
 
-  // Handle note switching - reconfigure automerge sync with new path
-  $effect(() => {
-    if (note.id !== currentNoteId && editorView) {
-      // Note changed - create new config with updated path
-      editorConfig.destroy();
-      editorConfig = createEditorConfig(note.id);
-      editorConfig.initializeTheme();
+      if (needsNewEditor) {
+        // Destroy existing editor if any
+        if (editorView) {
+          editorView.destroy();
+          editorView = null;
+        }
 
-      // Reconfigure editor with new extensions (including new automerge sync path)
-      editorView.dispatch({
-        effects: StateEffect.reconfigure.of(editorConfig.getExtensions())
-      });
+        // Create new config with the current content handle
+        editorConfig.destroy();
+        editorConfig = createEditorConfig(contentHandle);
+        editorConfig.initializeTheme();
 
-      // Update editor content to match new note
-      const currentDoc = editorView.state.doc.toString();
-      if (currentDoc !== note.content) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: currentDoc.length,
-            insert: note.content
-          }
-        });
+        // Create the editor
+        createEditor();
+
+        // Update tracking
+        currentNoteId = note.id;
       }
-
-      currentNoteId = note.id;
-      measureAndUpdateMarkerWidths();
     }
   });
 
@@ -825,7 +857,13 @@
 
   <!-- Content - CodeMirror Editor -->
   <div class="editor-content">
-    <div class="editor-container editor-font" bind:this={editorContainer}></div>
+    {#if isLoadingContent}
+      <div class="editor-loading">
+        <span class="loading-text">Loading...</span>
+      </div>
+    {:else}
+      <div class="editor-container editor-font" bind:this={editorContainer}></div>
+    {/if}
   </div>
 
   <!-- Footer with backlinks -->
@@ -970,6 +1008,19 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+
+  .editor-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    color: var(--text-muted);
+  }
+
+  .loading-text {
+    font-size: 0.875rem;
   }
 
   .editor-container {

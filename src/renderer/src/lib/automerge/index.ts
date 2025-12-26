@@ -8,6 +8,8 @@
 // Types
 export type {
   Note,
+  NoteMetadata,
+  NoteContentDocument,
   NoteType,
   Workspace,
   NotesDocument,
@@ -97,8 +99,15 @@ export {
   // Note mutations
   createNote,
   updateNote,
+  updateNoteContent,
   archiveNote,
   deleteNote,
+
+  // Content loading (async)
+  getNoteContent,
+  getFullNote,
+  getNoteContentHandle,
+  searchNotesWithContent,
 
   // Workspace getters
   getWorkspaces,

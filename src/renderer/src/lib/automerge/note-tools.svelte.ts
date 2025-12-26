@@ -16,9 +16,10 @@ import {
   updateNote,
   archiveNote,
   getBacklinks,
-  getNoteType
+  getNoteType,
+  getNoteContent
 } from './state.svelte';
-import type { Note } from './types';
+import type { NoteMetadata } from './types';
 
 /**
  * Simplified note result for AI context (avoids sending too much data)
@@ -34,24 +35,26 @@ interface NoteResult {
 }
 
 /**
- * Convert a Note to a simplified result for the AI
+ * Convert a NoteMetadata + content to a simplified result for the AI
  * Truncates content to avoid overwhelming the context
- * Note: Automerge doesn't allow undefined values, so we only include defined fields
  */
-function toNoteResult(note: Note, maxContentLength = 500): NoteResult {
+function toNoteResultFromMetadata(
+  note: NoteMetadata,
+  content: string,
+  maxContentLength = 500
+): NoteResult {
   const noteType = getNoteType(note.type);
   const result: NoteResult = {
     id: note.id,
     title: note.title,
     content:
-      note.content.length > maxContentLength
-        ? note.content.slice(0, maxContentLength) + '...'
-        : note.content,
+      content.length > maxContentLength
+        ? content.slice(0, maxContentLength) + '...'
+        : content,
     type: note.type,
     created: note.created,
     updated: note.updated
   };
-  // Only add typeName if defined (Automerge doesn't allow undefined)
   if (noteType?.name !== undefined) {
     result.typeName = noteType.name;
   }
@@ -81,9 +84,16 @@ export function createNoteTools(): Record<string, Tool> {
         try {
           const results = searchNotes(query);
           const limitedResults = results.slice(0, limit);
+          // Load content for each note
+          const noteResults = await Promise.all(
+            limitedResults.map(async (n) => {
+              const content = await getNoteContent(n.id);
+              return toNoteResultFromMetadata(n, content);
+            })
+          );
           return {
             success: true,
-            notes: limitedResults.map((n) => toNoteResult(n)),
+            notes: noteResults,
             count: limitedResults.length,
             totalMatches: results.length
           };
@@ -113,13 +123,15 @@ export function createNoteTools(): Record<string, Tool> {
           if (!note) {
             return { success: false, error: `Note not found: ${noteId}` };
           }
+          // Load content from separate document
+          const content = await getNoteContent(noteId);
           // Return full content for get_note
           const noteType = getNoteType(note.type);
           // Build result object, excluding undefined values (Automerge doesn't allow undefined)
           const noteResult: Record<string, unknown> = {
             id: note.id,
             title: note.title,
-            content: note.content,
+            content: content,
             type: note.type,
             created: note.created,
             updated: note.updated,
@@ -161,9 +173,16 @@ export function createNoteTools(): Record<string, Tool> {
         try {
           const notes = getNotes();
           const limitedNotes = notes.slice(0, limit);
+          // Load content for each note
+          const noteResults = await Promise.all(
+            limitedNotes.map(async (n) => {
+              const content = await getNoteContent(n.id);
+              return toNoteResultFromMetadata(n, content, 200); // Shorter content for list
+            })
+          );
           return {
             success: true,
-            notes: limitedNotes.map((n) => toNoteResult(n, 200)), // Shorter content for list
+            notes: noteResults,
             count: limitedNotes.length,
             totalNotes: notes.length
           };
@@ -194,7 +213,7 @@ export function createNoteTools(): Record<string, Tool> {
       }),
       execute: async ({ title, content, type }) => {
         try {
-          const noteId = createNote({ title, content, type });
+          const noteId = await createNote({ title, content, type });
           return {
             success: true,
             noteId,
@@ -296,17 +315,24 @@ export function createNoteTools(): Record<string, Tool> {
             return { success: false, error: `Note not found: ${noteId}` };
           }
 
-          const backlinks = getBacklinks(noteId);
+          const backlinks = await getBacklinks(noteId);
+          // Load content for each backlink note
+          const backlinkResults = await Promise.all(
+            backlinks.map(async (bl) => {
+              const content = await getNoteContent(bl.note.id);
+              return {
+                note: toNoteResultFromMetadata(bl.note, content, 200),
+                contexts: bl.contexts.map((ctx) => ({
+                  // Join context lines into readable text
+                  text: ctx.lines.map((l) => l.text).join('\n')
+                }))
+              };
+            })
+          );
           return {
             success: true,
             noteTitle: note.title,
-            backlinks: backlinks.map((bl) => ({
-              note: toNoteResult(bl.note, 200),
-              contexts: bl.contexts.map((ctx) => ({
-                // Join context lines into readable text
-                text: ctx.lines.map((l) => l.text).join('\n')
-              }))
-            })),
+            backlinks: backlinkResults,
             count: backlinks.length
           };
         } catch (error) {

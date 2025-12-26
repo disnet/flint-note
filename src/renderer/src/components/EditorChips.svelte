@@ -4,7 +4,7 @@
    * Renders configured properties as inline chips under the note title
    */
   import type {
-    Note,
+    NoteMetadata,
     NoteType,
     PropertyDefinition,
     PropertyType
@@ -18,7 +18,7 @@
 
   interface Props {
     /** The current note */
-    note: Note;
+    note: NoteMetadata;
     /** The note type with property definitions */
     noteType: NoteType | undefined;
     /** Called when a property value changes */

@@ -8,6 +8,8 @@
   import { cubicOut } from 'svelte/easing';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
+  import type { DocHandle } from '@automerge/automerge-repo';
+  import type { NoteContentDocument } from '../lib/automerge';
   import {
     getAllNotes,
     createNote,
@@ -17,8 +19,7 @@
     addItemToWorkspace,
     EditorConfig,
     forceWikilinkRefresh,
-    getDocHandle,
-    getNote
+    getNoteContentHandle
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
@@ -37,9 +38,33 @@
   let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
   let isContentClipped = $state(false);
 
-  // Get note and its content
-  const note = $derived(getNote(noteId));
-  const content = $derived(note?.content ?? '');
+  // Content handle and state (loaded async)
+  let contentHandle = $state<DocHandle<NoteContentDocument> | null>(null);
+  let isLoadingContent = $state(true);
+  let content = $state('');
+
+  // Load content handle when noteId changes
+  $effect(() => {
+    const id = noteId;
+    isLoadingContent = true;
+    contentHandle = null;
+
+    getNoteContentHandle(id).then((handle) => {
+      if (handle && noteId === id) {
+        contentHandle = handle;
+        const doc = handle.doc();
+        content = doc?.content || '';
+        isLoadingContent = false;
+
+        // Subscribe to content changes
+        handle.on('change', ({ doc }) => {
+          if (doc) {
+            content = doc.content || '';
+          }
+        });
+      }
+    });
+  });
 
   // Check if content is empty
   const hasContent = $derived(content.trim().length > 0);
@@ -69,30 +94,34 @@
     !isFocused && !isManuallyExpanded && hasContent && isContentClipped
   );
 
-  // Get doc handle for automerge sync
-  const docHandle = getDocHandle();
+  // Create editor config with content handle
+  function createEditorConfig(
+    handle: DocHandle<NoteContentDocument> | null
+  ): EditorConfig {
+    return new EditorConfig({
+      onWikilinkClick: handleWikilinkClick,
+      placeholder: 'Start typing to create entry...',
+      variant: 'daily-note',
+      automergeSync: handle
+        ? {
+            handle: handle,
+            path: ['content']
+          }
+        : undefined
+    });
+  }
 
-  // Editor config with automerge sync
-  const editorConfig = new EditorConfig({
-    onWikilinkClick: handleWikilinkClick,
-    placeholder: 'Start typing to create entry...',
-    variant: 'daily-note',
-    automergeSync: docHandle
-      ? {
-          handle: docHandle,
-          path: ['notes', noteId, 'content']
-        }
-      : undefined
-  });
+  // Initial editor config (without sync until content handle loads)
+  let editorConfig = createEditorConfig(null);
 
-  function handleWikilinkClick(
+  async function handleWikilinkClick(
     targetId: string,
     title: string,
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
     }
-  ): void {
+  ): Promise<void> {
     const targetType = options?.targetType || 'note';
     const shouldCreate = options?.shouldCreate || false;
 
@@ -104,7 +133,7 @@
       // Note handling
       if (shouldCreate) {
         // Create a new note with the given title
-        const newId = createNote({ title });
+        const newId = await createNote({ title });
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
       } else {
@@ -210,9 +239,13 @@
     };
   });
 
-  // Create editor when container is available
+  // Create editor when container is available and content is loaded
   $effect(() => {
-    if (editorContainer && !editorView) {
+    if (editorContainer && !editorView && !isLoadingContent && contentHandle) {
+      // Reconfigure with content handle now that it's available
+      editorConfig.destroy();
+      editorConfig = createEditorConfig(contentHandle);
+      editorConfig.initializeTheme();
       createEditor();
     }
   });

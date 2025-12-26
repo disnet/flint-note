@@ -7,7 +7,7 @@
  * - Search by title, content, and note type
  */
 
-import type { Note, NoteType } from './types';
+import type { NoteMetadata, NoteType } from './types';
 
 /**
  * A single match within a note's content
@@ -28,12 +28,12 @@ export interface SearchMatch {
  */
 export interface SearchResult {
   /** The matching note */
-  note: Note;
+  note: NoteMetadata;
   /** Relevance score (higher is better) */
   score: number;
   /** Title matches for highlighting */
   titleMatches: SearchMatch[];
-  /** Content matches for highlighting */
+  /** Content matches for highlighting (empty for now - content is in separate docs) */
   contentMatches: SearchMatch[];
   /** Note type that matched (if any) */
   matchedType?: NoteType;
@@ -166,17 +166,16 @@ function findMatches(
 
 /**
  * Calculate relevance score for a note
+ * Note: Content search is currently disabled as content is in separate docs
  */
 function calculateScore(
-  note: Note,
+  note: NoteMetadata,
   terms: string[],
   titleMatches: SearchMatch[],
-  contentMatches: SearchMatch[],
   matchedType: NoteType | undefined
 ): number {
   let score = 0;
   const lowerTitle = note.title.toLowerCase();
-  const lowerContent = note.content.toLowerCase();
 
   for (const term of terms) {
     // Title matches are worth more
@@ -192,20 +191,14 @@ function calculateScore(
       }
     }
 
-    // Content matches
-    const contentOccurrences = (
-      lowerContent.match(new RegExp(escapeRegex(term), 'gi')) || []
-    ).length;
-    score += Math.min(contentOccurrences, 5); // Cap at 5 to avoid over-weighting
-
     // Type match
     if (matchedType) {
       score += 3;
     }
   }
 
-  // Boost for having both title and content matches
-  if (titleMatches.length > 0 && contentMatches.length > 0) {
+  // Boost for title matches
+  if (titleMatches.length > 0) {
     score += 5;
   }
 
@@ -221,9 +214,10 @@ function calculateScore(
 
 /**
  * Search notes with ranking and highlighting
+ * Note: Content search is currently disabled as content is in separate docs
  */
 export function searchNotesEnhanced(
-  notes: Note[],
+  notes: NoteMetadata[],
   query: string,
   options: SearchOptions = {}
 ): SearchResult[] {
@@ -244,12 +238,11 @@ export function searchNotesEnhanced(
     if (note.archived) continue;
 
     const lowerTitle = note.title.toLowerCase();
-    const lowerContent = note.content.toLowerCase();
 
-    // Check if any term matches
+    // Check if any term matches in title
     let hasMatch = false;
     for (const term of terms) {
-      if (lowerTitle.includes(term) || lowerContent.includes(term)) {
+      if (lowerTitle.includes(term)) {
         hasMatch = true;
         break;
       }
@@ -273,22 +266,17 @@ export function searchNotesEnhanced(
 
     if (!hasMatch) continue;
 
-    // Find matches in title and content
+    // Find matches in title only (content is in separate docs)
     const titleMatches = findMatches(
       note.title,
       terms,
       opts.contextChars,
       opts.maxMatchesPerNote
     );
-    const contentMatches = findMatches(
-      note.content,
-      terms,
-      opts.contextChars,
-      opts.maxMatchesPerNote
-    );
+    const contentMatches: SearchMatch[] = []; // Content search disabled for now
 
     // Calculate score
-    const score = calculateScore(note, terms, titleMatches, contentMatches, matchedType);
+    const score = calculateScore(note, terms, titleMatches, matchedType);
 
     results.push({
       note,
