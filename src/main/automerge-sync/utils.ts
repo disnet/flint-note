@@ -7,7 +7,17 @@ import path from 'path';
 import yaml from 'js-yaml';
 
 /**
- * Note interface matching the Automerge document structure
+ * Note metadata interface (without content) matching the Automerge document structure
+ */
+export interface SyncNoteMetadata {
+  id: string;
+  title: string;
+  type: string;
+  archived?: boolean;
+}
+
+/**
+ * Full note interface with content (for file sync operations)
  */
 export interface SyncNote {
   id: string;
@@ -15,6 +25,14 @@ export interface SyncNote {
   content: string;
   type: string;
   archived?: boolean;
+}
+
+/**
+ * Content document interface for per-note content storage
+ */
+export interface SyncNoteContentDocument {
+  noteId: string;
+  content: string;
 }
 
 /**

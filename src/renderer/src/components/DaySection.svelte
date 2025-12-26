@@ -24,9 +24,9 @@
   }: Props = $props();
 
   // Reference to the daily note editor
-  let editorRef: DailyNoteEditor;
+  let editorRef: DailyNoteEditor | undefined = $state();
   // Reference to the container element for scrolling
-  let containerRef: HTMLDivElement;
+  let containerRef: HTMLDivElement | undefined = $state();
 
   // Get short day name (Mon, Tue, Wed, etc.)
   const shortDayName = $derived.by(() => {

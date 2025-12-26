@@ -6,7 +6,8 @@
 import { type Repo, type DocHandle, type AutomergeUrl } from '@automerge/automerge-repo';
 import type { NoteContentDocument } from './types';
 
-// Cache of loaded content handles
+// Cache of loaded content handles (not reactive, just a module-level cache)
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 const contentHandles = new Map<string, DocHandle<NoteContentDocument>>();
 
 // localStorage key prefix for content URL mappings

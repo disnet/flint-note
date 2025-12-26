@@ -15,9 +15,12 @@ import type {
   Vault,
   Note,
   NoteType,
+  NoteMetadata,
+  NoteContentDocument,
   Workspace,
   AgentRoutine
 } from './types';
+import { storeContentUrl } from './content-docs.svelte';
 import { generateVaultId, nowISO } from './utils';
 import { getRepo, saveVaults, getVaults, setActiveVaultId } from './repo';
 import { opfsStorage } from './opfs-storage.svelte';
@@ -435,17 +438,51 @@ function updateWebpageNoteProps(
 }
 
 /**
- * Create an Automerge document from the migrated data
+ * Create an Automerge document from the migrated data.
+ * Creates separate content documents for each note.
+ *
+ * @param repo - The Automerge repo
+ * @param documentData - Migration document data with full notes (including content)
+ * @param vaultId - The vault ID (for localStorage content URL storage)
  */
 function createMigratedDocument(
   repo: Repo,
-  documentData: MigrationDocumentData
+  documentData: MigrationDocumentData,
+  vaultId: string
 ): { docUrl: string } {
   const handle = repo.create<NotesDocument>();
 
+  // Create content documents for each note and collect URLs
+  const contentUrls: Record<string, string> = {};
+  const notesMetadata: Record<string, NoteMetadata> = {};
+
+  for (const [noteId, note] of Object.entries(documentData.notes)) {
+    // Create content document for this note
+    const contentHandle = repo.create<NoteContentDocument>({
+      noteId,
+      content: note.content || ''
+    });
+
+    // Store content URL
+    contentUrls[noteId] = contentHandle.url;
+
+    // Also store in localStorage for the renderer
+    storeContentUrl(vaultId, noteId, contentHandle.url);
+
+    // Create metadata-only note (without content)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { content: _, ...metadata } = note;
+    notesMetadata[noteId] = metadata;
+  }
+
   handle.change((doc) => {
-    // Copy all migrated data
-    doc.notes = documentData.notes;
+    // Copy notes as metadata only (no content)
+    doc.notes = notesMetadata;
+
+    // Store content URLs in root document
+    doc.contentUrls = contentUrls;
+
+    // Copy other migrated data
     doc.workspaces = documentData.workspaces;
     doc.activeWorkspaceId = documentData.activeWorkspaceId;
     doc.noteTypes = documentData.noteTypes;
@@ -767,8 +804,10 @@ export async function migrateLegacyVault(
       total: 5
     };
 
+    // Generate vault ID first so we can store content URLs
+    const vaultId = generateVaultId();
     const repo = getRepo();
-    const { docUrl } = createMigratedDocument(repo, documentData);
+    const { docUrl } = createMigratedDocument(repo, documentData, vaultId);
 
     // Phase 4: Create and save vault
     migrationProgress = {
@@ -777,8 +816,6 @@ export async function migrateLegacyVault(
       current: 4,
       total: 5
     };
-
-    const vaultId = generateVaultId();
     const vault = createVaultFromMigration(vaultId, vaultName, docUrl, vaultPath);
 
     // Save to localStorage
