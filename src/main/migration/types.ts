@@ -71,6 +71,7 @@ export interface MigrationResult {
     workspaces: number;
     reviewItems: number;
     agentRoutines: number;
+    images: number;
     skipped: number;
   };
   /** Non-fatal errors encountered during migration */
@@ -325,4 +326,18 @@ export interface WebpageFileData {
     siteName?: string;
     author?: string;
   };
+}
+
+/**
+ * Image file data for migration
+ */
+export interface ImageFileData {
+  /** Original filename (e.g., 'screenshot.png') */
+  filename: string;
+  /** Relative path from vault root (e.g., 'attachments/images/screenshot.png') */
+  relativePath: string;
+  /** File data as Uint8Array */
+  fileData: Uint8Array;
+  /** File extension (e.g., 'png', 'jpg') */
+  extension: string;
 }

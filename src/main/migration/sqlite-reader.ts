@@ -489,3 +489,83 @@ export function readWebpageFile(vaultPath: string, relativePath: string): string
     return null;
   }
 }
+
+/**
+ * Image file info for listing
+ */
+export interface ImageFileInfo {
+  /** Original filename (e.g., 'screenshot.png') */
+  filename: string;
+  /** Relative path from vault root */
+  relativePath: string;
+  /** File extension without dot (e.g., 'png', 'jpg') */
+  extension: string;
+}
+
+// Supported image extensions
+const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+
+/**
+ * List all image files in the vault's attachments/images folder
+ *
+ * @param vaultPath - The vault base path
+ * @returns Array of image file info objects
+ */
+export function listImageFiles(vaultPath: string): ImageFileInfo[] {
+  const imagesDir = path.join(vaultPath, 'attachments', 'images');
+
+  // Check if directory exists
+  if (!fs.existsSync(imagesDir)) {
+    return [];
+  }
+
+  try {
+    const files = fs.readdirSync(imagesDir);
+    const imageFiles: ImageFileInfo[] = [];
+
+    for (const filename of files) {
+      const ext = path.extname(filename).toLowerCase();
+      if (SUPPORTED_IMAGE_EXTENSIONS.includes(ext)) {
+        imageFiles.push({
+          filename,
+          relativePath: `attachments/images/${filename}`,
+          extension: ext.slice(1) // Remove the leading dot
+        });
+      }
+    }
+
+    return imageFiles;
+  } catch (error) {
+    console.error(`Failed to list image files in: ${imagesDir}`, error);
+    return [];
+  }
+}
+
+/**
+ * Read an image file from the vault
+ *
+ * @param vaultPath - The vault base path
+ * @param relativePath - The relative path to the image file
+ * @returns The file contents as a Uint8Array, or null if not found
+ */
+export function readImageFile(
+  vaultPath: string,
+  relativePath: string
+): Uint8Array | null {
+  const fullPath = path.isAbsolute(relativePath)
+    ? relativePath
+    : path.join(vaultPath, relativePath);
+
+  try {
+    const buffer = fs.readFileSync(fullPath);
+    // Create a proper Uint8Array copy (not a view) for IPC serialization
+    const uint8Array = new Uint8Array(buffer.length);
+    for (let i = 0; i < buffer.length; i++) {
+      uint8Array[i] = buffer[i];
+    }
+    return uint8Array;
+  } catch (error) {
+    console.error(`Failed to read image file: ${fullPath}`, error);
+    return null;
+  }
+}

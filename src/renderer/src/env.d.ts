@@ -338,6 +338,12 @@ declare global {
               author?: string;
             };
           }>;
+          imageFiles: Array<{
+            filename: string;
+            relativePath: string;
+            fileData: Uint8Array;
+            extension: string;
+          }>;
           errors: Array<{
             entity: string;
             entityId: string;

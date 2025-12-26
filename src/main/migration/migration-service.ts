@@ -14,13 +14,16 @@ import type {
   MigrationError,
   EpubFileData,
   PdfFileData,
-  WebpageFileData
+  WebpageFileData,
+  ImageFileData
 } from './types';
 import {
   extractVaultData,
   readEpubFile,
   readPdfFile,
-  readWebpageFile
+  readWebpageFile,
+  listImageFiles,
+  readImageFile
 } from './sqlite-reader';
 import { transformVaultData } from './data-transformer';
 import { ensureSyncDirectory, getSafeSyncDirectory } from './utils';
@@ -180,6 +183,7 @@ export async function migrateLegacyVault(
         epubs: 0,
         pdfs: 0,
         webpages: 0,
+        images: 0,
         decks: 0,
         dailyNotes: 0,
         workspaces: 0,
@@ -210,6 +214,7 @@ export async function getMigrationDocumentData(vaultPath: string): Promise<{
   epubFiles: EpubFileData[];
   pdfFiles: PdfFileData[];
   webpageFiles: WebpageFileData[];
+  imageFiles: ImageFileData[];
   errors: MigrationError[];
 } | null> {
   try {
@@ -240,11 +245,28 @@ export async function getMigrationDocumentData(vaultPath: string): Promise<{
       }
     }
 
+    // Read image files from attachments/images folder
+    const imageFileInfos = listImageFiles(vaultPath);
+    const imageFiles: ImageFileData[] = [];
+
+    for (const info of imageFileInfos) {
+      const fileData = readImageFile(vaultPath, info.relativePath);
+      if (fileData) {
+        imageFiles.push({
+          filename: info.filename,
+          relativePath: info.relativePath,
+          fileData,
+          extension: info.extension
+        });
+      }
+    }
+
     return {
       document: transformResult.document,
       epubFiles: transformResult.epubFiles,
       pdfFiles: transformResult.pdfFiles,
       webpageFiles: transformResult.webpageFiles,
+      imageFiles,
       errors: transformResult.errors
     };
   } catch (error) {

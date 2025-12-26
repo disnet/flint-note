@@ -24,6 +24,7 @@ import {
   type WikilinkHoverHandler
 } from './wikilinks.svelte';
 import { deckExtension } from './deck';
+import { imageExtension } from './image-extension.svelte';
 import { automergeSyncPlugin } from '@automerge/automerge-codemirror';
 import type { DocHandle } from '@automerge/automerge-repo';
 import type { NotesDocument } from './types';
@@ -174,6 +175,8 @@ export class EditorConfig {
             })
           ]
         : []),
+      // Image extension for inline OPFS images
+      imageExtension(),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true)
     ];

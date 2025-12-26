@@ -433,6 +433,12 @@ const api = {
         filePath: string;
         metadata: { title?: string; url?: string; siteName?: string; author?: string };
       }[];
+      imageFiles: {
+        filename: string;
+        relativePath: string;
+        fileData: Uint8Array;
+        extension: string;
+      }[];
       errors: { entity: string; entityId: string; message: string }[];
     } | null> => electronAPI.ipcRenderer.invoke('get-migration-document-data', params),
 

@@ -26,6 +26,7 @@ import { getRepo, saveVaults, getVaults, setActiveVaultId } from './repo';
 import { opfsStorage } from './opfs-storage.svelte';
 import { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
 import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
+import { imageOpfsStorage } from './image-opfs-storage.svelte';
 
 // Types from the main process migration module
 export interface LegacyVaultInfo {
@@ -115,6 +116,7 @@ interface MigrationStats {
   epubs: number;
   pdfs: number;
   webpages: number;
+  images: number;
   decks: number;
   dailyNotes: number;
   workspaces: number;
@@ -434,6 +436,89 @@ function updateWebpageNoteProps(
   }
   if (metadata.author !== undefined) {
     note.props.webpageAuthor = metadata.author;
+  }
+}
+
+/**
+ * Image file data for migration
+ */
+interface ImageFileData {
+  filename: string;
+  relativePath: string;
+  fileData: Uint8Array | ArrayLike<number>;
+  extension: string;
+}
+
+/**
+ * Image URL mapping: old path -> new opfs:// URL
+ */
+type ImageUrlMapping = Record<string, string>;
+
+/**
+ * Store an image file in OPFS and return the short hash and extension
+ */
+async function storeImageInOPFS(
+  fileData: Uint8Array | ArrayLike<number>,
+  extension: string
+): Promise<{ shortHash: string; extension: string }> {
+  // Convert IPC serialized data to Uint8Array
+  let uint8Array: Uint8Array;
+
+  if (fileData instanceof Uint8Array) {
+    uint8Array = new Uint8Array(fileData.length);
+    uint8Array.set(fileData);
+  } else if (
+    typeof fileData === 'object' &&
+    fileData !== null &&
+    typeof (fileData as { length?: number }).length === 'number'
+  ) {
+    const length = (fileData as { length: number }).length;
+    uint8Array = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+      uint8Array[i] = (fileData as ArrayLike<number>)[i];
+    }
+  } else {
+    throw new Error('Invalid image file data format');
+  }
+
+  const result = await imageOpfsStorage.store(
+    uint8Array.buffer as ArrayBuffer,
+    extension
+  );
+  return { shortHash: result.shortHash, extension: result.extension };
+}
+
+/**
+ * Rewrite image URLs in note content from legacy format to OPFS format
+ * Transforms: ![alt](attachments/images/filename.png)
+ * To:         ![alt](opfs://images/shorthash.png)
+ */
+function rewriteImageUrls(content: string, imageUrlMapping: ImageUrlMapping): string {
+  // Match markdown images with attachments/images/ path
+  const imageRegex = /!\[([^\]]*)\]\((attachments\/images\/([^)]+))\)/g;
+
+  return content.replace(imageRegex, (match, altText, _fullPath, filename) => {
+    const newUrl = imageUrlMapping[filename];
+    if (newUrl) {
+      return `![${altText}](${newUrl})`;
+    }
+    // If not in mapping, keep original (maybe file wasn't migrated)
+    return match;
+  });
+}
+
+/**
+ * Rewrite image URLs in all notes in the document
+ */
+function rewriteAllNoteImageUrls(
+  document: MigrationDocumentData,
+  imageUrlMapping: ImageUrlMapping
+): void {
+  for (const noteId of Object.keys(document.notes)) {
+    const note = document.notes[noteId];
+    if (note.content) {
+      note.content = rewriteImageUrls(note.content, imageUrlMapping);
+    }
   }
 }
 
@@ -796,6 +881,55 @@ export async function migrateLegacyVault(
       }
     }
 
+    // Phase 2d: Store image files in OPFS and rewrite URLs
+    const imageFiles = (mainResult.imageFiles || []) as ImageFileData[];
+    const imageUrlMapping: ImageUrlMapping = {};
+
+    if (imageFiles.length > 0) {
+      migrationProgress = {
+        phase: 'transforming',
+        message: `Storing ${imageFiles.length} image files...`,
+        current: 2,
+        total: 5,
+        details: { epubs: epubFiles.length }
+      };
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const imageFile = imageFiles[i];
+
+        migrationProgress = {
+          phase: 'transforming',
+          message: `Storing image ${i + 1} of ${imageFiles.length}...`,
+          current: 2,
+          total: 5,
+          details: { epubs: epubFiles.length }
+        };
+
+        try {
+          if (
+            !imageFile.fileData ||
+            (imageFile.fileData as { length: number }).length === 0
+          ) {
+            continue;
+          }
+
+          const result = await storeImageInOPFS(imageFile.fileData, imageFile.extension);
+          // Map old filename to new opfs:// URL
+          imageUrlMapping[imageFile.filename] =
+            `opfs://images/${result.shortHash}.${result.extension}`;
+        } catch (error) {
+          errors.push({
+            entity: 'epub', // Using 'epub' entity type as there's no 'image' type defined
+            entityId: imageFile.filename,
+            message: `Failed to store image: ${error instanceof Error ? error.message : String(error)}`
+          });
+        }
+      }
+
+      // Rewrite image URLs in all notes
+      rewriteAllNoteImageUrls(documentData, imageUrlMapping);
+    }
+
     // Phase 3: Create Automerge document
     migrationProgress = {
       phase: 'writing',
@@ -859,6 +993,7 @@ export async function migrateLegacyVault(
         workspaces: Object.keys(documentData.workspaces).length,
         reviewItems: 0, // Not tracked separately in renderer
         agentRoutines: agentRoutineCount,
+        images: imageFiles.length,
         skipped: 0
       },
       errors

@@ -342,6 +342,32 @@ export {
 } from './webpage-import.svelte';
 export type { WebpageImportResult } from './webpage-import.svelte';
 
+// OPFS storage for image files
+export { imageOpfsStorage } from './image-opfs-storage.svelte';
+export type { ImageStoreResult, ImageFileInfo } from './image-opfs-storage.svelte';
+
+// Image import
+export {
+  importImageFile,
+  importImageFromData,
+  pickAndImportImages,
+  handleImageDrop,
+  handleImagePaste,
+  hasImageData,
+  imageExists,
+  buildMarkdownImageSyntax,
+  parseOpfsImageUrl
+} from './image-import.svelte';
+export type { ImageImportResult } from './image-import.svelte';
+
+// Image CodeMirror extension
+export {
+  imageExtension,
+  forceImageRefresh,
+  clearImageCache,
+  insertImage
+} from './image-extension.svelte';
+
 // Repo utilities
 export {
   createRepo,

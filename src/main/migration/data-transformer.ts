@@ -136,6 +136,7 @@ export interface TransformResult {
     epubs: number;
     pdfs: number;
     webpages: number;
+    images: number;
     decks: number;
     dailyNotes: number;
     workspaces: number;
@@ -1051,6 +1052,7 @@ export function transformVaultData(
       epubs: epubCount,
       pdfs: pdfCount,
       webpages: webpageCount,
+      images: 0, // Images are counted during OPFS storage in renderer
       decks: deckCount,
       dailyNotes: dailyCount,
       workspaces: Object.keys(workspaces).length,
