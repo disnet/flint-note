@@ -24,10 +24,6 @@
   // Initialize automerge state
   onMount(async () => {
     try {
-      // Trigger font loading and wait for it to complete to prevent flash of unstyled text
-      // We need to explicitly load the font since it's not used during the splash screen
-      await document.fonts.load("16px 'iA Writer Quattro'");
-
       await initializeState();
       // Check if we have vaults after initialization
       const vaults = getNonArchivedVaults();
@@ -80,6 +76,42 @@
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
+  });
+
+  // Font application
+  $effect(() => {
+    const fontSettings = settingsStore.settings.appearance.font;
+
+    let fontFamily: string;
+
+    switch (fontSettings?.preset) {
+      case 'serif':
+        fontFamily = 'Georgia, "Times New Roman", Times, serif';
+        break;
+      case 'monospace':
+        fontFamily =
+          "'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace";
+        break;
+      case 'custom':
+        // Use custom font with sans-serif fallback
+        fontFamily = fontSettings.customFont
+          ? `"${fontSettings.customFont}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+          : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+        break;
+      case 'sans-serif':
+      default:
+        fontFamily =
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+        break;
+    }
+
+    document.documentElement.style.setProperty('--font-editor', fontFamily);
+  });
+
+  // Font size application
+  $effect(() => {
+    const fontSize = settingsStore.settings.appearance.fontSize ?? 16;
+    document.documentElement.style.setProperty('--font-editor-size', `${fontSize}px`);
   });
 
   // Platform detection

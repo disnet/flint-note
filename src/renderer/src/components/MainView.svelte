@@ -102,6 +102,64 @@
   let pendingChatMessage = $state<string | null>(null);
   let quickSearchOpen = $state(false);
 
+  // Font settings state
+  let systemFonts = $state<string[]>([]);
+  let loadingFonts = $state(false);
+
+  // Load system fonts when custom font option is selected
+  async function loadSystemFonts(): Promise<void> {
+    if (systemFonts.length > 0 || loadingFonts) return;
+    loadingFonts = true;
+    try {
+      const fonts = await window.api?.getSystemFonts();
+      if (fonts) {
+        systemFonts = fonts;
+      }
+    } catch (error) {
+      console.error('Failed to load system fonts:', error);
+    } finally {
+      loadingFonts = false;
+    }
+  }
+
+  // Watch for custom preset selection to load fonts
+  $effect(() => {
+    if (settingsStore.settings.appearance.font?.preset === 'custom') {
+      loadSystemFonts();
+    }
+  });
+
+  // Handle font preset change
+  async function handleFontPresetChange(
+    preset: 'sans-serif' | 'serif' | 'monospace' | 'custom'
+  ): Promise<void> {
+    await settingsStore.updateFont({
+      preset,
+      customFont:
+        preset === 'custom'
+          ? settingsStore.settings.appearance.font?.customFont
+          : undefined
+    });
+  }
+
+  // Handle custom font selection
+  async function handleCustomFontChange(fontName: string): Promise<void> {
+    await settingsStore.updateFont({
+      preset: 'custom',
+      customFont: fontName
+    });
+  }
+
+  // Handle font size change
+  async function handleFontSizeChange(size: number): Promise<void> {
+    await settingsStore.updateSettings({
+      appearance: {
+        ...settingsStore.settings.appearance,
+        fontSize: size
+      }
+    });
+  }
+
   // Open shelf panel (used by "Add to Shelf" buttons)
   function openShelfPanel(): void {
     shelfPanelOpen = true;
@@ -536,6 +594,77 @@
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                   </select>
+                </label>
+              </div>
+
+              <div class="settings-group">
+                <label>
+                  <span>Editor Font</span>
+                  <select
+                    value={settingsStore.settings.appearance.font?.preset || 'sans-serif'}
+                    onchange={(e) =>
+                      handleFontPresetChange(
+                        e.currentTarget.value as
+                          | 'sans-serif'
+                          | 'serif'
+                          | 'monospace'
+                          | 'custom'
+                      )}
+                  >
+                    <option value="sans-serif">Sans-serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="monospace">Monospace</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                </label>
+              </div>
+
+              {#if settingsStore.settings.appearance.font?.preset === 'custom'}
+                <div class="settings-group">
+                  <label>
+                    <span>Custom Font</span>
+                    <select
+                      value={settingsStore.settings.appearance.font?.customFont || ''}
+                      onchange={(e) => handleCustomFontChange(e.currentTarget.value)}
+                      disabled={loadingFonts}
+                    >
+                      <option value=""
+                        >{loadingFonts ? 'Loading fonts...' : 'Select a font...'}</option
+                      >
+                      {#each systemFonts as fontName (fontName)}
+                        <option value={fontName}>{fontName}</option>
+                      {/each}
+                    </select>
+                  </label>
+                  {#if settingsStore.settings.appearance.font?.customFont}
+                    <div
+                      class="font-preview"
+                      style="font-family: '{settingsStore.settings.appearance.font
+                        .customFont}'"
+                    >
+                      The quick brown fox jumps over the lazy dog.
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+
+              <div class="settings-group">
+                <label>
+                  <span>Font Size</span>
+                  <div class="font-size-control">
+                    <input
+                      type="range"
+                      min="12"
+                      max="24"
+                      step="1"
+                      value={settingsStore.settings.appearance.fontSize ?? 16}
+                      oninput={(e) =>
+                        handleFontSizeChange(parseInt(e.currentTarget.value))}
+                    />
+                    <span class="font-size-value"
+                      >{settingsStore.settings.appearance.fontSize ?? 16}px</span
+                    >
+                  </div>
                 </label>
               </div>
 
@@ -1307,6 +1436,34 @@
     border-radius: 0.375rem;
     background: var(--bg-primary);
     color: var(--text-primary);
+  }
+
+  .font-preview {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+
+  .font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .font-size-control input[type='range'] {
+    width: 120px;
+    accent-color: var(--accent-primary);
+  }
+
+  .font-size-value {
+    min-width: 3rem;
+    text-align: right;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
   }
 
   .settings-divider {

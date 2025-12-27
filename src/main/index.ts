@@ -46,6 +46,7 @@ import {
   detectLegacyVaultAtPath,
   getMigrationDocumentData
 } from './migration';
+import fontList from 'font-list';
 
 // Module-level service references
 let chatServerInstance: ChatServer | null = null;
@@ -570,6 +571,18 @@ app.whenReady().then(async () => {
       throw new Error('Settings storage service not available');
     }
     return await settingsStorageService.saveModelPreference(modelId);
+  });
+
+  // Font enumeration
+  ipcMain.handle('get-system-fonts', async () => {
+    try {
+      const fonts = await fontList.getFonts();
+      // font-list returns quoted font names like '"Arial"', clean them up
+      return fonts.map((f) => f.replace(/^"|"$/g, '')).sort();
+    } catch (error) {
+      logger.error('Failed to get system fonts', { error });
+      return [];
+    }
   });
 
   // Shell operations

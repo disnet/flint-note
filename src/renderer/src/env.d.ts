@@ -97,6 +97,9 @@ declare global {
       loadModelPreference: () => Promise<string | null>;
       saveModelPreference: (modelId: string) => Promise<void>;
 
+      // Font operations
+      getSystemFonts: () => Promise<string[]>;
+
       // Webpage archiving (returns HTML content for OPFS storage)
       archiveWebpage: (params: { url: string }) => Promise<{
         html: string;

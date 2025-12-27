@@ -99,6 +99,10 @@ const api = {
   saveModelPreference: (modelId: string) =>
     electronAPI.ipcRenderer.invoke('save-model-preference', modelId),
 
+  // Font operations
+  getSystemFonts: (): Promise<string[]> =>
+    electronAPI.ipcRenderer.invoke('get-system-fonts'),
+
   // Archive webpage for Automerge (returns HTML content for OPFS storage)
   archiveWebpage: (params: {
     url: string;

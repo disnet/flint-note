@@ -70,6 +70,7 @@
     "dompurify": "^3.2.6",
     "electron-updater": "^6.6.2",
     "foliate-js": "^1.0.1",
+    "font-list": "^2.0.1",
     "js-yaml": "^4.1.0",
     "jsdom": "^24.0.0",
     "linkedom": "^0.18.12",

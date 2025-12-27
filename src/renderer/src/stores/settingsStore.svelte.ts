@@ -17,6 +17,11 @@ export interface AppSettings {
   };
   appearance: {
     theme: 'light' | 'dark' | 'system';
+    font: {
+      preset: 'sans-serif' | 'serif' | 'monospace' | 'custom';
+      customFont?: string;
+    };
+    fontSize: number; // in pixels
   };
   dataAndPrivacy: {
     autoSaveDelay: number;
@@ -52,7 +57,11 @@ const DEFAULT_SETTINGS: AppSettings = {
     costWarningThreshold: 10
   },
   appearance: {
-    theme: 'system'
+    theme: 'system',
+    font: {
+      preset: 'sans-serif'
+    },
+    fontSize: 16
   },
   dataAndPrivacy: {
     autoSaveDelay: 500,
@@ -281,6 +290,18 @@ export const settingsStore = {
       appearance: {
         ...settings.appearance,
         theme
+      }
+    });
+  },
+
+  async updateFont(fontSettings: {
+    preset: 'sans-serif' | 'serif' | 'monospace' | 'custom';
+    customFont?: string;
+  }): Promise<void> {
+    await this.updateSettings({
+      appearance: {
+        ...settings.appearance,
+        font: fontSettings
       }
     });
   },

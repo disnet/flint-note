@@ -62,8 +62,7 @@ export class EditorConfig {
       '&': {
         height: 'auto',
         minHeight: isDailyNote ? '0' : '300px',
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
+        fontFamily: 'var(--font-editor) !important',
         fontSize: 'var(--font-editor-size) !important',
         lineHeight: '1.6',
         width: '100%'
@@ -71,16 +70,14 @@ export class EditorConfig {
       '&.cm-editor': {
         backgroundColor: 'var(--bg-primary)',
         color: 'var(--text-primary)',
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        fontFamily: 'var(--font-editor) !important'
       },
       '&.cm-focused': {
         outline: 'none',
         boxShadow: 'none !important'
       },
       '.cm-content': {
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
+        fontFamily: 'var(--font-editor) !important',
         color: 'var(--text-primary)',
         caretColor: 'var(--text-primary)',
         ...(isDailyNote ? { padding: '0' } : {})
@@ -89,20 +86,16 @@ export class EditorConfig {
         borderLeftColor: 'var(--text-primary)'
       },
       '.cm-tooltip': {
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        fontFamily: 'var(--font-editor) !important'
       },
       '.cm-tooltip-autocomplete': {
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        fontFamily: 'var(--font-editor) !important'
       },
       '.cm-completionLabel': {
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        fontFamily: 'var(--font-editor) !important'
       },
       '.cm-line': {
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        fontFamily: 'var(--font-editor) !important'
       }
     });
   }
@@ -114,8 +107,7 @@ export class EditorConfig {
       '.cm-scroller': {
         width: '100%',
         overflow: 'visible !important',
-        fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
+        fontFamily: 'var(--font-editor) !important',
         paddingBottom: isDailyNote ? '0' : '25vh'
       }
     });
