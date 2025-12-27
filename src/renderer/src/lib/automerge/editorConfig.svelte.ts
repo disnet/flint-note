@@ -5,7 +5,7 @@
  */
 import { EditorView, minimalSetup } from 'codemirror';
 import type { Extension } from '@codemirror/state';
-import { dropCursor, keymap, placeholder } from '@codemirror/view';
+import { dropCursor, keymap, placeholder, type ViewUpdate } from '@codemirror/view';
 import { indentOnInput } from '@codemirror/language';
 import {
   defaultKeymap,
@@ -44,6 +44,8 @@ export interface EditorConfigOptions {
     handle: DocHandle<NotesDocument>;
     path: (string | number)[];
   };
+  /** Handler for document changes (called on every update) */
+  onDocChange?: (update: ViewUpdate) => void;
 }
 
 export class EditorConfig {
@@ -202,6 +204,11 @@ export class EditorConfig {
         }
       });
       extensions.push(updateListener);
+    }
+
+    // Add update listener for onDocChange callback
+    if (this.options.onDocChange) {
+      extensions.push(EditorView.updateListener.of(this.options.onDocChange));
     }
 
     // Add placeholder if provided

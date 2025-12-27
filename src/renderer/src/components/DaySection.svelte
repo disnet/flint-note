@@ -72,9 +72,7 @@
   </div>
 
   <div class="day-content">
-    {#if dayData.dailyNote}
-      <DailyNoteEditor bind:this={editorRef} noteId={dayData.dailyNote.id} />
-    {/if}
+    <DailyNoteEditor bind:this={editorRef} date={dayData.date} />
   </div>
 </div>
 

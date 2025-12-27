@@ -1,13 +1,15 @@
 <script lang="ts">
   /**
    * Daily note editor component for the Automerge daily view
-   * Uses CodeMirror with collapsible expansion behavior and automerge-codemirror sync
+   * Uses CodeMirror with collapsible expansion behavior and automerge-codemirror sync.
+   * Lazily creates the daily note on first edit if it doesn't exist.
    */
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
+  import type { ViewUpdate } from '@codemirror/view';
   import type { DocHandle } from '@automerge/automerge-repo';
   import type { NoteContentDocument } from '../lib/automerge';
   import {
@@ -19,16 +21,18 @@
     addItemToWorkspace,
     EditorConfig,
     forceWikilinkRefresh,
-    getNoteContentHandle
+    getNoteContentHandle,
+    getDailyNote,
+    getOrCreateDailyNote
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   interface Props {
-    noteId: string;
+    date: string;
   }
 
-  let { noteId }: Props = $props();
+  let { date }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
@@ -42,28 +46,42 @@
   let contentHandle = $state<DocHandle<NoteContentDocument> | null>(null);
   let isLoadingContent = $state(true);
   let content = $state('');
+  // Track if we're in "no note yet" mode (editor created but no automerge sync)
+  let isUnsyncedMode = $state(false);
+  // Track if we're currently creating the note (to avoid double creation)
+  let isCreatingNote = $state(false);
 
-  // Load content handle when noteId changes
+  // Check if daily note exists and load content handle
   $effect(() => {
-    const id = noteId;
+    const currentDate = date;
     isLoadingContent = true;
     contentHandle = null;
+    isUnsyncedMode = false;
 
-    getNoteContentHandle(id).then((handle) => {
-      if (handle && noteId === id) {
-        contentHandle = handle;
-        const doc = handle.doc();
-        content = doc?.content || '';
-        isLoadingContent = false;
+    const existingNote = getDailyNote(currentDate);
+    if (existingNote) {
+      // Note exists, load content handle
+      getNoteContentHandle(existingNote.id).then((handle) => {
+        if (handle && date === currentDate) {
+          contentHandle = handle;
+          const doc = handle.doc();
+          content = doc?.content || '';
+          isLoadingContent = false;
 
-        // Subscribe to content changes
-        handle.on('change', ({ doc }) => {
-          if (doc) {
-            content = doc.content || '';
-          }
-        });
-      }
-    });
+          // Subscribe to content changes
+          handle.on('change', ({ doc }) => {
+            if (doc) {
+              content = doc.content || '';
+            }
+          });
+        }
+      });
+    } else {
+      // No note yet - we'll create editor without sync
+      isUnsyncedMode = true;
+      isLoadingContent = false;
+      content = '';
+    }
   });
 
   // Check if content is empty
@@ -96,7 +114,8 @@
 
   // Create editor config with content handle
   function createEditorConfig(
-    handle: DocHandle<NoteContentDocument> | null
+    handle: DocHandle<NoteContentDocument> | null,
+    onDocChange?: (update: ViewUpdate) => void
   ): EditorConfig {
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
@@ -107,8 +126,83 @@
             handle: handle,
             path: ['content']
           }
-        : undefined
+        : undefined,
+      onDocChange
     });
+  }
+
+  // Handle first edit in unsynced mode - create the note and switch to synced mode
+  async function handleFirstEdit(update: ViewUpdate): Promise<void> {
+    if (!isUnsyncedMode || isCreatingNote) return;
+    if (!update.docChanged) return;
+
+    // Get the current content from the editor
+    const currentContent = update.state.doc.toString();
+    if (!currentContent.trim()) return; // Don't create for empty content
+
+    isCreatingNote = true;
+    try {
+      // Create the daily note
+      const note = await getOrCreateDailyNote(date);
+
+      // Load the content handle
+      const handle = await getNoteContentHandle(note.id);
+      if (handle) {
+        // Update the handle with the content typed so far
+        handle.change((doc) => {
+          doc.content = currentContent;
+        });
+
+        contentHandle = handle;
+        content = currentContent;
+        isUnsyncedMode = false;
+
+        // Recreate editor with automerge sync
+        if (editorView) {
+          const selection = editorView.state.selection;
+          editorView.destroy();
+          editorView = null;
+
+          editorConfig.destroy();
+          editorConfig = createEditorConfig(handle);
+          editorConfig.initializeTheme();
+
+          // Recreate editor with synced config
+          const startState = EditorState.create({
+            doc: currentContent,
+            extensions: editorConfig.getExtensions(),
+            selection
+          });
+
+          editorView = new EditorView({
+            state: startState,
+            parent: editorContainer!
+          });
+
+          // Re-attach focus listeners
+          editorView.dom.addEventListener('focusin', () => handleFocusChange(true));
+          editorView.dom.addEventListener('focusout', () => {
+            setTimeout(() => {
+              if (editorView && !editorView.hasFocus) {
+                handleFocusChange(false);
+              }
+            }, 10);
+          });
+
+          // Restore focus
+          editorView.focus();
+        }
+
+        // Subscribe to content changes
+        handle.on('change', ({ doc }) => {
+          if (doc) {
+            content = doc.content || '';
+          }
+        });
+      }
+    } finally {
+      isCreatingNote = false;
+    }
   }
 
   // Initial editor config (without sync until content handle loads)
@@ -241,12 +335,20 @@
 
   // Create editor when container is available and content is loaded
   $effect(() => {
-    if (editorContainer && !editorView && !isLoadingContent && contentHandle) {
-      // Reconfigure with content handle now that it's available
-      editorConfig.destroy();
-      editorConfig = createEditorConfig(contentHandle);
-      editorConfig.initializeTheme();
-      createEditor();
+    if (editorContainer && !editorView && !isLoadingContent) {
+      if (contentHandle) {
+        // Synced mode: reconfigure with content handle
+        editorConfig.destroy();
+        editorConfig = createEditorConfig(contentHandle);
+        editorConfig.initializeTheme();
+        createEditor();
+      } else if (isUnsyncedMode) {
+        // Unsynced mode: create editor with change listener for lazy note creation
+        editorConfig.destroy();
+        editorConfig = createEditorConfig(null, handleFirstEdit);
+        editorConfig.initializeTheme();
+        createEditor();
+      }
     }
   });
 
