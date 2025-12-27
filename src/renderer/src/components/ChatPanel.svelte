@@ -8,6 +8,7 @@
   import {
     createChatService,
     TOOL_BREAK_MARKER,
+    TOOL_CALL_STEP_LIMIT,
     type ChatService,
     type ChatMessage,
     type ToolCall
@@ -93,6 +94,7 @@
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
   const conversationId = $derived(chatService?.conversationId ?? null);
   const activeConversation = $derived(getActiveConversation());
+  const awaitingContinue = $derived(status === 'awaiting_continue');
 
   // Handle initial message when panel opens (for routine execution, etc.)
   $effect(() => {
@@ -184,6 +186,12 @@
   async function copyToolCallJson(toolCall: ToolCall): Promise<void> {
     const json = JSON.stringify(toolCall, null, 2);
     await navigator.clipboard.writeText(json);
+  }
+
+  // Handle continue when agent hits step limit
+  async function handleContinue(): Promise<void> {
+    if (!chatService) return;
+    await chatService.continueConversation();
   }
 </script>
 
@@ -418,6 +426,16 @@
                     <span></span>
                     <span></span>
                     <span></span>
+                  </div>
+                {/if}
+                {#if awaitingContinue}
+                  <div class="continue-prompt">
+                    <span class="continue-prompt-text">
+                      Agent reached step limit ({TOOL_CALL_STEP_LIMIT} steps)
+                    </span>
+                    <button class="continue-button" onclick={handleContinue}>
+                      Continue
+                    </button>
                   </div>
                 {/if}
               {/if}
@@ -832,5 +850,38 @@
   .tool-copy-btn:hover {
     opacity: 1 !important;
     background: rgba(0, 0, 0, 0.1);
+  }
+
+  /* Continue prompt */
+  .continue-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  .continue-prompt-text {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .continue-button {
+    padding: 6px 14px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+  }
+
+  .continue-button:hover {
+    background: var(--accent-primary-hover, var(--accent-primary));
   }
 </style>

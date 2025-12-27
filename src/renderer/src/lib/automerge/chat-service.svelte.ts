@@ -9,9 +9,9 @@
 import {
   streamText,
   stepCountIs,
-  type CoreMessage,
   type ToolCallPart,
-  type ToolResultPart
+  type ToolResultPart,
+  type ModelMessage
 } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
@@ -53,7 +53,17 @@ export interface ToolCall {
 /**
  * Chat status
  */
-export type ChatStatus = 'ready' | 'submitting' | 'streaming' | 'error';
+export type ChatStatus =
+  | 'ready'
+  | 'submitting'
+  | 'streaming'
+  | 'error'
+  | 'awaiting_continue';
+
+/**
+ * Maximum number of tool call rounds before prompting user to continue
+ */
+export const TOOL_CALL_STEP_LIMIT = 30;
 
 const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
@@ -122,6 +132,8 @@ export class ChatService {
   // Track if we've had tool calls in the current message (to know when to insert breaks)
   private hasHadToolCalls = false;
   private hasTextAfterTools = false;
+  // Track if stopped at step limit
+  private _stoppedAtLimit = $state<boolean>(false);
 
   constructor(proxyPort: number) {
     this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
@@ -163,6 +175,13 @@ export class ChatService {
   }
 
   /**
+   * Check if stopped at limit (reactive)
+   */
+  get stoppedAtLimit(): boolean {
+    return this._stoppedAtLimit;
+  }
+
+  /**
    * Load an existing conversation
    */
   loadConversation(conversationId: string): void {
@@ -171,10 +190,11 @@ export class ChatService {
 
     this._conversationId = conversationId;
     // Convert persisted messages to ChatMessage format
+    // Note: m.content might be an Automerge Text object, so convert to string
     this._messages = conversation.messages.map((m) => ({
       id: m.id,
       role: m.role,
-      content: m.content,
+      content: String(m.content ?? ''),
       toolCalls: m.toolCalls,
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
       createdAt: new Date(m.createdAt)
@@ -201,8 +221,9 @@ export class ChatService {
   async sendMessage(text: string): Promise<void> {
     if (!text.trim() || this.isLoading) return;
 
-    // Clear any previous error
+    // Clear any previous error and reset step tracking
     this._error = null;
+    this._stoppedAtLimit = false;
 
     // Ensure we have a conversation
     if (!this._conversationId) {
@@ -252,39 +273,60 @@ export class ChatService {
 
       // Build messages for API
       // Filter out empty assistant messages (like the placeholder we just added)
-      const coreMessages: CoreMessage[] = this._messages
-        .filter((m) => m.role !== 'assistant' || m.content || m.toolCalls?.length)
-        .map((m) => {
-          if (m.role === 'user') {
-            return { role: 'user' as const, content: m.content };
-          } else if (m.role === 'assistant') {
-            // Include tool calls and results in assistant messages
-            const parts: (
-              | { type: 'text'; text: string }
-              | ToolCallPart
-              | ToolResultPart
-            )[] = [];
-            if (m.content) {
-              parts.push({ type: 'text', text: m.content });
-            }
-            if (m.toolCalls) {
-              for (const tc of m.toolCalls) {
-                parts.push({
-                  type: 'tool-call',
-                  toolCallId: tc.id,
-                  toolName: tc.name,
-                  input: tc.args
-                });
-              }
-            }
-            return {
-              role: 'assistant' as const,
-              content: parts.length > 0 ? parts : m.content
-            };
-          } else {
-            return { role: 'system' as const, content: m.content };
+      const coreMessages: ModelMessage[] = [];
+      for (const m of this._messages) {
+        // Skip empty assistant messages
+        if (m.role === 'assistant' && !m.content && !m.toolCalls?.length) {
+          continue;
+        }
+
+        if (m.role === 'user') {
+          coreMessages.push({ role: 'user', content: m.content });
+        } else if (m.role === 'assistant') {
+          // Build assistant message with tool calls
+          const parts: (
+            | { type: 'text'; text: string }
+            | ToolCallPart
+            | ToolResultPart
+          )[] = [];
+          if (m.content) {
+            parts.push({ type: 'text', text: m.content });
           }
-        });
+          if (m.toolCalls) {
+            for (const tc of m.toolCalls) {
+              parts.push({
+                type: 'tool-call',
+                toolCallId: tc.id,
+                toolName: tc.name,
+                input: tc.args
+              });
+            }
+          }
+          coreMessages.push({
+            role: 'assistant',
+            content: parts.length > 0 ? parts : m.content
+          });
+
+          // If there are tool calls with results, add a tool message
+          const toolResults = m.toolCalls?.filter((tc) => tc.result !== undefined) ?? [];
+          if (toolResults.length > 0) {
+            coreMessages.push({
+              role: 'tool',
+              content: toolResults.map((tc) => ({
+                type: 'tool-result',
+                toolCallId: tc.id,
+                toolName: tc.name,
+                output:
+                  typeof tc.result === 'string'
+                    ? { type: 'text' as const, value: tc.result }
+                    : { type: 'json' as const, value: tc.result }
+              }))
+            } as ModelMessage);
+          }
+        } else {
+          coreMessages.push({ role: 'system', content: m.content });
+        }
+      }
 
       // Create tools (note tools + EPUB tools + PDF tools + routine tools)
       const tools = {
@@ -307,7 +349,7 @@ export class ChatService {
         system: SYSTEM_PROMPT,
         messages: coreMessages,
         tools,
-        stopWhen: stepCountIs(5), // Allow up to 5 tool call rounds
+        stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT), // Allow up to TOOL_CALL_STEP_LIMIT tool call rounds
         abortSignal: this.abortController.signal
       });
 
@@ -364,7 +406,14 @@ export class ChatService {
         }
       }
 
-      this._status = 'ready';
+      // Check if stopped because agent wanted to continue but hit limit
+      const finishReason = await result.finishReason;
+      if (finishReason === 'tool-calls') {
+        this._stoppedAtLimit = true;
+        this._status = 'awaiting_continue';
+      } else {
+        this._status = 'ready';
+      }
     } catch (error) {
       // Don't report abort errors
       if (error instanceof Error && error.name === 'AbortError') {
@@ -397,6 +446,196 @@ export class ChatService {
   }
 
   /**
+   * Continue the conversation after hitting the step limit
+   */
+  async continueConversation(): Promise<void> {
+    if (this._status !== 'awaiting_continue' || !this._conversationId) return;
+
+    // Reset step tracking for another round
+    this._stoppedAtLimit = false;
+    this._error = null;
+
+    // Create assistant message placeholder and persist
+    const assistantMessageId = addMessageToConversation(this._conversationId, {
+      role: 'assistant',
+      content: '',
+      toolCalls: []
+    });
+    this.currentAssistantMessageId = assistantMessageId;
+    // Reset tool tracking for new message
+    this.hasHadToolCalls = false;
+    this.hasTextAfterTools = false;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      toolCalls: [],
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
+      createdAt: new Date()
+    };
+    this._messages = [...this._messages, assistantMessage];
+
+    this._status = 'submitting';
+
+    try {
+      // Create abort controller for this request
+      this.abortController = new AbortController();
+
+      // Build messages for API (includes all previous messages with tool calls/results)
+      const coreMessages: ModelMessage[] = [];
+      for (const m of this._messages) {
+        // Skip empty assistant messages
+        if (m.role === 'assistant' && !m.content && !m.toolCalls?.length) {
+          continue;
+        }
+
+        if (m.role === 'user') {
+          coreMessages.push({ role: 'user', content: m.content });
+        } else if (m.role === 'assistant') {
+          // Build assistant message with tool calls
+          const parts: (
+            | { type: 'text'; text: string }
+            | ToolCallPart
+            | ToolResultPart
+          )[] = [];
+          if (m.content) {
+            parts.push({ type: 'text', text: m.content });
+          }
+          if (m.toolCalls) {
+            for (const tc of m.toolCalls) {
+              parts.push({
+                type: 'tool-call',
+                toolCallId: tc.id,
+                toolName: tc.name,
+                input: tc.args
+              });
+            }
+          }
+          coreMessages.push({
+            role: 'assistant',
+            content: parts.length > 0 ? parts : m.content
+          });
+
+          // If there are tool calls with results, add a tool message
+          const toolResults = m.toolCalls?.filter((tc) => tc.result !== undefined) ?? [];
+          if (toolResults.length > 0) {
+            coreMessages.push({
+              role: 'tool',
+              content: toolResults.map((tc) => ({
+                type: 'tool-result',
+                toolCallId: tc.id,
+                toolName: tc.name,
+                output:
+                  typeof tc.result === 'string'
+                    ? { type: 'text' as const, value: tc.result }
+                    : { type: 'json' as const, value: tc.result }
+              }))
+            } as ModelMessage);
+          }
+        } else {
+          coreMessages.push({ role: 'system', content: m.content });
+        }
+      }
+
+      // Create tools
+      const tools = {
+        ...createNoteTools(),
+        ...createEpubTools(),
+        ...createPdfTools(),
+        ...createRoutineTools()
+      };
+
+      // Create OpenRouter provider
+      const openrouter = createOpenRouter({
+        baseURL: this.proxyUrl,
+        apiKey: 'proxy-handled'
+      });
+
+      // Stream the response
+      const result = streamText({
+        model: openrouter(DEFAULT_MODEL),
+        system: SYSTEM_PROMPT,
+        messages: coreMessages,
+        tools,
+        stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT),
+        abortSignal: this.abortController.signal
+      });
+
+      this._status = 'streaming';
+
+      // Process the stream
+      for await (const event of result.fullStream) {
+        switch (event.type) {
+          case 'text-delta':
+            if (this.hasHadToolCalls && !this.hasTextAfterTools) {
+              this.hasTextAfterTools = true;
+              this.updateLastAssistantMessage((msg) => {
+                if (msg.content.trim()) {
+                  msg.content += TOOL_BREAK_MARKER;
+                }
+              });
+            }
+            this.updateLastAssistantMessage((msg) => {
+              msg.content += event.text;
+            });
+            break;
+
+          case 'tool-call':
+            this.hasHadToolCalls = true;
+            this.updateLastAssistantMessage((msg) => {
+              if (!msg.toolCalls) msg.toolCalls = [];
+              msg.toolCalls.push({
+                id: event.toolCallId,
+                name: event.toolName,
+                args: event.input as Record<string, unknown>,
+                status: 'running'
+              });
+            });
+            break;
+
+          case 'tool-result':
+            this.updateLastAssistantMessage((msg) => {
+              const toolCall = msg.toolCalls?.find((tc) => tc.id === event.toolCallId);
+              if (toolCall) {
+                toolCall.result = event.output;
+                toolCall.status = 'completed';
+              }
+            });
+            break;
+
+          case 'error':
+            throw event.error;
+        }
+      }
+
+      // Check if stopped because agent wanted to continue but hit limit
+      const finishReason = await result.finishReason;
+      if (finishReason === 'tool-calls') {
+        this._stoppedAtLimit = true;
+        this._status = 'awaiting_continue';
+      } else {
+        this._status = 'ready';
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        this._status = 'ready';
+        return;
+      }
+
+      this._error = error instanceof Error ? error : new Error('Unknown error');
+      this._status = 'error';
+
+      this.updateLastAssistantMessage((msg) => {
+        if (!msg.content) {
+          msg.content = 'Sorry, an error occurred while processing your request.';
+        }
+      });
+    } finally {
+      this.abortController = null;
+    }
+  }
+
+  /**
    * Clear all messages and reset conversation
    */
   clearMessages(): void {
@@ -405,6 +644,7 @@ export class ChatService {
     this.currentAssistantMessageId = null;
     this._error = null;
     this._status = 'ready';
+    this._stoppedAtLimit = false;
   }
 
   /**
