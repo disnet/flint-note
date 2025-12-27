@@ -24,6 +24,7 @@ import {
   updateConversationMessage,
   getConversation
 } from './state.svelte';
+import { clone } from './utils';
 import type { PersistedToolCall } from './types';
 import { DEFAULT_MODEL } from '../../config/models';
 
@@ -391,10 +392,11 @@ export class ChatService {
 
           case 'tool-result':
             // Update tool call with result
+            // Clone the output to ensure it's plain JSON (no proxies or reactive metadata)
             this.updateLastAssistantMessage((msg) => {
               const toolCall = msg.toolCalls?.find((tc) => tc.id === event.toolCallId);
               if (toolCall) {
-                toolCall.result = event.output;
+                toolCall.result = clone(event.output);
                 toolCall.status = 'completed';
               }
             });
@@ -594,10 +596,11 @@ export class ChatService {
             break;
 
           case 'tool-result':
+            // Clone the output to ensure it's plain JSON (no proxies or reactive metadata)
             this.updateLastAssistantMessage((msg) => {
               const toolCall = msg.toolCalls?.find((tc) => tc.id === event.toolCallId);
               if (toolCall) {
-                toolCall.result = event.output;
+                toolCall.result = clone(event.output);
                 toolCall.status = 'completed';
               }
             });
