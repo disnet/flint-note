@@ -173,9 +173,13 @@
     const percentage = (totalTokens / maxTokens) * 100;
 
     // Estimate average tokens per message exchange (user + assistant)
-    const avgTokensPerExchange = messages.length > 0 ? conversationTokens / messages.length : 500;
+    const avgTokensPerExchange =
+      messages.length > 0 ? conversationTokens / messages.length : 500;
     const remainingTokens = maxTokens - totalTokens;
-    const estimatedMessagesRemaining = Math.max(0, Math.floor(remainingTokens / avgTokensPerExchange));
+    const estimatedMessagesRemaining = Math.max(
+      0,
+      Math.floor(remainingTokens / avgTokensPerExchange)
+    );
 
     // Determine warning level
     let warningLevel: 'none' | 'warning' | 'critical' | 'full' = 'none';
@@ -226,7 +230,10 @@
   // Use JSON.stringify to detect deep changes in message content
   $effect(() => {
     // Create dependency on messages array and its content
-    const _deps = [messages.length, messages.map((m) => m.content?.length ?? 0).join(',')];
+    const _deps = [
+      messages.length,
+      messages.map((m) => m.content?.length ?? 0).join(',')
+    ];
     void _deps;
     calculateContextUsage();
   });

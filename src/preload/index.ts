@@ -1,40 +1,5 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import type { CursorPosition } from '../main/vault-data-storage-service';
-
-interface FrontendMessage {
-  id: string;
-  text: string;
-  sender: 'user' | 'agent';
-  timestamp: Date | string;
-  toolCalls?: unknown[];
-}
-
-interface CacheConfig {
-  enableSystemMessageCaching: boolean;
-  enableHistoryCaching: boolean;
-  minimumCacheTokens: number;
-  historySegmentSize: number;
-}
-
-interface ContextUsage {
-  conversationId: string;
-  systemPromptTokens: number;
-  conversationHistoryTokens: number;
-  totalTokens: number;
-  maxTokens: number;
-  percentage: number;
-  warningLevel: 'none' | 'warning' | 'critical' | 'full';
-  estimatedMessagesRemaining: number;
-}
-
-export type ToolCallData = {
-  toolCallId: string;
-  name: string;
-  arguments: unknown;
-  result: string | undefined;
-  error: string | undefined;
-};
 
 // Custom APIs for renderer
 const api = {
@@ -97,98 +62,8 @@ const api = {
     electronAPI.ipcRenderer.removeAllListeners('update-download-progress');
     electronAPI.ipcRenderer.removeAllListeners('update-downloaded');
   },
-  // Chat operations
-  sendMessage: (params: { message: string; conversationId?: string; model?: string }) =>
-    electronAPI.ipcRenderer.invoke('send-message', params),
-  sendMessageStream: (
-    params: {
-      message: string;
-      conversationId?: string;
-      model?: string;
-      requestId: string;
-    },
-    onStreamStart: (data: { requestId: string }) => void,
-    onStreamChunk: (data: { requestId: string; chunk: string }) => void,
-    onStreamEnd: (data: {
-      requestId: string;
-      fullText: string;
-      stoppedAtLimit?: boolean;
-      stepCount?: number;
-      maxSteps?: number;
-      canContinue?: boolean;
-    }) => void,
-    onStreamError: (data: { requestId: string; error: string }) => void,
-    onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
-    onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void,
-    onStreamStoppedAtLimit?: (data: {
-      requestId: string;
-      stepCount: number;
-      maxSteps: number;
-      canContinue: boolean;
-    }) => void
-  ) => {
-    // Set up event listeners
-    electronAPI.ipcRenderer.on('ai-stream-start', (_event, data) => onStreamStart(data));
-    electronAPI.ipcRenderer.on('ai-stream-chunk', (_event, data) => onStreamChunk(data));
-    if (onStreamToolCall) {
-      electronAPI.ipcRenderer.on('ai-stream-tool-call', (_event, data) =>
-        onStreamToolCall(data)
-      );
-    }
-    if (onStreamToolResult) {
-      electronAPI.ipcRenderer.on('ai-stream-tool-result', (_event, data) =>
-        onStreamToolResult(data)
-      );
-    }
-    electronAPI.ipcRenderer.on('ai-stream-end', (_event, data) => {
-      // Check if the stream ended due to hitting the tool call limit
-      if (onStreamStoppedAtLimit && data.stoppedAtLimit) {
-        onStreamStoppedAtLimit({
-          requestId: data.requestId,
-          stepCount: data.stepCount!,
-          maxSteps: data.maxSteps!,
-          canContinue: data.canContinue!
-        });
-      }
-      onStreamEnd(data);
-      // Clean up listeners
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-result');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
-    });
-    electronAPI.ipcRenderer.on('ai-stream-error', (_event, data) => {
-      onStreamError(data);
-      // Clean up listeners
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-result');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
-      electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
-    });
-
-    // Send the streaming request
-    electronAPI.ipcRenderer.send('send-message-stream', params);
-  },
-  clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
-  cancelMessageStream: (params: { requestId: string }) =>
-    electronAPI.ipcRenderer.invoke('cancel-message-stream', params),
-  switchAiProvider: (params: {
-    provider: 'openrouter' | 'anthropic';
-    modelName: string;
-  }) => electronAPI.ipcRenderer.invoke('switch-ai-provider', params),
-  syncConversation: (params: { conversationId: string; messages: FrontendMessage[] }) =>
-    electronAPI.ipcRenderer.invoke('sync-conversation', params),
-  setActiveConversation: (params: {
-    conversationId: string;
-    messages?: FrontendMessage[] | string;
-  }) => electronAPI.ipcRenderer.invoke('set-active-conversation', params),
 
   // File system operations
-  showDirectoryPicker: () => electronAPI.ipcRenderer.invoke('show-directory-picker'),
   showItemInFolder: (params: { path: string }) =>
     electronAPI.ipcRenderer.invoke('show-item-in-folder', params),
 
@@ -216,33 +91,6 @@ const api = {
   getChatServerPort: (): Promise<number> =>
     electronAPI.ipcRenderer.invoke('get-chat-server-port'),
 
-  // Cache monitoring operations
-  getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),
-  getCachePerformanceSnapshot: () =>
-    electronAPI.ipcRenderer.invoke('get-cache-performance-snapshot'),
-  getCacheConfig: () => electronAPI.ipcRenderer.invoke('get-cache-config'),
-  setCacheConfig: (config: Partial<CacheConfig>) =>
-    electronAPI.ipcRenderer.invoke('set-cache-config', config),
-  getCachePerformanceReport: () =>
-    electronAPI.ipcRenderer.invoke('get-cache-performance-report'),
-  getCacheHealthCheck: () => electronAPI.ipcRenderer.invoke('get-cache-health-check'),
-  optimizeCacheConfig: () => electronAPI.ipcRenderer.invoke('optimize-cache-config'),
-  resetCacheMetrics: () => electronAPI.ipcRenderer.invoke('reset-cache-metrics'),
-  startPerformanceMonitoring: (intervalMinutes?: number) =>
-    electronAPI.ipcRenderer.invoke('start-performance-monitoring', intervalMinutes),
-  stopPerformanceMonitoring: () =>
-    electronAPI.ipcRenderer.invoke('stop-performance-monitoring'),
-  warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache'),
-
-  // Context usage monitoring operations
-  getContextUsage: (params?: { conversationId?: string }): Promise<ContextUsage> =>
-    electronAPI.ipcRenderer.invoke('get-context-usage', params),
-  canAcceptMessage: (params: {
-    estimatedTokens: number;
-    conversationId?: string;
-  }): Promise<{ canAccept: boolean; reason?: string }> =>
-    electronAPI.ipcRenderer.invoke('can-accept-message', params),
-
   // Global settings storage operations
   loadAppSettings: () => electronAPI.ipcRenderer.invoke('load-app-settings'),
   saveAppSettings: (settings: unknown) =>
@@ -250,31 +98,6 @@ const api = {
   loadModelPreference: () => electronAPI.ipcRenderer.invoke('load-model-preference'),
   saveModelPreference: (modelId: string) =>
     electronAPI.ipcRenderer.invoke('save-model-preference', modelId),
-  loadSidebarState: () => electronAPI.ipcRenderer.invoke('load-sidebar-state'),
-  saveSidebarState: (collapsed: boolean) =>
-    electronAPI.ipcRenderer.invoke('save-sidebar-state', collapsed),
-
-  // Cursor position management
-  getCursorPosition: (params: { vaultId: string; noteId: string }) =>
-    electronAPI.ipcRenderer.invoke('get-cursor-position', params),
-  setCursorPosition: (params: {
-    vaultId: string;
-    noteId: string;
-    position: CursorPosition;
-  }) => electronAPI.ipcRenderer.invoke('set-cursor-position', params),
-
-  // Usage tracking
-  onUsageRecorded: (callback: (usageData: unknown) => void) => {
-    electronAPI.ipcRenderer.on('ai-usage-recorded', (_event, data) => callback(data));
-  },
-
-  removeUsageListener: () => {
-    electronAPI.ipcRenderer.removeAllListeners('ai-usage-recorded');
-  },
-
-  // Vault operations
-  clearVaultUIState: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params),
 
   // Archive webpage for Automerge (returns HTML content for OPFS storage)
   archiveWebpage: (params: {

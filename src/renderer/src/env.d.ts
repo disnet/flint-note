@@ -1,49 +1,5 @@
 /// <reference types="vite/client" />
 
-import type { ChatResponse } from './services/types';
-
-interface FrontendMessage {
-  id: string;
-  text: string;
-  sender: 'user' | 'agent';
-  timestamp: Date | string;
-  toolCalls?: unknown[];
-}
-
-interface CacheConfig {
-  enableSystemMessageCaching: boolean;
-  enableHistoryCaching: boolean;
-  minimumCacheTokens: number;
-  historySegmentSize: number;
-}
-
-interface ContextUsage {
-  conversationId: string;
-  systemPromptTokens: number;
-  conversationHistoryTokens: number;
-  totalTokens: number;
-  maxTokens: number;
-  percentage: number;
-  warningLevel: 'none' | 'warning' | 'critical' | 'full';
-  estimatedMessagesRemaining: number;
-}
-
-type ToolCallData = {
-  toolCallId: string;
-  name: string;
-  arguments: unknown;
-  result: string | undefined;
-  error: string | undefined;
-};
-
-interface CursorPosition {
-  noteId: string;
-  position: number;
-  selectionStart?: number;
-  selectionEnd?: number;
-  lastUpdated: string;
-}
-
 declare global {
   interface Window {
     electron: import('@electron-toolkit/preload').ElectronAPI;
@@ -107,59 +63,7 @@ declare global {
       ) => void;
       removeAllUpdateListeners: () => void;
 
-      // Chat operations
-      sendMessage: (params: {
-        message: string;
-        conversationId?: string;
-        model?: string;
-      }) => Promise<ChatResponse>;
-      sendMessageStream: (
-        params: {
-          message: string;
-          conversationId?: string;
-          model?: string;
-          requestId: string;
-        },
-        onStreamStart: (data: { requestId: string }) => void,
-        onStreamChunk: (data: { requestId: string; chunk: string }) => void,
-        onStreamEnd: (data: {
-          requestId: string;
-          fullText: string;
-          stoppedAtLimit?: boolean;
-          stepCount?: number;
-          maxSteps?: number;
-          canContinue?: boolean;
-        }) => void,
-        onStreamError: (data: { requestId: string; error: string }) => void,
-        onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
-        onStreamToolResult?: (data: {
-          requestId: string;
-          toolCall: ToolCallData;
-        }) => void,
-        onStreamStoppedAtLimit?: (data: {
-          requestId: string;
-          stepCount: number;
-          maxSteps: number;
-          canContinue: boolean;
-        }) => void
-      ) => void;
-      clearConversation: () => Promise<unknown>;
-      cancelMessageStream: (params: { requestId: string }) => Promise<unknown>;
-      switchAiProvider: (params: {
-        provider: 'openrouter' | 'anthropic';
-        modelName: string;
-      }) => Promise<{ success: boolean; error?: string }>;
-      syncConversation: (params: {
-        conversationId: string;
-        messages: FrontendMessage[];
-      }) => Promise<unknown>;
-      setActiveConversation: (params: {
-        conversationId: string;
-        messages?: FrontendMessage[] | string;
-      }) => Promise<unknown>;
-
       // File system operations
-      showDirectoryPicker: () => Promise<string | null>;
       showItemInFolder: (params: { path: string }) => Promise<{
         success: boolean;
         error?: string;
@@ -187,51 +91,11 @@ declare global {
       // Chat server operations
       getChatServerPort: () => Promise<number>;
 
-      // Cache monitoring operations
-      getCacheMetrics: () => Promise<unknown>;
-      getCachePerformanceSnapshot: () => Promise<unknown>;
-      getCacheConfig: () => Promise<unknown>;
-      setCacheConfig: (config: Partial<CacheConfig>) => Promise<unknown>;
-      getCachePerformanceReport: () => Promise<unknown>;
-      getCacheHealthCheck: () => Promise<unknown>;
-      optimizeCacheConfig: () => Promise<unknown>;
-      resetCacheMetrics: () => Promise<unknown>;
-      startPerformanceMonitoring: (intervalMinutes?: number) => Promise<unknown>;
-      stopPerformanceMonitoring: () => Promise<unknown>;
-      warmupSystemCache: () => Promise<unknown>;
-
-      // Context usage monitoring
-      getContextUsage: (params?: { conversationId?: string }) => Promise<ContextUsage>;
-      canAcceptMessage: (params: {
-        estimatedTokens: number;
-        conversationId?: string;
-      }) => Promise<{ canAccept: boolean; reason?: string }>;
-
       // Global settings storage operations
       loadAppSettings: () => Promise<unknown>;
       saveAppSettings: (settings: unknown) => Promise<unknown>;
       loadModelPreference: () => Promise<string | null>;
       saveModelPreference: (modelId: string) => Promise<void>;
-      loadSidebarState: () => Promise<boolean>;
-      saveSidebarState: (collapsed: boolean) => Promise<void>;
-
-      // Cursor position management
-      getCursorPosition: (params: {
-        vaultId: string;
-        noteId: string;
-      }) => Promise<CursorPosition | null>;
-      setCursorPosition: (params: {
-        vaultId: string;
-        noteId: string;
-        position: CursorPosition;
-      }) => Promise<void>;
-
-      // Usage tracking
-      onUsageRecorded: (callback: (usageData: unknown) => void) => void;
-      removeUsageListener: () => void;
-
-      // Vault operations
-      clearVaultUIState: (params: { vaultId: string }) => Promise<void>;
 
       // Webpage archiving (returns HTML content for OPFS storage)
       archiveWebpage: (params: { url: string }) => Promise<{
@@ -407,3 +271,5 @@ declare global {
     };
   }
 }
+
+export {};
