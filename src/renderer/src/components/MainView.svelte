@@ -61,6 +61,7 @@
   import RoutinesView from './RoutinesView.svelte';
   import ImportWebpageModal from './ImportWebpageModal.svelte';
   import LegacyMigrationModal from './LegacyMigrationModal.svelte';
+  import QuickSearch from './QuickSearch.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -99,6 +100,7 @@
   let chatPanelOpen = $state(false);
   let shelfPanelOpen = $state(false);
   let pendingChatMessage = $state<string | null>(null);
+  let quickSearchOpen = $state(false);
 
   // Open shelf panel (used by "Add to Shelf" buttons)
   function openShelfPanel(): void {
@@ -397,11 +399,18 @@
       event.preventDefault();
       handleCreateNote();
     }
-    // Cmd/Ctrl + K: Focus search
+    // Cmd/Ctrl + K: Focus search or open quick search
     if (modifierPressed && event.key === 'k') {
       event.preventDefault();
-      const searchInput = document.getElementById('search-input');
-      searchInput?.focus();
+      if (sidebarState.leftSidebar.visible) {
+        // Sidebar is open - focus the sidebar search input
+        const searchInput = document.getElementById('search-input');
+        searchInput?.focus();
+      } else {
+        // Sidebar is closed - open quick search modal
+        quickSearchOpen = true;
+        searchInputFocused = true; // Trigger the search effect to show recent notes
+      }
     }
     // Cmd/Ctrl + B: Toggle sidebar
     if (modifierPressed && event.key === 'b') {
@@ -844,6 +853,39 @@
 <ImportWebpageModal
   isOpen={showArchiveWebpageModal}
   onClose={() => (showArchiveWebpageModal = false)}
+/>
+
+<!-- Quick Search Modal (when sidebar is closed) -->
+<QuickSearch
+  isOpen={quickSearchOpen}
+  {searchQuery}
+  {searchResults}
+  {selectedSearchIndex}
+  {isShowingRecent}
+  {isSearchingContent}
+  onClose={() => {
+    quickSearchOpen = false;
+    searchQuery = '';
+    searchInputFocused = false;
+    selectedSearchIndex = 0;
+  }}
+  onSearchChange={(query) => {
+    searchQuery = query;
+    selectedSearchIndex = 0;
+  }}
+  onSearchResultSelect={(note) => {
+    handleSearchResultSelect(note);
+    quickSearchOpen = false;
+    searchQuery = '';
+    searchInputFocused = false;
+    selectedSearchIndex = 0;
+  }}
+  onKeyDown={handleSearchKeyDown}
+  onViewAllResults={() => {
+    setActiveSystemView('search');
+    setActiveItem(null);
+    quickSearchOpen = false;
+  }}
 />
 
 {#if showLegacyMigrationModal}
