@@ -5,20 +5,28 @@
    * Used when selecting a conversation from the conversations system view.
    * Shows all messages and allows continuing the conversation with a chat input.
    */
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { untrack } from 'svelte';
+  import { EditorView, minimalSetup } from 'codemirror';
+  import { EditorState, StateEffect } from '@codemirror/state';
+  import { placeholder, keymap } from '@codemirror/view';
+  import { githubLight } from '@fsegurai/codemirror-theme-github-light';
+  import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import {
     createChatService,
     TOOL_BREAK_MARKER,
     type ChatService,
-    type ChatMessage
+    type ChatMessage,
+    type ToolCall
   } from '../lib/automerge/chat-service.svelte';
   import {
     navigateToNote,
     setActiveNoteId,
     getConversation,
-    updateConversation
+    updateConversation,
+    addNoteToWorkspace
   } from '../lib/automerge';
+  import { automergeWikilinksExtension } from '../lib/automerge/wikilinks.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import ChatInput from './ChatInput.svelte';
 
@@ -49,9 +57,13 @@
   // Reference to messages container for scrolling
   let messagesContainer: HTMLDivElement | null = $state(null);
 
-  // Title editing state
-  let titleTextarea: HTMLTextAreaElement | null = $state(null);
+  // Title editor state (CodeMirror)
+  let titleEditorContainer: HTMLDivElement | null = $state(null);
+  let titleEditorView: EditorView | null = null;
   let titleDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isDarkMode = $state(false);
+  let mediaQuery: MediaQueryList | null = null;
+  let lastSetTitle: string | null = null;
 
   // Initialize chat service on mount (only runs once)
   onMount(() => {
@@ -132,36 +144,166 @@
     return 'New Conversation';
   });
 
-  // Title editing handlers
-  function handleTitleInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    const newTitle = target.value;
+  // Title editor theme
+  const titleEditorTheme = EditorView.theme({
+    '&': {
+      fontSize: '1.5rem',
+      fontWeight: '800',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
+      backgroundColor: 'transparent'
+    },
+    '.cm-content': {
+      padding: '0.1em 0',
+      paddingLeft: '2.3rem', // Space for conversation icon
+      minHeight: '1.4em',
+      lineHeight: '1.4',
+      caretColor: 'var(--text-primary)'
+    },
+    '.cm-focused': {
+      outline: 'none'
+    },
+    '.cm-editor': {
+      backgroundColor: 'transparent'
+    },
+    '.cm-line': {
+      padding: '0'
+    },
+    '.cm-placeholder': {
+      color: 'var(--text-muted)',
+      opacity: '0.5'
+    },
+    '.cm-scroller': {
+      overflow: 'visible'
+    },
+    // Override wikilink styles for title context
+    '.wikilink': {
+      fontSize: 'inherit',
+      fontWeight: 'inherit'
+    }
+  });
 
-    // Debounce the save
+  // Handle theme changes
+  function handleThemeChange(e: MediaQueryListEvent): void {
+    isDarkMode = e.matches;
+    updateTitleEditorTheme();
+  }
+
+  function updateTitleEditorTheme(): void {
+    if (!titleEditorView) return;
+    titleEditorView.dispatch({
+      effects: StateEffect.reconfigure.of(createTitleEditorExtensions())
+    });
+  }
+
+  // Handle wikilink clicks in title
+  function handleTitleWikilinkClick(
+    targetId: string,
+    _title: string,
+    options?: { shouldCreate?: boolean; targetType?: 'note' | 'conversation' }
+  ): void {
+    if (options?.targetType === 'conversation') {
+      // Don't navigate to conversations from title
+      return;
+    }
+    if (options?.shouldCreate) {
+      // Don't create notes from title wikilinks
+      return;
+    }
+    // Navigate to the note
+    setActiveNoteId(targetId);
+    addNoteToWorkspace(targetId);
+  }
+
+  // Create extensions for title editor
+  function createTitleEditorExtensions(): import('@codemirror/state').Extension[] {
+    const theme = isDarkMode ? githubDark : githubLight;
+
+    return [
+      minimalSetup,
+      placeholder('Untitled'),
+      theme,
+      titleEditorTheme,
+      EditorView.lineWrapping,
+      // Wikilink support
+      automergeWikilinksExtension(handleTitleWikilinkClick),
+      // Prevent Enter from creating newlines
+      keymap.of([
+        {
+          key: 'Enter',
+          run: () => true // Consume Enter key
+        }
+      ]),
+      // Update listener for debounced save
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const newTitle = update.state.doc.toString();
+
+          // Debounce the save
+          if (titleDebounceTimeout) {
+            clearTimeout(titleDebounceTimeout);
+          }
+          titleDebounceTimeout = setTimeout(() => {
+            updateConversation(conversationId, { title: newTitle });
+          }, 300);
+        }
+      })
+    ];
+  }
+
+  // Initialize title editor
+  function initTitleEditor(): void {
+    if (!titleEditorContainer || titleEditorView) return;
+
+    const startState = EditorState.create({
+      doc: conversationTitle,
+      extensions: createTitleEditorExtensions()
+    });
+
+    titleEditorView = new EditorView({
+      state: startState,
+      parent: titleEditorContainer
+    });
+    lastSetTitle = conversationTitle;
+  }
+
+  // Update title editor when conversation changes
+  $effect(() => {
+    const title = conversationTitle;
+    if (titleEditorView && title !== lastSetTitle) {
+      const currentContent = titleEditorView.state.doc.toString();
+      if (title !== currentContent) {
+        titleEditorView.dispatch({
+          changes: { from: 0, to: titleEditorView.state.doc.length, insert: title }
+        });
+      }
+      lastSetTitle = title;
+    }
+  });
+
+  // Initialize title editor when container is available
+  $effect(() => {
+    if (titleEditorContainer && !titleEditorView) {
+      // Initialize dark mode
+      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      isDarkMode = mediaQuery.matches;
+      mediaQuery.addEventListener('change', handleThemeChange);
+
+      initTitleEditor();
+    }
+  });
+
+  // Cleanup title editor
+  onDestroy(() => {
+    if (titleEditorView) {
+      titleEditorView.destroy();
+      titleEditorView = null;
+    }
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    }
     if (titleDebounceTimeout) {
       clearTimeout(titleDebounceTimeout);
-    }
-    titleDebounceTimeout = setTimeout(() => {
-      updateConversation(conversationId, { title: newTitle });
-    }, 300);
-
-    adjustTitleHeight();
-  }
-
-  function adjustTitleHeight(): void {
-    if (!titleTextarea) return;
-    titleTextarea.style.height = 'auto';
-    titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
-  }
-
-  // Adjust title height when conversation changes
-  $effect(() => {
-    void conversationTitle;
-    if (titleTextarea) {
-      // Use requestAnimationFrame to ensure DOM is updated
-      requestAnimationFrame(() => {
-        adjustTitleHeight();
-      });
     }
   });
 
@@ -226,6 +368,12 @@
       minute: '2-digit'
     });
   }
+
+  // Copy tool call JSON to clipboard
+  async function copyToolCallJson(toolCall: ToolCall): Promise<void> {
+    const json = JSON.stringify(toolCall, null, 2);
+    await navigator.clipboard.writeText(json);
+  }
 </script>
 
 <div class="conversation-view">
@@ -245,14 +393,7 @@
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
       </span>
-      <textarea
-        bind:this={titleTextarea}
-        class="title-input"
-        value={conversationTitle}
-        oninput={handleTitleInput}
-        placeholder="Untitled"
-        rows="1"
-      ></textarea>
+      <div bind:this={titleEditorContainer} class="title-editor"></div>
     </div>
   </div>
 
@@ -376,6 +517,26 @@
                         {/if}
                       </span>
                       <span class="tool-name">{toolCall.name.replace(/_/g, ' ')}</span>
+                      <button
+                        class="tool-copy-btn"
+                        onclick={() => copyToolCallJson(toolCall)}
+                        title="Copy tool call JSON"
+                        aria-label="Copy tool call JSON"
+                      >
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path
+                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                          ></path>
+                        </svg>
+                      </button>
                     </div>
                   {/each}
                 </div>
@@ -491,30 +652,26 @@
     height: 1.5rem;
   }
 
-  .title-input {
+  .title-editor {
     width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 1.5rem;
-    font-weight: 800;
-    font-family:
-      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-    color: var(--text-primary);
-    outline: none;
-    padding: 0.1em 0;
     min-width: 0;
-    resize: none;
-    overflow: hidden;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    line-height: 1.4;
-    min-height: 1.4em;
-    text-indent: 2.3rem; /* Space for the conversation icon */
   }
 
-  .title-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.5;
+  /* CodeMirror overrides for title editor */
+  .title-editor :global(.cm-editor) {
+    background: transparent;
+  }
+
+  .title-editor :global(.cm-focused) {
+    outline: none;
+  }
+
+  .title-editor :global(.cm-content) {
+    color: var(--text-primary);
+  }
+
+  .title-editor :global(.cm-line) {
+    color: var(--text-primary);
   }
 
   /* States */
@@ -712,6 +869,32 @@
 
   .tool-name {
     text-transform: capitalize;
+  }
+
+  .tool-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    margin-left: 2px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    opacity: 0;
+    cursor: pointer;
+    border-radius: 3px;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .tool-call:hover .tool-copy-btn {
+    opacity: 0.6;
+  }
+
+  .tool-copy-btn:hover {
+    opacity: 1 !important;
+    background: rgba(0, 0, 0, 0.1);
   }
 
   /* Typing indicator */

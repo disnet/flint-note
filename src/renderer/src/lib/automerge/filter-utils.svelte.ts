@@ -132,9 +132,7 @@ export function applyFilterOperator(
 
     default:
       if (Array.isArray(noteStr)) {
-        return noteStr.some(
-          (v) => v.toLowerCase() === String(filterValue).toLowerCase()
-        );
+        return noteStr.some((v) => v.toLowerCase() === String(filterValue).toLowerCase());
       }
       return noteStr.toLowerCase() === String(filterValue).toLowerCase();
   }

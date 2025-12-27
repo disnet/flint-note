@@ -28,6 +28,7 @@
     type SidebarItem,
     type SidebarItemRef
   } from '../lib/automerge';
+  import { resolveWikilinks } from './WikilinkText.svelte';
 
   interface Props {
     onItemSelect: (item: SidebarItem) => void;
@@ -711,7 +712,7 @@
               class="item-title"
               class:untitled-text={listItem.item.metadata?.isPreview}
             >
-              {listItem.item.title}
+              {resolveWikilinks(listItem.item.title)}
             </span>
           </div>
           {#if listItem.section === 'recent'}

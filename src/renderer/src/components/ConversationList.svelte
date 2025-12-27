@@ -8,14 +8,22 @@
     archiveConversation,
     type Conversation
   } from '../lib/automerge';
+  import WikilinkText from './WikilinkText.svelte';
 
   interface Props {
     activeConversationId: string | null;
     onConversationSelect: (conversation: Conversation) => void;
     onNewConversation: () => void;
+    /** Callback when a wikilink in a title is clicked */
+    onNoteClick?: (noteId: string) => void;
   }
 
-  let { activeConversationId, onConversationSelect, onNewConversation }: Props = $props();
+  let {
+    activeConversationId,
+    onConversationSelect,
+    onNewConversation,
+    onNoteClick
+  }: Props = $props();
 
   const conversations = $derived(getConversations());
 
@@ -105,7 +113,9 @@
             </svg>
           </div>
           <div class="conv-content">
-            <span class="conv-title">{conv.title}</span>
+            <span class="conv-title">
+              <WikilinkText text={conv.title} {onNoteClick} />
+            </span>
             <span class="conv-date">{formatDate(conv.updated)}</span>
           </div>
           <button

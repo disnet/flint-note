@@ -9,7 +9,8 @@
     createChatService,
     TOOL_BREAK_MARKER,
     type ChatService,
-    type ChatMessage
+    type ChatMessage,
+    type ToolCall
   } from '../lib/automerge/chat-service.svelte';
   import {
     getActiveConversation,
@@ -21,6 +22,7 @@
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import ConversationList from './ConversationList.svelte';
   import ChatInput from './ChatInput.svelte';
+  import WikilinkText from './WikilinkText.svelte';
 
   interface Props {
     /** Whether the panel is currently open */
@@ -177,6 +179,12 @@
   function handleNoteClick(noteId: string): void {
     setActiveNoteId(noteId);
   }
+
+  // Copy tool call JSON to clipboard
+  async function copyToolCallJson(toolCall: ToolCall): Promise<void> {
+    const json = JSON.stringify(toolCall, null, 2);
+    await navigator.clipboard.writeText(json);
+  }
 </script>
 
 {#if isOpen}
@@ -202,7 +210,9 @@
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         </button>
-        <h3 class="header-title" title={conversationTitle}>{conversationTitle}</h3>
+        <h3 class="header-title" title={conversationTitle}>
+          <WikilinkText text={conversationTitle} onNoteClick={handleNoteClick} />
+        </h3>
         <div class="header-actions">
           <button
             class="header-btn"
@@ -250,6 +260,7 @@
             activeConversationId={conversationId}
             onConversationSelect={handleConversationSelect}
             onNewConversation={handleNewConversation}
+            onNoteClick={handleNoteClick}
           />
         </div>
       {/if}
@@ -362,6 +373,27 @@
                               <span class="tool-name"
                                 >{toolCall.name.replace(/_/g, ' ')}</span
                               >
+                              <button
+                                class="tool-copy-btn"
+                                onclick={() => copyToolCallJson(toolCall)}
+                                title="Copy tool call JSON"
+                                aria-label="Copy tool call JSON"
+                              >
+                                <svg
+                                  width="10"
+                                  height="10"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                >
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"
+                                  ></rect>
+                                  <path
+                                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                                  ></path>
+                                </svg>
+                              </button>
                             </div>
                           {/each}
                         </div>
@@ -774,5 +806,31 @@
 
   .tool-name {
     text-transform: capitalize;
+  }
+
+  .tool-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    margin-left: 2px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    opacity: 0;
+    cursor: pointer;
+    border-radius: 3px;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .tool-call:hover .tool-copy-btn {
+    opacity: 0.6;
+  }
+
+  .tool-copy-btn:hover {
+    opacity: 1 !important;
+    background: rgba(0, 0, 0, 0.1);
   }
 </style>
