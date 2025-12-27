@@ -421,13 +421,25 @@ export type {
 } from './wikilinks.svelte';
 
 // Enhanced search
-export { searchNotesEnhanced, highlightMatch, getMatchPreview } from './search.svelte';
+export {
+  searchNotesEnhanced,
+  searchNotesAsync,
+  highlightMatch,
+  getMatchPreview
+} from './search.svelte';
 export type {
   SearchResult,
+  EnhancedSearchResult,
   SearchMatch,
   SearchOptions,
+  EnhancedSearchOptions,
+  AsyncSearchOptions,
   TextSegment
 } from './search.svelte';
+
+// Search index
+export { searchIndex } from './search-index.svelte';
+export type { IndexedNote, ContentSearchResult } from './search-index.svelte';
 
 // Shelf state
 export { automergeShelfStore } from './shelf-state.svelte';

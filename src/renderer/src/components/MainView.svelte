@@ -22,6 +22,9 @@
     createVault,
     switchVault,
     searchNotesEnhanced,
+    searchNotesAsync,
+    searchIndex,
+    getNoteContent,
     automergeShelfStore,
     getRoutine,
     EPUB_NOTE_TYPE_ID,
@@ -31,6 +34,7 @@
     createDeckNote,
     type NoteMetadata,
     type SearchResult,
+    type EnhancedSearchResult,
     type ConversationIndexEntry,
     type SidebarItem,
     type SystemView
@@ -115,12 +119,89 @@
     activeItem ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id) : false
   );
 
-  // Enhanced search results with highlighting
-  const searchResults: SearchResult[] = $derived(
-    searchQuery.trim()
-      ? searchNotesEnhanced(allNotes, searchQuery, { noteTypes: noteTypesRecord })
-      : []
-  );
+  // Search results with progressive loading (title first, then content)
+  let searchResults = $state<(SearchResult | EnhancedSearchResult)[]>([]);
+  let isSearchingContent = $state(false);
+  let isShowingRecent = $state(false);
+  let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Get recently opened notes sorted by lastOpened (most recent first)
+  function getRecentlyOpenedNotes(): SearchResult[] {
+    // Get the currently active note ID to exclude it
+    const activeNoteId = activeItem?.type === 'note' ? activeItem.id : null;
+
+    // Filter to non-archived notes that have been opened, excluding current note
+    const openedNotes = allNotes
+      .filter((note) => !note.archived && note.lastOpened && note.id !== activeNoteId)
+      .sort((a, b) => {
+        // Sort by lastOpened descending (most recent first)
+        const aTime = a.lastOpened ? new Date(a.lastOpened).getTime() : 0;
+        const bTime = b.lastOpened ? new Date(b.lastOpened).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 8);
+
+    return openedNotes.map((note) => ({
+      note,
+      score: 0,
+      titleMatches: [],
+      contentMatches: [],
+      matchedType: noteTypesRecord[note.type]
+    }));
+  }
+
+  // Effect to handle progressive search
+  $effect(() => {
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      searchTimeout = null;
+    }
+
+    if (!searchQuery.trim()) {
+      // When focused with empty query, show recently opened notes
+      if (searchInputFocused) {
+        searchResults = getRecentlyOpenedNotes();
+        isShowingRecent = true;
+      } else {
+        searchResults = [];
+        isShowingRecent = false;
+      }
+      isSearchingContent = false;
+      return;
+    }
+
+    isShowingRecent = false;
+
+    // Phase 1: Immediate title search (synchronous)
+    const immediateResults = searchNotesEnhanced(allNotes, searchQuery, {
+      noteTypes: noteTypesRecord
+    });
+    searchResults = immediateResults;
+
+    // Phase 2: Debounced full search including content (150ms delay)
+    searchTimeout = setTimeout(async () => {
+      isSearchingContent = true;
+      try {
+        const fullResults = await searchNotesAsync(
+          allNotes,
+          searchQuery,
+          { noteTypes: noteTypesRecord, contentLoader: getNoteContent },
+          searchIndex
+        );
+        searchResults = fullResults;
+      } finally {
+        isSearchingContent = false;
+      }
+    }, 150);
+
+    // Cleanup
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  });
 
   // Handlers
   function handleItemSelect(item: SidebarItem): void {
@@ -185,11 +266,12 @@
     }
 
     // Enter selects the highlighted result, or opens search view if no selection
-    if (event.key === 'Enter' && searchQuery.trim() && searchResults.length > 0) {
+    if (event.key === 'Enter' && searchResults.length > 0) {
       event.preventDefault();
       if (selectedSearchIndex < maxIndex) {
         handleSearchResultSelect(searchResults[selectedSearchIndex].note);
-      } else {
+      } else if (searchQuery.trim()) {
+        // Only open search view if there's an actual query
         setActiveSystemView('search');
         setActiveItem(null);
       }
@@ -341,6 +423,7 @@
       {searchResults}
       {searchInputFocused}
       {selectedSearchIndex}
+      {isShowingRecent}
       {vaults}
       activeVault={activeVault ?? null}
       onItemSelect={handleItemSelect}
@@ -512,6 +595,7 @@
                   results={searchResults}
                   onSelect={handleSearchResultSelect}
                   maxResults={50}
+                  isLoading={isSearchingContent}
                 />
               </div>
             </div>

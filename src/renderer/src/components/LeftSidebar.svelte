@@ -35,6 +35,7 @@
     searchResults: SearchResult[];
     searchInputFocused: boolean;
     selectedSearchIndex: number;
+    isShowingRecent: boolean;
     vaults: Vault[];
     activeVault: Vault | null;
     onItemSelect: (item: SidebarItem) => void;
@@ -73,6 +74,7 @@
     searchResults,
     searchInputFocused,
     selectedSearchIndex,
+    isShowingRecent,
     vaults,
     activeVault,
     onSearchChange,
@@ -344,7 +346,8 @@
       <div class="search-container">
         <div
           class="search-input-wrapper"
-          class:active={searchInputFocused && searchQuery.trim()}
+          class:active={searchInputFocused &&
+            (searchQuery.trim() || searchResults.length > 0)}
         >
           <svg
             class="search-icon"
@@ -370,24 +373,29 @@
             onkeydown={onSearchKeyDown}
           />
         </div>
-        {#if searchInputFocused && searchQuery.trim()}
+        {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
           <div class="search-dropdown">
             {#if searchResults.length > 0}
+              {#if isShowingRecent}
+                <div class="search-dropdown-header">Recent</div>
+              {/if}
               <SearchResults
                 results={searchResults}
                 onSelect={onSearchResultSelect}
                 maxResults={8}
                 selectedIndex={selectedSearchIndex}
               />
-              {#if searchResults.length > 8}
+              {#if searchResults.length > 8 && !isShowingRecent}
                 <button class="view-all-btn" onclick={onViewAllResults}>
                   View all {searchResults.length} results (Enter)
                 </button>
               {/if}
-            {:else}
+            {:else if searchQuery.trim()}
               <div class="no-results-dropdown">
                 No matching notes found for "{searchQuery}"
               </div>
+            {:else}
+              <div class="no-results-dropdown">No recent notes</div>
             {/if}
           </div>
         {/if}
@@ -749,6 +757,16 @@
 
   .view-all-btn:hover {
     background: var(--bg-hover);
+  }
+
+  .search-dropdown-header {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .no-results-dropdown {

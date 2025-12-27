@@ -81,6 +81,7 @@ import {
   findContentHandle,
   clearContentCache
 } from './content-docs.svelte';
+import { searchIndex } from './search-index.svelte';
 
 // --- Private reactive state ---
 
@@ -196,6 +197,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
       }
     }
 
+    // Initialize search index in background
+    initializeSearchIndex();
+
     isInitialized = true;
   } finally {
     isLoading = false;
@@ -226,6 +230,23 @@ function ensureDefaultNoteType(): void {
       }
     });
   }
+}
+
+/**
+ * Initialize the search index in the background
+ * Sets up content loader and starts indexing all notes
+ */
+function initializeSearchIndex(): void {
+  // Set content loader
+  searchIndex.setContentLoader(getNoteContent);
+
+  // Get all non-archived notes
+  const allNotes = Object.values(currentDoc.notes).filter((n) => !n.archived);
+
+  // Build index in background (non-blocking)
+  searchIndex.buildIndex(allNotes).catch((err) => {
+    console.error('[Search] Index build failed:', err);
+  });
 }
 
 /**
@@ -560,6 +581,14 @@ export async function createNote(params: {
     }
   });
 
+  // Index the new note for search
+  const noteMetadata = currentDoc.notes[id];
+  if (noteMetadata) {
+    searchIndex.indexNote(noteMetadata, params.content || '').catch((err) => {
+      console.error('[Search] Failed to index new note:', err);
+    });
+  }
+
   return id;
 }
 
@@ -585,6 +614,16 @@ export function updateNote(
     if (updates.type !== undefined) note.type = updates.type;
     note.updated = nowISO();
   });
+
+  // Re-index note when title changes (content will be loaded by indexNote)
+  if (updates.title !== undefined) {
+    const noteMetadata = currentDoc.notes[id];
+    if (noteMetadata) {
+      searchIndex.indexNote(noteMetadata).catch((err) => {
+        console.error('[Search] Failed to re-index note:', err);
+      });
+    }
+  }
 }
 
 /**
@@ -610,6 +649,14 @@ export async function updateNoteContent(id: string, content: string): Promise<vo
       note.updated = nowISO();
     }
   });
+
+  // Re-index note with new content
+  const noteMetadata = currentDoc.notes[id];
+  if (noteMetadata) {
+    searchIndex.indexNote(noteMetadata, content).catch((err) => {
+      console.error('[Search] Failed to re-index note content:', err);
+    });
+  }
 }
 
 /**
@@ -685,6 +732,9 @@ export function archiveNote(id: string): void {
       }
     }
   });
+
+  // Remove from search index
+  searchIndex.removeNote(id);
 
   // Clear active item if it was archived (using setter for persistence)
   if (activeItem?.type === 'note' && activeItem.id === id) {
@@ -1453,10 +1503,30 @@ export function getActiveItem(): ActiveItem {
 
 /**
  * Set the active item (also persists to document)
+ * Also updates lastOpened timestamp for notes
  */
 export function setActiveItem(item: ActiveItem): void {
   activeItem = item;
   persistViewState();
+
+  // Update lastOpened for notes
+  if (item?.type === 'note' && item.id) {
+    markNoteOpened(item.id);
+  }
+}
+
+/**
+ * Mark a note as opened (updates lastOpened timestamp)
+ */
+export function markNoteOpened(noteId: string): void {
+  if (!docHandle) return;
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (note) {
+      note.lastOpened = nowISO();
+    }
+  });
 }
 
 /**

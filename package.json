@@ -74,6 +74,7 @@
     "jsdom": "^24.0.0",
     "linkedom": "^0.18.12",
     "marked": "^16.1.2",
+    "minisearch": "^7.2.0",
     "pdfjs-dist": "^5.0.375",
     "quickjs-emscripten": "^0.31.0",
     "sqlite3": "^5.1.7",

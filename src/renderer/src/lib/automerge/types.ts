@@ -142,6 +142,8 @@ export interface Note {
   props?: Record<string, unknown>;
   /** Review mode metadata (optional, only for notes with review enabled) */
   review?: ReviewData;
+  /** ISO timestamp of last time this note was opened/viewed (optional for backward compatibility) */
+  lastOpened?: string;
 }
 
 /**

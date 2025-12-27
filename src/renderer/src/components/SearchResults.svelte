@@ -2,17 +2,59 @@
   /**
    * Enhanced search results component with highlighting
    */
-  import type { NoteMetadata, SearchResult, TextSegment } from '../lib/automerge';
+  import { SvelteMap } from 'svelte/reactivity';
+  import type {
+    NoteMetadata,
+    SearchResult,
+    EnhancedSearchResult,
+    TextSegment
+  } from '../lib/automerge';
   import { highlightMatch } from '../lib/automerge';
 
+  type AnySearchResult = SearchResult | EnhancedSearchResult;
+
   interface Props {
-    results: SearchResult[];
+    results: AnySearchResult[];
     onSelect: (note: NoteMetadata) => void;
     maxResults?: number;
     selectedIndex?: number;
+    isLoading?: boolean;
   }
 
-  let { results, onSelect, maxResults = 10, selectedIndex = -1 }: Props = $props();
+  let {
+    results,
+    onSelect,
+    maxResults = 10,
+    selectedIndex = -1,
+    isLoading = false
+  }: Props = $props();
+
+  // Track element refs for scrolling
+  let itemElements = new SvelteMap<number, HTMLElement>();
+
+  // Action to register element refs
+  function registerElement(node: HTMLElement, index: number): { destroy: () => void } {
+    itemElements.set(index, node);
+    return {
+      destroy() {
+        itemElements.delete(index);
+      }
+    };
+  }
+
+  // Scroll selected item into view when selectedIndex changes
+  $effect(() => {
+    if (selectedIndex >= 0) {
+      const element = itemElements.get(selectedIndex);
+      if (element) {
+        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  });
+
+  function isEnhancedResult(result: AnySearchResult): result is EnhancedSearchResult {
+    return 'isContentMatch' in result;
+  }
 
   const displayResults = $derived(results.slice(0, maxResults));
 
@@ -39,28 +81,29 @@
 
   /**
    * Get the best match preview for a result
+   * Returns the content snippet with highlighted matches
    */
-  function getPreview(result: SearchResult): string {
-    // Prefer content matches for preview (currently disabled)
+  function getPreview(result: AnySearchResult): string {
     if (result.contentMatches.length > 0) {
       const match = result.contentMatches[0];
       const segments = highlightMatch(match);
       return renderSegments(segments);
     }
-    // Fall back to title match
-    if (result.titleMatches.length > 0) {
-      const match = result.titleMatches[0];
-      const segments = highlightMatch(match);
-      return renderSegments(segments);
-    }
-    // No matches to highlight, just show title
-    return escapeHtml(result.note.title || 'Untitled');
+    return '';
+  }
+
+  /**
+   * Check if we should show the preview section
+   * Show preview if we have content matches (snippets)
+   */
+  function hasPreview(result: AnySearchResult): boolean {
+    return result.contentMatches.length > 0;
   }
 
   /**
    * Get note type icon and name
    */
-  function getNoteTypeInfo(result: SearchResult): { icon: string; name: string } {
+  function getNoteTypeInfo(result: AnySearchResult): { icon: string; name: string } {
     if (result.matchedType) {
       return { icon: result.matchedType.icon, name: result.matchedType.name };
     }
@@ -69,8 +112,15 @@
 </script>
 
 <div class="search-results-container">
+  {#if isLoading}
+    <div class="search-loading">
+      <span class="loading-spinner"></span>
+      Searching content...
+    </div>
+  {/if}
   {#each displayResults as result, index (result.note.id)}
     <button
+      use:registerElement={index}
       class="search-result-item"
       class:selected={index === selectedIndex}
       onclick={() => onSelect(result.note)}
@@ -79,12 +129,17 @@
       <div class="result-content">
         <div class="result-header">
           <span class="result-title">{result.note.title || 'Untitled'}</span>
+          {#if isEnhancedResult(result) && result.isContentMatch}
+            <span class="content-match-badge">Content</span>
+          {/if}
           <span class="result-type">{getNoteTypeInfo(result).name}</span>
         </div>
-        <div class="result-preview">
-          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-          {@html getPreview(result)}
-        </div>
+        {#if hasPreview(result)}
+          <div class="result-preview">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html getPreview(result)}
+          </div>
+        {/if}
         {#if result.contentMatches.length > 1}
           <div class="result-match-count">
             +{result.contentMatches.length - 1} more match{result.contentMatches.length >
@@ -93,14 +148,6 @@
               : ''}
           </div>
         {/if}
-      </div>
-      <div class="result-score" title="Relevance score">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-          />
-        </svg>
-        {result.score}
       </div>
     </button>
   {/each}
@@ -183,6 +230,48 @@
     letter-spacing: 0.025em;
   }
 
+  .content-match-badge {
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+    background: var(--accent-light, #e0f2fe);
+    color: var(--accent-primary, #0284c7);
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  :global([data-theme='dark']) .content-match-badge {
+    background: var(--accent-light-dark, #1e3a5f);
+    color: var(--accent-primary-dark, #38bdf8);
+  }
+
+  .search-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .loading-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border-light);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .result-preview {
     font-size: 0.8125rem;
     color: var(--text-secondary);
@@ -211,19 +300,6 @@
     font-size: 0.75rem;
     color: var(--text-muted);
     font-style: italic;
-  }
-
-  .result-score {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .result-score svg {
-    opacity: 0.5;
   }
 
   .results-overflow {
