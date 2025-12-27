@@ -91,6 +91,7 @@
   let searchInputFocused = $state(false);
   let selectedNoteTypeId = $state<string | null>(null);
   let selectedConversationId = $state<string | null>(null);
+  let selectedSearchIndex = $state(0);
   let chatPanelOpen = $state(false);
   let shelfPanelOpen = $state(false);
   let pendingChatMessage = $state<string | null>(null);
@@ -157,12 +158,41 @@
     if (event.key === 'Escape') {
       searchQuery = '';
       searchInputFocused = false;
+      selectedSearchIndex = 0;
       (event.target as HTMLInputElement)?.blur();
     }
-    // Enter opens the dedicated search view if there are results
+
+    const maxIndex = Math.min(searchResults.length, 8);
+
+    // Cmd/Ctrl+N or ArrowDown: Select next result
+    if (
+      (((event.metaKey || event.ctrlKey) && event.key === 'n') ||
+        event.key === 'ArrowDown') &&
+      searchResults.length > 0
+    ) {
+      event.preventDefault();
+      selectedSearchIndex = (selectedSearchIndex + 1) % maxIndex;
+    }
+
+    // Cmd/Ctrl+P or ArrowUp: Select previous result
+    if (
+      (((event.metaKey || event.ctrlKey) && event.key === 'p') ||
+        event.key === 'ArrowUp') &&
+      searchResults.length > 0
+    ) {
+      event.preventDefault();
+      selectedSearchIndex = (selectedSearchIndex - 1 + maxIndex) % maxIndex;
+    }
+
+    // Enter selects the highlighted result, or opens search view if no selection
     if (event.key === 'Enter' && searchQuery.trim() && searchResults.length > 0) {
-      setActiveSystemView('search');
-      setActiveItem(null);
+      event.preventDefault();
+      if (selectedSearchIndex < maxIndex) {
+        handleSearchResultSelect(searchResults[selectedSearchIndex].note);
+      } else {
+        setActiveSystemView('search');
+        setActiveItem(null);
+      }
     }
   }
 
@@ -310,13 +340,17 @@
       {searchQuery}
       {searchResults}
       {searchInputFocused}
+      {selectedSearchIndex}
       {vaults}
       activeVault={activeVault ?? null}
       onItemSelect={handleItemSelect}
       onSystemViewSelect={handleSystemViewSelect}
       onCreateNote={handleCreateNote}
       onCreateDeck={handleCreateDeck}
-      onSearchChange={(query) => (searchQuery = query)}
+      onSearchChange={(query) => {
+        searchQuery = query;
+        selectedSearchIndex = 0;
+      }}
       onSearchFocus={handleSearchFocus}
       onSearchBlur={handleSearchBlur}
       onSearchKeyDown={handleSearchKeyDown}

@@ -261,6 +261,9 @@
     });
 
     measureAndUpdateMarkerWidths();
+
+    // Focus the editor when created
+    editorView.focus();
   }
 
   function measureAndUpdateMarkerWidths(): void {

@@ -34,6 +34,7 @@
     searchQuery: string;
     searchResults: SearchResult[];
     searchInputFocused: boolean;
+    selectedSearchIndex: number;
     vaults: Vault[];
     activeVault: Vault | null;
     onItemSelect: (item: SidebarItem) => void;
@@ -71,6 +72,7 @@
     searchQuery,
     searchResults,
     searchInputFocused,
+    selectedSearchIndex,
     vaults,
     activeVault,
     onSearchChange,
@@ -375,6 +377,7 @@
                 results={searchResults}
                 onSelect={onSearchResultSelect}
                 maxResults={8}
+                selectedIndex={selectedSearchIndex}
               />
               {#if searchResults.length > 8}
                 <button class="view-all-btn" onclick={onViewAllResults}>

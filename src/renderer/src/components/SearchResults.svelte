@@ -9,9 +9,10 @@
     results: SearchResult[];
     onSelect: (note: NoteMetadata) => void;
     maxResults?: number;
+    selectedIndex?: number;
   }
 
-  let { results, onSelect, maxResults = 10 }: Props = $props();
+  let { results, onSelect, maxResults = 10, selectedIndex = -1 }: Props = $props();
 
   const displayResults = $derived(results.slice(0, maxResults));
 
@@ -68,8 +69,12 @@
 </script>
 
 <div class="search-results-container">
-  {#each displayResults as result (result.note.id)}
-    <button class="search-result-item" onclick={() => onSelect(result.note)}>
+  {#each displayResults as result, index (result.note.id)}
+    <button
+      class="search-result-item"
+      class:selected={index === selectedIndex}
+      onclick={() => onSelect(result.note)}
+    >
       <div class="result-icon">{getNoteTypeInfo(result).icon}</div>
       <div class="result-content">
         <div class="result-header">
@@ -131,6 +136,10 @@
 
   .search-result-item:hover {
     background: var(--bg-hover);
+  }
+
+  .search-result-item.selected {
+    background: var(--accent-light);
   }
 
   .search-result-item:last-of-type {
