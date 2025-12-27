@@ -21,6 +21,7 @@ import type {
   Workspace,
   PropertyDefinition,
   Conversation,
+  ConversationIndexEntry,
   PersistedChatMessage,
   PersistedToolCall,
   SidebarItemRef,
@@ -40,6 +41,7 @@ import type {
   NoteFilter,
   NoteFilterInput
 } from './types';
+import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 import {
   getFilterFieldValue,
   applyFilterOperator,
@@ -102,6 +104,9 @@ let activeSystemView = $state<SystemView>(null);
 // Loading states
 let isInitialized = $state(false);
 let isLoading = $state(true);
+
+// Conversation cache - stores loaded conversations from OPFS
+const conversationCache = new Map<string, Conversation>();
 
 // Default note type ID
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
@@ -244,8 +249,8 @@ function restoreLastViewState(): void {
         activeItem = lastActiveItem;
       }
     } else if (lastActiveItem.type === 'conversation') {
-      const conv = doc.conversations?.[lastActiveItem.id];
-      if (conv && !conv.archived) {
+      const entry = doc.conversationIndex?.[lastActiveItem.id];
+      if (entry && !entry.archived) {
         activeItem = lastActiveItem;
       }
     }
@@ -850,16 +855,16 @@ function refToSidebarItem(
       }
     };
   } else if (ref.type === 'conversation') {
-    const conv = currentDoc.conversations?.[ref.id];
-    if (!conv || conv.archived) return null;
+    const entry = currentDoc.conversationIndex?.[ref.id];
+    if (!entry || entry.archived) return null;
     return {
-      id: conv.id,
+      id: entry.id,
       type: 'conversation',
-      title: conv.title,
+      title: entry.title,
       icon: '💬',
-      updated: conv.updated,
+      updated: entry.updated,
       metadata: {
-        messageCount: conv.messages.length
+        messageCount: entry.messageCount
       }
     };
   }
@@ -1478,11 +1483,12 @@ export function getActiveNote(): NoteMetadata | undefined {
 }
 
 /**
- * Get the currently active conversation (convenience getter)
+ * Get the currently active conversation index entry (convenience getter).
+ * Use getConversation() to load the full conversation data.
  */
-export function getActiveConversation(): Conversation | undefined {
+export function getActiveConversationEntry(): ConversationIndexEntry | undefined {
   if (!activeItem || activeItem.type !== 'conversation') return undefined;
-  return currentDoc.conversations?.[activeItem.id];
+  return currentDoc.conversationIndex?.[activeItem.id];
 }
 
 // --- Convenience wrappers for backward compatibility ---
@@ -1875,23 +1881,53 @@ function addDaysToDateString(dateString: string, daysToAdd: number): string {
 // --- Conversation getters (reactive) ---
 
 /**
- * Get all non-archived conversations for the active workspace, sorted by updated (newest first)
+ * Get all non-archived conversations for the active workspace, sorted by updated (newest first).
+ * Returns lightweight index entries (not full conversations).
  */
-export function getConversations(): Conversation[] {
+export function getConversations(): ConversationIndexEntry[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  const conversations = currentDoc.conversations ?? {};
-  return Object.values(conversations)
-    .filter((conv) => !conv.archived && conv.workspaceId === workspace.id)
+  const index = currentDoc.conversationIndex ?? {};
+  return Object.values(index)
+    .filter((entry) => !entry.archived && entry.workspaceId === workspace.id)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 }
 
 /**
- * Get a conversation by ID
+ * Get a full conversation by ID (async, loads from OPFS if needed).
+ * Returns null if not found.
  */
-export function getConversation(id: string): Conversation | undefined {
-  return currentDoc.conversations?.[id];
+export async function getConversation(id: string): Promise<Conversation | null> {
+  // Check cache first
+  const cached = conversationCache.get(id);
+  if (cached) return cached;
+
+  // Load from OPFS
+  const conversation = await conversationOpfsStorage.retrieve(id);
+  if (conversation) {
+    conversationCache.set(id, conversation);
+  }
+  return conversation;
+}
+
+/**
+ * Get a conversation index entry by ID (sync, for wikilinks/UI).
+ * Returns undefined if not found.
+ */
+export function getConversationEntry(id: string): ConversationIndexEntry | undefined {
+  return currentDoc.conversationIndex?.[id];
+}
+
+/**
+ * Clear a conversation from cache (call after archiving/deleting).
+ */
+export function clearConversationCache(id?: string): void {
+  if (id) {
+    conversationCache.delete(id);
+  } else {
+    conversationCache.clear();
+  }
 }
 
 // --- Conversation mutations ---
@@ -1900,10 +1936,10 @@ export function getConversation(id: string): Conversation | undefined {
  * Create a new conversation
  * @returns The new conversation's ID
  */
-export function createConversation(params?: {
+export async function createConversation(params?: {
   title?: string;
   addToRecent?: boolean;
-}): string {
+}): Promise<string> {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
@@ -1912,21 +1948,39 @@ export function createConversation(params?: {
   const id = generateConversationId();
   const now = nowISO();
   const addToRecent = params?.addToRecent ?? true;
+  const title = params?.title || 'New Conversation';
 
+  // Create full conversation object
+  const conversation: Conversation = {
+    id,
+    title,
+    workspaceId: workspace.id,
+    messages: [],
+    created: now,
+    updated: now,
+    archived: false
+  };
+
+  // Store in OPFS
+  await conversationOpfsStorage.store(conversation);
+
+  // Cache it
+  conversationCache.set(id, conversation);
+
+  // Update index in Automerge
   docHandle.change((doc) => {
-    // Ensure conversations record exists
-    if (!doc.conversations) {
-      doc.conversations = {};
+    if (!doc.conversationIndex) {
+      doc.conversationIndex = {};
     }
 
-    doc.conversations[id] = {
+    doc.conversationIndex[id] = {
       id,
-      title: params?.title || 'New Conversation',
+      title,
       workspaceId: workspace.id,
-      messages: [],
       created: now,
       updated: now,
-      archived: false
+      archived: false,
+      messageCount: 0
     };
 
     // Add to workspace's recent items (unless explicitly skipped)
@@ -1946,55 +2000,77 @@ export function createConversation(params?: {
  * Add a message to a conversation
  * @returns The new message's ID
  */
-export function addMessageToConversation(
+export async function addMessageToConversation(
   conversationId: string,
   message: Omit<PersistedChatMessage, 'id' | 'createdAt'>
-): string {
+): Promise<string> {
   if (!docHandle) throw new Error('Not initialized');
+
+  // Load conversation from cache or OPFS
+  let conversation: Conversation | undefined = conversationCache.get(conversationId);
+  if (!conversation) {
+    const retrieved = await conversationOpfsStorage.retrieve(conversationId);
+    if (!retrieved) throw new Error('Conversation not found');
+    conversation = retrieved;
+  }
 
   const messageId = generateMessageId();
   const now = nowISO();
 
+  // Create the new message
+  const newMessage: PersistedChatMessage = {
+    id: messageId,
+    role: message.role,
+    content: message.content,
+    createdAt: now
+  };
+
+  // Only add toolCalls if there are any
+  if (message.toolCalls && message.toolCalls.length > 0) {
+    newMessage.toolCalls = message.toolCalls.map((tc) => {
+      const toolCall: PersistedToolCall = {
+        id: tc.id,
+        name: tc.name,
+        args: { ...tc.args },
+        status: tc.status
+      };
+      if (tc.result !== undefined) {
+        toolCall.result = tc.result;
+      }
+      if (tc.error !== undefined) {
+        toolCall.error = tc.error;
+      }
+      return toolCall;
+    });
+  }
+
+  // Update conversation
+  conversation.messages.push(newMessage);
+  conversation.updated = now;
+
+  // Auto-generate title from first user message
+  let titleChanged = false;
+  if (conversation.title === 'New Conversation' && message.role === 'user') {
+    const preview = message.content.slice(0, 50).trim();
+    conversation.title = preview + (message.content.length > 50 ? '...' : '');
+    titleChanged = true;
+  }
+
+  // Save to OPFS
+  await conversationOpfsStorage.store(conversation);
+
+  // Update cache
+  conversationCache.set(conversationId, conversation);
+
+  // Update index in Automerge
   docHandle.change((doc) => {
-    const conv = doc.conversations?.[conversationId];
-    if (!conv) return;
-
-    // Create the base message object (undefined is not valid JSON for Automerge)
-    const newMessage: PersistedChatMessage = {
-      id: messageId,
-      role: message.role,
-      content: message.content,
-      createdAt: now
-    };
-
-    // Only add toolCalls if there are any (undefined is not valid in Automerge)
-    if (message.toolCalls && message.toolCalls.length > 0) {
-      // Use clone() to create fresh objects safe for Automerge
-      newMessage.toolCalls = message.toolCalls.map((tc) => {
-        const toolCall: PersistedToolCall = {
-          id: tc.id,
-          name: tc.name,
-          args: clone(tc.args),
-          status: tc.status
-        };
-        // Only include optional fields if they have values
-        if (tc.result !== undefined) {
-          toolCall.result = clone(tc.result);
-        }
-        if (tc.error !== undefined) {
-          toolCall.error = tc.error;
-        }
-        return toolCall;
-      });
-    }
-
-    conv.messages.push(newMessage);
-    conv.updated = now;
-
-    // Auto-generate title from first user message
-    if (conv.title === 'New Conversation' && message.role === 'user') {
-      const preview = message.content.slice(0, 50).trim();
-      conv.title = preview + (message.content.length > 50 ? '...' : '');
+    const entry = doc.conversationIndex?.[conversationId];
+    if (entry) {
+      entry.updated = now;
+      entry.messageCount = conversation!.messages.length;
+      if (titleChanged) {
+        entry.title = conversation!.title;
+      }
     }
   });
 
@@ -2004,85 +2080,117 @@ export function addMessageToConversation(
 /**
  * Update a message in a conversation (for streaming updates)
  */
-export function updateConversationMessage(
+export async function updateConversationMessage(
   conversationId: string,
   messageId: string,
   updates: Partial<Pick<PersistedChatMessage, 'content' | 'toolCalls'>>
-): void {
-  if (!docHandle) throw new Error('Not initialized');
+): Promise<void> {
+  // Get conversation from cache (should already be loaded during streaming)
+  const conversation = conversationCache.get(conversationId);
+  if (!conversation) return;
 
-  docHandle.change((doc) => {
-    const conv = doc.conversations?.[conversationId];
-    if (!conv) return;
+  const messageIndex = conversation.messages.findIndex((m) => m.id === messageId);
+  if (messageIndex === -1) return;
 
-    const messageIndex = conv.messages.findIndex((m) => m.id === messageId);
-    if (messageIndex === -1) return;
+  const message = conversation.messages[messageIndex];
+  const now = nowISO();
 
-    const message = conv.messages[messageIndex];
+  // Update message content
+  if (updates.content !== undefined) {
+    message.content = updates.content;
+  }
+  if (updates.toolCalls !== undefined && updates.toolCalls.length > 0) {
+    message.toolCalls = updates.toolCalls.map((tc) => {
+      const toolCall: PersistedToolCall = {
+        id: tc.id,
+        name: tc.name,
+        args: { ...tc.args },
+        status: tc.status
+      };
+      if (tc.result !== undefined) {
+        toolCall.result = tc.result;
+      }
+      if (tc.error !== undefined) {
+        toolCall.error = tc.error;
+      }
+      return toolCall;
+    });
+  }
+  conversation.updated = now;
 
-    // Use updateText for fine-grained CRDT updates on message content
-    if (updates.content !== undefined) {
-      Automerge.updateText(
-        doc,
-        ['conversations', conversationId, 'messages', messageIndex, 'content'],
-        updates.content
-      );
-    }
-    if (updates.toolCalls !== undefined && updates.toolCalls.length > 0) {
-      // Use clone() to create fresh objects safe for Automerge
-      message.toolCalls = updates.toolCalls.map((tc) => {
-        const toolCall: PersistedToolCall = {
-          id: tc.id,
-          name: tc.name,
-          args: clone(tc.args),
-          status: tc.status
-        };
-        // Only include optional fields if they have values (undefined not valid in Automerge)
-        if (tc.result !== undefined) {
-          toolCall.result = clone(tc.result);
-        }
-        if (tc.error !== undefined) {
-          toolCall.error = tc.error;
-        }
-        return toolCall;
-      });
-    }
-    conv.updated = nowISO();
-  });
+  // Save to OPFS
+  await conversationOpfsStorage.store(conversation);
+
+  // Update index timestamp in Automerge
+  if (docHandle) {
+    docHandle.change((doc) => {
+      const entry = doc.conversationIndex?.[conversationId];
+      if (entry) {
+        entry.updated = now;
+      }
+    });
+  }
 }
 
 /**
  * Update conversation metadata
  */
-export function updateConversation(
+export async function updateConversation(
   id: string,
   updates: Partial<Pick<Conversation, 'title'>>
-): void {
+): Promise<void> {
   if (!docHandle) throw new Error('Not initialized');
 
-  docHandle.change((doc) => {
-    const conv = doc.conversations?.[id];
-    if (!conv) return;
+  const now = nowISO();
 
-    // Use updateText for fine-grained CRDT updates on conversation title
+  // Update in cache/OPFS if loaded
+  const conversation = conversationCache.get(id);
+  if (conversation) {
     if (updates.title !== undefined) {
-      Automerge.updateText(doc, ['conversations', id, 'title'], updates.title);
+      conversation.title = updates.title;
     }
-    conv.updated = nowISO();
+    conversation.updated = now;
+    await conversationOpfsStorage.store(conversation);
+  }
+
+  // Update index in Automerge
+  docHandle.change((doc) => {
+    const entry = doc.conversationIndex?.[id];
+    if (!entry) return;
+
+    if (updates.title !== undefined) {
+      entry.title = updates.title;
+    }
+    entry.updated = now;
   });
 }
 
 /**
  * Archive a conversation (soft delete)
  */
-export function archiveConversation(id: string): void {
+export async function archiveConversation(id: string): Promise<void> {
   if (!docHandle) throw new Error('Not initialized');
 
+  const now = nowISO();
+
+  // Update in OPFS
+  const conversation =
+    conversationCache.get(id) || (await conversationOpfsStorage.retrieve(id));
+  if (conversation) {
+    conversation.archived = true;
+    conversation.updated = now;
+    await conversationOpfsStorage.store(conversation);
+  }
+
+  // Clear from cache
+  clearConversationCache(id);
+
+  // Update index in Automerge
   docHandle.change((doc) => {
-    const conv = doc.conversations?.[id];
-    if (conv) {
-      conv.archived = true;
-      conv.updated = nowISO();
+    const entry = doc.conversationIndex?.[id];
+    if (entry) {
+      entry.archived = true;
+      entry.updated = now;
     }
 
     // Remove from all workspaces
@@ -2115,12 +2223,19 @@ export function archiveConversation(id: string): void {
 /**
  * Delete a conversation permanently
  */
-export function deleteConversation(id: string): void {
+export async function deleteConversation(id: string): Promise<void> {
   if (!docHandle) throw new Error('Not initialized');
 
+  // Remove from OPFS
+  await conversationOpfsStorage.remove(id);
+
+  // Clear from cache
+  clearConversationCache(id);
+
+  // Remove from index in Automerge
   docHandle.change((doc) => {
-    if (doc.conversations) {
-      delete doc.conversations[id];
+    if (doc.conversationIndex) {
+      delete doc.conversationIndex[id];
     }
 
     // Remove from all workspaces

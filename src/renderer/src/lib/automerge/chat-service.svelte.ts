@@ -182,8 +182,8 @@ export class ChatService {
   /**
    * Load an existing conversation
    */
-  loadConversation(conversationId: string): void {
-    const conversation = getConversation(conversationId);
+  async loadConversation(conversationId: string): Promise<void> {
+    const conversation = await getConversation(conversationId);
     if (!conversation) return;
 
     this._conversationId = conversationId;
@@ -205,9 +205,9 @@ export class ChatService {
   /**
    * Start a new conversation (clears current and creates new)
    */
-  startNewConversation(): string {
+  async startNewConversation(): Promise<string> {
     this.clearMessages();
-    const id = createConversation({ addToRecent: false });
+    const id = await createConversation({ addToRecent: false });
     this._conversationId = id;
     // Note: Don't update activeItem or recent list - panel manages its own conversation
     return id;
@@ -227,11 +227,11 @@ export class ChatService {
 
     // Ensure we have a conversation
     if (!this._conversationId) {
-      this._conversationId = createConversation({ addToRecent: false });
+      this._conversationId = await createConversation({ addToRecent: false });
     }
 
     // Add user message and persist
-    const userMessageId = addMessageToConversation(this._conversationId, {
+    const userMessageId = await addMessageToConversation(this._conversationId, {
       role: 'user',
       content: text.trim()
     });
@@ -245,7 +245,7 @@ export class ChatService {
     this._messages = [...this._messages, userMessage];
 
     // Create assistant message placeholder and persist
-    const assistantMessageId = addMessageToConversation(this._conversationId, {
+    const assistantMessageId = await addMessageToConversation(this._conversationId, {
       role: 'assistant',
       content: '',
       toolCalls: []
@@ -456,7 +456,7 @@ export class ChatService {
     this._error = null;
 
     // Create assistant message placeholder and persist
-    const assistantMessageId = addMessageToConversation(this._conversationId, {
+    const assistantMessageId = await addMessageToConversation(this._conversationId, {
       role: 'assistant',
       content: '',
       toolCalls: []
@@ -663,12 +663,16 @@ export class ChatService {
       newMessages[lastIndex] = msg;
       this._messages = newMessages;
 
-      // Persist to Automerge
+      // Persist to OPFS (fire-and-forget during streaming)
       if (this._conversationId && this.currentAssistantMessageId) {
-        updateConversationMessage(this._conversationId, this.currentAssistantMessageId, {
-          content: msg.content,
-          toolCalls: msg.toolCalls as PersistedToolCall[] | undefined
-        });
+        void updateConversationMessage(
+          this._conversationId,
+          this.currentAssistantMessageId,
+          {
+            content: msg.content,
+            toolCalls: msg.toolCalls as PersistedToolCall[] | undefined
+          }
+        );
       }
     }
   }

@@ -279,7 +279,8 @@ export interface PersistedChatMessage {
 }
 
 /**
- * A conversation containing chat messages
+ * A conversation containing chat messages.
+ * Full conversation data is stored in OPFS, not in Automerge.
  */
 export interface Conversation {
   /** Unique identifier, format: "conv-xxxxxxxx" */
@@ -296,6 +297,27 @@ export interface Conversation {
   updated: string;
   /** Soft delete flag */
   archived: boolean;
+}
+
+/**
+ * Lightweight conversation metadata stored in the Automerge index.
+ * Full conversation content is stored in OPFS.
+ */
+export interface ConversationIndexEntry {
+  /** Unique identifier, format: "conv-xxxxxxxx" */
+  id: string;
+  /** Title for display in lists */
+  title: string;
+  /** Workspace this conversation belongs to */
+  workspaceId: string;
+  /** ISO timestamp of creation */
+  created: string;
+  /** ISO timestamp of last activity */
+  updated: string;
+  /** Soft delete flag */
+  archived: boolean;
+  /** Message count for display purposes */
+  messageCount: number;
 }
 
 // ============================================================================
@@ -516,8 +538,8 @@ export interface NotesDocument {
   noteTypes: Record<string, NoteType>;
   /** Ordered list of workspace IDs for display order */
   workspaceOrder?: string[];
-  /** All conversations keyed by ID (optional for backward compatibility) */
-  conversations?: Record<string, Conversation>;
+  /** Conversation index - lightweight metadata only, full data in OPFS */
+  conversationIndex?: Record<string, ConversationIndexEntry>;
   /** Items on the shelf (optional for backward compatibility) */
   shelfItems?: ShelfItemData[];
   /** Last view state for restoring on app restart (optional for backward compatibility) */

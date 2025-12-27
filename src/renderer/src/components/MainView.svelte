@@ -9,7 +9,7 @@
     getNoteTypes,
     getActiveItem,
     getActiveNote,
-    getActiveConversation,
+    getActiveConversationEntry,
     setActiveItem,
     getActiveSystemView,
     setActiveSystemView,
@@ -31,7 +31,7 @@
     createDeckNote,
     type NoteMetadata,
     type SearchResult,
-    type Conversation,
+    type ConversationIndexEntry,
     type SidebarItem,
     type SystemView
   } from '../lib/automerge';
@@ -67,7 +67,7 @@
   const noteTypes = $derived(getNoteTypes());
   const activeItem = $derived(getActiveItem());
   const activeNote = $derived(getActiveNote());
-  const activeConversation = $derived(getActiveConversation());
+  const activeConversation = $derived(getActiveConversationEntry());
   const vaults = $derived(getNonArchivedVaults());
   const activeVault = $derived(getActiveVault());
 
@@ -209,7 +209,7 @@
   }
 
   // Handle conversation selection from conversations view
-  function handleConversationSelectFromView(conv: Conversation): void {
+  function handleConversationSelectFromView(conv: ConversationIndexEntry): void {
     setActiveItem({ type: 'conversation', id: conv.id });
     selectedConversationId = conv.id;
     // Stay in conversations view to show the conversation in main area

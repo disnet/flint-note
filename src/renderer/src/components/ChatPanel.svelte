@@ -14,10 +14,10 @@
     type ToolCall
   } from '../lib/automerge/chat-service.svelte';
   import {
-    getActiveConversation,
+    getActiveConversationEntry,
     navigateToNote,
     setActiveNoteId,
-    type Conversation
+    type ConversationIndexEntry
   } from '../lib/automerge';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
@@ -114,7 +114,7 @@
   const error = $derived(chatService?.error);
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
   const conversationId = $derived(chatService?.conversationId ?? null);
-  const activeConversation = $derived(getActiveConversation());
+  const activeConversation = $derived(getActiveConversationEntry());
   const awaitingContinue = $derived(status === 'awaiting_continue');
 
   // Handle initial message when panel opens (for routine execution, etc.)
@@ -307,9 +307,9 @@
   }
 
   // Handle conversation selection from history
-  function handleConversationSelect(conv: Conversation): void {
+  async function handleConversationSelect(conv: ConversationIndexEntry): Promise<void> {
     if (!chatService) return;
-    chatService.loadConversation(conv.id);
+    await chatService.loadConversation(conv.id);
     showHistory = false;
   }
 

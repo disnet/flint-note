@@ -18,6 +18,7 @@ export type {
   PropertyConstraints,
   PropertyDefinition,
   Conversation,
+  ConversationIndexEntry,
   PersistedChatMessage,
   PersistedToolCall,
   SidebarItemType,
@@ -163,7 +164,7 @@ export {
   getActiveSystemView,
   setActiveSystemView,
   getActiveNote,
-  getActiveConversation,
+  getActiveConversationEntry,
   navigateToNote,
 
   // Convenience wrappers (for backward compatibility)
@@ -196,6 +197,8 @@ export {
   // Conversation getters
   getConversations,
   getConversation,
+  getConversationEntry,
+  clearConversationCache,
 
   // Conversation mutations
   createConversation,
@@ -317,6 +320,9 @@ export { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
 
 // OPFS storage for Webpage files
 export { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
+
+// OPFS storage for conversations
+export { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 
 // EPUB import
 export {

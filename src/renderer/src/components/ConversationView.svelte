@@ -22,7 +22,7 @@
   import {
     navigateToNote,
     setActiveNoteId,
-    getConversation,
+    getConversationEntry,
     updateConversation,
     addNoteToWorkspace
   } from '../lib/automerge';
@@ -126,14 +126,14 @@
   const error = $derived(chatService?.error);
   const isLoading = $derived(status === 'submitting' || status === 'streaming');
 
-  // Get conversation from Automerge state
-  const conversation = $derived(getConversation(conversationId));
+  // Get conversation index entry from Automerge state (full conversation loaded by chat service)
+  const conversationEntry = $derived(getConversationEntry(conversationId));
 
   // Get conversation title - use stored title or fall back to first message
   const conversationTitle = $derived.by(() => {
     // First try the stored title
-    if (conversation?.title && conversation.title !== 'New Conversation') {
-      return conversation.title;
+    if (conversationEntry?.title && conversationEntry.title !== 'New Conversation') {
+      return conversationEntry.title;
     }
     // Fall back to first user message
     const firstUserMessage = messages.find((m) => m.role === 'user');

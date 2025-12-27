@@ -15,7 +15,7 @@
     setActiveConversationId,
     addNoteToWorkspace,
     addItemToWorkspace,
-    getConversation,
+    getConversationEntry,
     EditorConfig,
     forceWikilinkRefresh,
     getSelectedWikilink,
@@ -576,7 +576,7 @@
           actionPopoverWikilinkData.conversationId &&
           actionPopoverWikilinkData.exists
         ) {
-          const conv = getConversation(actionPopoverWikilinkData.conversationId);
+          const conv = getConversationEntry(actionPopoverWikilinkData.conversationId);
           editPopoverDisplayText = conv?.title || actionPopoverWikilinkData.title;
         } else {
           editPopoverDisplayText = actionPopoverWikilinkData.title;

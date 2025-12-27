@@ -5,7 +5,7 @@
    * Displays a note or conversation on the shelf with expand/collapse functionality.
    * Notes use a full CodeMirror editor for editing.
    */
-  import { getNote, getConversation, getNoteType } from '../lib/automerge';
+  import { getNote, getConversationEntry, getNoteType } from '../lib/automerge';
   import ShelfEditor from './ShelfEditor.svelte';
 
   interface Props {
@@ -27,8 +27,8 @@
 
   // Get item data based on type
   const note = $derived(itemType === 'note' ? getNote(itemId) : undefined);
-  const conversation = $derived(
-    itemType === 'conversation' ? getConversation(itemId) : undefined
+  const conversationEntry = $derived(
+    itemType === 'conversation' ? getConversationEntry(itemId) : undefined
   );
   const noteType = $derived(note ? getNoteType(note.type) : undefined);
 
@@ -37,8 +37,8 @@
     if (itemType === 'note' && note) {
       return note.title || 'Untitled';
     }
-    if (itemType === 'conversation' && conversation) {
-      return conversation.title || 'Untitled Conversation';
+    if (itemType === 'conversation' && conversationEntry) {
+      return conversationEntry.title || 'Untitled Conversation';
     }
     return 'Unknown';
   });
@@ -52,29 +52,22 @@
 
   const isArchived = $derived.by(() => {
     if (itemType === 'note' && note) return note.archived;
-    if (itemType === 'conversation' && conversation) return conversation.archived;
+    if (itemType === 'conversation' && conversationEntry)
+      return conversationEntry.archived;
     return false;
   });
 
-  // For conversations: show last few messages
-  const recentMessages = $derived.by(() => {
-    if (itemType === 'conversation' && conversation) {
-      // Get last 3 messages with content
-      return conversation.messages
-        .filter((m) => m.content.trim())
-        .slice(-3)
-        .map((m) => ({
-          role: m.role,
-          content: m.content.length > 150 ? m.content.slice(0, 150) + '...' : m.content
-        }));
-    }
+  // For conversations: message preview not available (full conversations stored in OPFS)
+  // TODO: Consider loading preview asynchronously when expanded
+  const recentMessages: { role: string; content: string }[] = $derived.by(() => {
+    // Message preview disabled - would need async load from OPFS
     return [];
   });
 
   // Check if item exists (not deleted)
   const exists = $derived(
     (itemType === 'note' && note !== undefined) ||
-      (itemType === 'conversation' && conversation !== undefined)
+      (itemType === 'conversation' && conversationEntry !== undefined)
   );
 
   function handleTitleClick(event: MouseEvent): void {

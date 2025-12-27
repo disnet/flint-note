@@ -6,13 +6,13 @@
   import {
     getConversations,
     archiveConversation,
-    type Conversation
+    type ConversationIndexEntry
   } from '../lib/automerge';
   import WikilinkText from './WikilinkText.svelte';
 
   interface Props {
     activeConversationId: string | null;
-    onConversationSelect: (conversation: Conversation) => void;
+    onConversationSelect: (conversation: ConversationIndexEntry) => void;
     onNewConversation: () => void;
     /** Callback when a wikilink in a title is clicked */
     onNoteClick?: (noteId: string) => void;
@@ -58,9 +58,9 @@
     });
   }
 
-  function handleArchive(event: Event, conversationId: string): void {
+  async function handleArchive(event: Event, conversationId: string): Promise<void> {
     event.stopPropagation();
-    archiveConversation(conversationId);
+    await archiveConversation(conversationId);
   }
 </script>
 

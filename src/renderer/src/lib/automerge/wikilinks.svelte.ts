@@ -24,11 +24,11 @@ import {
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import type { NoteMetadata, Conversation } from './types';
+import type { NoteMetadata, ConversationIndexEntry } from './types';
 import {
   getAllNotes,
   getNoteTypes,
-  getConversation,
+  getConversationEntry,
   getConversations
 } from './state.svelte';
 
@@ -170,12 +170,12 @@ function isConversationId(identifier: string): boolean {
  * Find a conversation by identifier (conversation ID only - no title matching)
  * Unlike notes, conversations can only be linked by ID
  */
-function findConversationByIdentifier(identifier: string): Conversation | null {
+function findConversationByIdentifier(identifier: string): ConversationIndexEntry | null {
   const normalizedId = identifier.toLowerCase().trim();
 
   // Only match by ID - conversations cannot be referenced by title
   if (isConversationId(normalizedId)) {
-    return getConversation(normalizedId) ?? null;
+    return getConversationEntry(normalizedId) ?? null;
   }
 
   return null;
@@ -408,7 +408,7 @@ class WikilinkWidget extends WidgetType {
       const note = notes.find((n) => n.id === this.noteId);
       isArchived = note?.archived ?? false;
     } else if (this.targetType === 'conversation' && this.conversationId) {
-      const conversation = getConversation(this.conversationId);
+      const conversation = getConversationEntry(this.conversationId);
       isArchived = conversation?.archived ?? false;
     }
 
@@ -443,7 +443,7 @@ class WikilinkWidget extends WidgetType {
           displayText = linkedNote.title || 'Untitled';
         }
       } else if (this.targetType === 'conversation' && this.conversationId) {
-        const conversation = getConversation(this.conversationId);
+        const conversation = getConversationEntry(this.conversationId);
         if (conversation) {
           displayText = conversation.title || 'New Conversation';
         }
