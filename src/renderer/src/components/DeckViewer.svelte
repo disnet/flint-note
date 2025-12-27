@@ -203,8 +203,7 @@
     background: transparent;
     font-size: 1.5rem;
     font-weight: 800;
-    font-family:
-      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-family: var(--font-editor);
     color: var(--text-primary);
     outline: none;
     padding: 0.1em 0;

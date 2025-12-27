@@ -149,8 +149,7 @@
     '&': {
       fontSize: '1.5rem',
       fontWeight: '800',
-      fontFamily:
-        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
+      fontFamily: 'var(--font-editor)',
       backgroundColor: 'transparent'
     },
     '.cm-content': {
