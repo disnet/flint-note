@@ -25,6 +25,7 @@ import {
   getConversation
 } from './state.svelte';
 import type { PersistedToolCall } from './types';
+import { DEFAULT_MODEL } from '../../config/models';
 
 /**
  * Message format for chat UI
@@ -63,8 +64,6 @@ export type ChatStatus =
  * Maximum number of tool call rounds before prompting user to continue
  */
 export const TOOL_CALL_STEP_LIMIT = 30;
-
-const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
 const SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You have access to tools that let you search, read, create, update, and archive notes, as well as read and search EPUB books.
 
@@ -216,8 +215,10 @@ export class ChatService {
 
   /**
    * Send a message and stream the response
+   * @param text The message text to send
+   * @param model Optional model ID to use (defaults to DEFAULT_MODEL)
    */
-  async sendMessage(text: string): Promise<void> {
+  async sendMessage(text: string, model?: string): Promise<void> {
     if (!text.trim() || this.isLoading) return;
 
     // Clear any previous error and reset step tracking
@@ -343,7 +344,7 @@ export class ChatService {
 
       // Stream the response
       const result = streamText({
-        model: openrouter(DEFAULT_MODEL),
+        model: openrouter(model || DEFAULT_MODEL),
         system: SYSTEM_PROMPT,
         messages: coreMessages,
         tools,
@@ -445,8 +446,9 @@ export class ChatService {
 
   /**
    * Continue the conversation after hitting the step limit
+   * @param model Optional model ID to use (defaults to DEFAULT_MODEL)
    */
-  async continueConversation(): Promise<void> {
+  async continueConversation(model?: string): Promise<void> {
     if (this._status !== 'awaiting_continue' || !this._conversationId) return;
 
     // Reset step tracking for another round
@@ -551,7 +553,7 @@ export class ChatService {
 
       // Stream the response
       const result = streamText({
-        model: openrouter(DEFAULT_MODEL),
+        model: openrouter(model || DEFAULT_MODEL),
         system: SYSTEM_PROMPT,
         messages: coreMessages,
         tools,

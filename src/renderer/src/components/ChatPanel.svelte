@@ -24,6 +24,8 @@
   import ConversationList from './ConversationList.svelte';
   import ChatInput from './ChatInput.svelte';
   import WikilinkText from './WikilinkText.svelte';
+  import { modelStore, setSelectedModel } from '../stores/modelStore.svelte';
+  import { getModelsByProvider } from '../config/models';
 
   interface Props {
     /** Whether the panel is currently open */
@@ -63,6 +65,25 @@
   // History panel state
   let showHistory = $state(false);
 
+  // Credits state
+  let credits = $state<{ remaining_credits: number } | null>(null);
+
+  // Context usage state
+  interface ContextUsage {
+    percentage: number;
+    warningLevel: 'none' | 'warning' | 'critical' | 'full';
+    totalTokens: number;
+    maxTokens: number;
+    estimatedMessagesRemaining: number;
+  }
+  let contextUsage = $state<ContextUsage | null>(null);
+
+  // Track previous status to detect when streaming completes
+  let previousStatus = $state<string | null>(null);
+
+  // Context popup hover state
+  let showContextPopup = $state(false);
+
   // Initialize server port and check API key on mount
   $effect(() => {
     const init = async (): Promise<void> => {
@@ -101,12 +122,131 @@
     if (isOpen && initialMessage && chatService && apiKeyConfigured && !isLoading) {
       // Start a new conversation and send the initial message
       chatService.startNewConversation();
-      chatService.sendMessage(initialMessage);
+      chatService.sendMessage(initialMessage, modelStore.selectedModel);
 
       // Notify parent that we've consumed the initial message
       onInitialMessageConsumed?.();
     }
   });
+
+  // Fetch OpenRouter credits
+  async function fetchCredits(): Promise<void> {
+    try {
+      credits = (await window.api?.getOpenRouterCredits()) ?? null;
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
+    }
+  }
+
+  // Estimate tokens for a string (rough approximation: ~4 characters per token)
+  function estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
+
+  // Calculate context usage from local messages
+  function calculateContextUsage(): void {
+    if (messages.length === 0) {
+      contextUsage = null;
+      return;
+    }
+
+    // Get max tokens from current model (default 200k)
+    const maxTokens = modelStore.currentModelInfo?.contextLength ?? 200000;
+
+    // Estimate system prompt tokens (~2000 for our system prompt)
+    const systemPromptTokens = 2000;
+
+    // Calculate tokens for all messages
+    let conversationTokens = 0;
+    for (const msg of messages) {
+      conversationTokens += estimateTokens(msg.content || '');
+      // Add tokens for tool calls
+      if (msg.toolCalls) {
+        for (const tc of msg.toolCalls) {
+          conversationTokens += estimateTokens(JSON.stringify(tc.args || {}));
+          conversationTokens += estimateTokens(JSON.stringify(tc.result || ''));
+        }
+      }
+    }
+
+    const totalTokens = systemPromptTokens + conversationTokens;
+    const percentage = (totalTokens / maxTokens) * 100;
+
+    // Estimate average tokens per message exchange (user + assistant)
+    const avgTokensPerExchange = messages.length > 0 ? conversationTokens / messages.length : 500;
+    const remainingTokens = maxTokens - totalTokens;
+    const estimatedMessagesRemaining = Math.max(0, Math.floor(remainingTokens / avgTokensPerExchange));
+
+    // Determine warning level
+    let warningLevel: 'none' | 'warning' | 'critical' | 'full' = 'none';
+    if (percentage >= 90) {
+      warningLevel = 'full';
+    } else if (percentage >= 75) {
+      warningLevel = 'critical';
+    } else if (percentage >= 50) {
+      warningLevel = 'warning';
+    }
+
+    contextUsage = {
+      percentage,
+      warningLevel,
+      totalTokens,
+      maxTokens,
+      estimatedMessagesRemaining
+    };
+  }
+
+  // Format token count for display (e.g., 15000 -> "15k")
+  function formatTokens(tokens: number): string {
+    if (tokens >= 1000) {
+      return `${Math.round(tokens / 1000)}k`;
+    }
+    return tokens.toString();
+  }
+
+  // Fetch credits when API key becomes configured
+  $effect(() => {
+    if (apiKeyConfigured) {
+      fetchCredits();
+    }
+  });
+
+  // Refresh credits after AI response completes
+  $effect(() => {
+    const wasLoading = previousStatus === 'streaming' || previousStatus === 'submitting';
+    const isNowIdle = status === 'ready' || status === 'awaiting_continue';
+
+    if (wasLoading && isNowIdle) {
+      fetchCredits();
+    }
+    previousStatus = status;
+  });
+
+  // Calculate context usage whenever messages change
+  // Use JSON.stringify to detect deep changes in message content
+  $effect(() => {
+    // Create dependency on messages array and its content
+    const _deps = [messages.length, messages.map((m) => m.content?.length ?? 0).join(',')];
+    void _deps;
+    calculateContextUsage();
+  });
+
+  // Handle model switching
+  async function handleModelSwitch(mode: 'normal' | 'plus-ultra'): Promise<void> {
+    const provider = modelStore.currentModelInfo.provider;
+    const models = getModelsByProvider(provider).filter((m) => m.mode === mode);
+    if (models.length > 0) {
+      await setSelectedModel(models[0].id);
+    }
+  }
+
+  // Open OpenRouter dashboard
+  function openOpenRouterDashboard(): void {
+    window.api?.openExternal({ url: 'https://openrouter.ai/credits' });
+  }
+
+  // Derived current mode from model store
+  const currentMode = $derived(modelStore.currentModelInfo.mode ?? 'normal');
 
   // Get conversation title
   const conversationTitle = $derived(activeConversation?.title ?? 'AI Assistant');
@@ -119,11 +259,12 @@
     if (!chatService || !localInput.trim() || isLoading) return;
 
     const messageText = localInput.trim();
+    const currentModel = modelStore.selectedModel;
     localInput = ''; // Clear input immediately
     chatInputRef?.clear(); // Clear the CodeMirror editor
 
     try {
-      await chatService.sendMessage(messageText);
+      await chatService.sendMessage(messageText, currentModel);
     } catch (err) {
       console.error('Failed to send message:', err);
     }
@@ -191,7 +332,7 @@
   // Handle continue when agent hits step limit
   async function handleContinue(): Promise<void> {
     if (!chatService) return;
-    await chatService.continueConversation();
+    await chatService.continueConversation(modelStore.selectedModel);
   }
 </script>
 
@@ -453,12 +594,113 @@
                 <ChatInput
                   bind:this={chatInputRef}
                   value={localInput}
-                  placeholder="Type a message... (use [[note]] to link)"
+                  placeholder="Ask Flint anything...use [[ to link notes"
                   disabled={isLoading}
                   onValueChange={handleInputChange}
                   onSubmit={handleInputSubmit}
                   onWikilinkClick={navigateToNote}
                 />
+              </div>
+              <div class="input-controls">
+                <!-- Model Switcher -->
+                <div class="model-switcher">
+                  <button
+                    type="button"
+                    class="mode-btn"
+                    class:active={currentMode === 'normal'}
+                    onclick={() => handleModelSwitch('normal')}
+                    title="Normal - Fast and capable"
+                  >
+                    <span class="mode-icon">⚡</span>
+                    <span class="mode-label">Normal</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="mode-btn"
+                    class:active={currentMode === 'plus-ultra'}
+                    onclick={() => handleModelSwitch('plus-ultra')}
+                    title="Plus Ultra - Deep thinking"
+                  >
+                    <span class="mode-icon">🧠</span>
+                    <span class="mode-label">Plus Ultra</span>
+                  </button>
+                </div>
+
+                <!-- Spacer -->
+                <div class="controls-spacer"></div>
+
+                <!-- Credits Badge -->
+                {#if credits}
+                  <button
+                    type="button"
+                    class="credits-badge"
+                    onclick={openOpenRouterDashboard}
+                    title="Click to manage credits"
+                  >
+                    ${Math.round(credits.remaining_credits)} left
+                  </button>
+                {/if}
+
+                <!-- Context Circle -->
+                {#if contextUsage}
+                  <div
+                    class="context-circle-wrapper"
+                    role="status"
+                    aria-label="Context window usage"
+                    onmouseenter={() => (showContextPopup = true)}
+                    onmouseleave={() => (showContextPopup = false)}
+                  >
+                    <div
+                      class="context-circle"
+                      class:warning={contextUsage.warningLevel === 'warning'}
+                      class:critical={contextUsage.warningLevel === 'critical' ||
+                        contextUsage.warningLevel === 'full'}
+                    >
+                      <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path
+                          class="circle-bg"
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          class="circle-progress"
+                          stroke-dasharray="{contextUsage.percentage}, 100"
+                          d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                    </div>
+                    {#if showContextPopup}
+                      <div class="context-popup">
+                        <div class="context-popup-title">Context Window</div>
+                        <div class="context-popup-row">
+                          <span class="context-popup-label">Used</span>
+                          <span class="context-popup-value"
+                            >{formatTokens(contextUsage.totalTokens)} / {formatTokens(
+                              contextUsage.maxTokens
+                            )} tokens</span
+                          >
+                        </div>
+                        <div class="context-popup-row">
+                          <span class="context-popup-label">Usage</span>
+                          <span class="context-popup-value"
+                            >{contextUsage.percentage.toFixed(1)}%</span
+                          >
+                        </div>
+                        <div class="context-popup-row">
+                          <span class="context-popup-label">Remaining</span>
+                          <span class="context-popup-value"
+                            >~{contextUsage.estimatedMessagesRemaining} messages</span
+                          >
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                <!-- Send Button -->
                 <button
                   type="submit"
                   class="send-button"
@@ -466,15 +708,15 @@
                   aria-label="Send message"
                 >
                   <svg
-                    width="20"
-                    height="20"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
+                    stroke-width="2.5"
                   >
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                    <polyline points="5 12 12 5 19 12"></polyline>
                   </svg>
                 </button>
               </div>
@@ -748,16 +990,185 @@
 
   .input-container {
     display: flex;
-    gap: 8px;
-    align-items: flex-end;
+    flex-direction: column;
   }
 
+  /* Input controls row */
+  .input-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .controls-spacer {
+    flex: 1;
+  }
+
+  /* Model switcher toggle */
+  .model-switcher {
+    display: flex;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+  }
+
+  .mode-btn:hover {
+    color: var(--text-secondary);
+  }
+
+  .mode-btn.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .mode-icon {
+    font-size: 0.875rem;
+  }
+
+  .mode-label {
+    font-weight: 500;
+  }
+
+  /* Credits badge */
+  .credits-badge {
+    padding: 4px 8px;
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-text, #22c55e);
+    border: none;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .credits-badge:hover {
+    background: rgba(34, 197, 94, 0.25);
+  }
+
+  /* Context circle */
+  .context-circle-wrapper {
+    position: relative;
+    padding: 4px;
+    margin: -4px;
+    cursor: default;
+  }
+
+  .context-circle {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .circular-chart {
+    width: 100%;
+    height: 100%;
+  }
+
+  .circle-bg {
+    fill: none;
+    stroke: var(--border-light);
+    stroke-width: 3;
+  }
+
+  .circle-progress {
+    fill: none;
+    stroke: var(--accent-primary);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: stroke-dasharray 0.3s ease;
+  }
+
+  .context-circle.warning .circle-progress {
+    stroke: var(--warning, #f59e0b);
+  }
+
+  .context-circle.critical .circle-progress {
+    stroke: var(--error-text, #dc3545);
+  }
+
+  /* Context popup */
+  .context-popup {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.15),
+      0 2px 4px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    z-index: 100;
+    animation: popupFadeIn 0.15s ease;
+  }
+
+  @keyframes popupFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .context-popup-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .context-popup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    padding: 3px 0;
+  }
+
+  .context-popup-label {
+    color: var(--text-muted);
+  }
+
+  .context-popup-value {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* Send button - circular */
   .send-button {
-    padding: 10px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     background: var(--accent-primary);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -765,6 +1176,7 @@
     transition:
       background-color 0.2s ease,
       opacity 0.2s ease;
+    flex-shrink: 0;
   }
 
   .send-button:hover:not(:disabled) {
