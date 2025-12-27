@@ -1900,7 +1900,10 @@ export function getConversation(id: string): Conversation | undefined {
  * Create a new conversation
  * @returns The new conversation's ID
  */
-export function createConversation(params?: { title?: string }): string {
+export function createConversation(params?: {
+  title?: string;
+  addToRecent?: boolean;
+}): string {
   if (!docHandle) throw new Error('Not initialized');
 
   const workspace = getActiveWorkspace();
@@ -1908,6 +1911,7 @@ export function createConversation(params?: { title?: string }): string {
 
   const id = generateConversationId();
   const now = nowISO();
+  const addToRecent = params?.addToRecent ?? true;
 
   docHandle.change((doc) => {
     // Ensure conversations record exists
@@ -1925,11 +1929,13 @@ export function createConversation(params?: { title?: string }): string {
       archived: false
     };
 
-    // Add to workspace's recent items
-    const ws = doc.workspaces[doc.activeWorkspaceId];
-    if (ws) {
-      ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'conversation', id });
+    // Add to workspace's recent items (unless explicitly skipped)
+    if (addToRecent) {
+      const ws = doc.workspaces[doc.activeWorkspaceId];
+      if (ws) {
+        ensureWorkspaceArrays(ws);
+        ws.recentItemIds.unshift({ type: 'conversation', id });
+      }
     }
   });
 

@@ -22,8 +22,7 @@ import {
   createConversation,
   addMessageToConversation,
   updateConversationMessage,
-  getConversation,
-  setActiveConversationId
+  getConversation
 } from './state.svelte';
 import type { PersistedToolCall } from './types';
 
@@ -199,9 +198,9 @@ export class ChatService {
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
       createdAt: new Date(m.createdAt)
     }));
-    setActiveConversationId(conversationId);
-    // Note: Don't bump to recent here - selecting an item shouldn't reorder it.
-    // Bumping happens when there's actual activity (messages sent/received).
+    // Note: Don't update activeItem here - the panel manages its own conversation
+    // independently from the main view. Don't bump to recent here either -
+    // selecting an item shouldn't reorder it.
   }
 
   /**
@@ -209,9 +208,9 @@ export class ChatService {
    */
   startNewConversation(): string {
     this.clearMessages();
-    const id = createConversation();
+    const id = createConversation({ addToRecent: false });
     this._conversationId = id;
-    setActiveConversationId(id);
+    // Note: Don't update activeItem or recent list - panel manages its own conversation
     return id;
   }
 
@@ -227,8 +226,7 @@ export class ChatService {
 
     // Ensure we have a conversation
     if (!this._conversationId) {
-      this._conversationId = createConversation();
-      setActiveConversationId(this._conversationId);
+      this._conversationId = createConversation({ addToRecent: false });
     }
 
     // Add user message and persist
