@@ -10,11 +10,9 @@
     TOOL_CALL_STEP_LIMIT,
     type ChatService,
     type ChatMessage,
-    type ToolCall,
-    type AggregatedToolCall
+    type ToolCall
   } from '../lib/automerge/chat-service.svelte';
-  import ToolWidget from './ToolWidget.svelte';
-  import ToolOverlay from './ToolOverlay.svelte';
+  import InlineToolWidget from './InlineToolWidget.svelte';
   import {
     getActiveConversationEntry,
     navigateToNote,
@@ -118,35 +116,6 @@
   const conversationId = $derived(chatService?.conversationId ?? null);
   const activeConversation = $derived(getActiveConversationEntry());
   const awaitingContinue = $derived(status === 'awaiting_continue');
-
-  // Tool overlay state
-  let showToolOverlay = $state(false);
-
-  // Aggregate all tool calls from all messages with metadata
-  // Commentary is now stored directly on each tool call during streaming
-  const allToolCalls = $derived.by(() => {
-    const aggregated: AggregatedToolCall[] = [];
-    for (const msg of messages) {
-      if (msg.toolCalls && msg.toolCalls.length > 0) {
-        for (const tc of msg.toolCalls) {
-          aggregated.push({
-            ...tc,
-            messageId: msg.id,
-            timestamp: msg.createdAt
-          });
-        }
-      }
-    }
-    return aggregated;
-  });
-
-  // Check if any tool is currently running
-  const hasRunningTool = $derived(allToolCalls.some((tc) => tc.status === 'running'));
-
-  // Get the name of the currently running tool (if any)
-  const currentRunningToolName = $derived(
-    allToolCalls.find((tc) => tc.status === 'running')?.name
-  );
 
   // Handle initial message when panel opens (for routine execution, etc.)
   $effect(() => {
@@ -528,7 +497,15 @@
                         />
                       {/if}
                     {:else}
-                      <!-- Assistant messages: render full content (tool break markers are HTML comments, invisible) -->
+                      <!-- Assistant messages: show inline tool widget, then final response -->
+                      {#if hasToolCalls(message) || message.toolActivity?.isActive}
+                        <InlineToolWidget
+                          toolCalls={message.toolCalls ?? []}
+                          isActive={message.toolActivity?.isActive ?? false}
+                          currentStep={message.toolActivity?.currentStep}
+                          onCopy={copyToolCallJson}
+                        />
+                      {/if}
                       {#if getMessageText(message)}
                         <ConversationMessage
                           content={getMessageText(message)}
@@ -541,13 +518,6 @@
                     {/if}
                   </div>
                 {/each}
-                {#if isLoading && messages.length > 0 && !messages[messages.length - 1].content && !hasToolCalls(messages[messages.length - 1])}
-                  <div class="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                {/if}
                 {#if awaitingContinue}
                   <div class="continue-prompt">
                     <span class="continue-prompt-text">
@@ -563,28 +533,6 @@
           {/snippet}
 
           {#snippet controls()}
-            <!-- Tool Widget (above input form) -->
-            {#if allToolCalls.length > 0}
-              <div class="tool-widget-container">
-                <ToolWidget
-                  {allToolCalls}
-                  isRunning={hasRunningTool}
-                  currentToolName={currentRunningToolName}
-                  isExpanded={showToolOverlay}
-                  onToggle={() => (showToolOverlay = !showToolOverlay)}
-                />
-              </div>
-            {/if}
-
-            <!-- Tool Overlay (when expanded) -->
-            {#if showToolOverlay}
-              <ToolOverlay
-                toolCalls={allToolCalls}
-                onClose={() => (showToolOverlay = false)}
-                onCopy={copyToolCallJson}
-              />
-            {/if}
-
             <form class="chat-input-form" onsubmit={handleSubmit}>
               {#if error}
                 <div class="error-banner">
@@ -905,10 +853,6 @@
     gap: 12px;
   }
 
-  .message-wrapper {
-    max-width: 85%;
-  }
-
   .message-wrapper.user {
     align-self: flex-end;
   }
@@ -936,42 +880,6 @@
     color: var(--text-muted);
   }
 
-  /* Typing indicator */
-  .typing-indicator {
-    display: flex;
-    gap: 4px;
-    padding: 12px 16px;
-    background: var(--bg-secondary);
-    border-radius: 12px;
-    width: fit-content;
-  }
-
-  .typing-indicator span {
-    width: 8px;
-    height: 8px;
-    background: var(--text-muted);
-    border-radius: 50%;
-    animation: bounce 1.4s ease-in-out infinite;
-  }
-
-  .typing-indicator span:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .typing-indicator span:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  @keyframes bounce {
-    0%,
-    60%,
-    100% {
-      transform: translateY(0);
-    }
-    30% {
-      transform: translateY(-8px);
-    }
-  }
 
   /* Input form */
   .chat-input-form {
@@ -1187,11 +1095,6 @@
   .send-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  /* Tool widget container */
-  .tool-widget-container {
-    padding: 0 16px;
   }
 
   /* Continue prompt */

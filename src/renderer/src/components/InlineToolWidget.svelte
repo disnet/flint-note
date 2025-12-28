@@ -1,51 +1,55 @@
 <script lang="ts">
   /**
-   * ToolOverlay - Popup overlay showing all tool calls from conversation
+   * InlineToolWidget - Inline widget showing tool activity per message
    *
-   * Displays as a floating panel above the tool widget with:
-   * - Scrollable list of tool calls
-   * - Expandable details for each tool call (args and result)
-   * - Copy button for each tool call
-   * Dismissable by clicking outside or pressing Escape.
+   * Displays in the message thread to show:
+   * - Thinking state: pulsing "Thinking..." when no tool calls yet
+   * - Working state: spinner + current tool name during execution
+   * - Complete state: checkmark + tool count summary
+   * Click to expand in-place and see all tool calls with details.
    */
-  import type { AggregatedToolCall } from '../lib/automerge/chat-service.svelte';
+  import { SvelteSet } from 'svelte/reactivity';
+  import type { ToolCall } from '../lib/automerge/chat-service.svelte';
 
   interface Props {
-    /** All tool calls to display */
-    toolCalls: AggregatedToolCall[];
-    /** Callback when overlay should close */
-    onClose: () => void;
+    /** Tool calls for this message */
+    toolCalls: ToolCall[];
+    /** Whether tools are currently active (streaming) */
+    isActive: boolean;
+    /** Current step name if active */
+    currentStep?: string;
     /** Callback to copy tool call JSON */
-    onCopy?: (toolCall: AggregatedToolCall) => void;
+    onCopy?: (toolCall: ToolCall) => void;
   }
 
-  let { toolCalls, onClose, onCopy }: Props = $props();
+  let { toolCalls, isActive, currentStep, onCopy }: Props = $props();
 
-  // Track which tool calls are expanded
-  let expandedIds = $state<Set<string>>(new Set());
+  let isExpanded = $state(false);
 
-  function toggleExpanded(id: string): void {
-    const newSet = new Set(expandedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
+  // Track which tool calls have expanded details
+  let expandedIds = new SvelteSet<string>();
+
+  // Determine display state
+  const widgetState = $derived.by(() => {
+    if (isActive && toolCalls.length === 0) return 'thinking';
+    if (isActive) return 'working';
+    return 'complete';
+  });
+
+  // Current running tool (for working state)
+  const runningTool = $derived(toolCalls.find((tc) => tc.status === 'running'));
+
+  // Display text for collapsed state
+  const summaryText = $derived.by(() => {
+    switch (widgetState) {
+      case 'thinking':
+        return 'Thinking...';
+      case 'working':
+        return formatToolName(runningTool?.name ?? currentStep ?? 'Working...');
+      case 'complete':
+        return `Used ${toolCalls.length} tool${toolCalls.length !== 1 ? 's' : ''}`;
     }
-    expandedIds = newSet;
-  }
-
-  function handleBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  }
-
-  function handleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-    }
-  }
+  });
 
   function formatToolName(name: string): string {
     return name.replace(/_/g, ' ');
@@ -59,8 +63,19 @@
     }
   }
 
-  // Get status icon
-  function getStatusIcon(status: AggregatedToolCall['status']): string {
+  function toggleExpanded(): void {
+    isExpanded = !isExpanded;
+  }
+
+  function toggleToolDetails(id: string): void {
+    if (expandedIds.has(id)) {
+      expandedIds.delete(id);
+    } else {
+      expandedIds.add(id);
+    }
+  }
+
+  function getStatusIcon(status: ToolCall['status']): string {
     switch (status) {
       case 'running':
         return 'spinner';
@@ -74,15 +89,27 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
-
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="tool-overlay-backdrop" onclick={handleBackdropClick}>
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="tool-overlay" onclick={(e) => e.stopPropagation()}>
-    <div class="tool-overlay-header">
-      <span class="tool-overlay-title">Tool Calls ({toolCalls.length})</span>
-      <button type="button" class="close-btn" onclick={onClose} aria-label="Close">
+<div
+  class="inline-tool-widget"
+  class:thinking={widgetState === 'thinking'}
+  class:working={widgetState === 'working'}
+  class:complete={widgetState === 'complete'}
+>
+  <!-- Collapsed header -->
+  <button
+    type="button"
+    class="widget-header"
+    onclick={toggleExpanded}
+    disabled={widgetState === 'thinking'}
+    aria-expanded={isExpanded}
+    aria-label={summaryText}
+  >
+    <span class="widget-icon">
+      {#if widgetState === 'thinking'}
+        <span class="pulse-dot"></span>
+      {:else if widgetState === 'working'}
+        <span class="spinner"></span>
+      {:else}
         <svg
           width="14"
           height="14"
@@ -91,21 +118,53 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-      </button>
-    </div>
+      {/if}
+    </span>
 
-    <div class="tool-overlay-list">
+    <span class="widget-text">{summaryText}</span>
+
+    {#if widgetState !== 'thinking'}
+      <span class="widget-expand">
+        {#if isExpanded}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        {:else}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        {/if}
+      </span>
+    {/if}
+  </button>
+
+  <!-- Expanded details (in-place, not overlay) -->
+  {#if isExpanded && toolCalls.length > 0}
+    <div class="widget-details">
       {#each toolCalls as toolCall (toolCall.id)}
-        {@const isExpanded = expandedIds.has(toolCall.id)}
+        {@const isToolExpanded = expandedIds.has(toolCall.id)}
         {@const statusIcon = getStatusIcon(toolCall.status)}
-        <div class="tool-item" class:expanded={isExpanded}>
+        <div class="tool-item" class:expanded={isToolExpanded}>
           <button
             type="button"
             class="tool-item-header"
-            onclick={() => toggleExpanded(toolCall.id)}
+            onclick={() => toggleToolDetails(toolCall.id)}
           >
             <span
               class="tool-status"
@@ -114,7 +173,7 @@
               class:error={statusIcon === 'error'}
             >
               {#if statusIcon === 'spinner'}
-                <span class="spinner"></span>
+                <span class="spinner small"></span>
               {:else if statusIcon === 'check'}
                 <svg
                   width="12"
@@ -158,7 +217,7 @@
               {/if}
             </div>
             <span class="expand-icon">
-              {#if isExpanded}
+              {#if isToolExpanded}
                 <svg
                   width="12"
                   height="12"
@@ -184,7 +243,7 @@
             </span>
           </button>
 
-          {#if isExpanded}
+          {#if isToolExpanded}
             <div class="tool-item-details">
               {#if toolCall.args && Object.keys(toolCall.args).length > 0}
                 <div class="detail-section">
@@ -229,83 +288,151 @@
         </div>
       {/each}
     </div>
-  </div>
+  {/if}
 </div>
 
 <style>
-  .tool-overlay-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(2px);
-    z-index: 100;
-  }
-
-  .tool-overlay {
-    position: absolute;
-    bottom: 60px;
-    right: 24px;
-    width: 400px;
-    max-height: 350px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.15),
-      0 4px 16px rgba(0, 0, 0, 0.1);
+  .inline-tool-widget {
+    width: 100%;
+    margin: 8px 0;
+    border-radius: 8px;
     overflow: hidden;
-    animation: slideUp 0.15s ease-out;
-    display: flex;
-    flex-direction: column;
+    border: 1px solid var(--border-light);
+    background: var(--bg-tertiary, var(--bg-secondary));
   }
 
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  /* State-specific styling */
+  .inline-tool-widget.thinking {
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border-color: var(--border-light);
   }
 
-  .tool-overlay-header {
+  .inline-tool-widget.working {
+    background: var(--accent-primary-light, rgba(59, 130, 246, 0.1));
+    border-color: var(--accent-primary);
+  }
+
+  .inline-tool-widget.complete {
+    background: var(--success-bg, rgba(34, 197, 94, 0.1));
+    border-color: var(--success-text, #22c55e);
+  }
+
+  /* Header button */
+  .widget-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-light);
-    flex-shrink: 0;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    text-align: left;
+    transition: background 0.15s ease;
   }
 
-  .tool-overlay-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
+  .widget-header:disabled {
+    cursor: default;
   }
 
-  .close-btn {
+  .widget-header:not(:disabled):hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .widget-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
-    border: none;
-    background: transparent;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .inline-tool-widget.thinking .widget-icon,
+  .inline-tool-widget.thinking .widget-text {
     color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 4px;
   }
 
-  .close-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+  .inline-tool-widget.working .widget-icon,
+  .inline-tool-widget.working .widget-text {
+    color: var(--accent-primary);
   }
 
-  .tool-overlay-list {
+  .inline-tool-widget.complete .widget-icon,
+  .inline-tool-widget.complete .widget-text {
+    color: var(--success-text, #22c55e);
+  }
+
+  .widget-text {
     flex: 1;
-    overflow-y: auto;
-    min-height: 0;
+    text-transform: capitalize;
+  }
+
+  .widget-expand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+
+  /* Pulse animation for thinking state */
+  .pulse-dot {
+    width: 10px;
+    height: 10px;
+    background: currentColor;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Spinner animation */
+  .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .spinner.small {
+    width: 10px;
+    height: 10px;
+    border-width: 1.5px;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Expanded details section */
+  .widget-details {
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    animation: expandIn 0.15s ease-out;
+  }
+
+  @keyframes expandIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .tool-item {
@@ -356,21 +483,6 @@
     color: var(--error-text, #dc3545);
   }
 
-  .spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
   .tool-info {
     flex: 1;
     min-width: 0;
@@ -404,17 +516,8 @@
 
   .tool-item-details {
     padding: 0 16px 12px;
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     animation: expandIn 0.15s ease-out;
-  }
-
-  @keyframes expandIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   .detail-section {
@@ -437,7 +540,7 @@
   .detail-code {
     margin: 0;
     padding: 8px 10px;
-    background: var(--bg-primary);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: 6px;
     font-size: 0.75rem;
@@ -457,7 +560,7 @@
     margin-top: 10px;
     padding: 6px 10px;
     border: 1px solid var(--border-light);
-    background: var(--bg-primary);
+    background: var(--bg-secondary);
     color: var(--text-secondary);
     font-size: 0.75rem;
     border-radius: 4px;
@@ -471,24 +574,20 @@
   }
 
   /* Scrollbar styling */
-  .tool-overlay-list::-webkit-scrollbar,
   .detail-code::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
-  .tool-overlay-list::-webkit-scrollbar-track,
   .detail-code::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .tool-overlay-list::-webkit-scrollbar-thumb,
   .detail-code::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.2));
     border-radius: 3px;
   }
 
-  .tool-overlay-list::-webkit-scrollbar-thumb:hover,
   .detail-code::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.3));
   }

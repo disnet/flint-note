@@ -2183,6 +2183,9 @@ export async function updateConversationMessage(
       if (tc.error !== undefined) {
         toolCall.error = tc.error;
       }
+      if (tc.commentary !== undefined) {
+        toolCall.commentary = tc.commentary;
+      }
       return toolCall;
     });
   }

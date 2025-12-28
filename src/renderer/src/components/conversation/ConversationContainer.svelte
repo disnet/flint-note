@@ -36,6 +36,24 @@
 
   let contentContainer = $state<HTMLDivElement>();
 
+  // Track if user is near bottom (for "sticky" auto-scroll)
+  let isNearBottom = $state(true);
+
+  // Threshold for considering "near bottom" (in pixels)
+  const NEAR_BOTTOM_THRESHOLD = 100;
+
+  // Check if scrolled near bottom
+  function checkNearBottom(): void {
+    if (!contentContainer) return;
+    const { scrollTop, scrollHeight, clientHeight } = contentContainer;
+    isNearBottom = scrollHeight - scrollTop - clientHeight < NEAR_BOTTOM_THRESHOLD;
+  }
+
+  // Handle scroll events to track position
+  function handleScroll(): void {
+    checkNearBottom();
+  }
+
   // Auto-scroll effect when content changes
   $effect(() => {
     if (!autoScroll || !contentContainer) return;
@@ -43,18 +61,25 @@
     // Track the scroll dependency to detect content changes
     void scrollDependency;
 
-    // Scroll to bottom immediately
-    const scrollToBottom = (): void => {
-      if (contentContainer) {
+    // Scroll to bottom only if user is near bottom (sticky behavior)
+    const scrollToBottomIfSticky = (): void => {
+      if (contentContainer && isNearBottom) {
         contentContainer.scrollTop = contentContainer.scrollHeight;
       }
     };
 
-    requestAnimationFrame(scrollToBottom);
+    // Always scroll for dependency changes (new messages)
+    requestAnimationFrame(() => {
+      if (contentContainer) {
+        contentContainer.scrollTop = contentContainer.scrollHeight;
+        isNearBottom = true;
+      }
+    });
 
     // Set up MutationObserver to watch for DOM changes (streaming text updates)
+    // Only scrolls if user is already near bottom
     const observer = new MutationObserver(() => {
-      requestAnimationFrame(scrollToBottom);
+      requestAnimationFrame(scrollToBottomIfSticky);
     });
 
     observer.observe(contentContainer, {
@@ -78,7 +103,7 @@
   {/if}
 
   <!-- Scrollable content section -->
-  <div class="conversation-content" bind:this={contentContainer}>
+  <div class="conversation-content" bind:this={contentContainer} onscroll={handleScroll}>
     {@render content()}
   </div>
 

@@ -7,7 +7,7 @@ This document describes how agent tool calls and their associated commentary are
 When an AI agent uses tools (like searching notes, reading content, etc.), it typically generates explanatory text before each tool call. This "commentary" describes what the agent is about to do. We capture this commentary and associate it with each tool call, allowing us to:
 
 1. Display only the final response in the conversation
-2. Show tool activity with commentary in a separate widget
+2. Show tool activity inline with each message via an expandable widget
 
 ## Architecture
 
@@ -37,52 +37,99 @@ The `fullStream` from `streamText()` emits events including:
 - `tool-result`: A tool returned results
 - `finish-step`: End of a step
 
+### Deferred Content Accumulation
+
+To avoid the "flickering" issue where commentary briefly appears then disappears, we use deferred content accumulation:
+
+1. Text from `text-delta` events is buffered in `pendingStepText`
+2. If a `tool-call` event arrives, the buffered text becomes commentary (NOT added to message content)
+3. If `finish-step` arrives without tool calls, the buffered text is the final response (added to message content)
+
+This ensures only final response text ends up in `message.content`, while commentary is stored separately on each tool call.
+
 ### Commentary Capture Flow
 
 In `chat-service.svelte.ts`:
 
 ```typescript
-// Track text in the current step
+// Track text buffers
 private currentStepText = '';
+private pendingStepText = '';
+private currentStepHasToolCalls = false;
 
 for await (const event of result.fullStream) {
   switch (event.type) {
     case 'start-step':
       // Reset at beginning of each step
       this.currentStepText = '';
-      break;
-
-    case 'text-delta':
-      // Accumulate text in current step
-      this.currentStepText += event.text;
-      // Also append to message content
+      this.pendingStepText = '';
+      this.currentStepHasToolCalls = false;
       this.updateLastAssistantMessage((msg) => {
-        msg.content += event.text;
+        msg.toolActivity = { isActive: true };
       });
       break;
 
+    case 'text-delta':
+      // Buffer text - don't add to content yet
+      this.currentStepText += event.text;
+      this.pendingStepText += event.text;
+      break;
+
     case 'tool-call':
-      // Capture commentary and attach to tool call
+      // This step has tool calls - buffered text is commentary
+      this.currentStepHasToolCalls = true;
       this.updateLastAssistantMessage((msg) => {
         msg.toolCalls.push({
           id: event.toolCallId,
           name: event.toolName,
           args: event.input,
           status: 'running',
-          commentary: this.currentStepText.trim() || undefined
+          commentary: this.pendingStepText.trim() || undefined
         });
+        msg.toolActivity = { isActive: true, currentStep: event.toolName };
       });
-      // Clear so next tool call doesn't duplicate
-      this.currentStepText = '';
+      this.pendingStepText = '';
       break;
-    // ...
+
+    case 'finish-step':
+      // If no tool calls, add buffered text to content (it's final response)
+      if (!this.currentStepHasToolCalls && this.pendingStepText.trim()) {
+        this.updateLastAssistantMessage((msg) => {
+          msg.content += this.pendingStepText;
+        });
+      }
+      this.pendingStepText = '';
+      break;
   }
 }
+
+// Clear tool activity after streaming completes
+this.updateLastAssistantMessage((msg) => {
+  msg.toolActivity = { isActive: false };
+});
 ```
 
 ### Data Model
 
-**ToolCall interface** (`chat-service.svelte.ts`):
+**ChatMessage interface** (`chat-service.svelte.ts`):
+
+```typescript
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;  // Final response only (no commentary)
+  toolCalls?: ToolCall[];
+  createdAt: Date;
+  toolActivity?: ToolActivity;  // For inline widget display during streaming
+}
+
+interface ToolActivity {
+  isActive: boolean;
+  currentStep?: string;  // Current tool name
+}
+```
+
+**ToolCall interface**:
 
 ```typescript
 interface ToolCall {
@@ -96,29 +143,43 @@ interface ToolCall {
 }
 ```
 
-**PersistedToolCall** (`types.ts`):
-
-```typescript
-interface PersistedToolCall {
-  // ... same fields including commentary
-  commentary?: string;
-}
-```
-
 ### Display Logic
 
-**Conversation View** (`ChatPanel.svelte`):
+**Inline Tool Widget** (`InlineToolWidget.svelte`):
 
-For messages with tool calls, we strip out commentary to show only the final response:
+Each assistant message with tool calls gets its own inline widget that shows:
+
+- **Thinking state**: Pulsing "Thinking..." when no tool calls yet
+- **Working state**: Spinner + current tool name during execution
+- **Complete state**: Checkmark + "Used N tools" summary
+
+Clicking expands in-place to show all tool calls with:
+- Tool name and status icon
+- Commentary (the reasoning text that preceded the tool call)
+- Expandable details: arguments, result, errors
+- Copy button for JSON
+
+**Conversation Layout**:
+
+```
+[User message]
+[InlineToolWidget - collapsed or expanded]
+[Agent final response]
+```
+
+**Backward Compatibility**:
+
+For old messages that may have commentary embedded in content, `getMessageText()` still attempts to strip it out:
 
 ```typescript
 function getMessageText(message: ChatMessage): string {
   if (!message.content) return '';
 
+  // Fallback for old messages that have commentary in content
   if (hasToolCalls(message) && message.toolCalls) {
     let displayContent = message.content;
     for (const tc of message.toolCalls) {
-      if (tc.commentary) {
+      if (tc.commentary && displayContent.includes(tc.commentary)) {
         displayContent = displayContent.replace(tc.commentary, '');
       }
     }
@@ -129,67 +190,49 @@ function getMessageText(message: ChatMessage): string {
 }
 ```
 
-**Tool Widget** (`ToolWidget.svelte`):
-
-Shows current tool activity at the bottom of the chat panel:
-
-- Running state: spinner + tool name
-- Idle state: checkmark + count of tool calls
-- Click to expand overlay
-
-**Tool Overlay** (`ToolOverlay.svelte`):
-
-Expandable popup showing all tool calls with:
-
-- Tool name
-- Commentary (the text that preceded the tool call)
-- Expandable details: arguments, result, errors
-- Copy button for JSON
-
 ## Component Structure
 
 ```
 ChatPanel.svelte
-├── ConversationContainer
-│   ├── [messages] - Shows final responses only
-│   └── [controls]
-│       ├── ToolWidget - Compact status indicator
-│       │   └── (click) → ToolOverlay
-│       └── [input form]
-│
-└── ToolOverlay - Popup with full tool history
-    └── [tool items with commentary]
+└── ConversationContainer
+    └── messages-list
+        └── for each assistant message:
+            ├── InlineToolWidget (if has tool calls or toolActivity.isActive)
+            │   └── (click to expand in-place)
+            │       └── [tool items with commentary, args, results]
+            └── ConversationMessage (final response)
 ```
 
 ## Data Flow
 
 ```
 1. User sends message
-2. AI streams response
-   ├── start-step → reset currentStepText
-   ├── text-delta → accumulate in currentStepText + message.content
-   ├── tool-call → save currentStepText as commentary, clear it
+2. AI streams response with deferred content accumulation
+   ├── start-step → reset buffers, set toolActivity.isActive = true
+   ├── text-delta → buffer in pendingStepText (NOT added to content)
+   ├── tool-call → move buffer to commentary, track in toolActivity
    ├── tool-result → update tool status
+   ├── finish-step → if no tool calls, add buffer to content
    └── (repeat for each step)
-3. Message stored with:
-   ├── content: all text (commentary + final response)
+3. After streaming: clear toolActivity
+4. Message stored with:
+   ├── content: final response only (no commentary)
    └── toolCalls: [{...commentary}, {...commentary}, ...]
-4. Display:
-   ├── Conversation: content - commentary = final response
-   └── Widget/Overlay: tool calls with commentary
+5. Display:
+   ├── InlineToolWidget: shows tool calls with commentary
+   └── ConversationMessage: shows content (final response)
 ```
 
 ## Backward Compatibility
 
-Older conversations may have tool calls without the `commentary` field. The UI handles this gracefully:
-
-- Tool overlay shows tool name without commentary
-- Message content displays as-is (may include commentary inline)
+Older conversations may have:
+- Tool calls without the `commentary` field → Widget shows tool name only
+- Commentary embedded in `message.content` → Fallback filtering strips it out
+- No `toolActivity` field → Treated as inactive (complete state)
 
 ## Files
 
 - `src/renderer/src/lib/automerge/chat-service.svelte.ts` - Streaming and commentary capture
 - `src/renderer/src/lib/automerge/types.ts` - PersistedToolCall type
-- `src/renderer/src/components/ChatPanel.svelte` - Main panel with aggregation
-- `src/renderer/src/components/ToolWidget.svelte` - Compact status widget
-- `src/renderer/src/components/ToolOverlay.svelte` - Full tool history popup
+- `src/renderer/src/components/ChatPanel.svelte` - Main panel with inline widget rendering
+- `src/renderer/src/components/InlineToolWidget.svelte` - Inline expandable widget per message

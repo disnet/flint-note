@@ -29,6 +29,16 @@ import type { PersistedToolCall } from './types';
 import { DEFAULT_MODEL } from '../../config/models';
 
 /**
+ * Tool activity state for inline widget display during streaming
+ */
+export interface ToolActivity {
+  /** Whether tools are currently being used */
+  isActive: boolean;
+  /** Current step name (tool being executed) */
+  currentStep?: string;
+}
+
+/**
  * Message format for chat UI
  */
 export interface ChatMessage {
@@ -37,6 +47,8 @@ export interface ChatMessage {
   content: string;
   toolCalls?: ToolCall[];
   createdAt: Date;
+  /** Tool activity state for inline widget display during streaming */
+  toolActivity?: ToolActivity;
 }
 
 /**
@@ -140,6 +152,10 @@ export class ChatService {
   private currentAssistantMessageId: string | null = null;
   // Track text in the current step (for associating with tool calls)
   private currentStepText = '';
+  // Buffer for pending step text - only added to content when step finishes without tool calls
+  private pendingStepText = '';
+  // Track if current step has tool calls (to decide whether to add buffered text to content)
+  private currentStepHasToolCalls = false;
   // Track if stopped at step limit
   private _stoppedAtLimit = $state<boolean>(false);
 
@@ -261,15 +277,19 @@ export class ChatService {
       toolCalls: []
     });
     this.currentAssistantMessageId = assistantMessageId;
-    // Reset step text tracking for new message
+    // Reset step tracking for new message
     this.currentStepText = '';
+    this.pendingStepText = '';
+    this.currentStepHasToolCalls = false;
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
       content: '',
       toolCalls: [],
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Start with tool activity active (will show "Thinking...")
+      toolActivity: { isActive: true }
     };
     this._messages = [...this._messages, assistantMessage];
 
@@ -363,24 +383,31 @@ export class ChatService {
 
       this._status = 'streaming';
 
-      // Process the stream
+      // Process the stream with deferred content accumulation
+      // Text is buffered until we know if it's tool commentary or final response
       for await (const event of result.fullStream) {
         switch (event.type) {
           case 'start-step':
-            // Reset step text at the beginning of each step
+            // Reset step tracking at the beginning of each step
             this.currentStepText = '';
-            break;
-
-          case 'text-delta':
-            // Track text in current step (for associating with tool calls)
-            this.currentStepText += event.text;
-            // Append text to assistant message
+            this.pendingStepText = '';
+            this.currentStepHasToolCalls = false;
+            // Mark tool activity as active
             this.updateLastAssistantMessage((msg) => {
-              msg.content += event.text;
+              msg.toolActivity = { isActive: true };
             });
             break;
 
+          case 'text-delta':
+            // Buffer text - don't add to content yet
+            // We'll add it to content only if this step has no tool calls
+            this.currentStepText += event.text;
+            this.pendingStepText += event.text;
+            break;
+
           case 'tool-call':
+            // This step has tool calls - the buffered text is commentary
+            this.currentStepHasToolCalls = true;
             // Add tool call with the preceding commentary from this step
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
@@ -389,10 +416,16 @@ export class ChatService {
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
                 status: 'running',
-                commentary: this.currentStepText.trim() || undefined
+                commentary: this.pendingStepText.trim() || undefined
               });
+              // Update tool activity with current tool name
+              msg.toolActivity = {
+                isActive: true,
+                currentStep: event.toolName
+              };
             });
-            // Clear step text so subsequent tool calls in same step don't duplicate
+            // Clear pending text - it's now attached to the tool call as commentary
+            this.pendingStepText = '';
             this.currentStepText = '';
             break;
 
@@ -408,10 +441,25 @@ export class ChatService {
             });
             break;
 
+          case 'finish-step':
+            // Step finished - if no tool calls, add buffered text to content
+            if (!this.currentStepHasToolCalls && this.pendingStepText.trim()) {
+              this.updateLastAssistantMessage((msg) => {
+                msg.content += this.pendingStepText;
+              });
+            }
+            this.pendingStepText = '';
+            break;
+
           case 'error':
             throw event.error;
         }
       }
+
+      // Clear tool activity after streaming completes
+      this.updateLastAssistantMessage((msg) => {
+        msg.toolActivity = { isActive: false };
+      });
 
       // Check if stopped because agent wanted to continue but hit limit
       const finishReason = await result.finishReason;
@@ -470,15 +518,19 @@ export class ChatService {
       toolCalls: []
     });
     this.currentAssistantMessageId = assistantMessageId;
-    // Reset step text tracking for new message
+    // Reset step tracking for new message
     this.currentStepText = '';
+    this.pendingStepText = '';
+    this.currentStepHasToolCalls = false;
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
       content: '',
       toolCalls: [],
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Start with tool activity active (will show "Thinking...")
+      toolActivity: { isActive: true }
     };
     this._messages = [...this._messages, assistantMessage];
 
@@ -570,25 +622,29 @@ export class ChatService {
 
       this._status = 'streaming';
 
-      // Process the stream
+      // Process the stream with deferred content accumulation
       for await (const event of result.fullStream) {
         switch (event.type) {
           case 'start-step':
-            // Reset step text at the beginning of each step
+            // Reset step tracking at the beginning of each step
             this.currentStepText = '';
-            break;
-
-          case 'text-delta':
-            // Track text in current step (for associating with tool calls)
-            this.currentStepText += event.text;
-            // Append text to assistant message
+            this.pendingStepText = '';
+            this.currentStepHasToolCalls = false;
+            // Mark tool activity as active
             this.updateLastAssistantMessage((msg) => {
-              msg.content += event.text;
+              msg.toolActivity = { isActive: true };
             });
             break;
 
+          case 'text-delta':
+            // Buffer text - don't add to content yet
+            this.currentStepText += event.text;
+            this.pendingStepText += event.text;
+            break;
+
           case 'tool-call':
-            // Add tool call with the preceding commentary from this step
+            // This step has tool calls - the buffered text is commentary
+            this.currentStepHasToolCalls = true;
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
               msg.toolCalls.push({
@@ -596,10 +652,14 @@ export class ChatService {
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
                 status: 'running',
-                commentary: this.currentStepText.trim() || undefined
+                commentary: this.pendingStepText.trim() || undefined
               });
+              msg.toolActivity = {
+                isActive: true,
+                currentStep: event.toolName
+              };
             });
-            // Clear step text so subsequent tool calls in same step don't duplicate
+            this.pendingStepText = '';
             this.currentStepText = '';
             break;
 
@@ -614,10 +674,25 @@ export class ChatService {
             });
             break;
 
+          case 'finish-step':
+            // Step finished - if no tool calls, add buffered text to content
+            if (!this.currentStepHasToolCalls && this.pendingStepText.trim()) {
+              this.updateLastAssistantMessage((msg) => {
+                msg.content += this.pendingStepText;
+              });
+            }
+            this.pendingStepText = '';
+            break;
+
           case 'error':
             throw event.error;
         }
       }
+
+      // Clear tool activity after streaming completes
+      this.updateLastAssistantMessage((msg) => {
+        msg.toolActivity = { isActive: false };
+      });
 
       // Check if stopped because agent wanted to continue but hit limit
       const finishReason = await result.finishReason;
