@@ -4402,14 +4402,26 @@ export function completeRoutine(input: CompleteRoutineInput): string {
       r.completionHistory = [];
     }
 
-    r.completionHistory.push({
+    // Build completion record, only including defined values
+    // (Automerge doesn't allow undefined)
+    const completion: {
+      id: string;
+      completedAt: string;
+      conversationId?: string;
+      notes?: string;
+      outputNoteId?: string;
+      metadata?: { durationMs?: number; toolCallsCount?: number };
+    } = {
       id: completionId,
-      completedAt: now,
-      conversationId: input.conversationId,
-      notes: input.notes,
-      outputNoteId: input.outputNoteId,
-      metadata: input.metadata
-    });
+      completedAt: now
+    };
+    if (input.conversationId !== undefined)
+      completion.conversationId = input.conversationId;
+    if (input.notes !== undefined) completion.notes = input.notes;
+    if (input.outputNoteId !== undefined) completion.outputNoteId = input.outputNoteId;
+    if (input.metadata !== undefined) completion.metadata = clone(input.metadata);
+
+    r.completionHistory.push(completion);
 
     // Update last completed
     r.lastCompleted = now;
