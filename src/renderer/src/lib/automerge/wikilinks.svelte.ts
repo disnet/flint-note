@@ -34,6 +34,9 @@ import {
 
 import { wikilinkTheme } from '../wikilink-theme';
 
+// ID for the dynamically injected completion icon styles
+const COMPLETION_ICON_STYLE_ID = 'wikilink-completion-icons';
+
 // Type to distinguish link targets
 export type WikilinkTargetType = 'note' | 'conversation';
 
@@ -336,24 +339,24 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 
   const options: { label: string; apply: string; type: string; detail?: string }[] = [];
 
-  // Add note options with their type icons
+  // Add note options with type-based CSS class for icons
   for (const note of filteredNotes) {
     const noteType = noteTypes.find((t) => t.id === note.type);
-    const icon = noteType?.icon || '📝';
+    const typeId = noteType?.id || 'default';
     options.push({
-      label: `${icon} ${note.title || 'Untitled'}`,
+      label: note.title || 'Untitled',
       apply: `${note.id}]]`,
-      type: 'text',
-      detail: 'Note'
+      type: `wikilink-note wikilink-note-${typeId}`,
+      detail: `${noteType?.name || 'Note'}`
     });
   }
 
-  // Add conversation options with chat icon
+  // Add conversation options with conversation type for CSS icon
   for (const conv of filteredConversations) {
     options.push({
-      label: `💬 ${conv.title || 'New Conversation'}`,
+      label: conv.title || 'New Conversation',
       apply: `${conv.id}]]`,
-      type: 'text',
+      type: 'wikilink-conversation',
       detail: 'Conversation'
     });
   }
@@ -364,9 +367,9 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
     !filteredNotes.some((note) => note.title.toLowerCase() === normalizedQuery)
   ) {
     options.push({
-      label: `📝 Create "${query.trim()}"`,
+      label: `Create "${query.trim()}"`,
       apply: `${query.trim()}]]`,
-      type: 'text',
+      type: 'wikilink-note-new',
       detail: 'New Note'
     });
   }
@@ -673,12 +676,59 @@ export function getSelectedWikilink(view: EditorView): SelectedWikilink | null {
 }
 
 /**
+ * Update the completion icon CSS based on current note types.
+ * This should be called when note types change.
+ */
+export function updateCompletionIconStyles(): void {
+  const noteTypes = getNoteTypes();
+
+  // Generate CSS for each note type
+  const noteTypeRules = noteTypes
+    .map((noteType) => {
+      const icon = noteType.icon || '📝';
+      return `.cm-completionIcon-wikilink-note-${noteType.id}::after { content: '${icon}'; }`;
+    })
+    .join('\n');
+
+  const css = `
+/* Wikilink completion icon styles */
+.cm-completionIcon-wikilink-note::after,
+.cm-completionIcon-wikilink-note-default::after,
+.cm-completionIcon-wikilink-note-new::after {
+  content: '📝';
+}
+
+.cm-completionIcon-wikilink-conversation::after {
+  content: '💬';
+}
+
+/* Note type specific icons */
+${noteTypeRules}
+`;
+
+  // Find or create the style element
+  let styleEl = document.getElementById(
+    COMPLETION_ICON_STYLE_ID
+  ) as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = COMPLETION_ICON_STYLE_ID;
+    document.head.appendChild(styleEl);
+  }
+
+  styleEl.textContent = css;
+}
+
+/**
  * Create the wikilinks extension for automerge
  */
 export function automergeWikilinksExtension(
   onWikilinkClick: WikilinkClickHandler,
   onWikilinkHover?: WikilinkHoverHandler
 ): Extension {
+  // Initialize completion icon styles
+  updateCompletionIconStyles();
+
   // Keymap for navigating autocomplete with Ctrl-n/p
   const wikilinkKeymap = Prec.highest(
     keymap.of([
