@@ -48,7 +48,6 @@ export type ActiveItem =
  * System views available in the main view area
  */
 export type SystemView =
-  | 'notes'
   | 'settings'
   | 'search'
   | 'types'

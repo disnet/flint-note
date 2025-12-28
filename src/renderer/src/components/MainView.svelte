@@ -4,7 +4,6 @@
    * Contains the left sidebar, note list/editor, and workspace management
    */
   import {
-    getNotes,
     getAllNotes,
     getNoteTypes,
     getActiveItem,
@@ -67,7 +66,6 @@
   import { sidebarState } from '../stores/sidebarState.svelte';
 
   // Derived state
-  const notes = $derived(getNotes());
   const allNotes = $derived(getAllNotes());
   const noteTypes = $derived(getNoteTypes());
   const activeItem = $derived(getActiveItem());
@@ -356,7 +354,6 @@
 
   function handleSystemViewSelect(
     view:
-      | 'notes'
       | 'settings'
       | 'types'
       | 'daily'
@@ -786,55 +783,6 @@
                 </div>
               </div>
             {/if}
-          {:else if activeSystemView === 'notes'}
-            <!-- All Notes View -->
-            <div class="all-notes-view">
-              <div class="all-notes-header">
-                <h2>All Notes ({notes.length})</h2>
-                <button class="create-btn" onclick={handleCreateNote}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New Note
-                </button>
-              </div>
-              <div class="notes-grid">
-                {#each notes as note (note.id)}
-                  <button
-                    class="note-card"
-                    class:active={activeItem?.type === 'note' &&
-                      activeItem.id === note.id}
-                    onclick={() => handleNoteSelect(note)}
-                  >
-                    <div class="note-card-icon">
-                      {getNoteTypes().find((t) => t.id === note.type)?.icon || '📝'}
-                    </div>
-                    <div class="note-card-content">
-                      <span class="note-card-title">{note.title || 'Untitled'}</span>
-                      <span class="note-card-date"
-                        >{new Date(note.updated).toLocaleDateString()}</span
-                      >
-                    </div>
-                  </button>
-                {/each}
-                {#if notes.length === 0}
-                  <div class="empty-notes">
-                    <p>No notes yet</p>
-                    <button class="create-first-btn" onclick={handleCreateNote}>
-                      Create your first note
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            </div>
           {:else if activeSystemView === 'review'}
             <!-- Review View -->
             <ReviewView />
@@ -1282,129 +1230,6 @@
 
   .create-note-btn:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
-  }
-
-  /* All Notes View */
-  .all-notes-view {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 1.5rem;
-  }
-
-  .all-notes-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    flex-shrink: 0;
-  }
-
-  .all-notes-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-  }
-
-  .create-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: var(--accent-primary);
-    color: var(--accent-text, white);
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .create-btn:hover {
-    background: var(--accent-primary-hover, var(--accent-primary));
-  }
-
-  .notes-grid {
-    flex: 1;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-    align-content: start;
-  }
-
-  .note-card {
-    display: flex;
-    gap: 0.75rem;
-    padding: 1rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-secondary);
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
-  }
-
-  .note-card:hover {
-    border-color: var(--border-medium);
-    background: var(--bg-hover);
-  }
-
-  .note-card.active {
-    border-color: var(--accent-primary);
-    background: var(--accent-light);
-  }
-
-  .note-card-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-  }
-
-  .note-card-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .note-card-title {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .note-card-date {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 0.25rem;
-  }
-
-  .empty-notes {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 3rem;
-    color: var(--text-secondary);
-  }
-
-  .empty-notes p {
-    margin: 0 0 1rem;
-  }
-
-  .create-first-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-light);
-    background: transparent;
-    color: var(--text-primary);
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-  }
-
-  .create-first-btn:hover {
-    background: var(--bg-hover);
   }
 
   /* Settings Panel */

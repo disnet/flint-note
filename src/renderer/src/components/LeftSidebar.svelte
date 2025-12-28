@@ -21,7 +21,6 @@
 
   interface Props {
     activeSystemView:
-      | 'notes'
       | 'settings'
       | 'search'
       | 'types'
@@ -41,7 +40,6 @@
     onItemSelect: (item: SidebarItem) => void;
     onSystemViewSelect: (
       view:
-        | 'notes'
         | 'settings'
         | 'types'
         | 'daily'

@@ -56,36 +56,35 @@
 {#if backlinks.length > 0}
   <div class="backlinks-panel">
     <!-- Header - clicking toggles expand -->
-    <button
-      class="backlinks-header"
-      onclick={() => (isPanelExpanded = !isPanelExpanded)}
-      aria-expanded={isPanelExpanded}
-    >
-      <span class="header-arrow" class:expanded={isPanelExpanded}>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </span>
-      <span class="header-title">Backlinks</span>
-      <span class="header-count">{backlinks.length}</span>
+    <div class="backlinks-header">
+      <button
+        class="header-toggle"
+        onclick={() => (isPanelExpanded = !isPanelExpanded)}
+        aria-expanded={isPanelExpanded}
+      >
+        <span class="header-arrow" class:expanded={isPanelExpanded}>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </span>
+        <span class="header-title">Backlinks</span>
+        <span class="header-count">{backlinks.length}</span>
+      </button>
 
       {#if isPanelExpanded}
         <div class="header-controls">
           <button
             class="control-btn"
-            onclick={(e) => {
-              e.stopPropagation();
-              expandAll();
-            }}
+            onclick={() => expandAll()}
             title="Expand all"
             aria-label="Expand all backlinks"
           >
@@ -105,10 +104,7 @@
           </button>
           <button
             class="control-btn"
-            onclick={(e) => {
-              e.stopPropagation();
-              collapseAll();
-            }}
+            onclick={() => collapseAll()}
             title="Collapse all"
             aria-label="Collapse all backlinks"
           >
@@ -128,7 +124,7 @@
           </button>
         </div>
       {/if}
-    </button>
+    </div>
 
     {#if isPanelExpanded}
       <div class="backlinks-list">
@@ -215,6 +211,14 @@
     gap: 8px;
     padding: 0.5rem 1rem;
     width: 100%;
+    border-radius: 4px;
+  }
+
+  .header-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
     border: none;
     background: none;
     cursor: pointer;
@@ -223,7 +227,7 @@
     transition: background 0.15s ease;
   }
 
-  .backlinks-header:hover {
+  .header-toggle:hover {
     background: var(--bg-hover);
   }
 
