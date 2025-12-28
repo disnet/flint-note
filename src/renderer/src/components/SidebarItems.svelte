@@ -20,6 +20,8 @@
     enableReview,
     disableReview,
     getNote,
+    createNote,
+    nowISO,
     EPUB_NOTE_TYPE_ID,
     PDF_NOTE_TYPE_ID,
     WEBPAGE_NOTE_TYPE_ID,
@@ -113,6 +115,11 @@
     for (const item of recentItems) {
       removeItemFromWorkspace({ type: item.type, id: item.id });
     }
+  }
+
+  async function handleNewNote(): Promise<void> {
+    const noteId = await createNote({});
+    onItemSelect({ type: 'note', id: noteId, title: '', icon: '📝', updated: nowISO() });
   }
 
   // Check if the item is active
@@ -669,6 +676,20 @@
             </button>
           {/if}
         </div>
+        <button class="new-note-btn" onclick={handleNewNote}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          New Note
+        </button>
       {:else}
         <div
           class="sidebar-item"
@@ -912,6 +933,31 @@
   }
 
   .down-arrow {
+    flex-shrink: 0;
+  }
+
+  .new-note-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.4rem;
+    border-radius: 0.4rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+  }
+
+  .new-note-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .new-note-btn svg {
     flex-shrink: 0;
   }
 
