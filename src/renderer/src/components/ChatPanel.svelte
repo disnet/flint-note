@@ -7,12 +7,14 @@
    */
   import {
     createChatService,
-    TOOL_BREAK_MARKER,
     TOOL_CALL_STEP_LIMIT,
     type ChatService,
     type ChatMessage,
-    type ToolCall
+    type ToolCall,
+    type AggregatedToolCall
   } from '../lib/automerge/chat-service.svelte';
+  import ToolWidget from './ToolWidget.svelte';
+  import ToolOverlay from './ToolOverlay.svelte';
   import {
     getActiveConversationEntry,
     navigateToNote,
@@ -116,6 +118,35 @@
   const conversationId = $derived(chatService?.conversationId ?? null);
   const activeConversation = $derived(getActiveConversationEntry());
   const awaitingContinue = $derived(status === 'awaiting_continue');
+
+  // Tool overlay state
+  let showToolOverlay = $state(false);
+
+  // Aggregate all tool calls from all messages with metadata
+  // Commentary is now stored directly on each tool call during streaming
+  const allToolCalls = $derived.by(() => {
+    const aggregated: AggregatedToolCall[] = [];
+    for (const msg of messages) {
+      if (msg.toolCalls && msg.toolCalls.length > 0) {
+        for (const tc of msg.toolCalls) {
+          aggregated.push({
+            ...tc,
+            messageId: msg.id,
+            timestamp: msg.createdAt
+          });
+        }
+      }
+    }
+    return aggregated;
+  });
+
+  // Check if any tool is currently running
+  const hasRunningTool = $derived(allToolCalls.some((tc) => tc.status === 'running'));
+
+  // Get the name of the currently running tool (if any)
+  const currentRunningToolName = $derived(
+    allToolCalls.find((tc) => tc.status === 'running')?.name
+  );
 
   // Handle initial message when panel opens (for routine execution, etc.)
   $effect(() => {
@@ -289,16 +320,24 @@
     }
   }
 
-  // Helper to get text content from ChatMessage
+  // Helper to get display text content from ChatMessage
+  // For messages with tool calls, strips out commentary to show only final response
   function getMessageText(message: ChatMessage): string {
-    return message.content;
-  }
+    if (!message.content) return '';
 
-  // Helper to split message content into segments (pre-tool and post-tool)
-  function getMessageSegments(message: ChatMessage): string[] {
-    if (!message.content) return [];
-    const segments = message.content.split(TOOL_BREAK_MARKER);
-    return segments.filter((s) => s.trim());
+    // For messages with tool calls, remove commentary text to show only final response
+    if (hasToolCalls(message) && message.toolCalls) {
+      let displayContent = message.content;
+      for (const tc of message.toolCalls) {
+        if (tc.commentary) {
+          // Remove the commentary from the content
+          displayContent = displayContent.replace(tc.commentary, '');
+        }
+      }
+      return displayContent.trim();
+    }
+
+    return message.content;
   }
 
   // Check if message has tool calls
@@ -489,82 +528,15 @@
                         />
                       {/if}
                     {:else}
-                      <!-- Assistant messages: render segments with tool calls in between -->
-                      {@const segments = getMessageSegments(message)}
-                      {#if segments.length > 0}
-                        <!-- First segment (before tool calls) -->
+                      <!-- Assistant messages: render full content (tool break markers are HTML comments, invisible) -->
+                      {#if getMessageText(message)}
                         <ConversationMessage
-                          content={segments[0]}
+                          content={getMessageText(message)}
                           role="agent"
                           variant="bubble"
                           noAnimation={true}
                           onNoteClick={handleNoteClick}
                         />
-                      {/if}
-                      {#if hasToolCalls(message)}
-                        <!-- Show tool calls indicator -->
-                        <div class="tool-calls-indicator">
-                          {#each message.toolCalls ?? [] as toolCall (toolCall.id)}
-                            <div
-                              class="tool-call"
-                              class:running={toolCall.status === 'running'}
-                              class:completed={toolCall.status === 'completed'}
-                            >
-                              <span class="tool-icon">
-                                {#if toolCall.status === 'running'}
-                                  <span class="tool-spinner"></span>
-                                {:else}
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                  >
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                  </svg>
-                                {/if}
-                              </span>
-                              <span class="tool-name"
-                                >{toolCall.name.replace(/_/g, ' ')}</span
-                              >
-                              <button
-                                class="tool-copy-btn"
-                                onclick={() => copyToolCallJson(toolCall)}
-                                title="Copy tool call JSON"
-                                aria-label="Copy tool call JSON"
-                              >
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                >
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"
-                                  ></rect>
-                                  <path
-                                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                                  ></path>
-                                </svg>
-                              </button>
-                            </div>
-                          {/each}
-                        </div>
-                      {/if}
-                      {#if segments.length > 1}
-                        <!-- Remaining segments (after tool calls) -->
-                        {#each segments.slice(1) as segment, i (i)}
-                          <ConversationMessage
-                            content={segment}
-                            role="agent"
-                            variant="bubble"
-                            noAnimation={true}
-                            onNoteClick={handleNoteClick}
-                          />
-                        {/each}
                       {/if}
                     {/if}
                   </div>
@@ -591,6 +563,28 @@
           {/snippet}
 
           {#snippet controls()}
+            <!-- Tool Widget (above input form) -->
+            {#if allToolCalls.length > 0}
+              <div class="tool-widget-container">
+                <ToolWidget
+                  {allToolCalls}
+                  isRunning={hasRunningTool}
+                  currentToolName={currentRunningToolName}
+                  isExpanded={showToolOverlay}
+                  onToggle={() => (showToolOverlay = !showToolOverlay)}
+                />
+              </div>
+            {/if}
+
+            <!-- Tool Overlay (when expanded) -->
+            {#if showToolOverlay}
+              <ToolOverlay
+                toolCalls={allToolCalls}
+                onClose={() => (showToolOverlay = false)}
+                onCopy={copyToolCallJson}
+              />
+            {/if}
+
             <form class="chat-input-form" onsubmit={handleSubmit}>
               {#if error}
                 <div class="error-banner">
@@ -1195,80 +1189,9 @@
     cursor: not-allowed;
   }
 
-  /* Tool calls indicator */
-  .tool-calls-indicator {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-
-  .tool-call {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: var(--bg-tertiary, var(--bg-secondary));
-    border-radius: 12px;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  .tool-call.running {
-    background: var(--accent-primary-light, rgba(59, 130, 246, 0.1));
-    color: var(--accent-primary);
-  }
-
-  .tool-call.completed {
-    background: var(--success-bg, rgba(34, 197, 94, 0.1));
-    color: var(--success-text, #22c55e);
-  }
-
-  .tool-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-  }
-
-  .tool-spinner {
-    width: 10px;
-    height: 10px;
-    border: 2px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  .tool-name {
-    text-transform: capitalize;
-  }
-
-  .tool-copy-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px;
-    margin-left: 2px;
-    border: none;
-    background: transparent;
-    color: inherit;
-    opacity: 0;
-    cursor: pointer;
-    border-radius: 3px;
-    transition:
-      opacity 0.15s ease,
-      background-color 0.15s ease;
-  }
-
-  .tool-call:hover .tool-copy-btn {
-    opacity: 0.6;
-  }
-
-  .tool-copy-btn:hover {
-    opacity: 1 !important;
-    background: rgba(0, 0, 0, 0.1);
+  /* Tool widget container */
+  .tool-widget-container {
+    padding: 0 16px;
   }
 
   /* Continue prompt */

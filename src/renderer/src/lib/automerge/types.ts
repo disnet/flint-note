@@ -260,6 +260,8 @@ export interface PersistedToolCall {
   result?: unknown;
   /** Execution status */
   status: 'pending' | 'running' | 'completed' | 'error';
+  /** Commentary text that preceded this tool call */
+  commentary?: string;
   /** Error message if status is 'error' */
   error?: string;
 }

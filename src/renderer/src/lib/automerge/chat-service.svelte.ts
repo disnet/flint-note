@@ -49,6 +49,16 @@ export interface ToolCall {
   result?: unknown;
   status: 'pending' | 'running' | 'completed' | 'error';
   error?: string;
+  /** Commentary text that preceded this tool call (captured from step) */
+  commentary?: string;
+}
+
+/**
+ * Aggregated tool call with message context for widget display
+ */
+export interface AggregatedToolCall extends ToolCall {
+  messageId: string;
+  timestamp: Date;
 }
 
 /**
@@ -128,9 +138,8 @@ export class ChatService {
   private _conversationId = $state<string | null>(null);
   private abortController: AbortController | null = null;
   private currentAssistantMessageId: string | null = null;
-  // Track if we've had tool calls in the current message (to know when to insert breaks)
-  private hasHadToolCalls = false;
-  private hasTextAfterTools = false;
+  // Track text in the current step (for associating with tool calls)
+  private currentStepText = '';
   // Track if stopped at step limit
   private _stoppedAtLimit = $state<boolean>(false);
 
@@ -252,9 +261,8 @@ export class ChatService {
       toolCalls: []
     });
     this.currentAssistantMessageId = assistantMessageId;
-    // Reset tool tracking for new message
-    this.hasHadToolCalls = false;
-    this.hasTextAfterTools = false;
+    // Reset step text tracking for new message
+    this.currentStepText = '';
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
@@ -358,17 +366,14 @@ export class ChatService {
       // Process the stream
       for await (const event of result.fullStream) {
         switch (event.type) {
+          case 'start-step':
+            // Reset step text at the beginning of each step
+            this.currentStepText = '';
+            break;
+
           case 'text-delta':
-            // If we've had tool calls and this is new text after them, insert a break marker
-            if (this.hasHadToolCalls && !this.hasTextAfterTools) {
-              this.hasTextAfterTools = true;
-              this.updateLastAssistantMessage((msg) => {
-                // Only insert marker if there was content before the tools
-                if (msg.content.trim()) {
-                  msg.content += TOOL_BREAK_MARKER;
-                }
-              });
-            }
+            // Track text in current step (for associating with tool calls)
+            this.currentStepText += event.text;
             // Append text to assistant message
             this.updateLastAssistantMessage((msg) => {
               msg.content += event.text;
@@ -376,18 +381,19 @@ export class ChatService {
             break;
 
           case 'tool-call':
-            // Mark that we've seen tool calls
-            this.hasHadToolCalls = true;
-            // Add tool call to assistant message
+            // Add tool call with the preceding commentary from this step
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
               msg.toolCalls.push({
                 id: event.toolCallId,
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
-                status: 'running'
+                status: 'running',
+                commentary: this.currentStepText.trim() || undefined
               });
             });
+            // Clear step text so subsequent tool calls in same step don't duplicate
+            this.currentStepText = '';
             break;
 
           case 'tool-result':
@@ -464,9 +470,8 @@ export class ChatService {
       toolCalls: []
     });
     this.currentAssistantMessageId = assistantMessageId;
-    // Reset tool tracking for new message
-    this.hasHadToolCalls = false;
-    this.hasTextAfterTools = false;
+    // Reset step text tracking for new message
+    this.currentStepText = '';
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
@@ -568,31 +573,34 @@ export class ChatService {
       // Process the stream
       for await (const event of result.fullStream) {
         switch (event.type) {
+          case 'start-step':
+            // Reset step text at the beginning of each step
+            this.currentStepText = '';
+            break;
+
           case 'text-delta':
-            if (this.hasHadToolCalls && !this.hasTextAfterTools) {
-              this.hasTextAfterTools = true;
-              this.updateLastAssistantMessage((msg) => {
-                if (msg.content.trim()) {
-                  msg.content += TOOL_BREAK_MARKER;
-                }
-              });
-            }
+            // Track text in current step (for associating with tool calls)
+            this.currentStepText += event.text;
+            // Append text to assistant message
             this.updateLastAssistantMessage((msg) => {
               msg.content += event.text;
             });
             break;
 
           case 'tool-call':
-            this.hasHadToolCalls = true;
+            // Add tool call with the preceding commentary from this step
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
               msg.toolCalls.push({
                 id: event.toolCallId,
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
-                status: 'running'
+                status: 'running',
+                commentary: this.currentStepText.trim() || undefined
               });
             });
+            // Clear step text so subsequent tool calls in same step don't duplicate
+            this.currentStepText = '';
             break;
 
           case 'tool-result':
