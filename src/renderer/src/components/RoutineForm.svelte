@@ -115,25 +115,6 @@
 </script>
 
 <form class="routine-form" onsubmit={handleSubmit}>
-  <div class="form-header">
-    <h2>{isEdit ? 'Edit Routine' : 'New Routine'}</h2>
-    {#if onCancel}
-      <button type="button" class="btn-close" onclick={onCancel} title="Cancel">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    {/if}
-  </div>
-
   {#if error}
     <div class="error-message">{error}</div>
   {/if}
@@ -277,34 +258,7 @@
   .routine-form {
     display: flex;
     flex-direction: column;
-    height: 100%;
-  }
-
-  .form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .form-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .btn-close {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-  }
-
-  .btn-close:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
+    max-height: 80vh;
   }
 
   .error-message {

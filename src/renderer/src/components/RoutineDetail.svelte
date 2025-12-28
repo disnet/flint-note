@@ -10,13 +10,12 @@
 
   interface Props {
     routineId: string;
-    onClose?: () => void;
     onEdit?: (routine: AgentRoutine) => void;
     onExecute?: (routineId: string) => void;
     onDelete?: (routineId: string) => void;
   }
 
-  let { routineId, onClose, onEdit, onExecute, onDelete }: Props = $props();
+  let { routineId, onEdit, onExecute, onDelete }: Props = $props();
 
   let showConfirmDelete = $state(false);
 
@@ -78,25 +77,6 @@
 </script>
 
 <div class="routine-detail">
-  <div class="detail-header">
-    <h2>Routine Details</h2>
-    {#if onClose}
-      <button class="btn-close" onclick={onClose} title="Close" aria-label="Close">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    {/if}
-  </div>
-
   {#if !routine}
     <div class="error">
       <p>Routine not found: {routineId}</p>
@@ -277,37 +257,7 @@
   .routine-detail {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow-y: auto;
     padding: 1rem;
-  }
-
-  .detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .detail-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .btn-close {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-  }
-
-  .btn-close:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
   }
 
   .error {
