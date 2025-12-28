@@ -1193,6 +1193,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0; /* Important for flex child with overflow */
+    scrollbar-gutter: stable; /* Prevent layout shift when scrollbar appears */
   }
 
   /* Disable scrolling for PDF/EPUB viewers that handle their own scrolling */

@@ -683,7 +683,7 @@
     bottom: 96px; /* Above the FAB (56px + 24px gap + 16px) */
     right: 24px;
     width: 400px;
-    max-height: 60vh;
+    max-height: 75vh;
     min-height: 300px;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
@@ -879,7 +879,6 @@
     margin-top: 8px;
     color: var(--text-muted);
   }
-
 
   /* Input form */
   .chat-input-form {
