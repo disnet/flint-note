@@ -176,8 +176,8 @@ export {
 
   // Backlinks
   getBacklinks,
-  type ContextLine,
-  type ContextBlock,
+  type BacklinkOccurrence,
+  type BacklinkResult,
 
   // Loading states
   getIsInitialized,

@@ -442,9 +442,9 @@ export function createNoteTools(): Record<string, Tool> {
               const content = await getNoteContent(bl.note.id);
               return {
                 note: toNoteResultFromMetadata(bl.note, content, 200),
-                contexts: bl.contexts.map((ctx) => ({
-                  // Join context lines into readable text
-                  text: ctx.lines.map((l) => l.text).join('\n')
+                occurrences: bl.occurrences.map((occ) => ({
+                  lineNumber: occ.lineNumber,
+                  text: occ.lineText
                 }))
               };
             })

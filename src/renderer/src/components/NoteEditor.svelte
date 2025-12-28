@@ -22,7 +22,7 @@
     getNoteType,
     setNoteProp,
     getNoteContentHandle,
-    type ContextBlock
+    type BacklinkResult
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
@@ -30,6 +30,7 @@
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
   import EditorChips from './EditorChips.svelte';
+  import BacklinksPanel from './BacklinksPanel.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -218,7 +219,7 @@
   }
 
   // Backlinks state (loaded async)
-  let backlinks = $state<Array<{ note: NoteMetadata; contexts: ContextBlock[] }>>([]);
+  let backlinks = $state<BacklinkResult[]>([]);
 
   // Load backlinks when note changes
   $effect(() => {
@@ -870,31 +871,11 @@
   </div>
 
   <!-- Footer with backlinks -->
-  {#if backlinks.length > 0}
-    <div class="backlinks-section">
-      <div class="backlinks-header">
-        <span>Backlinks ({backlinks.length})</span>
-      </div>
-      <div class="backlinks-list">
-        {#each backlinks as backlink (backlink.note.id)}
-          <button
-            type="button"
-            class="backlink-item"
-            onclick={() => handleBacklinkClick(backlink.note.id)}
-          >
-            <span class="backlink-title">{backlink.note.title || 'Untitled'}</span>
-            {#each backlink.contexts as context, contextIndex (contextIndex)}
-              <div class="backlink-context">
-                {#each context.lines as line, lineIndex (lineIndex)}
-                  <span class:highlight={line.isLinkLine}>{line.text}</span>
-                {/each}
-              </div>
-            {/each}
-          </button>
-        {/each}
-      </div>
-    </div>
-  {/if}
+  <BacklinksPanel
+    {backlinks}
+    onNavigate={handleBacklinkClick}
+    onWikilinkClick={handleWikilinkClick}
+  />
 </div>
 
 <!-- Wikilink Edit Popover -->
@@ -1029,66 +1010,5 @@
     flex: 1;
     min-height: 300px;
     overflow: hidden;
-  }
-
-  /* Backlinks */
-  .backlinks-section {
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-    max-height: 200px;
-    overflow-y: auto;
-    flex-shrink: 0;
-  }
-
-  .backlinks-header {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .backlinks-list {
-    padding: 0.5rem 1rem;
-  }
-
-  .backlink-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    margin-bottom: 0.5rem;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-
-  .backlink-item:hover {
-    background: var(--bg-hover);
-  }
-
-  .backlink-title {
-    font-weight: 500;
-    color: var(--text-primary);
-    display: block;
-    margin-bottom: 0.25rem;
-  }
-
-  .backlink-context {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-    padding: 0.25rem 0;
-  }
-
-  .backlink-context .highlight {
-    background: rgba(59, 130, 246, 0.1);
-    color: var(--accent-primary);
-    border-radius: 0.125rem;
-    padding: 0 0.125rem;
   }
 </style>

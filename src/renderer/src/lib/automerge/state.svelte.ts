@@ -1650,71 +1650,57 @@ export async function navigateToNote(
 // --- Backlinks ---
 
 const LINK_PATTERN = /\[\[(n-[a-f0-9]{8})(?:\|[^\]]+)?\]\]/g;
-const CONTEXT_LINES = 1;
 
-export interface ContextLine {
-  text: string;
-  isLinkLine: boolean;
+export interface BacklinkOccurrence {
+  lineNumber: number; // 0-indexed line in source
+  lineText: string; // Full line text
+  charStart: number; // Link start position in line
+  charEnd: number; // Link end position in line
 }
 
-export interface ContextBlock {
-  lines: ContextLine[];
+export interface BacklinkResult {
+  note: NoteMetadata;
+  occurrences: BacklinkOccurrence[];
 }
 
 /**
  * Get backlinks to a note (other notes that link to it)
- * Loads content from separate content documents
+ * Returns line-level occurrences for each linking note
  */
-export async function getBacklinks(
-  noteId: string
-): Promise<Array<{ note: NoteMetadata; contexts: ContextBlock[] }>> {
-  const backlinks: Array<{ note: NoteMetadata; contexts: ContextBlock[] }> = [];
+export async function getBacklinks(noteId: string): Promise<BacklinkResult[]> {
+  const backlinks: BacklinkResult[] = [];
 
   for (const note of Object.values(currentDoc.notes)) {
     if (note.archived || note.id === noteId) continue;
 
     // Load content for this note
     const content = await getNoteContent(note.id);
-    const contexts: ContextBlock[] = [];
     const lines = content.split('\n');
-    const matchedLineIndices = new Set<number>();
+    const occurrences: BacklinkOccurrence[] = [];
 
     // Find all lines containing links to this note
     for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       LINK_PATTERN.lastIndex = 0;
       let match;
-      while ((match = LINK_PATTERN.exec(lines[i])) !== null) {
+      while ((match = LINK_PATTERN.exec(line)) !== null) {
         if (match[1] === noteId) {
-          matchedLineIndices.add(i);
-          break;
+          occurrences.push({
+            lineNumber: i,
+            lineText: line,
+            charStart: match.index,
+            charEnd: match.index + match[0].length
+          });
         }
       }
     }
 
-    // Build context blocks for each match
-    for (const lineIndex of matchedLineIndices) {
-      const contextLines: ContextLine[] = [];
-      const start = Math.max(0, lineIndex - CONTEXT_LINES);
-      const end = Math.min(lines.length - 1, lineIndex + CONTEXT_LINES);
-
-      for (let i = start; i <= end; i++) {
-        const text = lines[i].trim();
-        if (text) {
-          contextLines.push({ text, isLinkLine: i === lineIndex });
-        }
-      }
-
-      if (contextLines.length > 0) {
-        contexts.push({ lines: contextLines });
-      }
-    }
-
-    if (contexts.length > 0) {
-      backlinks.push({ note, contexts });
+    if (occurrences.length > 0) {
+      backlinks.push({ note, occurrences });
     }
   }
 
-  return backlinks.sort((a, b) => b.contexts.length - a.contexts.length);
+  return backlinks.sort((a, b) => b.occurrences.length - a.occurrences.length);
 }
 
 // --- Loading state getters ---

@@ -117,15 +117,15 @@ this.updateLastAssistantMessage((msg) => {
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;  // Final response only (no commentary)
+  content: string; // Final response only (no commentary)
   toolCalls?: ToolCall[];
   createdAt: Date;
-  toolActivity?: ToolActivity;  // For inline widget display during streaming
+  toolActivity?: ToolActivity; // For inline widget display during streaming
 }
 
 interface ToolActivity {
   isActive: boolean;
-  currentStep?: string;  // Current tool name
+  currentStep?: string; // Current tool name
 }
 ```
 
@@ -154,6 +154,7 @@ Each assistant message with tool calls gets its own inline widget that shows:
 - **Complete state**: Checkmark + "Used N tools" summary
 
 Clicking expands in-place to show all tool calls with:
+
 - Tool name and status icon
 - Commentary (the reasoning text that preceded the tool call)
 - Expandable details: arguments, result, errors
@@ -226,6 +227,7 @@ ChatPanel.svelte
 ## Backward Compatibility
 
 Older conversations may have:
+
 - Tool calls without the `commentary` field → Widget shows tool name only
 - Commentary embedded in `message.content` → Fallback filtering strips it out
 - No `toolActivity` field → Treated as inactive (complete state)
