@@ -31,6 +31,10 @@
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
   import EditorChips from './EditorChips.svelte';
   import BacklinksPanel from './BacklinksPanel.svelte';
+  import {
+    createPositionTracker,
+    hasSavedScrollPosition
+  } from '../lib/editorPosition.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -91,6 +95,9 @@
   // Track which note's content is currently loaded (plain variable, not reactive)
   let loadedNoteId: string | null = null;
 
+  // Position tracking for scroll/cursor persistence
+  let positionTracker: ReturnType<typeof createPositionTracker> | null = null;
+
   // Create editor config factory function for note-specific configuration
   function createEditorConfig(
     handle: DocHandle<NoteContentDocument> | null
@@ -98,6 +105,7 @@
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
       onWikilinkHover: handleWikilinkHover,
+      onCursorChange: () => positionTracker?.savePosition(),
       placeholder: 'Start writing...',
       // Deck widget support - navigate to notes when clicked in embedded decks
       onDeckNoteOpen: (deckNoteId) => {
@@ -130,6 +138,12 @@
     if (noteId === loadedNoteId) {
       return;
     }
+
+    // Save position of current note BEFORE loading new content
+    // This must happen before isLoadingContent=true which hides the editor
+    positionTracker?.cleanup();
+    positionTracker = null;
+
     loadedNoteId = noteId;
 
     isLoadingContent = true;
@@ -262,9 +276,6 @@
     });
 
     measureAndUpdateMarkerWidths();
-
-    // Focus the editor when created
-    editorView.focus();
   }
 
   function measureAndUpdateMarkerWidths(): void {
@@ -281,6 +292,8 @@
   onMount(() => {
     editorConfig.initializeTheme();
     return () => {
+      positionTracker?.cleanup();
+      positionTracker = null;
       if (editorView) {
         editorView.destroy();
         editorView = null;
@@ -289,6 +302,20 @@
     };
   });
 
+  // Helper to find the scroll container
+  function findScrollContainer(element: HTMLElement | null): HTMLElement | null {
+    if (!element) return null;
+    let parent = element.parentElement;
+    while (parent) {
+      const style = getComputedStyle(parent);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  }
+
   // Create or recreate editor when container is available and content is loaded
   $effect(() => {
     if (editorContainer && !isLoadingContent && contentHandle) {
@@ -296,7 +323,16 @@
       const needsNewEditor = !editorView || note.id !== currentNoteId;
 
       if (needsNewEditor) {
+        // Pre-hide scroll container if we have a saved scroll position
+        // This prevents the flash of content at top before scrolling
+        const scrollContainer = findScrollContainer(editorContainer);
+        const shouldPreHide = hasSavedScrollPosition(note.id);
+        if (scrollContainer && shouldPreHide) {
+          scrollContainer.style.visibility = 'hidden';
+        }
+
         // Destroy existing editor if any
+        // Note: position was already saved in the content loading effect
         if (editorView) {
           editorView.destroy();
           editorView = null;
@@ -309,6 +345,17 @@
 
         // Create the editor
         createEditor();
+
+        // Set up position tracking for the new editor
+        positionTracker = createPositionTracker(note.id, () => editorView);
+        positionTracker.attachScrollListener();
+
+        // Delay position restoration to allow Automerge sync to complete
+        setTimeout(() => {
+          positionTracker?.restorePosition(() => {
+            editorView?.focus();
+          });
+        }, 100);
 
         // Update tracking
         currentNoteId = note.id;
