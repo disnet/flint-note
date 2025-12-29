@@ -1812,7 +1812,6 @@
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0; /* Important for flex child with overflow */
-    scrollbar-gutter: stable; /* Prevent layout shift when scrollbar appears */
   }
 
   /* Disable scrolling for PDF/EPUB viewers that handle their own scrolling */
@@ -1820,32 +1819,6 @@
     overflow: hidden;
   }
 
-  /* Thin overlay scrollbar styling */
-  .scroll-container::-webkit-scrollbar {
-    width: 8px;
-    background: transparent;
-  }
-
-  .scroll-container::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scroll-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-  }
-
-  .scroll-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-  }
-
-  :global(.dark) .scroll-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  :global(.dark) .scroll-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
 
   /* Content wrapper for centering with max-width */
   .content-wrapper {
