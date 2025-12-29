@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Actions menu popup for notes in the safe zone.
-   * Shows options: Pin, Add to Shelf, Preview mode, Enable review, Archive
+   * Shows options: Pin, Add to Shelf, Preview mode, Enable review, Archive/Unarchive
    */
   interface Props {
     visible: boolean;
@@ -11,6 +11,8 @@
     isOnShelf: boolean;
     isPreviewMode: boolean;
     isReviewEnabled: boolean;
+    isArchived: boolean;
+    showPreviewMode?: boolean;
     onClose: () => void;
     onPin: () => void;
     onUnpin: () => void;
@@ -18,6 +20,7 @@
     onTogglePreview: () => void;
     onToggleReview: () => void;
     onArchive: () => void;
+    onUnarchive: () => void;
   }
 
   let {
@@ -28,13 +31,16 @@
     isOnShelf,
     isPreviewMode,
     isReviewEnabled,
+    isArchived,
+    showPreviewMode = true,
     onClose,
     onPin,
     onUnpin,
     onAddToShelf,
     onTogglePreview,
     onToggleReview,
-    onArchive
+    onArchive,
+    onUnarchive
   }: Props = $props();
 
   let menuElement: HTMLDivElement | undefined = $state();
@@ -64,7 +70,11 @@
   }
 
   function handleArchiveClick(): void {
-    onArchive();
+    if (isArchived) {
+      onUnarchive();
+    } else {
+      onArchive();
+    }
     onClose();
   }
 
@@ -178,30 +188,17 @@
 
     <div class="menu-divider"></div>
 
-    <!-- Preview Mode -->
-    <button
-      type="button"
-      class="menu-item"
-      class:active={isPreviewMode}
-      onclick={handlePreviewClick}
-      onmousedown={handleMouseDown}
-      role="menuitem"
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+    {#if showPreviewMode}
+      <!-- Preview Mode -->
+      <button
+        type="button"
+        class="menu-item"
+        class:active={isPreviewMode}
+        onclick={handlePreviewClick}
+        onmousedown={handleMouseDown}
+        role="menuitem"
       >
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-        <circle cx="12" cy="12" r="3"></circle>
-      </svg>
-      <span>Preview Mode</span>
-      {#if isPreviewMode}
         <svg
-          class="check-icon"
           width="14"
           height="14"
           viewBox="0 0 24 24"
@@ -209,10 +206,25 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <polyline points="20 6 9 17 4 12"></polyline>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
         </svg>
-      {/if}
-    </button>
+        <span>Preview Mode</span>
+        {#if isPreviewMode}
+          <svg
+            class="check-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        {/if}
+      </button>
+    {/if}
 
     <!-- Enable Review -->
     <button
@@ -258,10 +270,11 @@
 
     <div class="menu-divider"></div>
 
-    <!-- Archive -->
+    <!-- Archive/Unarchive -->
     <button
       type="button"
-      class="menu-item danger"
+      class="menu-item"
+      class:danger={!isArchived}
       onclick={handleArchiveClick}
       onmousedown={handleMouseDown}
       role="menuitem"
@@ -278,7 +291,7 @@
         <rect x="1" y="3" width="22" height="5"></rect>
         <line x1="10" y1="12" x2="14" y2="12"></line>
       </svg>
-      <span>Archive Note</span>
+      <span>{isArchived ? 'Unarchive Note' : 'Archive Note'}</span>
     </button>
   </div>
 {/if}

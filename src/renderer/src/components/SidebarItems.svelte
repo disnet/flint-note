@@ -9,10 +9,13 @@
     getPinnedItems,
     getRecentItems,
     removeItemFromWorkspace,
+    moveItemToWorkspace,
     pinItem,
     unpinItem,
     archiveNote,
+    unarchiveNote,
     archiveConversation,
+    unarchiveConversation,
     getActiveItem,
     reorderPinnedItems,
     reorderRecentItems,
@@ -20,6 +23,12 @@
     enableReview,
     disableReview,
     getNote,
+    getConversationEntry,
+    getWorkspaces,
+    getActiveWorkspace,
+    isItemOnShelf,
+    addShelfItem,
+    removeShelfItem,
     createNote,
     nowISO,
     getSourceFormat,
@@ -549,6 +558,7 @@
     contextMenuItemId = null;
     contextMenuItemType = null;
     contextMenuSection = null;
+    workspaceSubmenuOpen = false;
   }
 
   function handleGlobalClick(event: MouseEvent): void {
@@ -580,9 +590,17 @@
   function handleArchive(): void {
     if (!contextMenuItemId || !contextMenuItemType) return;
     if (contextMenuItemType === 'note') {
-      archiveNote(contextMenuItemId);
+      if (contextMenuItemArchived) {
+        unarchiveNote(contextMenuItemId);
+      } else {
+        archiveNote(contextMenuItemId);
+      }
     } else if (contextMenuItemType === 'conversation') {
-      archiveConversation(contextMenuItemId);
+      if (contextMenuItemArchived) {
+        unarchiveConversation(contextMenuItemId);
+      } else {
+        archiveConversation(contextMenuItemId);
+      }
     }
     closeContextMenu();
   }
@@ -603,6 +621,8 @@
     if (!contextMenuItemId || contextMenuItemType !== 'note') return false;
     const note = getNote(contextMenuItemId);
     if (!note) return false;
+    // Exclude archived notes
+    if (note.archived) return false;
     // Exclude non-markdown source formats and special note types from review
     const sourceFormat = getSourceFormat(note);
     if (sourceFormat !== 'markdown') return false;
@@ -618,6 +638,50 @@
     return reviewData?.enabled ?? false;
   });
 
+  // Check if the context menu item is archived
+  const contextMenuItemArchived = $derived.by(() => {
+    if (!contextMenuItemId || !contextMenuItemType) return false;
+    if (contextMenuItemType === 'note') {
+      const note = getNote(contextMenuItemId);
+      return note?.archived ?? false;
+    } else {
+      const entry = getConversationEntry(contextMenuItemId);
+      return entry?.archived ?? false;
+    }
+  });
+
+  // Check if the context menu item is on the shelf
+  const contextMenuItemOnShelf = $derived.by(() => {
+    if (!contextMenuItemId || !contextMenuItemType) return false;
+    return isItemOnShelf(contextMenuItemType, contextMenuItemId);
+  });
+
+  // Get workspaces for the move submenu
+  const workspaces = $derived(getWorkspaces());
+  const activeWorkspace = $derived(getActiveWorkspace());
+
+  // Submenu state
+  let workspaceSubmenuOpen = $state(false);
+
+  function handleToggleShelf(): void {
+    if (!contextMenuItemId || !contextMenuItemType) return;
+    if (contextMenuItemOnShelf) {
+      removeShelfItem(contextMenuItemType, contextMenuItemId);
+    } else {
+      addShelfItem(contextMenuItemType, contextMenuItemId);
+    }
+    closeContextMenu();
+  }
+
+  function handleMoveToWorkspace(workspaceId: string): void {
+    if (!contextMenuItemId || !contextMenuItemType) return;
+    moveItemToWorkspace(
+      { type: contextMenuItemType, id: contextMenuItemId },
+      workspaceId
+    );
+    closeContextMenu();
+  }
+
   function handleToggleReview(): void {
     if (!contextMenuItemId || contextMenuItemType !== 'note') return;
     if (contextMenuReviewEnabled) {
@@ -626,6 +690,48 @@
       enableReview(contextMenuItemId);
     }
     closeContextMenu();
+  }
+
+  function handleMoreButtonClick(
+    event: MouseEvent,
+    item: SidebarItem,
+    section: 'pinned' | 'recent'
+  ): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    contextMenuItemId = item.id;
+    contextMenuItemType = item.type;
+    contextMenuSection = section;
+
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+
+    const menuWidth = 160;
+    const menuHeight = 120;
+    const padding = 8;
+
+    // Position menu to the right of the button, aligned with top
+    let x = rect.right + padding;
+    let y = rect.top;
+
+    // If menu would go off screen to the right, position it to the left of the button
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = rect.left - menuWidth - padding;
+    }
+    // If still off screen, just position at the edge
+    if (x < padding) {
+      x = padding;
+    }
+
+    // Vertical bounds check
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
   }
 </script>
 
@@ -732,6 +838,24 @@
               {resolveWikilinks(listItem.item.title)}
             </span>
           </div>
+          <button
+            class="more-button"
+            onclick={(e) => handleMoreButtonClick(e, listItem.item, listItem.section)}
+            aria-label="More options"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="5" cy="12" r="1"></circle>
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="19" cy="12" r="1"></circle>
+            </svg>
+          </button>
           {#if listItem.section === 'recent'}
             <button
               class="close-item"
@@ -764,6 +888,7 @@
     style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
     role="menu"
   >
+    <!-- Pin/Unpin -->
     <button class="context-menu-item" onclick={handlePinUnpin} role="menuitem">
       <svg
         width="14"
@@ -785,7 +910,9 @@
         >{contextMenuSection === 'pinned' ? 'Unpin' : 'Pin'}</span
       >
     </button>
-    <button class="context-menu-item" onclick={handleClose} role="menuitem">
+
+    <!-- Shelf toggle -->
+    <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
       <svg
         width="14"
         height="14"
@@ -794,11 +921,32 @@
         stroke="currentColor"
         stroke-width="2"
       >
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
+        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
       </svg>
-      <span class="menu-item-label">Close</span>
+      <span class="menu-item-label">
+        {contextMenuItemOnShelf ? 'Remove from Shelf' : 'Add to Shelf'}
+      </span>
     </button>
+
+    <!-- Close (only for recent items) -->
+    {#if contextMenuSection === 'recent'}
+      <button class="context-menu-item" onclick={handleClose} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        <span class="menu-item-label">Close</span>
+      </button>
+    {/if}
+
+    <!-- Archive toggle -->
     <button class="context-menu-item" onclick={handleArchive} role="menuitem">
       <svg
         width="14"
@@ -812,10 +960,13 @@
         <rect x="1" y="3" width="22" height="5"></rect>
         <line x1="10" y1="12" x2="14" y2="12"></line>
       </svg>
-      Archive
+      <span class="menu-item-label">
+        {contextMenuItemArchived ? 'Unarchive' : 'Archive'}
+      </span>
     </button>
+
+    <!-- Review toggle (only for reviewable notes) -->
     {#if contextMenuNoteReviewable}
-      <div class="context-menu-divider"></div>
       <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
         <svg
           width="14"
@@ -832,6 +983,62 @@
           {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
         </span>
       </button>
+    {/if}
+
+    <!-- Move to workspace (only show if there are other workspaces) -->
+    {#if workspaces.length > 1}
+      <div class="context-menu-divider"></div>
+      <div
+        class="context-menu-item has-submenu"
+        role="menuitem"
+        tabindex="0"
+        onmouseenter={() => (workspaceSubmenuOpen = true)}
+        onmouseleave={() => (workspaceSubmenuOpen = false)}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 3h7v7H3z"></path>
+          <path d="M14 3h7v7h-7z"></path>
+          <path d="M14 14h7v7h-7z"></path>
+          <path d="M3 14h7v7H3z"></path>
+        </svg>
+        <span class="menu-item-label">Move to Workspace</span>
+        <svg
+          class="submenu-arrow"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+
+        <!-- Workspace submenu -->
+        {#if workspaceSubmenuOpen}
+          <div class="context-submenu" role="menu">
+            {#each workspaces as workspace (workspace.id)}
+              {#if workspace.id !== activeWorkspace?.id}
+                <button
+                  class="context-menu-item"
+                  onclick={() => handleMoveToWorkspace(workspace.id)}
+                  role="menuitem"
+                >
+                  <span class="workspace-emoji">{workspace.icon || '📁'}</span>
+                  <span class="menu-item-label">{workspace.name}</span>
+                </button>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
     {/if}
   </div>
 {/if}
@@ -1046,7 +1253,8 @@
     color: var(--text-muted);
   }
 
-  .close-item {
+  .close-item,
+  .more-button {
     display: none;
     align-items: center;
     justify-content: center;
@@ -1060,11 +1268,13 @@
     flex-shrink: 0;
   }
 
-  .sidebar-item:hover .close-item {
+  .sidebar-item:hover .close-item,
+  .sidebar-item:hover .more-button {
     display: flex;
   }
 
-  .close-item:hover {
+  .close-item:hover,
+  .more-button:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
@@ -1114,5 +1324,33 @@
 
   .menu-item-label {
     flex: 1;
+  }
+
+  /* Submenu styles */
+  .has-submenu {
+    position: relative;
+  }
+
+  .submenu-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .context-submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    padding: 0.25rem;
+    margin-left: 0.25rem;
+  }
+
+  .workspace-emoji {
+    font-size: 14px;
+    line-height: 1;
   }
 </style>

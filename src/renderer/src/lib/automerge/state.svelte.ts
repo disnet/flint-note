@@ -1193,6 +1193,65 @@ export function removeItemFromWorkspace(ref: SidebarItemRef): SidebarItemRef | n
 }
 
 /**
+ * Move an item from the current workspace to a target workspace
+ * Removes from pinned/recent in current workspace and adds to recent in target
+ */
+export function moveItemToWorkspace(
+  ref: SidebarItemRef,
+  targetWorkspaceId: string
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const currentWorkspaceId = currentDoc.activeWorkspaceId;
+
+  // Don't do anything if moving to the same workspace
+  if (targetWorkspaceId === currentWorkspaceId) return;
+
+  docHandle.change((doc) => {
+    // Remove from current workspace (both pinned and recent)
+    const currentWs = doc.workspaces[currentWorkspaceId];
+    if (currentWs) {
+      ensureWorkspaceArrays(currentWs);
+      // Remove from pinned
+      const pinnedIdx = currentWs.pinnedItemIds.findIndex(
+        (r) => r.type === ref.type && r.id === ref.id
+      );
+      if (pinnedIdx !== -1) {
+        currentWs.pinnedItemIds.splice(pinnedIdx, 1);
+      }
+      // Remove from recent
+      const recentIdx = currentWs.recentItemIds.findIndex(
+        (r) => r.type === ref.type && r.id === ref.id
+      );
+      if (recentIdx !== -1) {
+        currentWs.recentItemIds.splice(recentIdx, 1);
+      }
+    }
+
+    // Add to target workspace's recent items
+    const targetWs = doc.workspaces[targetWorkspaceId];
+    if (targetWs) {
+      ensureWorkspaceArrays(targetWs);
+      // Don't add if already in target workspace
+      const alreadyPinned = targetWs.pinnedItemIds.some(
+        (r) => r.type === ref.type && r.id === ref.id
+      );
+      const alreadyRecent = targetWs.recentItemIds.some(
+        (r) => r.type === ref.type && r.id === ref.id
+      );
+      if (!alreadyPinned && !alreadyRecent) {
+        targetWs.recentItemIds.unshift({ type: ref.type, id: ref.id });
+      }
+    }
+  });
+
+  // Clear active item if it was moved (using setter for persistence)
+  if (activeItem?.type === ref.type && activeItem.id === ref.id) {
+    setActiveItem(null);
+  }
+}
+
+/**
  * Reorder recent items in the active workspace
  */
 export function reorderRecentItems(fromIndex: number, toIndex: number): void {
@@ -2357,6 +2416,36 @@ export async function archiveConversation(id: string): Promise<void> {
   if (activeItem?.type === 'conversation' && activeItem.id === id) {
     setActiveItem(null);
   }
+}
+
+/**
+ * Unarchive a conversation (restore from soft delete)
+ */
+export async function unarchiveConversation(id: string): Promise<void> {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const now = nowISO();
+
+  // Update in OPFS
+  const conversation =
+    conversationCache.get(id) || (await conversationOpfsStorage.retrieve(id));
+  if (conversation) {
+    conversation.archived = false;
+    conversation.updated = now;
+    await conversationOpfsStorage.store(conversation);
+  }
+
+  // Clear from cache to force reload
+  clearConversationCache(id);
+
+  // Update index in Automerge
+  docHandle.change((doc) => {
+    const entry = doc.conversationIndex?.[id];
+    if (entry) {
+      entry.archived = false;
+      entry.updated = now;
+    }
+  });
 }
 
 /**

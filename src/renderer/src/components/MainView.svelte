@@ -260,6 +260,12 @@
     }
   }
 
+  function handleUnarchiveFromMenu(): void {
+    if (activeNote) {
+      unarchiveNote(activeNote.id);
+    }
+  }
+
   // Search results with progressive loading (title first, then content)
   let searchResults = $state<(SearchResult | EnhancedSearchResult)[]>([]);
   let isSearchingContent = $state(false);
@@ -1271,6 +1277,7 @@
                   addItemToWorkspace({ type: 'note', id: noteId });
                 }}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
+                onUnarchive={() => handleUnarchiveNote(activeNote.id)}
               />
             {:else}
               <NoteEditor
@@ -1418,6 +1425,11 @@
     {isOnShelf}
     {isPreviewMode}
     {isReviewEnabled}
+    isArchived={activeNote.archived}
+    showPreviewMode={!isActiveNoteDeck &&
+      !isActiveNoteEpub &&
+      !isActiveNotePdf &&
+      !isActiveNoteWebpage}
     onClose={() => (moreMenuOpen = false)}
     onPin={handlePin}
     onUnpin={handleUnpin}
@@ -1425,6 +1437,7 @@
     onTogglePreview={handleTogglePreview}
     onToggleReview={handleToggleReview}
     onArchive={handleArchiveFromMenu}
+    onUnarchive={handleUnarchiveFromMenu}
   />
 {/if}
 

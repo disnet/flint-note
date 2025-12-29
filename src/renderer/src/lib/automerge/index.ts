@@ -134,6 +134,7 @@ export {
   setActiveWorkspace,
   addItemToWorkspace,
   removeItemFromWorkspace,
+  moveItemToWorkspace,
   reorderRecentItems,
   reorderWorkspaces,
 
@@ -212,6 +213,7 @@ export {
   updateConversationMessage,
   updateConversation,
   archiveConversation,
+  unarchiveConversation,
   deleteConversation,
   bumpItemToRecent,
 
