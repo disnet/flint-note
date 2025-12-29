@@ -54,6 +54,10 @@
   let isMounted = $state(false);
   let isDarkMode = $state(false);
   let loadedData = $state<ArrayBuffer | null>(null);
+  let isResizing = $state(false);
+  let resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let containerResizeObserver: ResizeObserver | null = null;
+  const RESIZE_DEBOUNCE_MS = 150;
   let view:
     | (HTMLElement & {
         open: (file: File | Blob) => Promise<void>;
@@ -628,6 +632,26 @@
     mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQueryList.addEventListener('change', handleThemeChange);
 
+    // Set up resize observer to defer layout during resize
+    containerResizeObserver = new ResizeObserver(() => {
+      // Immediately mark as resizing to hide content
+      isResizing = true;
+
+      // Clear any existing debounce timer
+      if (resizeDebounceTimer) {
+        clearTimeout(resizeDebounceTimer);
+      }
+
+      // After resize stops, show content again
+      resizeDebounceTimer = setTimeout(() => {
+        isResizing = false;
+      }, RESIZE_DEBOUNCE_MS);
+    });
+
+    if (container) {
+      containerResizeObserver.observe(container);
+    }
+
     loadEpub();
   });
 
@@ -644,6 +668,10 @@
     stopSelectionChecking();
     themeObserver?.disconnect();
     mediaQueryList?.removeEventListener('change', handleThemeChange);
+    containerResizeObserver?.disconnect();
+    if (resizeDebounceTimer) {
+      clearTimeout(resizeDebounceTimer);
+    }
     if (view) {
       view.removeEventListener('relocate', handleRelocate as (event: Event) => void);
       view.removeEventListener('load', handleSectionLoad as (event: Event) => void);
@@ -658,7 +686,7 @@
   });
 </script>
 
-<div class="epub-reader" bind:this={container}>
+<div class="epub-reader" class:resizing={isResizing} bind:this={container}>
   {#if isLoading}
     <div class="loading-state">
       <div class="loading-spinner"></div>
@@ -702,6 +730,11 @@
   .epub-reader :global(foliate-view) {
     width: 100%;
     height: 100%;
+  }
+
+  /* Hide content during resize to prevent expensive relayout jank */
+  .epub-reader.resizing :global(foliate-view) {
+    visibility: hidden;
   }
 
   .loading-state,
