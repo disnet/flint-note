@@ -530,7 +530,11 @@ ${highlightLines.join('\n\n')}
         <div class="bottom-controls" class:visible={showControls}>
           <!-- Left navigation -->
           <Tooltip text="Previous page">
-            <button class="control-button" onclick={() => reader?.prevPage()}>
+            <button
+              class="control-button"
+              onclick={() => reader?.prevPage()}
+              aria-label="Previous page"
+            >
               <svg
                 width="20"
                 height="20"
@@ -553,6 +557,7 @@ ${highlightLines.join('\n\n')}
                 showOutline = !showOutline;
                 showHighlights = false;
               }}
+              aria-label="Table of Contents"
             >
               <svg
                 width="20"
@@ -714,7 +719,11 @@ ${highlightLines.join('\n\n')}
 
           <!-- Right navigation -->
           <Tooltip text="Next page">
-            <button class="control-button" onclick={() => reader?.nextPage()}>
+            <button
+              class="control-button"
+              onclick={() => reader?.nextPage()}
+              aria-label="Next page"
+            >
               <svg
                 width="20"
                 height="20"

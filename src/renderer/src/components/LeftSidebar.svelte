@@ -326,7 +326,11 @@
         </div>
         <div class="header-spacer"></div>
         <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
-          <button class="sidebar-toggle" onclick={onToggleSidebar}>
+          <button
+            class="sidebar-toggle"
+            onclick={onToggleSidebar}
+            aria-label="Toggle sidebar"
+          >
             <svg
               width="16"
               height="16"

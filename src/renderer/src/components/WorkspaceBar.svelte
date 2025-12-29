@@ -463,32 +463,34 @@
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
 <div class="workspace-bar" class:shadow={showShadow}>
-  <div
-    class="workspace-icons"
-    bind:this={listElement}
-    ondragover={handleDragOver}
-    ondrop={handleDrop}
-    role="list"
-  >
-    {#each workspaces as workspace, index (workspace.id)}
-      <Tooltip text={getWorkspaceTooltip(workspace.name, index)}>
-        <button
-          class="workspace-icon"
-          class:active={activeWorkspace?.id === workspace.id}
-          class:dragging={isDragging(index)}
-          style:transform={getItemTransform(index)}
-          onclick={() => handleWorkspaceClick(workspace.id)}
-          oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
-          draggable="true"
-          ondragstart={(e) => handleDragStart(e, index, workspace.id)}
-          ondragend={handleDragEnd}
-          data-workspace-item
-          data-workspace-id={workspace.id}
-        >
-          {workspace.icon}
-        </button>
-      </Tooltip>
-    {/each}
+  <div class="workspace-icons-container">
+    <div
+      class="workspace-icons"
+      bind:this={listElement}
+      ondragover={handleDragOver}
+      ondrop={handleDrop}
+      role="list"
+    >
+      {#each workspaces as workspace, index (workspace.id)}
+        <Tooltip text={getWorkspaceTooltip(workspace.name, index)}>
+          <button
+            class="workspace-icon"
+            class:active={activeWorkspace?.id === workspace.id}
+            class:dragging={isDragging(index)}
+            style:transform={getItemTransform(index)}
+            onclick={() => handleWorkspaceClick(workspace.id)}
+            oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
+            draggable="true"
+            ondragstart={(e) => handleDragStart(e, index, workspace.id)}
+            ondragend={handleDragEnd}
+            data-workspace-item
+            data-workspace-id={workspace.id}
+          >
+            {workspace.icon}
+          </button>
+        </Tooltip>
+      {/each}
+    </div>
     <Tooltip text="Add">
       <button class="add-workspace-button" onclick={handleAddClick} aria-label="Add">
         <svg
@@ -710,6 +712,14 @@
     }
   }
 
+  .workspace-icons-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
   .workspace-icons {
     display: flex;
     align-items: center;
@@ -770,7 +780,6 @@
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-left: auto;
   }
 
   .add-workspace-button:hover {

@@ -70,8 +70,14 @@
       }
 
       // Clamp to viewport
-      left = Math.max(PADDING, Math.min(left, window.innerWidth - tooltip.width - PADDING));
-      top = Math.max(PADDING, Math.min(top, window.innerHeight - tooltip.height - PADDING));
+      left = Math.max(
+        PADDING,
+        Math.min(left, window.innerWidth - tooltip.width - PADDING)
+      );
+      top = Math.max(
+        PADDING,
+        Math.min(top, window.innerHeight - tooltip.height - PADDING)
+      );
 
       tooltipEl.style.top = `${top}px`;
       tooltipEl.style.left = `${left}px`;
@@ -101,7 +107,9 @@
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.15s ease, visibility 0.15s ease;
+      transition:
+        opacity 0.15s ease,
+        visibility 0.15s ease;
       z-index: 99999;
     }
     .portal-tooltip.visible {
@@ -114,6 +122,7 @@
 <span
   bind:this={wrapperEl}
   class="tooltip-wrapper"
+  role="group"
   onmouseenter={showTooltip}
   onmouseleave={hideTooltip}
 >

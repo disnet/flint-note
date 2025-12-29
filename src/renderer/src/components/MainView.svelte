@@ -907,7 +907,11 @@
       <div class="safe-zone">
         {#if !sidebarState.leftSidebar.visible}
           <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
-            <button class="floating-sidebar-toggle" onclick={toggleLeftSidebar}>
+            <button
+              class="floating-sidebar-toggle"
+              onclick={toggleLeftSidebar}
+              aria-label="Toggle sidebar"
+            >
               <svg
                 width="16"
                 height="16"
@@ -931,6 +935,7 @@
                 class="safe-zone-button"
                 class:active={isPinned}
                 onclick={() => (isPinned ? handleUnpin() : handlePin())}
+                aria-label={isPinned ? 'Unpin' : 'Pin'}
               >
                 <svg
                   width="14"
@@ -954,6 +959,7 @@
                 class:on-shelf={isOnShelf}
                 onclick={handleAddToShelf}
                 disabled={isOnShelf}
+                aria-label={isOnShelf ? 'On Shelf' : 'Add to Shelf'}
               >
                 <svg
                   width="16"
@@ -975,7 +981,11 @@
           {/if}
           {#if activeNote}
             <Tooltip text="More options" position="bottom">
-              <button class="more-menu-button" onclick={handleMoreButtonClick}>
+              <button
+                class="more-menu-button"
+                onclick={handleMoreButtonClick}
+                aria-label="More options"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="5" r="2"></circle>
                   <circle cx="12" cy="12" r="2"></circle>
