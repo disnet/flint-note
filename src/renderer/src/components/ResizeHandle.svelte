@@ -102,7 +102,7 @@
   }
 
   .resize-handle.right {
-    left: 0;
+    left: -8px; /* Extend into main content area for easier grabbing */
   }
 
   .resize-handle::before {
@@ -112,6 +112,7 @@
     bottom: 0;
     width: 0;
     background-color: #3b82f6;
+    z-index: 101; /* Above sidebar content */
     transition:
       width 0.15s ease,
       background-color 0.15s ease;
@@ -122,7 +123,7 @@
   }
 
   .resize-handle.right::before {
-    left: 0;
+    left: 8px; /* Position at the sidebar border */
   }
 
   .resize-handle.visible::before {

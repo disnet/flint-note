@@ -79,6 +79,7 @@
   import NoteActionsMenu from './NoteActionsMenu.svelte';
   import UpdateWidget from './UpdateWidget.svelte';
   import Tooltip from './Tooltip.svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -116,9 +117,19 @@
   let selectedNoteTypeId = $state<string | null>(null);
   let selectedConversationId = $state<string | null>(null);
   let selectedSearchIndex = $state(0);
-  let chatPanelOpen = $state(false);
-  let shelfPanelOpen = $state(false);
   let pendingChatMessage = $state<string | null>(null);
+
+  // Right sidebar state (from store)
+  const rightSidebarExpanded = $derived(sidebarState.rightSidebar.visible);
+  const rightSidebarWidth = $derived(sidebarState.rightSidebar.width);
+  const chatPanelOpen = $derived(
+    sidebarState.rightSidebar.panelOpen &&
+      sidebarState.rightSidebar.activePanel === 'chat'
+  );
+  const shelfPanelOpen = $derived(
+    sidebarState.rightSidebar.panelOpen &&
+      sidebarState.rightSidebar.activePanel === 'shelf'
+  );
   let quickSearchOpen = $state(false);
   let moreMenuOpen = $state(false);
   let moreMenuPosition = $state({ x: 0, y: 0 });
@@ -184,9 +195,29 @@
 
   // Open shelf panel (used by "Add to Shelf" buttons)
   function openShelfPanel(): void {
-    shelfPanelOpen = true;
-    chatPanelOpen = false; // Mutual exclusion
+    sidebarState.openPanel('shelf');
   }
+
+  // Toggle panel expanded state (floating vs sidebar)
+  function togglePanelExpanded(): void {
+    sidebarState.toggleRightSidebar();
+  }
+
+  // Track local width during resize for right sidebar
+  let rightSidebarLocalWidth = $state<number | null>(null);
+  const currentRightSidebarWidth = $derived(rightSidebarLocalWidth ?? rightSidebarWidth);
+
+  function handleRightSidebarResize(width: number): void {
+    rightSidebarLocalWidth = width;
+
+    if (rightSidebarSaveTimeout) clearTimeout(rightSidebarSaveTimeout);
+    rightSidebarSaveTimeout = setTimeout(() => {
+      sidebarState.setRightSidebarWidth(width);
+      rightSidebarLocalWidth = null;
+    }, 300);
+  }
+
+  let rightSidebarSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Add current active item to shelf
   function handleAddToShelf(): void {
@@ -497,7 +528,7 @@
   function handleNewConversationFromView(): void {
     // Clear active conversation - ChatService will create new on first message
     setActiveItem(null);
-    chatPanelOpen = true;
+    sidebarState.openPanel('chat');
     setActiveSystemView(null);
   }
 
@@ -717,12 +748,10 @@
         isPreviewMode = !isPreviewMode;
         break;
       case 'toggle-agent':
-        chatPanelOpen = !chatPanelOpen;
-        if (chatPanelOpen) shelfPanelOpen = false;
+        sidebarState.togglePanel('chat');
         break;
       case 'toggle-shelf':
-        shelfPanelOpen = !shelfPanelOpen;
-        if (shelfPanelOpen) chatPanelOpen = false;
+        sidebarState.togglePanel('shelf');
         break;
 
       // Workspace actions
@@ -1286,7 +1315,7 @@
                 const routine = getRoutine(routineId);
                 if (routine) {
                   pendingChatMessage = `Execute the routine "${routine.name}". First read the routine details using get_routine to understand the full instructions, then follow them to complete the routine.`;
-                  chatPanelOpen = true;
+                  sidebarState.openPanel('chat');
                 }
               }}
             />
@@ -1348,6 +1377,53 @@
         </div>
       </div>
     </div>
+
+    <!-- Right Sidebar (expanded panel container) -->
+    {#if rightSidebarExpanded && (chatPanelOpen || shelfPanelOpen)}
+      <div
+        class="right-sidebar"
+        class:resizing={rightSidebarLocalWidth !== null}
+        style="--sidebar-width: {currentRightSidebarWidth}px"
+      >
+        <ResizeHandle
+          side="right"
+          onResize={handleRightSidebarResize}
+          minWidth={300}
+          maxWidth={600}
+        />
+        <div class="right-sidebar-inner">
+          {#if chatPanelOpen}
+            <ChatPanel
+              isOpen={true}
+              isExpanded={true}
+              onClose={() => sidebarState.closePanel()}
+              onToggleExpand={togglePanelExpanded}
+              onGoToSettings={() => {
+                setActiveSystemView('settings');
+                sidebarState.closePanel();
+              }}
+              initialMessage={pendingChatMessage ?? undefined}
+              onInitialMessageConsumed={() => (pendingChatMessage = null)}
+              onSwitchToShelf={() => sidebarState.openPanel('shelf')}
+            />
+          {:else if shelfPanelOpen}
+            <ShelfPanel
+              isOpen={true}
+              isExpanded={true}
+              onClose={() => sidebarState.closePanel()}
+              onToggleExpand={togglePanelExpanded}
+              onNavigate={(type, id) => {
+                setActiveItem({ type, id });
+                addItemToWorkspace({ type, id });
+                setActiveSystemView(null);
+                sidebarState.closePanel();
+              }}
+              onSwitchToChat={() => sidebarState.openPanel('chat')}
+            />
+          {/if}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -1383,37 +1459,40 @@
 <FABMenu
   chatOpen={chatPanelOpen}
   shelfOpen={shelfPanelOpen}
-  onToggleChat={() => {
-    chatPanelOpen = !chatPanelOpen;
-    if (chatPanelOpen) shelfPanelOpen = false; // Mutual exclusion
-  }}
-  onToggleShelf={() => {
-    shelfPanelOpen = !shelfPanelOpen;
-    if (shelfPanelOpen) chatPanelOpen = false; // Mutual exclusion
-  }}
+  onToggleChat={() => sidebarState.togglePanel('chat')}
+  onToggleShelf={() => sidebarState.togglePanel('shelf')}
 />
 
-<ChatPanel
-  isOpen={chatPanelOpen}
-  onClose={() => (chatPanelOpen = false)}
-  onGoToSettings={() => {
-    setActiveSystemView('settings');
-    chatPanelOpen = false;
-  }}
-  initialMessage={pendingChatMessage ?? undefined}
-  onInitialMessageConsumed={() => (pendingChatMessage = null)}
-/>
+<!-- Floating panels (only when not expanded) -->
+{#if !rightSidebarExpanded}
+  <ChatPanel
+    isOpen={chatPanelOpen}
+    isExpanded={false}
+    onClose={() => sidebarState.closePanel()}
+    onToggleExpand={togglePanelExpanded}
+    onGoToSettings={() => {
+      setActiveSystemView('settings');
+      sidebarState.closePanel();
+    }}
+    initialMessage={pendingChatMessage ?? undefined}
+    onInitialMessageConsumed={() => (pendingChatMessage = null)}
+    onSwitchToShelf={() => sidebarState.openPanel('shelf')}
+  />
 
-<ShelfPanel
-  isOpen={shelfPanelOpen}
-  onClose={() => (shelfPanelOpen = false)}
-  onNavigate={(type, id) => {
-    setActiveItem({ type, id });
-    addItemToWorkspace({ type, id });
-    setActiveSystemView(null);
-    shelfPanelOpen = false;
-  }}
-/>
+  <ShelfPanel
+    isOpen={shelfPanelOpen}
+    isExpanded={false}
+    onClose={() => sidebarState.closePanel()}
+    onToggleExpand={togglePanelExpanded}
+    onNavigate={(type, id) => {
+      setActiveItem({ type, id });
+      addItemToWorkspace({ type, id });
+      setActiveSystemView(null);
+      sidebarState.closePanel();
+    }}
+    onSwitchToChat={() => sidebarState.openPanel('chat')}
+  />
+{/if}
 
 <!-- Archive Webpage Modal -->
 <ImportWebpageModal
@@ -1694,6 +1773,37 @@
     min-width: 0;
     min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
+  }
+
+  /* Right Sidebar */
+  .right-sidebar {
+    position: relative;
+    height: 100%;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    flex-shrink: 0;
+    transition:
+      width 0.2s ease-out,
+      min-width 0.2s ease-out;
+  }
+
+  .right-sidebar.resizing {
+    transition: none;
+  }
+
+  .right-sidebar-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 0; /* Below resize handle (z-index: 100) */
   }
 
   /* Scroll container - full width, handles scrolling */

@@ -24,28 +24,38 @@
   import ConversationList from './ConversationList.svelte';
   import ChatInput from './ChatInput.svelte';
   import WikilinkText from './WikilinkText.svelte';
+  import PanelModeSwitcher from './PanelModeSwitcher.svelte';
   import { modelStore, setSelectedModel } from '../stores/modelStore.svelte';
   import { getModelsByProvider } from '../config/models';
 
   interface Props {
     /** Whether the panel is currently open */
     isOpen: boolean;
+    /** Whether the panel is expanded to a full sidebar */
+    isExpanded?: boolean;
     /** Close callback */
     onClose: () => void;
+    /** Toggle expand/collapse callback */
+    onToggleExpand?: () => void;
     /** Navigate to settings callback */
     onGoToSettings: () => void;
     /** Optional initial message to send when panel opens (for routine execution, etc.) */
     initialMessage?: string;
     /** Callback when initial message has been consumed */
     onInitialMessageConsumed?: () => void;
+    /** Switch to shelf panel callback (only used in expanded mode) */
+    onSwitchToShelf?: () => void;
   }
 
   let {
     isOpen,
+    isExpanded = false,
     onClose,
+    onToggleExpand,
     onGoToSettings,
     initialMessage,
-    onInitialMessageConsumed
+    onInitialMessageConsumed,
+    onSwitchToShelf
   }: Props = $props();
 
   // Get chat server port from main process
@@ -352,10 +362,16 @@
 </script>
 
 {#if isOpen}
-  <div class="chat-panel" class:visible={isOpen}>
+  <div class="chat-panel" class:visible={isOpen} class:expanded={isExpanded}>
     <div class="chat-panel-inner">
       <!-- Header -->
       <div class="chat-header">
+        {#if onSwitchToShelf}
+          <PanelModeSwitcher
+            activePanel="chat"
+            onSwitch={(panel) => panel === 'shelf' && onSwitchToShelf?.()}
+          />
+        {/if}
         <button
           class="header-btn"
           onclick={toggleHistory}
@@ -396,6 +412,46 @@
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
+          {#if onToggleExpand}
+            <button
+              class="header-btn"
+              onclick={onToggleExpand}
+              title={isExpanded ? 'Collapse to floating panel' : 'Expand to sidebar'}
+              aria-label={isExpanded ? 'Collapse to floating panel' : 'Expand to sidebar'}
+            >
+              {#if isExpanded}
+                <!-- Collapse icon (arrows pointing inward) -->
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="4 14 10 14 10 20"></polyline>
+                  <polyline points="20 10 14 10 14 4"></polyline>
+                  <line x1="14" y1="10" x2="21" y2="3"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              {:else}
+                <!-- Expand icon (arrows pointing outward) -->
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <line x1="21" y1="3" x2="14" y2="10"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              {/if}
+            </button>
+          {/if}
           <button
             class="header-btn"
             onclick={onClose}
@@ -680,7 +736,7 @@
 <style>
   .chat-panel {
     position: fixed;
-    bottom: 96px; /* Above the FAB (56px + 24px gap + 16px) */
+    bottom: 24px; /* Covers where FAB was (FAB is hidden when panel is open) */
     right: 24px;
     width: 400px;
     max-height: 75vh;
@@ -705,6 +761,28 @@
   .chat-panel.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+
+  /* Expanded sidebar mode - flows in parent container */
+  .chat-panel.expanded {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    top: auto;
+    left: auto;
+    width: 100%;
+    max-height: none;
+    min-height: 0;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    transform: none;
+    opacity: 1;
+  }
+
+  .chat-panel.expanded.visible {
+    transform: none;
   }
 
   .chat-panel-inner {

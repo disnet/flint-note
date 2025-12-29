@@ -4,7 +4,7 @@
    *
    * Displays a FAB that expands into a popup menu on hover,
    * showing options for Chat and Shelf.
-   * When a panel is open, shows only a close button below the panel.
+   * Hidden when a panel is open.
    */
   import Tooltip from './Tooltip.svelte';
 
@@ -66,46 +66,16 @@
   function handleShelfClick(): void {
     onToggleShelf();
   }
-
-  function handleCloseClick(): void {
-    // Reset hover state so FAB returns to default appearance
-    isHovered = false;
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = null;
-    }
-    if (chatOpen) onToggleChat();
-    if (shelfOpen) onToggleShelf();
-  }
 </script>
 
-<div
-  class="fab-container"
-  onmouseenter={handleMouseEnter}
-  onmouseleave={handleMouseLeave}
-  role="group"
-  aria-label="Action menu"
->
-  {#if panelOpen}
-    <!-- Close button when panel is open -->
-    <Tooltip text="Close" position="left">
-      <button class="fab-close" onclick={handleCloseClick} aria-label="Close panel">
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </Tooltip>
-  {:else}
+{#if !panelOpen}
+  <div
+    class="fab-container"
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    role="group"
+    aria-label="Action menu"
+  >
     <!-- Shelf button (appears above on hover) -->
     <Tooltip text="Shelf" position="left">
       <button
@@ -158,8 +128,8 @@
         </svg>
       </button>
     </Tooltip>
-  {/if}
-</div>
+  </div>
+{/if}
 
 <style>
   .fab-container {
@@ -266,39 +236,6 @@
   }
 
   .fab-button:active {
-    transform: scale(0.95);
-  }
-
-  /* Close button when panel is open */
-  .fab-close {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: none;
-    background: var(--bg-tertiary, var(--bg-secondary));
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.1),
-      0 1px 2px rgba(0, 0, 0, 0.08);
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease,
-      background-color 0.15s ease;
-  }
-
-  .fab-close:hover {
-    transform: scale(1.05);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.15),
-      0 2px 4px rgba(0, 0, 0, 0.1);
-    background: var(--bg-hover);
-  }
-
-  .fab-close:active {
     transform: scale(0.95);
   }
 </style>

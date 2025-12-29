@@ -8,6 +8,8 @@ interface SidebarState {
     visible: boolean;
     width: number;
     mode: 'ai' | 'threads' | 'notes' | 'suggestions';
+    panelOpen: boolean;
+    activePanel: 'chat' | 'shelf';
   };
 }
 
@@ -20,7 +22,9 @@ const defaultState: SidebarState = {
   rightSidebar: {
     visible: false,
     width: 400,
-    mode: 'ai'
+    mode: 'ai',
+    panelOpen: false,
+    activePanel: 'chat'
   }
 };
 
@@ -142,6 +146,47 @@ class SidebarStateStore {
   async setRightSidebarWidth(width: number): Promise<void> {
     await this.ensureInitialized();
     this.state.rightSidebar.width = width;
+    await this.saveToStorage();
+  }
+
+  async setPanelOpen(open: boolean): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.panelOpen = open;
+    await this.saveToStorage();
+  }
+
+  async setActivePanel(panel: 'chat' | 'shelf'): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.activePanel = panel;
+    await this.saveToStorage();
+  }
+
+  async openPanel(panel: 'chat' | 'shelf'): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.panelOpen = true;
+    this.state.rightSidebar.activePanel = panel;
+    await this.saveToStorage();
+  }
+
+  async closePanel(): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.panelOpen = false;
+    await this.saveToStorage();
+  }
+
+  async togglePanel(panel: 'chat' | 'shelf'): Promise<void> {
+    await this.ensureInitialized();
+    if (
+      this.state.rightSidebar.panelOpen &&
+      this.state.rightSidebar.activePanel === panel
+    ) {
+      // Close if already open on this panel
+      this.state.rightSidebar.panelOpen = false;
+    } else {
+      // Open and switch to this panel
+      this.state.rightSidebar.panelOpen = true;
+      this.state.rightSidebar.activePanel = panel;
+    }
     await this.saveToStorage();
   }
 }

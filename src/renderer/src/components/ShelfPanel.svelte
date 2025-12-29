@@ -7,17 +7,31 @@
    */
   import { automergeShelfStore, type ShelfItem } from '../lib/automerge';
   import ShelfItemComponent from './ShelfItem.svelte';
+  import PanelModeSwitcher from './PanelModeSwitcher.svelte';
 
   interface Props {
     /** Whether the panel is currently open */
     isOpen: boolean;
+    /** Whether the panel is expanded to a full sidebar */
+    isExpanded?: boolean;
     /** Close callback */
     onClose: () => void;
+    /** Toggle expand/collapse callback */
+    onToggleExpand?: () => void;
     /** Navigate to item callback */
     onNavigate?: (type: 'note' | 'conversation', id: string) => void;
+    /** Switch to chat panel callback (only used in expanded mode) */
+    onSwitchToChat?: () => void;
   }
 
-  let { isOpen, onClose, onNavigate }: Props = $props();
+  let {
+    isOpen,
+    isExpanded = false,
+    onClose,
+    onToggleExpand,
+    onNavigate,
+    onSwitchToChat
+  }: Props = $props();
 
   // Shelf items are reactive via Automerge - no initialization needed
   const items = $derived(automergeShelfStore.items);
@@ -41,10 +55,16 @@
 </script>
 
 {#if isOpen}
-  <div class="shelf-panel" class:visible={isOpen}>
+  <div class="shelf-panel" class:visible={isOpen} class:expanded={isExpanded}>
     <div class="shelf-panel-inner">
       <!-- Header -->
       <div class="shelf-header">
+        {#if onSwitchToChat}
+          <PanelModeSwitcher
+            activePanel="shelf"
+            onSwitch={(panel) => panel === 'chat' && onSwitchToChat?.()}
+          />
+        {/if}
         <h3 class="header-title">Shelf</h3>
         <div class="header-actions">
           {#if items.length > 0}
@@ -67,6 +87,46 @@
                   d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
                 ></path>
               </svg>
+            </button>
+          {/if}
+          {#if onToggleExpand}
+            <button
+              class="header-btn"
+              onclick={onToggleExpand}
+              title={isExpanded ? 'Collapse to floating panel' : 'Expand to sidebar'}
+              aria-label={isExpanded ? 'Collapse to floating panel' : 'Expand to sidebar'}
+            >
+              {#if isExpanded}
+                <!-- Collapse icon (arrows pointing inward) -->
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="4 14 10 14 10 20"></polyline>
+                  <polyline points="20 10 14 10 14 4"></polyline>
+                  <line x1="14" y1="10" x2="21" y2="3"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              {:else}
+                <!-- Expand icon (arrows pointing outward) -->
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <line x1="21" y1="3" x2="14" y2="10"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              {/if}
             </button>
           {/if}
           <button
@@ -139,7 +199,7 @@
 <style>
   .shelf-panel {
     position: fixed;
-    bottom: 96px;
+    bottom: 24px; /* Covers where FAB was (FAB is hidden when panel is open) */
     right: 24px;
     width: 400px;
     max-height: 60vh;
@@ -166,6 +226,28 @@
     transform: translateY(0) scale(1);
   }
 
+  /* Expanded sidebar mode - flows in parent container */
+  .shelf-panel.expanded {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    top: auto;
+    left: auto;
+    width: 100%;
+    max-height: none;
+    min-height: 0;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    transform: none;
+    opacity: 1;
+  }
+
+  .shelf-panel.expanded.visible {
+    transform: none;
+  }
+
   .shelf-panel-inner {
     display: flex;
     flex-direction: column;
@@ -177,7 +259,7 @@
   .shelf-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
@@ -188,6 +270,7 @@
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-primary);
+    flex: 1;
   }
 
   .header-actions {
