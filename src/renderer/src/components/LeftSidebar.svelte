@@ -9,6 +9,7 @@
   import WorkspaceBar from './WorkspaceBar.svelte';
   import SearchResults from './SearchResults.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
+  import Tooltip from './Tooltip.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import {
     getActiveWorkspace,
@@ -324,23 +325,21 @@
           {/if}
         </div>
         <div class="header-spacer"></div>
-        <button
-          class="sidebar-toggle"
-          onclick={onToggleSidebar}
-          title="Toggle sidebar (⌘B)"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-            <line x1="9" y1="3" x2="9" y2="21"></line>
-          </svg>
-        </button>
+        <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
+          <button class="sidebar-toggle" onclick={onToggleSidebar}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+          </button>
+        </Tooltip>
       </div>
       <!-- Search bar -->
       <div class="search-container">

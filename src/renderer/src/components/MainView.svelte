@@ -78,6 +78,7 @@
   import QuickSearch from './QuickSearch.svelte';
   import NoteActionsMenu from './NoteActionsMenu.svelte';
   import UpdateWidget from './UpdateWidget.svelte';
+  import Tooltip from './Tooltip.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -905,56 +906,8 @@
       <!-- Safe zone for window dragging (macOS traffic lights area) -->
       <div class="safe-zone">
         {#if !sidebarState.leftSidebar.visible}
-          <button
-            class="floating-sidebar-toggle"
-            onclick={toggleLeftSidebar}
-            title="Toggle sidebar (⌘B)"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-            </svg>
-          </button>
-        {/if}
-        <UpdateWidget />
-        <div class="safe-zone-actions">
-          {#if activeItem}
-            <!-- Pin button -->
-            <button
-              class="safe-zone-button"
-              class:active={isPinned}
-              onclick={() => (isPinned ? handleUnpin() : handlePin())}
-              title={isPinned ? 'Unpin' : 'Pin'}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill={isPinned ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M12 17v5"></path>
-                <path
-                  d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
-                ></path>
-              </svg>
-            </button>
-            <!-- Shelf button -->
-            <button
-              class="safe-zone-button"
-              class:on-shelf={isOnShelf}
-              onclick={handleAddToShelf}
-              disabled={isOnShelf}
-              title={isOnShelf ? 'On Shelf' : 'Add to Shelf'}
-            >
+          <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
+            <button class="floating-sidebar-toggle" onclick={toggleLeftSidebar}>
               <svg
                 width="16"
                 height="16"
@@ -962,28 +915,74 @@
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
               >
-                <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
-                <path
-                  d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
-                ></path>
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
               </svg>
             </button>
+          </Tooltip>
+        {/if}
+        <UpdateWidget />
+        <div class="safe-zone-actions">
+          {#if activeItem}
+            <!-- Pin button -->
+            <Tooltip text={isPinned ? 'Unpin' : 'Pin'} position="bottom">
+              <button
+                class="safe-zone-button"
+                class:active={isPinned}
+                onclick={() => (isPinned ? handleUnpin() : handlePin())}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill={isPinned ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 17v5"></path>
+                  <path
+                    d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+                  ></path>
+                </svg>
+              </button>
+            </Tooltip>
+            <!-- Shelf button -->
+            <Tooltip text={isOnShelf ? 'On Shelf' : 'Add to Shelf'} position="bottom">
+              <button
+                class="safe-zone-button"
+                class:on-shelf={isOnShelf}
+                onclick={handleAddToShelf}
+                disabled={isOnShelf}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+                  <path
+                    d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+                  ></path>
+                </svg>
+              </button>
+            </Tooltip>
           {/if}
           {#if activeNote}
-            <button
-              class="more-menu-button"
-              onclick={handleMoreButtonClick}
-              title="More options"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="5" r="2"></circle>
-                <circle cx="12" cy="12" r="2"></circle>
-                <circle cx="12" cy="19" r="2"></circle>
-              </svg>
-            </button>
+            <Tooltip text="More options" position="bottom">
+              <button class="more-menu-button" onclick={handleMoreButtonClick}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="5" r="2"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
+                  <circle cx="12" cy="19" r="2"></circle>
+                </svg>
+              </button>
+            </Tooltip>
           {/if}
         </div>
       </div>

@@ -5,6 +5,7 @@
    * Supports drag-and-drop reordering with horizontal lock
    */
   import { tick } from 'svelte';
+  import Tooltip from './Tooltip.svelte';
   import {
     getWorkspaces,
     getActiveWorkspace,
@@ -470,42 +471,39 @@
     role="list"
   >
     {#each workspaces as workspace, index (workspace.id)}
-      <button
-        class="workspace-icon"
-        class:active={activeWorkspace?.id === workspace.id}
-        class:dragging={isDragging(index)}
-        style:transform={getItemTransform(index)}
-        onclick={() => handleWorkspaceClick(workspace.id)}
-        oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
-        title={getWorkspaceTooltip(workspace.name, index)}
-        draggable="true"
-        ondragstart={(e) => handleDragStart(e, index, workspace.id)}
-        ondragend={handleDragEnd}
-        data-workspace-item
-        data-workspace-id={workspace.id}
-      >
-        {workspace.icon}
-        <span class="tooltip">{getWorkspaceTooltip(workspace.name, index)}</span>
-      </button>
+      <Tooltip text={getWorkspaceTooltip(workspace.name, index)}>
+        <button
+          class="workspace-icon"
+          class:active={activeWorkspace?.id === workspace.id}
+          class:dragging={isDragging(index)}
+          style:transform={getItemTransform(index)}
+          onclick={() => handleWorkspaceClick(workspace.id)}
+          oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
+          draggable="true"
+          ondragstart={(e) => handleDragStart(e, index, workspace.id)}
+          ondragend={handleDragEnd}
+          data-workspace-item
+          data-workspace-id={workspace.id}
+        >
+          {workspace.icon}
+        </button>
+      </Tooltip>
     {/each}
-    <button
-      class="add-workspace-button"
-      onclick={handleAddClick}
-      title="Add"
-      aria-label="Add"
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-    </button>
+    <Tooltip text="Add">
+      <button class="add-workspace-button" onclick={handleAddClick} aria-label="Add">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </Tooltip>
   </div>
 
   <!-- Add menu -->
@@ -757,37 +755,6 @@
     transition:
       opacity 0.15s,
       box-shadow 0.15s;
-  }
-
-  .tooltip {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 0.375rem 0.5rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    margin-bottom: 0.5rem;
-    z-index: 1000;
-  }
-
-  .workspace-icon:first-child .tooltip {
-    left: 0;
-    transform: translateX(0);
-  }
-
-  .workspace-icon:hover:not(.dragging) .tooltip {
-    opacity: 1;
-    visibility: visible;
   }
 
   .add-workspace-button {
