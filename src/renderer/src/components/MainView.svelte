@@ -29,6 +29,12 @@
     getSourceFormat,
     DECK_NOTE_TYPE_ID,
     createDeckNote,
+    pinItem,
+    unpinItem,
+    isItemPinned,
+    enableReview,
+    disableReview,
+    getReviewData,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -59,6 +65,7 @@
   import ImportWebpageModal from './ImportWebpageModal.svelte';
   import LegacyMigrationModal from './LegacyMigrationModal.svelte';
   import QuickSearch from './QuickSearch.svelte';
+  import NoteActionsMenu from './NoteActionsMenu.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -100,6 +107,9 @@
   let shelfPanelOpen = $state(false);
   let pendingChatMessage = $state<string | null>(null);
   let quickSearchOpen = $state(false);
+  let moreMenuOpen = $state(false);
+  let moreMenuPosition = $state({ x: 0, y: 0 });
+  let isPreviewMode = $state(false);
 
   // Font settings state
   let systemFonts = $state<string[]>([]);
@@ -177,6 +187,64 @@
   const isOnShelf = $derived(
     activeItem ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id) : false
   );
+
+  // Check if current item is pinned
+  const isPinned = $derived(activeItem ? isItemPinned(activeItem) : false);
+
+  // Check if current note has review enabled
+  const isReviewEnabled = $derived.by(() => {
+    if (!activeNote) return false;
+    const reviewData = getReviewData(activeNote.id);
+    return reviewData?.enabled ?? false;
+  });
+
+  // Clear preview mode when active note changes
+  $effect(() => {
+    if (activeNote) {
+      isPreviewMode = false;
+    }
+  });
+
+  // More menu handlers
+  function handleMoreButtonClick(event: MouseEvent): void {
+    const button = event.currentTarget as HTMLButtonElement;
+    const rect = button.getBoundingClientRect();
+    moreMenuPosition = { x: rect.right - 180, y: rect.bottom + 4 };
+    moreMenuOpen = true;
+  }
+
+  function handlePin(): void {
+    if (activeItem) {
+      // Create plain object to avoid Automerge proxy issues
+      pinItem({ type: activeItem.type, id: activeItem.id });
+    }
+  }
+
+  function handleUnpin(): void {
+    if (activeItem) {
+      // Create plain object to avoid Automerge proxy issues
+      unpinItem({ type: activeItem.type, id: activeItem.id });
+    }
+  }
+
+  function handleTogglePreview(): void {
+    isPreviewMode = !isPreviewMode;
+  }
+
+  function handleToggleReview(): void {
+    if (!activeNote) return;
+    if (isReviewEnabled) {
+      disableReview(activeNote.id);
+    } else {
+      enableReview(activeNote.id);
+    }
+  }
+
+  function handleArchiveFromMenu(): void {
+    if (activeNote) {
+      archiveNote(activeNote.id);
+    }
+  }
 
   // Search results with progressive loading (title first, then content)
   let searchResults = $state<(SearchResult | EnhancedSearchResult)[]>([]);
@@ -540,6 +608,28 @@
         {/if}
         <div class="safe-zone-actions">
           {#if activeItem}
+            <!-- Pin button -->
+            <button
+              class="safe-zone-button"
+              class:active={isPinned}
+              onclick={() => (isPinned ? handleUnpin() : handlePin())}
+              title={isPinned ? 'Unpin' : 'Pin'}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill={isPinned ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 17v5"></path>
+                <path
+                  d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+                ></path>
+              </svg>
+            </button>
+            <!-- Shelf button -->
             <button
               class="safe-zone-button"
               class:on-shelf={isOnShelf}
@@ -564,13 +654,19 @@
               </svg>
             </button>
           {/if}
-          <button class="more-menu-button" title="More options">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="5" r="2"></circle>
-              <circle cx="12" cy="12" r="2"></circle>
-              <circle cx="12" cy="19" r="2"></circle>
-            </svg>
-          </button>
+          {#if activeNote}
+            <button
+              class="more-menu-button"
+              onclick={handleMoreButtonClick}
+              title="More options"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+                <circle cx="12" cy="19" r="2"></circle>
+              </svg>
+            </button>
+          {/if}
         </div>
       </div>
 
@@ -842,6 +938,7 @@
             {:else}
               <NoteEditor
                 note={activeNote}
+                previewMode={isPreviewMode}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
                 onArchive={() => handleArchiveNote(activeNote.id)}
               />
@@ -973,6 +1070,26 @@
   />
 {/if}
 
+<!-- Note Actions Menu -->
+{#if activeNote}
+  <NoteActionsMenu
+    bind:visible={moreMenuOpen}
+    x={moreMenuPosition.x}
+    y={moreMenuPosition.y}
+    {isPinned}
+    {isOnShelf}
+    {isPreviewMode}
+    {isReviewEnabled}
+    onClose={() => (moreMenuOpen = false)}
+    onPin={handlePin}
+    onUnpin={handleUnpin}
+    onAddToShelf={handleAddToShelf}
+    onTogglePreview={handleTogglePreview}
+    onToggleReview={handleToggleReview}
+    onArchive={handleArchiveFromMenu}
+  />
+{/if}
+
 <style>
   .main-view {
     height: 100vh;
@@ -1053,7 +1170,8 @@
     cursor: default;
   }
 
-  .safe-zone-button.on-shelf {
+  .safe-zone-button.on-shelf,
+  .safe-zone-button.active {
     color: var(--accent-primary);
   }
 

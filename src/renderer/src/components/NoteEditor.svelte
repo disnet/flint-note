@@ -31,6 +31,7 @@
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
   import EditorChips from './EditorChips.svelte';
   import BacklinksPanel from './BacklinksPanel.svelte';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
   import {
     createPositionTracker,
     hasSavedScrollPosition
@@ -38,12 +39,13 @@
 
   interface Props {
     note: NoteMetadata;
+    previewMode?: boolean;
     onTitleChange: (title: string) => void;
     onArchive: () => void;
     onNavigate?: (noteId: string) => void;
   }
 
-  let { note, onTitleChange, onNavigate }: Props = $props();
+  let { note, previewMode = false, onTitleChange, onNavigate }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
@@ -91,6 +93,13 @@
   let contentHandle = $state<DocHandle<NoteContentDocument> | null>(null);
   let isLoadingContent = $state(true);
   let initialContent = $state('');
+
+  // Derived content for preview mode (reactive to document changes)
+  const previewContent = $derived.by(() => {
+    if (!contentHandle) return initialContent;
+    const doc = contentHandle.doc();
+    return doc?.content || initialContent;
+  });
 
   // Track which note's content is currently loaded (plain variable, not reactive)
   let loadedNoteId: string | null = null;
@@ -906,11 +915,18 @@
     />
   </div>
 
-  <!-- Content - CodeMirror Editor -->
+  <!-- Content - CodeMirror Editor or Preview -->
   <div class="editor-content">
     {#if isLoadingContent}
       <div class="editor-loading">
         <span class="loading-text">Loading...</span>
+      </div>
+    {:else if previewMode}
+      <div class="preview-container editor-font">
+        <MarkdownRenderer
+          text={previewContent}
+          onNoteClick={(noteId) => onNavigate?.(noteId)}
+        />
       </div>
     {:else}
       <div class="editor-container editor-font" bind:this={editorContainer}></div>
@@ -1057,5 +1073,13 @@
     flex: 1;
     min-height: 300px;
     overflow: hidden;
+  }
+
+  .preview-container {
+    flex: 1;
+    min-height: 300px;
+    padding: 0;
+    line-height: 1.6;
+    color: var(--text-primary);
   }
 </style>
