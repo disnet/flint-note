@@ -71,7 +71,9 @@ export type {
   // Note filter types
   NoteFilterOperator,
   NoteFilter,
-  NoteFilterInput
+  NoteFilterInput,
+  // Source format type
+  SourceFormat
 } from './types';
 
 // State management
@@ -94,6 +96,9 @@ export {
   updateVaultInState,
   createVault,
   switchVault,
+
+  // Source format helper
+  getSourceFormat,
 
   // Note getters
   getNotes,

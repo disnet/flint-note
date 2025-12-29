@@ -26,9 +26,7 @@
     getNoteContent,
     automergeShelfStore,
     getRoutine,
-    EPUB_NOTE_TYPE_ID,
-    PDF_NOTE_TYPE_ID,
-    WEBPAGE_NOTE_TYPE_ID,
+    getSourceFormat,
     DECK_NOTE_TYPE_ID,
     createDeckNote,
     type NoteMetadata,
@@ -77,10 +75,13 @@
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
 
-  // Check if active note is an EPUB, PDF, Webpage, or Deck
-  const isActiveNoteEpub = $derived(activeNote?.type === EPUB_NOTE_TYPE_ID);
-  const isActiveNotePdf = $derived(activeNote?.type === PDF_NOTE_TYPE_ID);
-  const isActiveNoteWebpage = $derived(activeNote?.type === WEBPAGE_NOTE_TYPE_ID);
+  // Check if active note is an EPUB, PDF, Webpage, or Deck using source format
+  const activeNoteSourceFormat = $derived(
+    activeNote ? getSourceFormat(activeNote) : 'markdown'
+  );
+  const isActiveNoteEpub = $derived(activeNoteSourceFormat === 'epub');
+  const isActiveNotePdf = $derived(activeNoteSourceFormat === 'pdf');
+  const isActiveNoteWebpage = $derived(activeNoteSourceFormat === 'webpage');
   const isActiveNoteDeck = $derived(activeNote?.type === DECK_NOTE_TYPE_ID);
 
   // UI state

@@ -120,6 +120,12 @@ export interface PropertyDefinition {
 }
 
 /**
+ * Source format for note content.
+ * Determines which viewer/editor to use, independent of the organizational note type.
+ */
+export type SourceFormat = 'markdown' | 'pdf' | 'epub' | 'webpage';
+
+/**
  * A note in the Flint system (full note with content loaded)
  */
 export interface Note {
@@ -143,6 +149,8 @@ export interface Note {
   review?: ReviewData;
   /** ISO timestamp of last time this note was opened/viewed (optional for backward compatibility) */
   lastOpened?: string;
+  /** Source format - determines which viewer to use (optional for backward compatibility) */
+  sourceFormat?: SourceFormat;
 }
 
 /**

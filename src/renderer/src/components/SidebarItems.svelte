@@ -22,9 +22,7 @@
     getNote,
     createNote,
     nowISO,
-    EPUB_NOTE_TYPE_ID,
-    PDF_NOTE_TYPE_ID,
-    WEBPAGE_NOTE_TYPE_ID,
+    getSourceFormat,
     DECK_NOTE_TYPE_ID,
     DAILY_NOTE_TYPE_ID,
     type SidebarItem,
@@ -605,15 +603,12 @@
     if (!contextMenuItemId || contextMenuItemType !== 'note') return false;
     const note = getNote(contextMenuItemId);
     if (!note) return false;
-    // Exclude special note types from review
-    const excludedTypes = [
-      EPUB_NOTE_TYPE_ID,
-      PDF_NOTE_TYPE_ID,
-      WEBPAGE_NOTE_TYPE_ID,
-      DECK_NOTE_TYPE_ID,
-      DAILY_NOTE_TYPE_ID
-    ];
-    return !excludedTypes.includes(note.type);
+    // Exclude non-markdown source formats and special note types from review
+    const sourceFormat = getSourceFormat(note);
+    if (sourceFormat !== 'markdown') return false;
+    // Also exclude special note types (deck, daily)
+    if (note.type === DECK_NOTE_TYPE_ID || note.type === DAILY_NOTE_TYPE_ID) return false;
+    return true;
   });
 
   // Check if review is enabled for context menu item

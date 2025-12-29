@@ -39,7 +39,8 @@ import type {
   CompleteRoutineInput,
   ListRoutinesInput,
   NoteFilter,
-  NoteFilterInput
+  NoteFilterInput,
+  SourceFormat
 } from './types';
 import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 import {
@@ -112,6 +113,30 @@ const conversationCache = new Map<string, Conversation>();
 // Default note type ID
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 
+/**
+ * Get the source format for a note.
+ * Determines which viewer/editor to use, independent of the organizational note type.
+ * Handles backward compatibility by inferring from note type if sourceFormat is not set.
+ */
+export function getSourceFormat(note: NoteMetadata): SourceFormat {
+  // If sourceFormat is explicitly set, use it
+  if (note.sourceFormat) {
+    return note.sourceFormat;
+  }
+
+  // Backward compatibility: infer from note type
+  switch (note.type) {
+    case PDF_NOTE_TYPE_ID:
+      return 'pdf';
+    case EPUB_NOTE_TYPE_ID:
+      return 'epub';
+    case WEBPAGE_NOTE_TYPE_ID:
+      return 'webpage';
+    default:
+      return 'markdown';
+  }
+}
+
 // --- Initialization ---
 
 /**
@@ -175,6 +200,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Ensure default note type exists (migration for existing vaults)
     ensureDefaultNoteType();
 
+    // Migrate notes with special types to have explicit sourceFormat
+    migrateSourceFormat();
+
     // Restore last view state if available
     restoreLastViewState();
 
@@ -230,6 +258,52 @@ function ensureDefaultNoteType(): void {
       }
     });
   }
+}
+
+/**
+ * Migrate existing notes with special types to have explicit sourceFormat.
+ * This allows users to change the note type without breaking the viewer.
+ */
+function migrateSourceFormat(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.notes) return;
+
+  // Find notes that need migration: have special type but no sourceFormat
+  const allNotes = Object.values(doc.notes) as NoteMetadata[];
+  const notesToMigrate = allNotes.filter((note) => {
+    if (note.sourceFormat) return false; // Already has sourceFormat
+    return [PDF_NOTE_TYPE_ID, EPUB_NOTE_TYPE_ID, WEBPAGE_NOTE_TYPE_ID].includes(
+      note.type
+    );
+  });
+
+  if (notesToMigrate.length === 0) return;
+
+  console.log(
+    `[Migration] Migrating ${notesToMigrate.length} notes to explicit sourceFormat`
+  );
+
+  docHandle.change((d) => {
+    for (const note of notesToMigrate) {
+      const docNote = d.notes[note.id];
+      if (!docNote) continue;
+
+      // Set sourceFormat based on current type
+      switch (note.type) {
+        case PDF_NOTE_TYPE_ID:
+          docNote.sourceFormat = 'pdf';
+          break;
+        case EPUB_NOTE_TYPE_ID:
+          docNote.sourceFormat = 'epub';
+          break;
+        case WEBPAGE_NOTE_TYPE_ID:
+          docNote.sourceFormat = 'webpage';
+          break;
+      }
+    }
+  });
 }
 
 /**
@@ -372,6 +446,9 @@ export async function switchVault(
 
   // Ensure default note type exists
   ensureDefaultNoteType();
+
+  // Migrate notes with special types to have explicit sourceFormat
+  migrateSourceFormat();
 
   // Subscribe to changes
   handle.on('change', ({ doc }) => {
@@ -2593,7 +2670,7 @@ export function ensureEpubNoteType(): void {
  */
 export function getEpubNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
-    .filter((note) => !note.archived && note.type === EPUB_NOTE_TYPE_ID)
+    .filter((note) => !note.archived && getSourceFormat(note) === 'epub')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as EpubNoteProps | undefined)?.lastRead || a.updated;
@@ -2638,7 +2715,8 @@ export function createEpubNote(params: {
       id,
       title: params.title,
       content: '',
-      type: EPUB_NOTE_TYPE_ID,
+      type: DEFAULT_NOTE_TYPE_ID,
+      sourceFormat: 'epub',
       created: now,
       updated: now,
       archived: false,
@@ -2715,7 +2793,7 @@ export function updateEpubTextSize(noteId: string, textSize: number): void {
  */
 export function getEpubProps(noteId: string): EpubNoteProps | undefined {
   const note = currentDoc.notes[noteId];
-  if (!note || note.type !== EPUB_NOTE_TYPE_ID) return undefined;
+  if (!note || getSourceFormat(note) !== 'epub') return undefined;
   return note.props as EpubNoteProps | undefined;
 }
 
@@ -2757,7 +2835,7 @@ export function ensurePdfNoteType(): void {
  */
 export function getPdfNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
-    .filter((note) => !note.archived && note.type === PDF_NOTE_TYPE_ID)
+    .filter((note) => !note.archived && getSourceFormat(note) === 'pdf')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as PdfNoteProps | undefined)?.lastRead || a.updated;
@@ -2804,7 +2882,8 @@ export function createPdfNote(params: {
       id,
       title: params.title,
       content: '',
-      type: PDF_NOTE_TYPE_ID,
+      type: DEFAULT_NOTE_TYPE_ID,
+      sourceFormat: 'pdf',
       created: now,
       updated: now,
       archived: false,
@@ -2881,7 +2960,7 @@ export function updatePdfZoomLevel(noteId: string, zoomLevel: number): void {
  */
 export function getPdfProps(noteId: string): PdfNoteProps | undefined {
   const note = currentDoc.notes[noteId];
-  if (!note || note.type !== PDF_NOTE_TYPE_ID) return undefined;
+  if (!note || getSourceFormat(note) !== 'pdf') return undefined;
   return note.props as PdfNoteProps | undefined;
 }
 
@@ -2923,7 +3002,7 @@ export function ensureWebpageNoteType(): void {
  */
 export function getWebpageNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
-    .filter((note) => !note.archived && note.type === WEBPAGE_NOTE_TYPE_ID)
+    .filter((note) => !note.archived && getSourceFormat(note) === 'webpage')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
       const aLastRead = (a.props as WebpageNoteProps | undefined)?.lastRead || a.updated;
@@ -2978,7 +3057,8 @@ export function createWebpageNote(params: {
       id,
       title: params.title,
       content: '',
-      type: WEBPAGE_NOTE_TYPE_ID,
+      type: DEFAULT_NOTE_TYPE_ID,
+      sourceFormat: 'webpage',
       created: now,
       updated: now,
       archived: false,
@@ -3031,7 +3111,7 @@ export function updateWebpageReadingState(
  */
 export function getWebpageProps(noteId: string): WebpageNoteProps | undefined {
   const note = currentDoc.notes[noteId];
-  if (!note || note.type !== WEBPAGE_NOTE_TYPE_ID) return undefined;
+  if (!note || getSourceFormat(note) !== 'webpage') return undefined;
   return note.props as WebpageNoteProps | undefined;
 }
 
