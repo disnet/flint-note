@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import WebpageReader from './WebpageReader.svelte';
-  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
+  import NoteHeader from './NoteHeader.svelte';
   import type { NoteMetadata, WebpageNoteProps } from '../lib/automerge';
   import {
     updateWebpageReadingState,
@@ -29,7 +29,6 @@
   let currentSelection = $state<WebpageSelectionInfo | null>(null);
   let showHighlightPopup = $state(false);
   let readerComponent = $state<WebpageReader | undefined>(undefined);
-  let titleTextarea: HTMLTextAreaElement | null = $state(null);
   let currentProgress = $state(0);
 
   // Debounce timer for progress updates
@@ -174,35 +173,6 @@
       window.api?.openExternal({ url });
     }
   }
-
-  // Title editing functions
-  function adjustTitleHeight(): void {
-    if (titleTextarea) {
-      titleTextarea.style.height = 'auto';
-      titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
-    }
-  }
-
-  function handleTitleInput(event: Event): void {
-    const textarea = event.target as HTMLTextAreaElement;
-    adjustTitleHeight();
-    onTitleChange(textarea.value);
-  }
-
-  function handleTitleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      (event.target as HTMLTextAreaElement).blur();
-    }
-  }
-
-  // Adjust title height when note changes
-  $effect(() => {
-    void note.title;
-    tick().then(() => {
-      adjustTitleHeight();
-    });
-  });
 
   // Format progress
   function formatProgress(value: number): string {
@@ -351,76 +321,68 @@
   {:else if htmlContent}
     <!-- Header (like EPUB/regular notes) -->
     <header class="webpage-header">
-      <div class="header-row">
-        <div class="title-area">
-          <NoteTypeDropdown noteId={note.id} currentTypeId={note.type} compact />
-          <textarea
-            bind:this={titleTextarea}
-            class="title-input"
-            value={note.title}
-            oninput={handleTitleInput}
-            onkeydown={handleTitleKeyDown}
-            placeholder="Untitled"
-            rows="1"
-          ></textarea>
-        </div>
-      </div>
-      <!-- Property Chips -->
-      <div class="webpage-chips">
-        {#if webpageProps().webpageSiteName}
-          <div class="chip">
-            <span class="chip-label">site</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{webpageProps().webpageSiteName}</span>
+      <NoteHeader {note} {onTitleChange}>
+        {#snippet chips()}
+          <div class="webpage-chips">
+            {#if webpageProps().webpageSiteName}
+              <div class="chip">
+                <span class="chip-label">site</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{webpageProps().webpageSiteName}</span>
+              </div>
+            {/if}
+            {#if webpageProps().webpageAuthor}
+              <div class="chip">
+                <span class="chip-label">author</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{webpageProps().webpageAuthor}</span>
+              </div>
+            {/if}
+            <div class="chip">
+              <span class="chip-label">progress</span>
+              <span class="chip-divider"></span>
+              <span class="chip-value">{formatProgress(currentProgress)}</span>
+            </div>
+            {#if webpageProps().lastRead}
+              <div class="chip">
+                <span class="chip-label">last read</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value"
+                  >{formatRelativeTime(webpageProps().lastRead!)}</span
+                >
+              </div>
+            {/if}
+            {#if highlights.length > 0}
+              <div class="chip">
+                <span class="chip-label">highlights</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{highlights.length}</span>
+              </div>
+            {/if}
+            {#if webpageProps().webpageUrl}
+              <button class="chip chip-link" onclick={handleOpenOriginalUrl}>
+                <span class="chip-label">source</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value link-icon">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+                    ></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </span>
+              </button>
+            {/if}
           </div>
-        {/if}
-        {#if webpageProps().webpageAuthor}
-          <div class="chip">
-            <span class="chip-label">author</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{webpageProps().webpageAuthor}</span>
-          </div>
-        {/if}
-        <div class="chip">
-          <span class="chip-label">progress</span>
-          <span class="chip-divider"></span>
-          <span class="chip-value">{formatProgress(currentProgress)}</span>
-        </div>
-        {#if webpageProps().lastRead}
-          <div class="chip">
-            <span class="chip-label">last read</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{formatRelativeTime(webpageProps().lastRead!)}</span>
-          </div>
-        {/if}
-        {#if highlights.length > 0}
-          <div class="chip">
-            <span class="chip-label">highlights</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{highlights.length}</span>
-          </div>
-        {/if}
-        {#if webpageProps().webpageUrl}
-          <button class="chip chip-link" onclick={handleOpenOriginalUrl}>
-            <span class="chip-label">source</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value link-icon">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </span>
-          </button>
-        {/if}
-      </div>
+        {/snippet}
+      </NoteHeader>
     </header>
 
     <!-- Reader component -->
@@ -546,67 +508,12 @@
     cursor: pointer;
   }
 
-  /* Header - matching note editor style */
+  /* Header */
   .webpage-header {
-    display: flex;
-    flex-direction: column;
-    padding: 0;
     flex-shrink: 0;
   }
 
-  .header-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .title-area {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .title-area :global(.note-type-dropdown.compact) {
-    position: absolute;
-    top: 0.4em;
-    left: 0;
-    z-index: 1;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-button) {
-    padding: 0.1em 0.25rem;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-icon) {
-    font-size: 1.5rem;
-  }
-
-  .title-input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 1.5rem;
-    font-weight: 800;
-    font-family: var(--font-editor);
-    color: var(--text-primary);
-    outline: none;
-    padding: 0.1em 0;
-    min-width: 0;
-    resize: none;
-    overflow: hidden;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    line-height: 1.4;
-    min-height: 1.4em;
-    text-indent: 2.3rem;
-  }
-
-  .title-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.5;
-  }
-
-  /* Property chips - matching note editor style */
+  /* Property chips */
   .webpage-chips {
     display: flex;
     flex-wrap: wrap;

@@ -2,7 +2,7 @@
   /**
    * Note editor component using Automerge for data storage with CodeMirror editor
    */
-  import { onMount, untrack, tick } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { DocHandle } from '@automerge/automerge-repo';
@@ -26,7 +26,7 @@
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
-  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
+  import NoteHeader from './NoteHeader.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
   import EditorChips from './EditorChips.svelte';
@@ -60,7 +60,6 @@
 
   let editorContainer: HTMLElement | null = $state(null);
   let editorView: EditorView | null = null;
-  let titleTextarea: HTMLTextAreaElement | null = $state(null);
 
   // Track current note ID for detecting note switches
   let currentNoteId = $state(note.id);
@@ -179,47 +178,9 @@
     });
   });
 
-  function handleTitleInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    onTitleChange(target.value);
-    adjustTitleHeight();
+  function handleTitleEnterKey(): void {
+    editorView?.focus();
   }
-
-  function handleTitleKeyDown(event: KeyboardEvent): void {
-    // Prevent newlines in title - move focus to editor instead
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      editorView?.focus();
-    }
-  }
-
-  function adjustTitleHeight(): void {
-    if (!titleTextarea) return;
-    titleTextarea.style.height = 'auto';
-    titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
-  }
-
-  // Adjust title height when note changes or on mount
-  $effect(() => {
-    void note.title;
-    tick().then(() => {
-      adjustTitleHeight();
-    });
-  });
-
-  // Watch for container resize
-  $effect(() => {
-    if (!titleTextarea) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      adjustTitleHeight();
-    });
-    resizeObserver.observe(titleTextarea);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  });
 
   async function handleWikilinkClick(
     targetId: string,
@@ -913,36 +874,21 @@
 
   <!-- Header -->
   <div class="editor-header">
-    <div class="header-row">
-      <div class="title-area">
-        <NoteTypeDropdown
-          noteId={note.id}
-          currentTypeId={note.type}
-          compact
-          disabled={isReadonly}
-        />
-        {#if isReadonly}
-          <div class="title-display">{note.title || 'Untitled'}</div>
-        {:else}
-          <textarea
-            bind:this={titleTextarea}
-            class="title-input"
-            value={note.title}
-            oninput={handleTitleInput}
-            onkeydown={handleTitleKeyDown}
-            placeholder="Untitled"
-            rows="1"
-          ></textarea>
-        {/if}
-      </div>
-    </div>
-    <!-- Property Chips -->
-    <EditorChips
+    <NoteHeader
       {note}
-      {noteType}
-      onPropChange={handlePropChange}
-      onNoteClick={onNavigate}
-    />
+      readonly={isReadonly}
+      {onTitleChange}
+      onEnterKey={handleTitleEnterKey}
+    >
+      {#snippet chips()}
+        <EditorChips
+          {note}
+          {noteType}
+          onPropChange={handlePropChange}
+          onNoteClick={onNavigate}
+        />
+      {/snippet}
+    </NoteHeader>
   </div>
 
   <!-- Content - CodeMirror Editor or Preview -->
@@ -1071,79 +1017,7 @@
 
   /* Header */
   .editor-header {
-    display: flex;
-    flex-direction: column;
-    padding: 0;
     flex-shrink: 0;
-  }
-
-  /* Header row with title and actions */
-  .header-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  /* Title area with type icon positioned absolutely */
-  .title-area {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* Position type dropdown absolutely in the first line indent space */
-  .title-area :global(.note-type-dropdown.compact) {
-    position: absolute;
-    top: 0.4em;
-    left: 0;
-    z-index: 1;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-button) {
-    padding: 0.1em 0.25rem;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-icon) {
-    font-size: 1.5rem;
-  }
-
-  .title-input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 1.5rem;
-    font-weight: 800;
-    font-family: var(--font-editor);
-    color: var(--text-primary);
-    outline: none;
-    padding: 0.1em 0;
-    min-width: 0;
-    resize: none;
-    overflow: hidden;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    line-height: 1.4;
-    min-height: 1.4em;
-    text-indent: 2.3rem; /* Space for the type icon */
-  }
-
-  .title-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.5;
-  }
-
-  .title-display {
-    width: 100%;
-    font-size: 1.5rem;
-    font-weight: 800;
-    font-family: var(--font-editor);
-    color: var(--text-primary);
-    padding: 0.1em 0;
-    line-height: 1.4;
-    min-height: 1.4em;
-    padding-left: 2.3rem; /* Space for the type icon */
-    overflow-wrap: break-word;
-    word-wrap: break-word;
   }
 
   /* Content */

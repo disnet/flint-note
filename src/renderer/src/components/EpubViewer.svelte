@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type {
     NoteMetadata,
     EpubNoteProps,
@@ -18,7 +18,7 @@
   import EpubReader from './EpubReader.svelte';
   import EpubToc from './EpubToc.svelte';
   import EpubHighlights from './EpubHighlights.svelte';
-  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
+  import NoteHeader from './NoteHeader.svelte';
   import Tooltip from './Tooltip.svelte';
 
   // Props
@@ -44,7 +44,6 @@
   let reader = $state<EpubReader | null>(null);
   let showControls = $state(false);
   let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
-  let titleTextarea: HTMLTextAreaElement | null = $state(null);
   let showTextSizePopup = $state(false);
 
   // Text size options
@@ -277,26 +276,6 @@ ${highlightLines.join('\n\n')}
     showThemePopup = false;
   }
 
-  // Title handling
-  function handleTitleInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    onTitleChange(target.value);
-    adjustTitleHeight();
-  }
-
-  function handleTitleKeyDown(event: KeyboardEvent): void {
-    // Prevent newlines in title
-    if (event.key === 'Enter') {
-      event.preventDefault();
-    }
-  }
-
-  function adjustTitleHeight(): void {
-    if (!titleTextarea) return;
-    titleTextarea.style.height = 'auto';
-    titleTextarea.style.height = titleTextarea.scrollHeight + 'px';
-  }
-
   // Controls hover handling
   function handleMouseEnterControls(): void {
     if (controlsTimeout) {
@@ -382,14 +361,6 @@ ${highlightLines.join('\n\n')}
     }
   }
 
-  // Adjust title height when note changes
-  $effect(() => {
-    void note.title;
-    tick().then(() => {
-      adjustTitleHeight();
-    });
-  });
-
   // Save final state on unmount
   function saveState(): void {
     if (readingStateDebounceTimer) {
@@ -451,49 +422,39 @@ ${highlightLines.join('\n\n')}
   {:else if epubData}
     <!-- Header (like regular notes) -->
     <header class="epub-header">
-      <div class="header-row">
-        <div class="title-area">
-          <NoteTypeDropdown noteId={note.id} currentTypeId={note.type} compact />
-          <textarea
-            bind:this={titleTextarea}
-            class="title-input"
-            value={note.title}
-            oninput={handleTitleInput}
-            onkeydown={handleTitleKeyDown}
-            placeholder="Untitled"
-            rows="1"
-          ></textarea>
-        </div>
-      </div>
-      <!-- Property Chips -->
-      <div class="epub-chips">
-        {#if epubProps().epubAuthor}
-          <div class="chip">
-            <span class="chip-label">author</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{epubProps().epubAuthor}</span>
+      <NoteHeader {note} {onTitleChange}>
+        {#snippet chips()}
+          <div class="epub-chips">
+            {#if epubProps().epubAuthor}
+              <div class="chip">
+                <span class="chip-label">author</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{epubProps().epubAuthor}</span>
+              </div>
+            {/if}
+            <div class="chip">
+              <span class="chip-label">progress</span>
+              <span class="chip-divider"></span>
+              <span class="chip-value">{formatProgress(currentProgress)}</span>
+            </div>
+            {#if epubProps().lastRead}
+              <div class="chip">
+                <span class="chip-label">last read</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{formatRelativeTime(epubProps().lastRead!)}</span
+                >
+              </div>
+            {/if}
+            {#if highlights.length > 0}
+              <div class="chip">
+                <span class="chip-label">highlights</span>
+                <span class="chip-divider"></span>
+                <span class="chip-value">{highlights.length}</span>
+              </div>
+            {/if}
           </div>
-        {/if}
-        <div class="chip">
-          <span class="chip-label">progress</span>
-          <span class="chip-divider"></span>
-          <span class="chip-value">{formatProgress(currentProgress)}</span>
-        </div>
-        {#if epubProps().lastRead}
-          <div class="chip">
-            <span class="chip-label">last read</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{formatRelativeTime(epubProps().lastRead!)}</span>
-          </div>
-        {/if}
-        {#if highlights.length > 0}
-          <div class="chip">
-            <span class="chip-label">highlights</span>
-            <span class="chip-divider"></span>
-            <span class="chip-value">{highlights.length}</span>
-          </div>
-        {/if}
-      </div>
+        {/snippet}
+      </NoteHeader>
     </header>
 
     <!-- Main content area -->
@@ -814,67 +775,13 @@ ${highlightLines.join('\n\n')}
     cursor: pointer;
   }
 
-  /* Header - matching note editor style */
+  /* Header */
   .epub-header {
-    display: flex;
-    flex-direction: column;
     padding: 0 1.5rem;
     flex-shrink: 0;
   }
 
-  .header-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .title-area {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .title-area :global(.note-type-dropdown.compact) {
-    position: absolute;
-    top: 0.4em;
-    left: 0;
-    z-index: 1;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-button) {
-    padding: 0.1em 0.25rem;
-  }
-
-  .title-area :global(.note-type-dropdown.compact .type-icon) {
-    font-size: 1.5rem;
-  }
-
-  .title-input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 1.5rem;
-    font-weight: 800;
-    font-family: var(--font-editor);
-    color: var(--text-primary);
-    outline: none;
-    padding: 0.1em 0;
-    min-width: 0;
-    resize: none;
-    overflow: hidden;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    line-height: 1.4;
-    min-height: 1.4em;
-    text-indent: 2.3rem;
-  }
-
-  .title-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.5;
-  }
-
-  /* Property chips - matching note editor style */
+  /* Property chips */
   .epub-chips {
     display: flex;
     flex-wrap: wrap;

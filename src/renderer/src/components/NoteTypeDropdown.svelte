@@ -61,13 +61,13 @@
 
     window.addEventListener(
       'open-type-dropdown',
-      handleOpenTypeDropdown as EventListener
+      handleOpenTypeDropdown as (e: Event) => void
     );
 
     return () => {
       window.removeEventListener(
         'open-type-dropdown',
-        handleOpenTypeDropdown as EventListener
+        handleOpenTypeDropdown as (e: Event) => void
       );
     };
   });
