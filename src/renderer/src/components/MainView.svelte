@@ -45,7 +45,6 @@
     deleteWorkspace,
     importEpubFile,
     importPdfFile,
-    setNoteType,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -541,9 +540,6 @@
   let workspaceModalName = $state('');
   let workspaceModalIcon = $state('');
 
-  // State for change type modal
-  let showChangeTypeModal = $state(false);
-
   // File import state
   let isImporting = $state(false);
 
@@ -760,7 +756,9 @@
         break;
       case 'change-type':
         if (activeNote) {
-          showChangeTypeModal = true;
+          window.dispatchEvent(
+            new CustomEvent('open-type-dropdown', { detail: { noteId: activeNote.id } })
+          );
         }
         break;
       case 'toggle-review':
@@ -1486,41 +1484,6 @@
   </div>
 {/if}
 
-<!-- Change Type Modal -->
-{#if showChangeTypeModal && activeNote}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="modal-overlay"
-    onclick={() => (showChangeTypeModal = false)}
-    onkeydown={(e) => e.key === 'Escape' && (showChangeTypeModal = false)}
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="modal type-picker-modal" onclick={(e) => e.stopPropagation()}>
-      <h3>Change Note Type</h3>
-      <div class="type-list">
-        {#each noteTypes as noteType (noteType.id)}
-          <button
-            class="type-item"
-            class:selected={activeNote.type === noteType.id}
-            onclick={() => {
-              setNoteType(activeNote.id, noteType.id);
-              showChangeTypeModal = false;
-            }}
-          >
-            <span class="type-icon">{noteType.icon}</span>
-            <span class="type-name">{noteType.name}</span>
-          </button>
-        {/each}
-      </div>
-      <div class="modal-actions">
-        <button class="modal-btn cancel" onclick={() => (showChangeTypeModal = false)}
-          >Cancel</button
-        >
-      </div>
-    </div>
-  </div>
-{/if}
-
 <style>
   .main-view {
     height: 100vh;
@@ -2005,51 +1968,6 @@
 
   .flex-1 {
     flex: 1;
-  }
-
-  /* Type Picker Modal */
-  .type-picker-modal {
-    max-width: 300px;
-  }
-
-  .type-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 1rem;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  .type-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    border-radius: 0.375rem;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.15s ease;
-  }
-
-  .type-item:hover {
-    background: var(--bg-hover);
-  }
-
-  .type-item.selected {
-    background: var(--accent-primary);
-    color: var(--accent-text, white);
-  }
-
-  .type-icon {
-    font-size: 1rem;
-  }
-
-  .type-name {
-    font-size: 0.875rem;
   }
 
   /* Conversations View */

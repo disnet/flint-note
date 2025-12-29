@@ -3,7 +3,7 @@
    * Note type dropdown for Automerge-based notes
    * Allows selecting and changing the type of a note
    */
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { getNoteTypes, setNoteType, type NoteType } from '../lib/automerge';
 
   interface Props {
@@ -48,6 +48,28 @@
       portalContainer.parentNode.removeChild(portalContainer);
       portalContainer = null;
     }
+  });
+
+  // Listen for external open event (from menu action)
+  onMount(() => {
+    function handleOpenTypeDropdown(event: CustomEvent<{ noteId: string }>): void {
+      if (event.detail.noteId === noteId && !disabled) {
+        updateMenuPosition();
+        isOpen = true;
+      }
+    }
+
+    window.addEventListener(
+      'open-type-dropdown',
+      handleOpenTypeDropdown as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        'open-type-dropdown',
+        handleOpenTypeDropdown as EventListener
+      );
+    };
   });
 
   // Move menu to portal when it opens
