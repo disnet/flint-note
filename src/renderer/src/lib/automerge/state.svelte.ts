@@ -778,6 +778,8 @@ export async function getNoteContentHandle(
 
 /**
  * Archive a note (soft delete)
+ * Note: Keeps the note in pinned/recent lists and does not close it.
+ * The note becomes readonly until unarchived.
  */
 export function archiveNote(id: string): void {
   if (!docHandle) throw new Error('Not initialized');
@@ -788,34 +790,33 @@ export function archiveNote(id: string): void {
       note.archived = true;
       note.updated = nowISO();
     }
+  });
 
-    // Remove from all workspaces when archived
-    for (const wsId of Object.keys(doc.workspaces)) {
-      const ws = doc.workspaces[wsId];
-      ensureWorkspaceArrays(ws);
-      // Remove from pinned items
-      const pinnedIndex = ws.pinnedItemIds.findIndex(
-        (item) => item.type === 'note' && item.id === id
-      );
-      if (pinnedIndex !== -1) {
-        ws.pinnedItemIds.splice(pinnedIndex, 1);
-      }
-      // Remove from recent items
-      const recentIndex = ws.recentItemIds.findIndex(
-        (item) => item.type === 'note' && item.id === id
-      );
-      if (recentIndex !== -1) {
-        ws.recentItemIds.splice(recentIndex, 1);
-      }
+  // Remove from search index (archived notes shouldn't appear in search)
+  searchIndex.removeNote(id);
+}
+
+/**
+ * Unarchive a note (restore from soft delete)
+ */
+export function unarchiveNote(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const note = docHandle.doc()?.notes[id];
+  if (!note) return;
+
+  docHandle.change((doc) => {
+    const noteToUpdate = doc.notes[id];
+    if (noteToUpdate) {
+      noteToUpdate.archived = false;
+      noteToUpdate.updated = nowISO();
     }
   });
 
-  // Remove from search index
-  searchIndex.removeNote(id);
-
-  // Clear active item if it was archived (using setter for persistence)
-  if (activeItem?.type === 'note' && activeItem.id === id) {
-    setActiveItem(null);
+  // Re-add to search index
+  const updatedNote = docHandle.doc()?.notes[id];
+  if (updatedNote) {
+    searchIndex.indexNote(updatedNote);
   }
 }
 
@@ -959,7 +960,8 @@ function ensureWorkspaceArrays(ws: Workspace): void {
 }
 
 /**
- * Convert a SidebarItemRef to a SidebarItem, or return null if not found/archived
+ * Convert a SidebarItemRef to a SidebarItem, or return null if not found
+ * Note: Archived notes ARE included so they can be displayed with appropriate styling
  */
 function refToSidebarItem(
   ref: SidebarItemRef,
@@ -967,7 +969,7 @@ function refToSidebarItem(
 ): SidebarItem | null {
   if (ref.type === 'note') {
     const note = currentDoc.notes[ref.id];
-    if (!note || note.archived) return null;
+    if (!note) return null;
     const noteType = noteTypes[note.type];
     const displayText = note.title || 'Untitled';
     return {
@@ -978,7 +980,8 @@ function refToSidebarItem(
       updated: note.updated,
       metadata: {
         noteTypeId: note.type,
-        isPreview: !note.title
+        isPreview: !note.title,
+        archived: note.archived
       }
     };
   } else if (ref.type === 'conversation') {

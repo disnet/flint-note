@@ -691,6 +691,7 @@
           class:active={isItemActive(listItem.item)}
           class:dragging={isDragging(index)}
           class:pinned={listItem.section === 'pinned'}
+          class:archived={listItem.item.metadata?.archived}
           style:transform={getItemTransform(index)}
           onclick={() => handleItemClick(listItem.item)}
           oncontextmenu={(e) => handleContextMenu(e, listItem.item, listItem.section)}
@@ -1034,6 +1035,15 @@
   .untitled-text {
     color: var(--text-placeholder);
     font-style: italic;
+  }
+
+  /* Archived items - muted appearance */
+  .sidebar-item.archived {
+    opacity: 0.5;
+  }
+
+  .sidebar-item.archived .item-title {
+    color: var(--text-muted);
   }
 
   .close-item {

@@ -112,6 +112,7 @@ export {
   updateNote,
   updateNoteContent,
   archiveNote,
+  unarchiveNote,
   deleteNote,
 
   // Content loading (async)

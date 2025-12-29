@@ -16,6 +16,7 @@
     createNote,
     updateNote,
     archiveNote,
+    unarchiveNote,
     addItemToWorkspace,
     getNonArchivedVaults,
     getActiveVault,
@@ -432,6 +433,10 @@
 
   function handleArchiveNote(noteId: string): void {
     archiveNote(noteId);
+  }
+
+  function handleUnarchiveNote(noteId: string): void {
+    unarchiveNote(noteId);
   }
 
   function handleSystemViewSelect(
@@ -1273,6 +1278,7 @@
                 previewMode={isPreviewMode}
                 onTitleChange={(title) => updateNote(activeNote.id, { title })}
                 onArchive={() => handleArchiveNote(activeNote.id)}
+                onUnarchive={() => handleUnarchiveNote(activeNote.id)}
               />
             {/if}
           {:else}

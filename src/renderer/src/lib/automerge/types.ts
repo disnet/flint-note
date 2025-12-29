@@ -33,6 +33,7 @@ export interface SidebarItem {
     noteTypeId?: string;
     messageCount?: number;
     isPreview?: boolean;
+    archived?: boolean;
   };
 }
 
