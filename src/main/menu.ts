@@ -61,9 +61,6 @@ const menuIcons = {
   review: createMenuIcon(
     '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>'
   ),
-  suggestions: createMenuIcon(
-    '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path>'
-  ),
   archive: createMenuIcon(
     '<polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>'
   ),
@@ -413,14 +410,6 @@ export function createApplicationMenu(): Menu {
           enabled: hasActiveNote,
           click: (): void => {
             sendToRenderer('menu-action', 'toggle-review');
-          }
-        },
-        {
-          label: 'Generate Suggestions',
-          icon: menuIcons.suggestions,
-          enabled: hasActiveNote,
-          click: (): void => {
-            sendToRenderer('menu-action', 'generate-suggestions');
           }
         },
         { type: 'separator' },

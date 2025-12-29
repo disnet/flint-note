@@ -3,6 +3,7 @@
    * Main view component using Automerge for data storage
    * Contains the left sidebar, note list/editor, and workspace management
    */
+  import { onMount } from 'svelte';
   import {
     getAllNotes,
     getNoteTypes,
@@ -35,6 +36,15 @@
     enableReview,
     disableReview,
     getReviewData,
+    getWorkspaces,
+    getActiveWorkspace,
+    setActiveWorkspace,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
+    importEpubFile,
+    importPdfFile,
+    setNoteType,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -510,6 +520,311 @@
   function toggleLeftSidebar(): void {
     sidebarState.toggleLeftSidebar();
   }
+
+  // State for workspace editing modal
+  let showWorkspaceModal = $state(false);
+  let editingWorkspaceId = $state<string | null>(null);
+  let workspaceModalName = $state('');
+  let workspaceModalIcon = $state('');
+
+  // State for change type modal
+  let showChangeTypeModal = $state(false);
+
+  // File import state
+  let isImporting = $state(false);
+
+  // Workspace actions
+  function openNewWorkspaceModal(): void {
+    editingWorkspaceId = null;
+    workspaceModalName = '';
+    workspaceModalIcon = '📋';
+    showWorkspaceModal = true;
+  }
+
+  function openEditWorkspaceModal(): void {
+    const workspace = getActiveWorkspace();
+    if (workspace) {
+      editingWorkspaceId = workspace.id;
+      workspaceModalName = workspace.name;
+      workspaceModalIcon = workspace.icon;
+      showWorkspaceModal = true;
+    }
+  }
+
+  function handleWorkspaceModalSubmit(): void {
+    if (!workspaceModalName.trim()) return;
+
+    if (editingWorkspaceId) {
+      updateWorkspace(editingWorkspaceId, {
+        name: workspaceModalName.trim(),
+        icon: workspaceModalIcon || '📋'
+      });
+    } else {
+      createWorkspace({
+        name: workspaceModalName.trim(),
+        icon: workspaceModalIcon || '📋'
+      });
+    }
+    showWorkspaceModal = false;
+  }
+
+  function handleDeleteCurrentWorkspace(): void {
+    const allWorkspaces = getWorkspaces();
+    const workspace = getActiveWorkspace();
+    if (allWorkspaces.length > 1 && workspace) {
+      // Switch to another workspace first
+      const otherWorkspace = allWorkspaces.find((w) => w.id !== workspace.id);
+      if (otherWorkspace) {
+        setActiveWorkspace(otherWorkspace.id);
+      }
+      deleteWorkspace(workspace.id);
+    }
+  }
+
+  // File import handler
+  async function handleImportFile(): Promise<void> {
+    if (isImporting) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.epub,application/pdf,application/epub+zip';
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      isImporting = true;
+      try {
+        const ext = file.name.toLowerCase().split('.').pop();
+        if (ext === 'pdf') {
+          await importPdfFile(file);
+        } else if (ext === 'epub') {
+          await importEpubFile(file);
+        }
+      } finally {
+        isImporting = false;
+      }
+    };
+
+    input.click();
+  }
+
+  // Show in Finder handler
+  async function handleShowInFinder(): Promise<void> {
+    const vault = getActiveVault();
+    if (vault?.baseDirectory) {
+      await window.api?.showItemInFolder({ path: vault.baseDirectory });
+    }
+  }
+
+  // Focus title handler
+  function handleFocusTitle(): void {
+    const titleInput = document.querySelector(
+      '.note-title-input, .title-input, [data-title-input]'
+    ) as HTMLElement | null;
+    titleInput?.focus();
+  }
+
+  // Menu event handlers
+  function handleMenuNavigate(view: string): void {
+    switch (view) {
+      case 'inbox':
+        setActiveSystemView('inbox');
+        setActiveItem(null);
+        break;
+      case 'daily':
+        setActiveSystemView('daily');
+        setActiveItem(null);
+        break;
+      case 'review':
+        setActiveSystemView('review');
+        setActiveItem(null);
+        break;
+      case 'routines':
+        setActiveSystemView('routines');
+        setActiveItem(null);
+        break;
+      case 'note-types':
+        setActiveSystemView('types');
+        setActiveItem(null);
+        break;
+      case 'settings':
+        setActiveSystemView('settings');
+        setActiveItem(null);
+        break;
+    }
+  }
+
+  function handleMenuAction(action: string, ...args: unknown[]): void {
+    switch (action) {
+      // File actions
+      case 'new-note':
+        handleCreateNote();
+        break;
+      case 'new-deck':
+        handleCreateDeck();
+        break;
+      case 'import-file':
+        handleImportFile();
+        break;
+      case 'import-webpage':
+        showArchiveWebpageModal = true;
+        break;
+      case 'new-vault':
+        handleCreateVault();
+        break;
+      case 'switch-vault': {
+        // Open the vault dropdown in sidebar - toggle it by focusing
+        const vaultButton = document.querySelector(
+          '[data-vault-dropdown]'
+        ) as HTMLElement | null;
+        vaultButton?.click();
+        break;
+      }
+      case 'show-in-finder':
+        handleShowInFinder();
+        break;
+
+      // Edit actions
+      case 'find':
+        if (sidebarState.leftSidebar.visible) {
+          const searchInput = document.getElementById('search-input');
+          searchInput?.focus();
+        } else {
+          quickSearchOpen = true;
+          searchInputFocused = true;
+        }
+        break;
+
+      // View actions
+      case 'toggle-sidebar':
+        toggleLeftSidebar();
+        break;
+      case 'focus-title':
+        handleFocusTitle();
+        break;
+      case 'toggle-preview':
+        isPreviewMode = !isPreviewMode;
+        break;
+      case 'toggle-agent':
+        chatPanelOpen = !chatPanelOpen;
+        if (chatPanelOpen) shelfPanelOpen = false;
+        break;
+      case 'toggle-shelf':
+        shelfPanelOpen = !shelfPanelOpen;
+        if (shelfPanelOpen) chatPanelOpen = false;
+        break;
+
+      // Workspace actions
+      case 'new-workspace':
+        openNewWorkspaceModal();
+        break;
+      case 'edit-workspace':
+        openEditWorkspaceModal();
+        break;
+      case 'delete-workspace':
+        handleDeleteCurrentWorkspace();
+        break;
+      case 'switch-workspace':
+        if (typeof args[0] === 'string') {
+          setActiveWorkspace(args[0]);
+        }
+        break;
+
+      // Note actions
+      case 'toggle-pin':
+        if (activeItem) {
+          if (isPinned) {
+            handleUnpin();
+          } else {
+            handlePin();
+          }
+        }
+        break;
+      case 'add-to-shelf':
+        handleAddToShelf();
+        break;
+      case 'change-type':
+        if (activeNote) {
+          showChangeTypeModal = true;
+        }
+        break;
+      case 'toggle-review':
+        handleToggleReview();
+        break;
+      case 'archive-note':
+        handleArchiveFromMenu();
+        break;
+
+      // Reader actions
+      case 'reader-prev':
+        // Dispatch a custom event for readers to handle
+        window.dispatchEvent(
+          new CustomEvent('reader-navigate', { detail: { direction: 'prev' } })
+        );
+        break;
+      case 'reader-next':
+        window.dispatchEvent(
+          new CustomEvent('reader-navigate', { detail: { direction: 'next' } })
+        );
+        break;
+
+      // Help actions
+      case 'show-changelog':
+        // Could show a changelog modal - for now open external
+        window.api?.openExternal({ url: 'https://www.flintnote.com/docs/changelog' });
+        break;
+      case 'check-updates':
+        window.api?.checkForUpdates();
+        break;
+      case 'show-about':
+        // Could show an about modal
+        break;
+    }
+  }
+
+  // Set up menu event listeners
+  onMount(() => {
+    const cleanupNavigate = window.api?.onMenuNavigate(handleMenuNavigate);
+    const cleanupAction = window.api?.onMenuAction(handleMenuAction);
+
+    return () => {
+      cleanupNavigate?.();
+      cleanupAction?.();
+    };
+  });
+
+  // Update menu state when active note changes
+  $effect(() => {
+    const hasNote = activeNote !== null;
+    window.api?.setMenuActiveNote(hasNote);
+  });
+
+  // Update menu state when epub viewer is active
+  $effect(() => {
+    window.api?.setMenuActiveEpub(isActiveNoteEpub);
+  });
+
+  // Update menu state when pdf viewer is active
+  $effect(() => {
+    window.api?.setMenuActivePdf(isActiveNotePdf);
+  });
+
+  // Update menu state when workspaces change
+  $effect(() => {
+    const workspaces = getWorkspaces();
+    const workspace = getActiveWorkspace();
+    if (workspace) {
+      window.api?.setMenuWorkspaces({
+        workspaces: workspaces.map((w) => ({
+          id: w.id,
+          name: w.name,
+          icon: w.icon
+        })),
+        activeWorkspaceId: workspace.id
+      });
+    }
+  });
 
   // Keyboard shortcuts
   const isMac = navigator.platform.startsWith('Mac');
@@ -1090,6 +1405,86 @@
   />
 {/if}
 
+<!-- Workspace Modal -->
+{#if showWorkspaceModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (showWorkspaceModal = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showWorkspaceModal = false)}
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <h3>{editingWorkspaceId ? 'Edit Workspace' : 'New Workspace'}</h3>
+      <div class="workspace-form">
+        <div class="workspace-form-row">
+          <input
+            type="text"
+            class="icon-input"
+            placeholder="Icon"
+            bind:value={workspaceModalIcon}
+            maxlength="2"
+          />
+          <input
+            type="text"
+            class="modal-input flex-1"
+            placeholder="Workspace name"
+            bind:value={workspaceModalName}
+            onkeydown={(e) => e.key === 'Enter' && handleWorkspaceModalSubmit()}
+          />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick={() => (showWorkspaceModal = false)}
+          >Cancel</button
+        >
+        <button
+          class="modal-btn primary"
+          onclick={handleWorkspaceModalSubmit}
+          disabled={!workspaceModalName.trim()}
+        >
+          {editingWorkspaceId ? 'Save' : 'Create'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Change Type Modal -->
+{#if showChangeTypeModal && activeNote}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (showChangeTypeModal = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showChangeTypeModal = false)}
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal type-picker-modal" onclick={(e) => e.stopPropagation()}>
+      <h3>Change Note Type</h3>
+      <div class="type-list">
+        {#each noteTypes as noteType (noteType.id)}
+          <button
+            class="type-item"
+            class:selected={activeNote.type === noteType.id}
+            onclick={() => {
+              setNoteType(activeNote.id, noteType.id);
+              showChangeTypeModal = false;
+            }}
+          >
+            <span class="type-icon">{noteType.icon}</span>
+            <span class="type-name">{noteType.name}</span>
+          </button>
+        {/each}
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick={() => (showChangeTypeModal = false)}
+          >Cancel</button
+        >
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .main-view {
     height: 100vh;
@@ -1539,6 +1934,86 @@
 
   .modal-btn.primary:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  .modal-btn.primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Workspace Form */
+  .workspace-form {
+    margin-bottom: 1rem;
+  }
+
+  .workspace-form-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .icon-input {
+    width: 3rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    text-align: center;
+    outline: none;
+  }
+
+  .icon-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .flex-1 {
+    flex: 1;
+  }
+
+  /* Type Picker Modal */
+  .type-picker-modal {
+    max-width: 300px;
+  }
+
+  .type-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .type-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease;
+  }
+
+  .type-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .type-item.selected {
+    background: var(--accent-primary);
+    color: var(--accent-text, white);
+  }
+
+  .type-icon {
+    font-size: 1rem;
+  }
+
+  .type-name {
+    font-size: 0.875rem;
   }
 
   /* Conversations View */

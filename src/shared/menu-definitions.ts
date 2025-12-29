@@ -118,7 +118,6 @@ export const noteMenuItems: MenuItemDef[] = [
   { label: 'Change Type', accelerator: 'CmdOrCtrl+Shift+M', action: 'change-type' },
   { type: 'separator' },
   { label: 'Enable/Disable Review', action: 'toggle-review' },
-  { label: 'Generate Suggestions', action: 'generate-suggestions' },
   { type: 'separator' },
   { label: 'Archive', action: 'archive-note' }
 ];
