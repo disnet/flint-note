@@ -67,6 +67,7 @@
   import ShelfPanel from './ShelfPanel.svelte';
   import APIKeySettings from './APIKeySettings.svelte';
   import DebugSettings from './DebugSettings.svelte';
+  import AboutSettings from './AboutSettings.svelte';
   import ConversationList from './ConversationList.svelte';
   import ConversationView from './ConversationView.svelte';
   import ReviewView from './ReviewView.svelte';
@@ -76,6 +77,7 @@
   import LegacyMigrationModal from './LegacyMigrationModal.svelte';
   import QuickSearch from './QuickSearch.svelte';
   import NoteActionsMenu from './NoteActionsMenu.svelte';
+  import UpdateWidget from './UpdateWidget.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -921,6 +923,7 @@
             </svg>
           </button>
         {/if}
+        <UpdateWidget />
         <div class="safe-zone-actions">
           {#if activeItem}
             <!-- Pin button -->
@@ -1111,6 +1114,11 @@
                   Import Legacy Vault...
                 </button>
               </div>
+
+              <div class="settings-divider"></div>
+
+              <!-- About / Version -->
+              <AboutSettings />
 
               <button class="close-settings" onclick={() => setActiveSystemView(null)}
                 >Close</button
