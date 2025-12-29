@@ -25,6 +25,7 @@
     getNoteContent
   } from '../lib/automerge';
   import { nowISO } from '../lib/automerge/utils';
+  import { settingsStore } from '../stores/settingsStore.svelte';
   import PdfReader from './PdfReader.svelte';
   import PdfOutline from './PdfOutline.svelte';
   import PdfHighlights from './PdfHighlights.svelte';
@@ -59,6 +60,15 @@
 
   // Zoom level options
   const zoomLevelOptions = [50, 75, 100, 125, 150, 200];
+
+  // Theme options
+  const themeOptions: Array<{ value: 'system' | 'light' | 'dark'; label: string }> = [
+    { value: 'system', label: 'System' },
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' }
+  ];
+  let showThemePopup = $state(false);
+  const readerTheme = $derived(settingsStore.settings.reader.theme);
 
   // Debounce timer for reading state updates
   let readingStateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -248,6 +258,12 @@ ${highlightLines.join('\n\n')}
     showZoomPopup = false;
   }
 
+  // Handle reader theme change
+  function handleThemeChange(theme: 'system' | 'light' | 'dark'): void {
+    settingsStore.updateReaderTheme(theme);
+    showThemePopup = false;
+  }
+
   // Title handling
   function handleTitleInput(event: Event): void {
     const target = event.target as HTMLTextAreaElement;
@@ -281,6 +297,7 @@ ${highlightLines.join('\n\n')}
     controlsTimeout = setTimeout(() => {
       showControls = false;
       showZoomPopup = false;
+      showThemePopup = false;
     }, 300);
   }
 
@@ -500,6 +517,7 @@ ${highlightLines.join('\n\n')}
           initialPage={pdfProps().currentPage ?? 1}
           {highlights}
           zoomLevel={pdfProps().zoomLevel ?? 100}
+          themeOverride={readerTheme}
           onPageChange={handlePageChange}
           onOutlineLoaded={handleOutlineLoaded}
           onAddHighlight={addHighlight}
@@ -617,6 +635,74 @@ ${highlightLines.join('\n\n')}
                     onclick={() => handleZoomChange(zoom)}
                   >
                     {zoom}%
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
+          <!-- Theme button -->
+          <div class="theme-container">
+            <button
+              class="control-button"
+              onclick={() => (showThemePopup = !showThemePopup)}
+              title="Reader theme"
+            >
+              {#if readerTheme === 'dark'}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              {:else if readerTheme === 'light'}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+              {:else}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+              {/if}
+            </button>
+
+            {#if showThemePopup}
+              <div class="theme-popup">
+                {#each themeOptions as option (option.value)}
+                  <button
+                    class="theme-option"
+                    class:active={readerTheme === option.value}
+                    onclick={() => handleThemeChange(option.value)}
+                  >
+                    {option.label}
                   </button>
                 {/each}
               </div>
@@ -974,6 +1060,47 @@ ${highlightLines.join('\n\n')}
   }
 
   .zoom-option.active {
+    background: var(--accent-light);
+    color: var(--accent-primary);
+  }
+
+  .theme-container {
+    position: relative;
+  }
+
+  .theme-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-medium);
+    padding: 4px;
+    min-width: 80px;
+  }
+
+  .theme-option {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    transition: background-color 0.15s;
+  }
+
+  .theme-option:hover {
+    background: var(--bg-hover);
+  }
+
+  .theme-option.active {
     background: var(--accent-light);
     color: var(--accent-primary);
   }

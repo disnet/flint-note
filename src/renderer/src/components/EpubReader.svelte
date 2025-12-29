@@ -24,6 +24,7 @@
     initialCfi = '',
     highlights = [],
     fontSize = 100,
+    themeOverride = 'system',
     onRelocate = (_cfi: string, _progress: number, _location: EpubLocation) => {},
     onTocLoaded = (_toc: EpubTocItem[]) => {},
     onMetadataLoaded = (_metadata: EpubMetadata) => {},
@@ -35,6 +36,7 @@
     initialCfi?: string;
     highlights?: EpubHighlight[];
     fontSize?: number;
+    themeOverride?: 'system' | 'light' | 'dark';
     onRelocate?: (cfi: string, progress: number, location: EpubLocation) => void;
     onTocLoaded?: (toc: EpubTocItem[]) => void;
     onMetadataLoaded?: (metadata: EpubMetadata) => void;
@@ -143,8 +145,13 @@
     }
   }
 
-  // Check if dark mode is active
+  // Check if dark mode is active (respects themeOverride prop)
   function checkDarkMode(): boolean {
+    // If themeOverride is set to light or dark, use that directly
+    if (themeOverride === 'dark') return true;
+    if (themeOverride === 'light') return false;
+
+    // Otherwise, follow system/app theme
     const dataTheme = document.documentElement.getAttribute('data-theme');
     if (dataTheme === 'dark') return true;
     if (dataTheme === 'light') return false;
@@ -165,6 +172,20 @@
         applyThemeStyles();
       } catch (err) {
         console.debug('[EPUB] Could not apply font size styles:', err);
+      }
+    }
+  });
+
+  // Re-apply styles when themeOverride changes
+  $effect(() => {
+    // Track themeOverride for reactivity
+    void themeOverride;
+    if (view && isMounted && !isLoading) {
+      isDarkMode = checkDarkMode();
+      try {
+        applyThemeStyles();
+      } catch (err) {
+        console.debug('[EPUB] Could not apply theme styles:', err);
       }
     }
   });

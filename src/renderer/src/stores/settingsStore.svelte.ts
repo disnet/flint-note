@@ -39,6 +39,7 @@ export interface AppSettings {
   reader: {
     defaultPdfZoom: number; // Scale value (e.g., 1.5 for 150%)
     defaultEpubTextSize: number; // Percentage (e.g., 100 for 100%)
+    theme: 'system' | 'light' | 'dark'; // Reader-specific theme override
   };
 }
 
@@ -78,7 +79,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   reader: {
     defaultPdfZoom: 1.5, // 150%
-    defaultEpubTextSize: 100 // 100%
+    defaultEpubTextSize: 100, // 100%
+    theme: 'system' // Follow app/system theme by default
   }
 };
 
@@ -302,6 +304,15 @@ export const settingsStore = {
       appearance: {
         ...settings.appearance,
         font: fontSettings
+      }
+    });
+  },
+
+  async updateReaderTheme(theme: 'system' | 'light' | 'dark'): Promise<void> {
+    await this.updateSettings({
+      reader: {
+        ...settings.reader,
+        theme
       }
     });
   },

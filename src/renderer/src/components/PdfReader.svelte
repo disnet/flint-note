@@ -8,6 +8,7 @@
    * - Continuous scrolling view
    * - Zoom controls
    * - Page navigation
+   * - Dark mode support via CSS filters
    */
 
   import { onMount, onDestroy, tick, untrack } from 'svelte';
@@ -37,6 +38,7 @@
     initialPage = 1,
     highlights = [],
     zoomLevel = 100,
+    themeOverride = 'system',
     onPageChange = (_page: number, _total: number) => {},
     onOutlineLoaded = (_outline: PdfOutlineItem[]) => {},
     onTextSelected = (_selection: SelectionInfo | null) => {},
@@ -51,6 +53,7 @@
     initialPage?: number;
     highlights?: PdfHighlight[];
     zoomLevel?: number;
+    themeOverride?: 'system' | 'light' | 'dark';
     onPageChange?: (page: number, total: number) => void;
     onOutlineLoaded?: (outline: PdfOutlineItem[]) => void;
     onTextSelected?: (selection: SelectionInfo | null) => void;
@@ -85,6 +88,29 @@
 
   // Intersection observer for lazy page rendering
   let intersectionObserver: IntersectionObserver | null = null;
+
+  // Dark mode state
+  let isDarkMode = $state(false);
+  let themeObserver: MutationObserver | null = null;
+  let mediaQueryList: MediaQueryList | null = null;
+
+  // Check if dark mode is active (respects themeOverride prop)
+  function checkDarkMode(): boolean {
+    // If themeOverride is set to light or dark, use that directly
+    if (themeOverride === 'dark') return true;
+    if (themeOverride === 'light') return false;
+
+    // Otherwise, follow system/app theme
+    const dataTheme = document.documentElement.getAttribute('data-theme');
+    if (dataTheme === 'dark') return true;
+    if (dataTheme === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  // Handle theme changes
+  function handleThemeChange(): void {
+    isDarkMode = checkDarkMode();
+  }
 
   // Load the PDF document
   async function loadPdf(): Promise<void> {
@@ -521,7 +547,31 @@
     }
   });
 
+  // Effect: Update dark mode when themeOverride changes
+  $effect(() => {
+    // Track themeOverride for reactivity
+    void themeOverride;
+    isDarkMode = checkDarkMode();
+  });
+
   onMount(() => {
+    // Initialize dark mode
+    isDarkMode = checkDarkMode();
+
+    // Watch for theme changes via data-theme attribute
+    themeObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === 'data-theme') {
+          handleThemeChange();
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true });
+
+    // Watch for system color scheme changes
+    mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQueryList.addEventListener('change', handleThemeChange);
+
     // Add selection change listener
     document.addEventListener('selectionchange', handleSelectionChange);
   });
@@ -530,11 +580,22 @@
     if (intersectionObserver) {
       intersectionObserver.disconnect();
     }
+    if (themeObserver) {
+      themeObserver.disconnect();
+    }
+    if (mediaQueryList) {
+      mediaQueryList.removeEventListener('change', handleThemeChange);
+    }
     document.removeEventListener('selectionchange', handleSelectionChange);
   });
 </script>
 
-<div class="pdf-reader" bind:this={container} onscroll={handleScroll}>
+<div
+  class="pdf-reader"
+  class:dark-mode={isDarkMode}
+  bind:this={container}
+  onscroll={handleScroll}
+>
   {#if isLoading}
     <div class="loading-state">
       <div class="loading-spinner"></div>
@@ -740,5 +801,42 @@
 
   .highlight-button:hover {
     background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  }
+
+  /* Dark mode styles */
+  .pdf-reader.dark-mode {
+    background: #1a1a1a;
+  }
+
+  .pdf-reader.dark-mode .pdf-page {
+    background: #1a1a1a;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.4),
+      0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .pdf-reader.dark-mode .pdf-page :global(.pdf-page-canvas) {
+    /* Invert colors and rotate hue to preserve image colors approximately */
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  .pdf-reader.dark-mode .page-placeholder {
+    background: #2d2d2d;
+  }
+
+  .pdf-reader.dark-mode .page-number {
+    color: #888;
+  }
+
+  /* Counter-invert highlights so they remain visible in dark mode */
+  .pdf-reader.dark-mode .pdf-page :global(.pdf-highlight) {
+    /* Invert the highlight color since the canvas is inverted */
+    filter: invert(1) hue-rotate(180deg);
+    background: rgba(255, 235, 59, 0.5);
+  }
+
+  /* Selection highlight in dark mode */
+  .pdf-reader.dark-mode .pdf-page :global(.textLayer ::selection) {
+    background: rgba(100, 150, 255, 0.4);
   }
 </style>
