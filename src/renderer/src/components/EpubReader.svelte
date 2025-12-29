@@ -105,6 +105,10 @@
   function getEpubStyles(dark: boolean, fontSizePercent: number): string {
     const fontSizeStyle = `font-size: ${fontSizePercent}% !important;`;
     if (dark) {
+      // Target common text elements explicitly to override EPUB author styles
+      // that may have explicit color declarations (e.g., `p { color: black; }`)
+      const textElements =
+        'p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, pre, code, em, strong, b, i, u, s, small, big, sub, sup, dt, dd, figcaption, caption, label, legend, article, section, aside, header, footer, nav, main';
       return `
         html {
           color-scheme: dark;
@@ -114,6 +118,9 @@
         }
         body {
           background: #1a1a1a !important;
+          color: #e0e0e0 !important;
+        }
+        ${textElements} {
           color: #e0e0e0 !important;
         }
         a:link {
