@@ -495,6 +495,9 @@
       onSystemViewSelect={handleSystemViewSelect}
       onCreateNote={handleCreateNote}
       onCreateDeck={handleCreateDeck}
+      onCaptureWebpage={() => {
+        showArchiveWebpageModal = true;
+      }}
       onSearchChange={(query) => {
         searchQuery = query;
         selectedSearchIndex = 0;

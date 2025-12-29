@@ -51,6 +51,7 @@
     ) => void;
     onCreateNote?: () => void;
     onCreateDeck?: () => void;
+    onCaptureWebpage?: () => void;
     onSearchChange: (query: string) => void;
     onSearchFocus: () => void;
     onSearchBlur: () => void;
@@ -68,6 +69,7 @@
     activeSystemView,
     onCreateNote,
     onCreateDeck,
+    onCaptureWebpage,
     searchQuery,
     searchResults,
     searchInputFocused,
@@ -412,7 +414,7 @@
         </div>
       {/key}
     </div>
-    <WorkspaceBar {onCreateNote} {onCreateDeck} {showShadow} />
+    <WorkspaceBar {onCreateNote} {onCreateDeck} {onCaptureWebpage} {showShadow} />
   </div>
 </div>
 

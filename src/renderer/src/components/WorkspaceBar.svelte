@@ -12,16 +12,31 @@
     createWorkspace,
     deleteWorkspace,
     updateWorkspace,
-    reorderWorkspaces
+    reorderWorkspaces,
+    importEpubFile,
+    importPdfFile
   } from '../lib/automerge';
 
   interface Props {
     onCreateNote?: () => void;
     onCreateDeck?: () => void;
+    onCaptureWebpage?: () => void;
     showShadow?: boolean;
   }
 
-  let { onCreateNote, onCreateDeck, showShadow = false }: Props = $props();
+  let {
+    onCreateNote,
+    onCreateDeck,
+    onCaptureWebpage,
+    showShadow = false
+  }: Props = $props();
+
+  // Import state
+  let isImporting = $state(false);
+
+  // Platform detection for keyboard shortcuts
+  const isMac = navigator.platform.startsWith('Mac');
+  const modKey = isMac ? '⌘' : 'Ctrl';
 
   // Reactive state
   const workspaces = $derived(getWorkspaces());
@@ -99,6 +114,40 @@
   function handleNewDeckClick(): void {
     closeAddMenu();
     onCreateDeck?.();
+  }
+
+  async function handleImportFileClick(): Promise<void> {
+    if (isImporting) return;
+    closeAddMenu();
+
+    // Create a combined file picker for both PDF and EPUB
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.epub,application/pdf,application/epub+zip';
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      isImporting = true;
+      try {
+        const ext = file.name.toLowerCase().split('.').pop();
+        if (ext === 'pdf') {
+          await importPdfFile(file);
+        } else if (ext === 'epub') {
+          await importEpubFile(file);
+        }
+      } finally {
+        isImporting = false;
+      }
+    };
+
+    input.click();
+  }
+
+  function handleCaptureWebpageClick(): void {
+    closeAddMenu();
+    onCaptureWebpage?.();
   }
 
   function closeFormPopover(): void {
@@ -477,7 +526,8 @@
             <line x1="12" y1="18" x2="12" y2="12"></line>
             <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
-          New Note
+          <span class="add-menu-label">New Note</span>
+          <span class="add-menu-shortcut">{modKey}⇧N</span>
         </button>
       {/if}
       {#if onCreateDeck}
@@ -494,7 +544,8 @@
             <line x1="3" y1="9" x2="21" y2="9"></line>
             <line x1="9" y1="21" x2="9" y2="9"></line>
           </svg>
-          New Deck
+          <span class="add-menu-label">New Deck</span>
+          <span class="add-menu-shortcut"></span>
         </button>
       {/if}
       <button class="add-menu-item" onclick={openNewWorkspaceForm}>
@@ -510,8 +561,50 @@
           <line x1="12" y1="8" x2="12" y2="16"></line>
           <line x1="8" y1="12" x2="16" y2="12"></line>
         </svg>
-        New Workspace
+        <span class="add-menu-label">New Workspace</span>
+        <span class="add-menu-shortcut"></span>
       </button>
+      <div class="add-menu-separator"></div>
+      <button
+        class="add-menu-item"
+        onclick={handleImportFileClick}
+        disabled={isImporting}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <span class="add-menu-label">{isImporting ? 'Importing...' : 'Import file'}</span>
+        <span class="add-menu-shortcut"></span>
+      </button>
+      {#if onCaptureWebpage}
+        <button class="add-menu-item" onclick={handleCaptureWebpageClick}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path
+              d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+            ></path>
+          </svg>
+          <span class="add-menu-label">Capture webpage</span>
+          <span class="add-menu-shortcut"></span>
+        </button>
+      {/if}
     </div>
   {/if}
 
@@ -723,6 +816,7 @@
   .add-menu {
     position: absolute;
     bottom: 100%;
+    left: 0.5rem;
     right: 0.5rem;
     margin-bottom: 0.5rem;
     background: var(--bg-primary);
@@ -730,7 +824,6 @@
     border-radius: 0.5rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 0.25rem;
-    min-width: 150px;
     z-index: 100;
   }
 
@@ -756,6 +849,31 @@
 
   .add-menu-item svg {
     color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .add-menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .add-menu-label {
+    flex: 1;
+  }
+
+  .add-menu-shortcut {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+
+  .add-menu-separator {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.25rem 0;
   }
 
   /* Popover styles */
