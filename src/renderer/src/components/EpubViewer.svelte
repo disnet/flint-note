@@ -841,10 +841,10 @@ ${highlightLines.join('\n\n')}
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: var(--bg-elevated, white);
-    border: 1px solid var(--border-light, #e0e0e0);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px var(--shadow-medium);
     opacity: 0;
     transform: translateY(20px);
     transition:
@@ -872,20 +872,20 @@ ${highlightLines.join('\n\n')}
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary);
     transition:
       background-color 0.15s,
       color 0.15s;
   }
 
   .control-button:hover {
-    background: var(--bg-hover, rgba(0, 0, 0, 0.05));
-    color: var(--text-primary, #333);
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 
   .control-button.active {
-    background: var(--accent-bg, rgba(0, 123, 255, 0.1));
-    color: var(--accent-primary, #007bff);
+    background: var(--accent-light);
+    color: var(--accent-primary);
   }
 
   .control-badge {
@@ -895,8 +895,8 @@ ${highlightLines.join('\n\n')}
     min-width: 14px;
     height: 14px;
     padding: 0 3px;
-    background: var(--accent-primary, #007bff);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
     font-size: 9px;
     font-weight: 600;
     border-radius: 7px;
@@ -915,21 +915,21 @@ ${highlightLines.join('\n\n')}
   .progress-bar {
     width: 80px;
     height: 4px;
-    background: var(--border-light, #e0e0e0);
+    background: var(--border-light);
     border-radius: 2px;
     overflow: hidden;
   }
 
   .progress-fill {
     height: 100%;
-    background: var(--accent-primary, #007bff);
+    background: var(--accent-primary);
     border-radius: 2px;
     transition: width 0.3s ease;
   }
 
   .progress-text {
     font-size: 0.75rem;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary);
     min-width: 32px;
   }
 
@@ -948,10 +948,10 @@ ${highlightLines.join('\n\n')}
     left: 50%;
     transform: translateX(-50%);
     margin-bottom: 8px;
-    background: var(--bg-elevated, white);
-    border: 1px solid var(--border-light, #e0e0e0);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--shadow-medium);
     padding: 4px;
     min-width: 80px;
   }
@@ -966,16 +966,16 @@ ${highlightLines.join('\n\n')}
     cursor: pointer;
     text-align: left;
     font-size: 0.875rem;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
     transition: background-color 0.15s;
   }
 
   .text-size-option:hover {
-    background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+    background: var(--bg-hover);
   }
 
   .text-size-option.active {
-    background: var(--accent-bg, rgba(0, 123, 255, 0.1));
-    color: var(--accent-primary, #007bff);
+    background: var(--accent-light);
+    color: var(--accent-primary);
   }
 </style>

@@ -28,6 +28,7 @@
   --message-agent-border: #f3f4f6;
   --scrollbar-thumb: #d1d5db;
   --scrollbar-thumb-hover: #9ca3af;
+  --bg-elevated: #ffffff;
 
   /* Tool call / Agent activity components */
   --tool-call-bg: #f8f9fa;
@@ -123,6 +124,7 @@
     --message-agent-border: transparent;
     --scrollbar-thumb: #6b7280;
     --scrollbar-thumb-hover: #9ca3af;
+    --bg-elevated: #3d3d3d;
 
     /* Tool call / Agent activity components */
     --tool-call-bg: #262626;
@@ -218,6 +220,7 @@
   --message-agent-border: transparent;
   --scrollbar-thumb: #6b7280;
   --scrollbar-thumb-hover: #9ca3af;
+  --bg-elevated: #3d3d3d;
 
   /* Tool call / Agent activity components */
   --tool-call-bg: #262626;
