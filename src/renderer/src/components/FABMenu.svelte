@@ -5,8 +5,11 @@
    * Displays a FAB that expands into a popup menu on hover,
    * showing options for Chat and Shelf.
    * Hidden when a panel is open.
+   * Fades out after mouse inactivity (shared with other floating UI).
    */
+  import { onMount, onDestroy } from 'svelte';
   import Tooltip from './Tooltip.svelte';
+  import { floatingUIState } from '../stores/floatingUIState.svelte';
 
   interface Props {
     /** Whether the chat panel is currently open */
@@ -50,13 +53,15 @@
       hoverTimeout = null;
     }
     isHovered = true;
+    floatingUIState.onMouseEnter();
   }
 
   function handleMouseLeave(): void {
-    // Small delay before hiding to prevent flickering
+    // Small delay before hiding menu to prevent flickering
     hoverTimeout = setTimeout(() => {
       isHovered = false;
     }, 150);
+    floatingUIState.onMouseLeave();
   }
 
   function handleChatClick(): void {
@@ -66,11 +71,22 @@
   function handleShelfClick(): void {
     onToggleShelf();
   }
+
+  onMount(() => {
+    floatingUIState.init();
+  });
+
+  onDestroy(() => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+    }
+  });
 </script>
 
 {#if !panelOpen}
   <div
     class="fab-container"
+    class:visible={floatingUIState.visible}
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
     role="group"
@@ -141,6 +157,14 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .fab-container.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   /* Main FAB button - always at the bottom position */

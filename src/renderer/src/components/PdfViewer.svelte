@@ -26,6 +26,7 @@
   } from '../lib/automerge';
   import { nowISO } from '../lib/automerge/utils';
   import { settingsStore } from '../stores/settingsStore.svelte';
+  import { floatingUIState } from '../stores/floatingUIState.svelte';
   import PdfReader from './PdfReader.svelte';
   import PdfOutline from './PdfOutline.svelte';
   import PdfHighlights from './PdfHighlights.svelte';
@@ -54,8 +55,6 @@
   let showOutline = $state(false);
   let showHighlights = $state(false);
   let reader = $state<PdfReader | null>(null);
-  let showControls = $state(false);
-  let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
   let showZoomPopup = $state(false);
 
   // Zoom level options
@@ -285,21 +284,17 @@ ${highlightLines.join('\n\n')}
     showThemePopup = false;
   }
 
-  // Controls hover handling
-  function handleMouseEnterControls(): void {
-    if (controlsTimeout) {
-      clearTimeout(controlsTimeout);
-      controlsTimeout = null;
-    }
-    showControls = true;
+  // Controls visibility - delegate to shared floating UI state
+  function handleMouseMove(): void {
+    floatingUIState.show();
   }
 
-  function handleMouseLeaveControls(): void {
-    controlsTimeout = setTimeout(() => {
-      showControls = false;
-      showZoomPopup = false;
-      showThemePopup = false;
-    }, 300);
+  function handleMouseEnterControlBar(): void {
+    floatingUIState.onMouseEnter();
+  }
+
+  function handleMouseLeaveControlBar(): void {
+    floatingUIState.onMouseLeave();
   }
 
   // Keyboard navigation
@@ -472,11 +467,7 @@ ${highlightLines.join('\n\n')}
     </header>
 
     <!-- Main content area -->
-    <div
-      class="pdf-content"
-      onmouseenter={handleMouseEnterControls}
-      onmouseleave={handleMouseLeaveControls}
-    >
+    <div class="pdf-content" onmousemove={handleMouseMove}>
       <!-- Outline panel -->
       {#if showOutline}
         <aside class="sidebar outline-panel">
@@ -512,7 +503,12 @@ ${highlightLines.join('\n\n')}
 
       <!-- Bottom control bar -->
       <div class="controls-trigger">
-        <div class="bottom-controls" class:visible={showControls}>
+        <div
+          class="bottom-controls"
+          class:visible={floatingUIState.visible}
+          onmouseenter={handleMouseEnterControlBar}
+          onmouseleave={handleMouseLeaveControlBar}
+        >
           <!-- Left navigation -->
           <Tooltip text="Previous page">
             <button
@@ -873,7 +869,8 @@ ${highlightLines.join('\n\n')}
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 16px;
+    padding-bottom: 24px;
+    padding-right: 100px; /* Space for FAB */
   }
 
   .bottom-controls {

@@ -30,7 +30,9 @@
     onMetadataLoaded = (_metadata: EpubMetadata) => {},
     onTextSelected = (_selection: SelectionInfo | null) => {},
     onAddHighlight = (_text: string, _cfi: string) => '',
-    onError = (_error: Error) => {}
+    onError = (_error: Error) => {},
+    onMouseActivity = () => {},
+    onKeyDown = (_event: KeyboardEvent) => {}
   }: {
     epubData: ArrayBuffer;
     initialCfi?: string;
@@ -43,6 +45,8 @@
     onTextSelected?: (selection: SelectionInfo | null) => void;
     onAddHighlight?: (text: string, cfi: string) => string;
     onError?: (error: Error) => void;
+    onMouseActivity?: () => void;
+    onKeyDown?: (event: KeyboardEvent) => void;
   } = $props();
 
   // State
@@ -303,7 +307,8 @@
   }
 
   function handleSectionLoad(_event: CustomEvent): void {
-    // Section loaded
+    // When a new section loads, add event listeners to the new content
+    addListenersToContents();
   }
 
   function handleDrawAnnotation(
@@ -334,6 +339,10 @@
     }, 200);
 
     container?.addEventListener('mouseup', handleMouseUp);
+    container?.addEventListener('mousemove', handleMouseMove);
+
+    // Also add event listeners to iframe contents
+    addListenersToContents();
   }
 
   function stopSelectionChecking(): void {
@@ -342,12 +351,52 @@
       selectionCheckInterval = null;
     }
     container?.removeEventListener('mouseup', handleMouseUp);
+    container?.removeEventListener('mousemove', handleMouseMove);
+    removeListenersFromContents();
   }
 
   function handleMouseUp(): void {
     setTimeout(() => {
       checkForSelection();
     }, 50);
+  }
+
+  function handleMouseMove(): void {
+    onMouseActivity();
+  }
+
+  function handleIframeKeyDown(event: KeyboardEvent): void {
+    onKeyDown(event);
+  }
+
+  // Track iframe documents we've added listeners to
+  const iframeListeners = new WeakSet<Document>();
+
+  function addListenersToContents(): void {
+    if (!view) return;
+    try {
+      const v = view as unknown as Record<string, unknown>;
+      const renderer = v.renderer as
+        | { getContents?: () => Array<{ doc?: Document; index?: number }> }
+        | undefined;
+      if (!renderer?.getContents) return;
+      const contents = renderer.getContents();
+      for (const content of contents) {
+        const doc = content.doc;
+        if (doc && !iframeListeners.has(doc)) {
+          doc.addEventListener('mousemove', handleMouseMove);
+          doc.addEventListener('keydown', handleIframeKeyDown);
+          iframeListeners.add(doc);
+        }
+      }
+    } catch {
+      // Ignore errors accessing iframe contents
+    }
+  }
+
+  function removeListenersFromContents(): void {
+    // Note: WeakSet entries will be garbage collected when documents are destroyed
+    // We can't iterate WeakSet, but the documents will be gone anyway on cleanup
   }
 
   function calculateSelectionPosition(

@@ -1819,7 +1819,6 @@
     overflow: hidden;
   }
 
-
   /* Content wrapper for centering with max-width */
   .content-wrapper {
     display: flex;

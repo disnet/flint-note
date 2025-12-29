@@ -15,6 +15,7 @@
   } from '../lib/automerge';
   import { nowISO } from '../lib/automerge/utils';
   import { settingsStore } from '../stores/settingsStore.svelte';
+  import { floatingUIState } from '../stores/floatingUIState.svelte';
   import EpubReader from './EpubReader.svelte';
   import EpubToc from './EpubToc.svelte';
   import EpubHighlights from './EpubHighlights.svelte';
@@ -42,8 +43,6 @@
   let showToc = $state(false);
   let showHighlights = $state(false);
   let reader = $state<EpubReader | null>(null);
-  let showControls = $state(false);
-  let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
   let showTextSizePopup = $state(false);
 
   // Text size options
@@ -276,21 +275,17 @@ ${highlightLines.join('\n\n')}
     showThemePopup = false;
   }
 
-  // Controls hover handling
-  function handleMouseEnterControls(): void {
-    if (controlsTimeout) {
-      clearTimeout(controlsTimeout);
-      controlsTimeout = null;
-    }
-    showControls = true;
+  // Controls visibility - delegate to shared floating UI state
+  function handleMouseMove(): void {
+    floatingUIState.show();
   }
 
-  function handleMouseLeaveControls(): void {
-    controlsTimeout = setTimeout(() => {
-      showControls = false;
-      showTextSizePopup = false;
-      showThemePopup = false;
-    }, 300);
+  function handleMouseEnterControlBar(): void {
+    floatingUIState.onMouseEnter();
+  }
+
+  function handleMouseLeaveControlBar(): void {
+    floatingUIState.onMouseLeave();
   }
 
   // Keyboard navigation
@@ -458,11 +453,7 @@ ${highlightLines.join('\n\n')}
     </header>
 
     <!-- Main content area -->
-    <div
-      class="epub-content"
-      onmouseenter={handleMouseEnterControls}
-      onmouseleave={handleMouseLeaveControls}
-    >
+    <div class="epub-content" onmousemove={handleMouseMove}>
       <!-- TOC panel -->
       {#if showToc}
         <aside class="sidebar toc-panel">
@@ -494,12 +485,19 @@ ${highlightLines.join('\n\n')}
           onTocLoaded={handleTocLoaded}
           onTextSelected={handleTextSelected}
           onAddHighlight={addHighlight}
+          onMouseActivity={handleMouseMove}
+          onKeyDown={handleKeyDown}
         />
       </main>
 
       <!-- Bottom control bar -->
       <div class="controls-trigger">
-        <div class="bottom-controls" class:visible={showControls}>
+        <div
+          class="bottom-controls"
+          class:visible={floatingUIState.visible}
+          onmouseenter={handleMouseEnterControlBar}
+          onmouseleave={handleMouseLeaveControlBar}
+        >
           <!-- Left navigation -->
           <Tooltip text="Previous page">
             <button
@@ -860,7 +858,8 @@ ${highlightLines.join('\n\n')}
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 16px;
+    padding-bottom: 24px;
+    padding-right: 100px; /* Space for FAB */
     /* Trigger area is always active for hover detection */
   }
 
