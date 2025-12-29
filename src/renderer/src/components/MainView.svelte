@@ -903,9 +903,6 @@
     shelfPanelOpen = !shelfPanelOpen;
     if (shelfPanelOpen) chatPanelOpen = false; // Mutual exclusion
   }}
-  onArchiveWebpage={() => {
-    showArchiveWebpageModal = true;
-  }}
 />
 
 <ChatPanel

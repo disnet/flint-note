@@ -3,11 +3,9 @@
    * Floating Action Button Menu
    *
    * Displays a FAB that expands into a popup menu on hover,
-   * showing options for Chat, Shelf, Import Book, and Archive Webpage.
+   * showing options for Chat and Shelf.
    * When a panel is open, shows only a close button below the panel.
    */
-
-  import { pickAndImportEpub, pickAndImportPdf } from '../lib/automerge';
 
   interface Props {
     /** Whether the chat panel is currently open */
@@ -18,35 +16,9 @@
     onToggleChat: () => void;
     /** Toggle shelf panel callback */
     onToggleShelf: () => void;
-    /** Archive webpage callback (opens modal) */
-    onArchiveWebpage?: () => void;
   }
 
-  let { chatOpen, shelfOpen, onToggleChat, onToggleShelf, onArchiveWebpage }: Props =
-    $props();
-
-  let isImportingEpub = $state(false);
-  let isImportingPdf = $state(false);
-
-  async function handleImportEpubClick(): Promise<void> {
-    if (isImportingEpub) return;
-    isImportingEpub = true;
-    try {
-      await pickAndImportEpub();
-    } finally {
-      isImportingEpub = false;
-    }
-  }
-
-  async function handleImportPdfClick(): Promise<void> {
-    if (isImportingPdf) return;
-    isImportingPdf = true;
-    try {
-      await pickAndImportPdf();
-    } finally {
-      isImportingPdf = false;
-    }
-  }
+  let { chatOpen, shelfOpen, onToggleChat, onToggleShelf }: Props = $props();
 
   let isHovered = $state(false);
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -136,129 +108,11 @@
       </svg>
     </button>
   {:else}
-    <!-- Import PDF button (appears above on hover) -->
-    <button
-      class="fab-button import-button"
-      class:visible={showExpandedMenu}
-      onclick={handleImportPdfClick}
-      title="Import PDF"
-      aria-label="Import PDF"
-      tabindex={showExpandedMenu ? 0 : -1}
-      disabled={isImportingPdf}
-    >
-      {#if isImportingPdf}
-        <!-- Loading spinner -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="spinning"
-        >
-          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"
-          ></circle>
-        </svg>
-      {:else}
-        <!-- Document icon for PDF -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>
-      {/if}
-    </button>
-
-    <!-- Archive Webpage button (appears above on hover) -->
-    {#if onArchiveWebpage}
-      <button
-        class="fab-button webpage-button"
-        class:visible={showExpandedMenu}
-        onclick={onArchiveWebpage}
-        title="Archive Webpage"
-        aria-label="Archive Webpage"
-        tabindex={showExpandedMenu ? 0 : -1}
-      >
-        <!-- Globe icon -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path
-            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-          ></path>
-        </svg>
-      </button>
-    {/if}
-
-    <!-- Import Book button (appears above on hover) -->
-    <button
-      class="fab-button import-button"
-      class:visible={showExpandedMenu}
-      onclick={handleImportEpubClick}
-      title="Import Book"
-      aria-label="Import Book"
-      tabindex={showExpandedMenu ? 0 : -1}
-      disabled={isImportingEpub}
-    >
-      {#if isImportingEpub}
-        <!-- Loading spinner -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="spinning"
-        >
-          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"
-          ></circle>
-        </svg>
-      {:else}
-        <!-- Book icon -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-        </svg>
-      {/if}
-    </button>
-
     <!-- Shelf button (appears above on hover) -->
     <button
       class="fab-button shelf-button"
       class:visible={showExpandedMenu}
       onclick={handleShelfClick}
-      title="Open Shelf"
       aria-label="Open Shelf"
       tabindex={showExpandedMenu ? 0 : -1}
     >
@@ -277,6 +131,7 @@
           d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
         ></path>
       </svg>
+      <span class="fab-tooltip">Shelf</span>
     </button>
 
     <!-- Main FAB / Chat button (always in same position) -->
@@ -284,41 +139,24 @@
       class="fab-main"
       class:expanded={showExpandedMenu}
       onclick={showExpandedMenu ? handleChatClick : undefined}
-      title={showExpandedMenu ? 'Open AI Chat' : 'Open menu'}
       aria-label={showExpandedMenu ? 'Open AI Chat' : 'Open menu'}
     >
-      {#if showExpandedMenu}
-        <!-- Chat bubble icon -->
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-          ></path>
-        </svg>
-      {:else}
-        <!-- Plus/menu icon -->
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      {/if}
+      <!-- Chat bubble icon -->
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+        ></path>
+      </svg>
+      <span class="fab-tooltip">Agent</span>
     </button>
   {/if}
 </div>
@@ -337,6 +175,7 @@
 
   /* Main FAB button - always at the bottom position */
   .fab-main {
+    position: relative;
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -386,6 +225,7 @@
 
   /* Shelf button - appears above main button */
   .fab-button {
+    position: relative;
     width: 48px;
     height: 48px;
     border-radius: 50%;
@@ -462,29 +302,33 @@
     transform: scale(0.95);
   }
 
-  /* Spinning animation for loading state */
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
+  /* Tooltip styles */
+  .fab-tooltip {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.75rem;
+    padding: 0.375rem 0.625rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease;
   }
 
-  .spinning {
-    animation: spin 1s linear infinite;
-  }
-
-  /* Disabled state for import button */
-  .fab-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  .fab-button:disabled:hover {
-    transform: translateY(0) scale(1);
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+  .fab-button:hover .fab-tooltip,
+  .fab-main:hover .fab-tooltip {
+    opacity: 1;
+    visibility: visible;
   }
 </style>
