@@ -3,6 +3,7 @@
    * Note type dropdown for Automerge-based notes
    * Allows selecting and changing the type of a note
    */
+  import { onDestroy } from 'svelte';
   import { getNoteTypes, setNoteType, type NoteType } from '../lib/automerge';
 
   interface Props {
@@ -22,10 +23,40 @@
   let isOpen = $state(false);
   let dropdownRef = $state<HTMLDivElement | null>(null);
   let buttonRef = $state<HTMLButtonElement | null>(null);
+  let menuRef = $state<HTMLDivElement | null>(null);
   let searchQuery = $state('');
   let searchInputRef = $state<HTMLInputElement | null>(null);
   let highlightedIndex = $state(0);
   let menuPosition = $state({ top: 0, left: 0 });
+
+  // Portal container for the dropdown menu
+  let portalContainer: HTMLDivElement | null = null;
+
+  // Create portal container on first open
+  function ensurePortalContainer(): HTMLDivElement {
+    if (!portalContainer) {
+      portalContainer = document.createElement('div');
+      portalContainer.className = 'note-type-dropdown-portal';
+      document.body.appendChild(portalContainer);
+    }
+    return portalContainer;
+  }
+
+  // Clean up portal on destroy
+  onDestroy(() => {
+    if (portalContainer && portalContainer.parentNode) {
+      portalContainer.parentNode.removeChild(portalContainer);
+      portalContainer = null;
+    }
+  });
+
+  // Move menu to portal when it opens
+  $effect(() => {
+    if (isOpen && menuRef) {
+      const portal = ensurePortalContainer();
+      portal.appendChild(menuRef);
+    }
+  });
 
   // Filter types by search
   const filteredTypes = $derived.by(() => {
@@ -38,7 +69,11 @@
 
   // Close dropdown when clicking outside
   function handleClickOutside(event: MouseEvent): void {
-    if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+    const target = event.target as Node;
+    // Check if click is inside the dropdown button or the portal menu
+    const isInsideDropdown = dropdownRef && dropdownRef.contains(target);
+    const isInsideMenu = menuRef && menuRef.contains(target);
+    if (!isInsideDropdown && !isInsideMenu) {
       closeDropdown();
     }
   }
@@ -163,10 +198,14 @@
   </button>
 
   {#if isOpen}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
+      bind:this={menuRef}
       class="dropdown-menu"
-      role="menu"
       style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
+      onclick={(e) => e.stopPropagation()}
+      onmousedown={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
       <div class="search-container">
         <input
@@ -211,7 +250,10 @@
             class="dropdown-item"
             class:selected={noteType.id === currentTypeId}
             class:highlighted={index === highlightedIndex}
-            onclick={() => selectType(noteType)}
+            onclick={(e) => {
+              e.stopPropagation();
+              selectType(noteType);
+            }}
             type="button"
             role="menuitem"
           >
@@ -296,7 +338,8 @@
     transform: rotate(180deg);
   }
 
-  .dropdown-menu {
+  /* Portal styles - must be global since menu is moved to document.body */
+  :global(.note-type-dropdown-portal .dropdown-menu) {
     position: fixed;
     min-width: 160px;
     max-height: 20rem;
@@ -308,9 +351,10 @@
     animation: slideDown 0.15s ease-out;
     overflow-y: auto;
     overflow-x: hidden;
+    overscroll-behavior: contain;
   }
 
-  .search-container {
+  :global(.note-type-dropdown-portal .search-container) {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -322,7 +366,7 @@
     gap: 0.25rem;
   }
 
-  .search-input {
+  :global(.note-type-dropdown-portal .search-input) {
     flex: 1;
     padding: 0.375rem 0.5rem;
     border: 1px solid var(--border-light);
@@ -334,15 +378,15 @@
     transition: border-color 0.2s ease;
   }
 
-  .search-input::placeholder {
+  :global(.note-type-dropdown-portal .search-input::placeholder) {
     color: var(--text-muted);
   }
 
-  .search-input:focus {
+  :global(.note-type-dropdown-portal .search-input:focus) {
     border-color: var(--accent-primary);
   }
 
-  .clear-search {
+  :global(.note-type-dropdown-portal .clear-search) {
     padding: 0.25rem;
     background: transparent;
     border: none;
@@ -355,18 +399,18 @@
     transition: all 0.2s ease;
   }
 
-  .clear-search:hover {
+  :global(.note-type-dropdown-portal .clear-search:hover) {
     background: var(--bg-hover);
     color: var(--text-primary);
   }
 
-  .no-results {
+  :global(.note-type-dropdown-portal .no-results) {
     color: var(--text-secondary);
     cursor: default;
     font-style: italic;
   }
 
-  .no-results:hover {
+  :global(.note-type-dropdown-portal .no-results:hover) {
     background: transparent;
   }
 
@@ -381,7 +425,7 @@
     }
   }
 
-  .dropdown-item {
+  :global(.note-type-dropdown-portal .dropdown-item) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -397,33 +441,33 @@
     text-align: left;
   }
 
-  .dropdown-item:hover,
-  .dropdown-item.highlighted {
+  :global(.note-type-dropdown-portal .dropdown-item:hover),
+  :global(.note-type-dropdown-portal .dropdown-item.highlighted) {
     background: var(--bg-secondary);
   }
 
-  .dropdown-item.selected {
+  :global(.note-type-dropdown-portal .dropdown-item.selected) {
     background: var(--accent-primary);
     color: white;
   }
 
-  .dropdown-item.selected:hover,
-  .dropdown-item.selected.highlighted {
+  :global(.note-type-dropdown-portal .dropdown-item.selected:hover),
+  :global(.note-type-dropdown-portal .dropdown-item.selected.highlighted) {
     background: var(--accent-hover);
   }
 
-  .item-main {
+  :global(.note-type-dropdown-portal .item-main) {
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
 
-  .item-icon {
+  :global(.note-type-dropdown-portal .item-icon) {
     font-size: 1rem;
     line-height: 1;
   }
 
-  .item-name {
+  :global(.note-type-dropdown-portal .item-name) {
     font-weight: 500;
     text-transform: capitalize;
   }
