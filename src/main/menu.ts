@@ -302,9 +302,27 @@ export function createApplicationMenu(): Menu {
           }
         },
         { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        {
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+=',
+          click: (): void => {
+            sendToRenderer('menu-action', 'font-size-increase');
+          }
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: (): void => {
+            sendToRenderer('menu-action', 'font-size-decrease');
+          }
+        },
+        {
+          label: 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: (): void => {
+            sendToRenderer('menu-action', 'font-size-reset');
+          }
+        },
         { type: 'separator' },
         { role: 'togglefullscreen' },
         ...(shouldShowDevTools()

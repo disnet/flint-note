@@ -768,6 +768,39 @@
         handleArchiveFromMenu();
         break;
 
+      // Font size actions (context-aware: reader zoom for PDF/EPUB, font size otherwise)
+      case 'font-size-increase':
+        if (isActiveNoteEpub || isActiveNotePdf) {
+          window.dispatchEvent(
+            new CustomEvent('reader-zoom', { detail: { direction: 'increase' } })
+          );
+        } else {
+          const currentSize = settingsStore.settings.appearance.fontSize ?? 16;
+          const newSize = Math.min(currentSize + 2, 24);
+          handleFontSizeChange(newSize);
+        }
+        break;
+      case 'font-size-decrease':
+        if (isActiveNoteEpub || isActiveNotePdf) {
+          window.dispatchEvent(
+            new CustomEvent('reader-zoom', { detail: { direction: 'decrease' } })
+          );
+        } else {
+          const currentSize = settingsStore.settings.appearance.fontSize ?? 16;
+          const newSize = Math.max(currentSize - 2, 12);
+          handleFontSizeChange(newSize);
+        }
+        break;
+      case 'font-size-reset':
+        if (isActiveNoteEpub || isActiveNotePdf) {
+          window.dispatchEvent(
+            new CustomEvent('reader-zoom', { detail: { direction: 'reset' } })
+          );
+        } else {
+          handleFontSizeChange(16);
+        }
+        break;
+
       // Reader actions
       case 'reader-prev':
         // Dispatch a custom event for readers to handle
@@ -778,6 +811,21 @@
       case 'reader-next':
         window.dispatchEvent(
           new CustomEvent('reader-navigate', { detail: { direction: 'next' } })
+        );
+        break;
+      case 'reader-zoom-increase':
+        window.dispatchEvent(
+          new CustomEvent('reader-zoom', { detail: { direction: 'increase' } })
+        );
+        break;
+      case 'reader-zoom-decrease':
+        window.dispatchEvent(
+          new CustomEvent('reader-zoom', { detail: { direction: 'decrease' } })
+        );
+        break;
+      case 'reader-zoom-reset':
+        window.dispatchEvent(
+          new CustomEvent('reader-zoom', { detail: { direction: 'reset' } })
         );
         break;
 

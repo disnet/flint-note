@@ -296,6 +296,27 @@ async function createWindow(
     return { action: 'deny' };
   });
 
+  // Intercept zoom shortcuts before Chromium handles them
+  // This prevents built-in page zoom and lets our menu accelerators work
+  // The renderer routes these to font size or reader zoom based on context
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const isMac = process.platform === 'darwin';
+    const modifierKey = isMac ? input.meta : input.control;
+
+    if (modifierKey && !input.shift && input.type === 'keyDown') {
+      if (input.key === '-') {
+        event.preventDefault();
+        mainWindow.webContents.send('menu-action', 'font-size-decrease');
+      } else if (input.key === '=') {
+        event.preventDefault();
+        mainWindow.webContents.send('menu-action', 'font-size-increase');
+      } else if (input.key === '0') {
+        event.preventDefault();
+        mainWindow.webContents.send('menu-action', 'font-size-reset');
+      }
+    }
+  });
+
   // Handle context menu with spellcheck support
   mainWindow.webContents.on('context-menu', (_event, params) => {
     const template: Electron.MenuItemConstructorOptions[] = [];

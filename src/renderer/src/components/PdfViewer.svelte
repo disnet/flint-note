@@ -259,6 +259,27 @@ ${highlightLines.join('\n\n')}
     showZoomPopup = false;
   }
 
+  // Handle reader zoom from menu
+  function handleReaderZoom(event: Event): void {
+    const detail = (event as CustomEvent<{ direction: string }>).detail;
+    const currentZoom = pdfProps().zoomLevel ?? 100;
+    const currentIndex = zoomLevelOptions.indexOf(currentZoom);
+
+    let newZoom: number;
+    if (detail.direction === 'increase') {
+      const nextIndex =
+        currentIndex < zoomLevelOptions.length - 1 ? currentIndex + 1 : currentIndex;
+      newZoom = zoomLevelOptions[nextIndex];
+    } else if (detail.direction === 'decrease') {
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+      newZoom = zoomLevelOptions[prevIndex];
+    } else {
+      // reset
+      newZoom = 100;
+    }
+    updatePdfZoomLevel(note.id, newZoom);
+  }
+
   // Handle reader theme change
   function handleThemeChange(theme: 'system' | 'light' | 'dark'): void {
     settingsStore.updateReaderTheme(theme);
@@ -403,12 +424,16 @@ ${highlightLines.join('\n\n')}
     }
     // Add keyboard listener
     window.addEventListener('keydown', handleKeyDown);
+    // Add reader zoom listener
+    window.addEventListener('reader-zoom', handleReaderZoom);
   });
 
   onDestroy(() => {
     saveState();
     // Remove keyboard listener
     window.removeEventListener('keydown', handleKeyDown);
+    // Remove reader zoom listener
+    window.removeEventListener('reader-zoom', handleReaderZoom);
   });
 
   // Reload when note/hash changes

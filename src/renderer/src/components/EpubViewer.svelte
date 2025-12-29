@@ -250,6 +250,27 @@ ${highlightLines.join('\n\n')}
     showTextSizePopup = false;
   }
 
+  // Handle reader zoom from menu
+  function handleReaderZoom(event: Event): void {
+    const detail = (event as CustomEvent<{ direction: string }>).detail;
+    const currentSize = epubProps().textSize ?? 100;
+    const currentIndex = textSizeOptions.indexOf(currentSize);
+
+    let newSize: number;
+    if (detail.direction === 'increase') {
+      const nextIndex =
+        currentIndex < textSizeOptions.length - 1 ? currentIndex + 1 : currentIndex;
+      newSize = textSizeOptions[nextIndex];
+    } else if (detail.direction === 'decrease') {
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+      newSize = textSizeOptions[prevIndex];
+    } else {
+      // reset
+      newSize = 100;
+    }
+    updateEpubTextSize(note.id, newSize);
+  }
+
   // Handle reader theme change
   function handleThemeChange(theme: 'system' | 'light' | 'dark'): void {
     settingsStore.updateReaderTheme(theme);
@@ -393,12 +414,16 @@ ${highlightLines.join('\n\n')}
     }
     // Add keyboard listener
     window.addEventListener('keydown', handleKeyDown);
+    // Add reader zoom listener
+    window.addEventListener('reader-zoom', handleReaderZoom);
   });
 
   onDestroy(() => {
     saveState();
     // Remove keyboard listener
     window.removeEventListener('keydown', handleKeyDown);
+    // Remove reader zoom listener
+    window.removeEventListener('reader-zoom', handleReaderZoom);
   });
 
   // Reload when note/hash changes
