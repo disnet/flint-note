@@ -4758,3 +4758,29 @@ export function getRoutineContextForPrompt(): string {
 
   return context;
 }
+
+/**
+ * Get note types context for AI system prompt injection.
+ * Generates a compact markdown section listing all non-archived note types
+ * with their names and purposes.
+ */
+export function getNoteTypesContextForPrompt(): string {
+  const noteTypes = getNoteTypes();
+
+  if (noteTypes.length === 0) {
+    return '## Note Types\n\nNo note types are currently defined in this vault.\n';
+  }
+
+  let context = '## Note Types\n\n';
+  context += 'The following note types are available in this vault:\n\n';
+
+  for (const noteType of noteTypes) {
+    const purpose = noteType.purpose?.trim() || 'No purpose defined';
+    context += `- **${noteType.name}**: ${purpose}\n`;
+  }
+
+  context +=
+    '\nWhen creating or updating notes of a specific type, use `get_note_type` to understand the full requirements including metadata schema and agent instructions.\n';
+
+  return context;
+}

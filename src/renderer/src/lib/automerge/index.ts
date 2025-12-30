@@ -317,7 +317,8 @@ export {
   isRoutineDue,
   getDaysUntilNextDue,
   formatRecurringSchedule,
-  getRoutineContextForPrompt
+  getRoutineContextForPrompt,
+  getNoteTypesContextForPrompt
 } from './state.svelte';
 
 // OPFS storage for EPUB files

@@ -23,7 +23,8 @@ import {
   createConversation,
   addMessageToConversation,
   updateConversationMessage,
-  getConversation
+  getConversation,
+  getNoteTypesContextForPrompt
 } from './state.svelte';
 import { clone } from './utils';
 import type { PersistedToolCall } from './types';
@@ -89,7 +90,7 @@ export type ChatStatus =
  */
 export const TOOL_CALL_STEP_LIMIT = 30;
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You have access to tools that let you search, read, create, update, and archive notes, as well as read and search EPUB books.
+const BASE_SYSTEM_PROMPT = `You are a helpful AI assistant integrated into Flint, a note-taking application. You have access to tools that let you search, read, create, update, and archive notes, as well as read and search EPUB books.
 
 When users ask about their notes:
 - Use search_notes to find relevant notes by keywords
@@ -133,6 +134,18 @@ When referencing notes in your responses, use wikilink format so users can click
 For example: "I found your note [[n-abc12345|Meeting Notes]] which discusses..."
 
 Be concise and helpful. When showing note content, format it nicely. Always confirm before making changes to notes.`;
+
+/**
+ * Build the complete system prompt with dynamic context sections.
+ * Includes note types available in the vault for AI context.
+ */
+function buildSystemPrompt(): string {
+  const noteTypesContext = getNoteTypesContextForPrompt();
+
+  return `${BASE_SYSTEM_PROMPT}
+
+${noteTypesContext}`;
+}
 
 /**
  * Chat Service class that manages AI conversations with tool support
@@ -376,7 +389,7 @@ export class ChatService {
       // Stream the response
       const result = streamText({
         model: openrouter(model || DEFAULT_MODEL),
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(),
         messages: coreMessages,
         tools,
         stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT), // Allow up to TOOL_CALL_STEP_LIMIT tool call rounds
@@ -615,7 +628,7 @@ export class ChatService {
       // Stream the response
       const result = streamText({
         model: openrouter(model || DEFAULT_MODEL),
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(),
         messages: coreMessages,
         tools,
         stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT),
