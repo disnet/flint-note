@@ -1515,6 +1515,20 @@ export function archiveNoteType(id: string): void {
 }
 
 /**
+ * Unarchive a note type (restore from soft delete)
+ */
+export function unarchiveNoteType(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const noteType = doc.noteTypes?.[id];
+    if (noteType) {
+      noteType.archived = false;
+    }
+  });
+}
+
+/**
  * Set a note's type
  */
 export function setNoteType(noteId: string, typeId: string): void {

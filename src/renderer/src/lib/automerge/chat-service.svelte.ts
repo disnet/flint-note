@@ -15,6 +15,7 @@ import {
 } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createNoteTools } from './note-tools.svelte';
+import { createNoteTypeTools } from './notetype-tools.svelte';
 import { createEpubTools } from './epub-tools.svelte';
 import { createPdfTools } from './pdf-tools.svelte';
 import { createRoutineTools } from './routine-tools.svelte';
@@ -356,9 +357,10 @@ export class ChatService {
         }
       }
 
-      // Create tools (note tools + EPUB tools + PDF tools + routine tools)
+      // Create tools (note tools + note type tools + EPUB tools + PDF tools + routine tools)
       const tools = {
         ...createNoteTools(),
+        ...createNoteTypeTools(),
         ...createEpubTools(),
         ...createPdfTools(),
         ...createRoutineTools()
