@@ -33,13 +33,40 @@ import type {
   AgentRoutineType,
   SupplementaryMaterial,
   RoutineCompletion,
-  RecurringSpec
+  RecurringSpec,
+  ReviewData,
+  ReviewHistoryEntry,
+  ReviewStatus
 } from '../../renderer/src/lib/automerge/types';
 
 // Constants matching the Automerge system
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 const DAILY_NOTE_TYPE_ID = 'type-daily';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
+
+/**
+ * Metadata keys that should be mapped to standard Note fields instead of props.
+ * These keys (with or without flint_ prefix) will be extracted and applied
+ * to the corresponding Note field during migration.
+ */
+const STANDARD_NOTE_FIELD_KEYS = new Set([
+  'flint_id',
+  'id',
+  'flint_title',
+  'title',
+  'flint_type',
+  'type',
+  'flint_kind',
+  'flint_filename',
+  'flint_created',
+  'created',
+  'flint_updated',
+  'updated',
+  'flint_archived',
+  'archived',
+  'flint_lastOpened',
+  'lastOpened'
+]);
 
 /**
  * Generate an 8-character hex ID
@@ -482,29 +509,34 @@ function transformNote(
     typeId = typeIdMapping[legacy.type] ?? DEFAULT_NOTE_TYPE_ID;
   }
 
-  // Build props from metadata
+  // Build props from metadata, filtering out standard Note fields
   const props: Record<string, unknown> = {};
+  const standardFieldOverrides: Record<string, unknown> = {};
 
   for (const meta of metadata) {
-    props[meta.key] = parseMetadataValue(meta.value, meta.value_type);
+    if (STANDARD_NOTE_FIELD_KEYS.has(meta.key)) {
+      // Extract the field name (strip flint_ prefix if present)
+      const fieldName = meta.key.replace(/^flint_/, '');
+      standardFieldOverrides[fieldName] = parseMetadataValue(meta.value, meta.value_type);
+    } else {
+      props[meta.key] = parseMetadataValue(meta.value, meta.value_type);
+    }
   }
 
-  // Add review data to props if exists
+  // Build ReviewData structure if review item exists
+  let reviewData: ReviewData | undefined;
   if (reviewItem) {
-    props.reviewEnabled = toBool(reviewItem.enabled);
-    if (reviewItem.last_reviewed) {
-      props.reviewLastReviewed = reviewItem.last_reviewed;
-    }
-    props.reviewNextReview = reviewItem.next_review;
-    props.reviewCount = reviewItem.review_count;
-    props.reviewSessionNumber = reviewItem.next_session_number;
-    props.reviewInterval = reviewItem.current_interval;
-    props.reviewStatus = reviewItem.status;
-
-    const history = safeParseJSON<unknown[]>(reviewItem.review_history);
-    if (history) {
-      props.reviewHistory = history;
-    }
+    const reviewHistory =
+      safeParseJSON<ReviewHistoryEntry[]>(reviewItem.review_history) ?? [];
+    reviewData = {
+      enabled: toBool(reviewItem.enabled),
+      lastReviewed: reviewItem.last_reviewed || null,
+      nextSessionNumber: reviewItem.next_session_number ?? 1,
+      currentInterval: reviewItem.current_interval ?? 1,
+      status: (reviewItem.status as ReviewStatus) ?? 'active',
+      reviewCount: reviewItem.review_count ?? 0,
+      reviewHistory
+    };
   }
 
   // Determine content transformation:
@@ -544,14 +576,18 @@ function transformNote(
     }
   }
 
+  // Apply standard field overrides from metadata
   const note: Note = {
     id: noteId,
-    title: noteTitle,
+    title: (standardFieldOverrides.title as string) ?? noteTitle,
     content,
     type: typeId,
-    created: legacy.created ?? nowISO(),
-    updated: legacy.updated ?? nowISO(),
-    archived: toBool(legacy.archived)
+    created: (standardFieldOverrides.created as string) ?? legacy.created ?? nowISO(),
+    updated: (standardFieldOverrides.updated as string) ?? legacy.updated ?? nowISO(),
+    archived:
+      standardFieldOverrides.archived !== undefined
+        ? toBool(standardFieldOverrides.archived as number)
+        : toBool(legacy.archived)
   };
 
   // Only include optional fields if they have values (undefined is not valid JSON for Automerge)
@@ -560,6 +596,12 @@ function transformNote(
   }
   if (Object.keys(props).length > 0) {
     note.props = props;
+  }
+  if (standardFieldOverrides.lastOpened) {
+    note.lastOpened = standardFieldOverrides.lastOpened as string;
+  }
+  if (reviewData) {
+    note.review = reviewData;
   }
 
   return { note, isEpub, isPdf, isWebpage, isDeck, isDaily };

@@ -16,6 +16,7 @@ import {
   getTypeName,
   buildMarkdownWithFrontmatter,
   parseMarkdownFile,
+  propsChanged,
   type SyncNote,
   type SyncNoteMetadata,
   type SyncNoteType,
@@ -49,6 +50,7 @@ interface ExistingFileInfo {
   relativePath: string;
   title: string;
   type: string;
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -84,7 +86,8 @@ function scanExistingFiles(baseDirectory: string): Map<string, ExistingFileInfo>
                 existingFiles.set(parsed.id, {
                   relativePath,
                   title: parsed.title,
-                  type: parsed.type
+                  type: parsed.type,
+                  props: parsed.props
                 });
               }
             } catch {
@@ -150,6 +153,13 @@ function getNotesNeedingContentLoad(
           `  title: "${note.title}"\n` +
           `  existing path: "${existing.relativePath}"\n` +
           `  expected path: "${expectedPath}"`
+      );
+      needsContent.push(noteId);
+    } else if (propsChanged(note.props, existing.props)) {
+      // Props changed, need to rewrite
+      console.log(
+        `[MarkdownSync] Note needs sync (props changed): ${noteId}\n` +
+          `  title: "${note.title}"`
       );
       needsContent.push(noteId);
     }
@@ -295,7 +305,7 @@ async function importOrphanedFile(
 
   if (parsed) {
     // File has frontmatter - check if note exists
-    const { id: noteId, title, content, type } = parsed;
+    const { id: noteId, title, content, type, props } = parsed;
     const doc = docHandle.doc();
 
     if (doc && doc.notes && doc.notes[noteId] && !doc.notes[noteId].archived) {
@@ -340,7 +350,8 @@ async function importOrphanedFile(
         doc.notes[noteId] = {
           id: noteId,
           title,
-          type
+          type,
+          props: props && Object.keys(props).length > 0 ? props : undefined
         };
         if (!doc.contentUrls) doc.contentUrls = {};
         doc.contentUrls[noteId] = contentHandle.url;
@@ -520,9 +531,10 @@ export function setupMarkdownSync(
       } else if (
         prevNote.title !== note.title ||
         prevNote.archived !== note.archived ||
-        prevNote.type !== note.type
+        prevNote.type !== note.type ||
+        propsChanged(prevNote.props, note.props)
       ) {
-        // Metadata changed (title, type, archived status), sync it
+        // Metadata changed (title, type, archived status, or props), sync it
         const content = vaultContentCache.get(noteId) || '';
         syncNoteToFile(baseDirectory, note, content, noteTypes, mappings, vaultId);
       }
@@ -642,7 +654,7 @@ export function setupMarkdownSync(
       return;
     }
 
-    const { id: noteId, title, content, type } = parsed;
+    const { id: noteId, title, content, type, props } = parsed;
 
     // Get current doc state
     const doc = docHandle.doc();
@@ -656,7 +668,8 @@ export function setupMarkdownSync(
       existingNote &&
       existingContent === content &&
       existingNote.title === title &&
-      existingNote.type === type
+      existingNote.type === type &&
+      !propsChanged(existingNote.props, props)
     ) {
       return;
     }
@@ -664,17 +677,30 @@ export function setupMarkdownSync(
     logger.debug(`[MarkdownSync] File changed, updating note: ${relativePath}`);
 
     // Update metadata in root document if changed
-    if (!existingNote || existingNote.title !== title || existingNote.type !== type) {
+    if (
+      !existingNote ||
+      existingNote.title !== title ||
+      existingNote.type !== type ||
+      propsChanged(existingNote.props, props)
+    ) {
       docHandle.change((doc) => {
         if (doc.notes[noteId]) {
           doc.notes[noteId].title = title;
           doc.notes[noteId].type = type;
+          // Sync props from file
+          if (props && Object.keys(props).length > 0) {
+            doc.notes[noteId].props = props;
+          } else if (doc.notes[noteId].props) {
+            // Remove props if file has none
+            delete doc.notes[noteId].props;
+          }
         } else {
           // Note doesn't exist, create it with content doc
           doc.notes[noteId] = {
             id: noteId,
             title,
-            type
+            type,
+            props: props && Object.keys(props).length > 0 ? props : undefined
           };
         }
       });

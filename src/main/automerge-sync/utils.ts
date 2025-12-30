@@ -14,6 +14,7 @@ export interface SyncNoteMetadata {
   title: string;
   type: string;
   archived?: boolean;
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -25,6 +26,7 @@ export interface SyncNote {
   content: string;
   type: string;
   archived?: boolean;
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -178,11 +180,17 @@ export function getTypeName(
  * Build markdown content with YAML frontmatter.
  */
 export function buildMarkdownWithFrontmatter(note: SyncNote): string {
-  const frontmatterData = {
+  const frontmatterData: Record<string, unknown> = {
     id: note.id,
     title: note.title || '',
     type: note.type || 'type-default'
   };
+
+  // Only add props section if there are props to write
+  if (note.props && Object.keys(note.props).length > 0) {
+    frontmatterData.props = note.props;
+  }
+
   const frontmatter = `---\n${yaml.dump(frontmatterData)}---\n\n`;
   const content = note.content || '';
   return frontmatter + content;
@@ -196,6 +204,7 @@ export interface ParsedMarkdownFile {
   title: string;
   content: string;
   type: string;
+  props?: Record<string, unknown>;
 }
 
 /**
@@ -218,14 +227,87 @@ export function parseMarkdownFile(fileContent: string): ParsedMarkdownFile | nul
       return null;
     }
 
+    // Known system fields that should not be treated as custom props
+    const systemFields = new Set(['id', 'title', 'type', 'props']);
+
+    // Start with explicitly namespaced props, or empty object
+    const props: Record<string, unknown> = {};
+
+    // Add explicitly namespaced props from the props key
+    if (frontmatter.props && typeof frontmatter.props === 'object') {
+      Object.assign(props, frontmatter.props as Record<string, unknown>);
+    }
+
+    // Collect unknown fields into props (for backward compatibility and external edits)
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (!systemFields.has(key)) {
+        props[key] = value;
+      }
+    }
+
     return {
       id: frontmatter.id as string,
       title: (frontmatter.title as string) || '',
       content,
-      type: (frontmatter.type as string) || 'type-default'
+      type: (frontmatter.type as string) || 'type-default',
+      props: Object.keys(props).length > 0 ? props : undefined
     };
   } catch (err) {
     console.error('[MarkdownSync] Failed to parse frontmatter:', err);
     return null;
   }
+}
+
+/**
+ * Deep equality comparison for props objects.
+ * Returns true if both values have the same structure and values.
+ */
+export function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+
+  if (a === null || b === null) return a === b;
+  if (a === undefined || b === undefined) return a === b;
+
+  if (typeof a !== typeof b) return false;
+
+  if (typeof a !== 'object') return a === b;
+
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(objB, key)) return false;
+    if (!deepEqual(objA[key], objB[key])) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Check if props have changed between two notes.
+ * Returns true if props are different, false if they are the same.
+ */
+export function propsChanged(
+  propsA: Record<string, unknown> | undefined,
+  propsB: Record<string, unknown> | undefined
+): boolean {
+  if (propsA === propsB) return false;
+  if (!propsA && !propsB) return false;
+  if (!propsA || !propsB) return true;
+  return !deepEqual(propsA, propsB);
 }
