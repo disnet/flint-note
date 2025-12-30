@@ -17,6 +17,7 @@
     createNote,
     setActiveNoteId,
     setActiveConversationId,
+    setActiveSystemView,
     addNoteToWorkspace,
     addItemToWorkspace,
     EditorConfig,
@@ -223,6 +224,7 @@
       // Navigate to conversation (never create via wikilink)
       setActiveConversationId(targetId);
       addItemToWorkspace({ type: 'conversation', id: targetId });
+      setActiveSystemView(null); // Clear daily view to show the conversation
     } else {
       // Note handling
       if (shouldCreate) {
@@ -230,9 +232,12 @@
         const newId = await createNote({ title });
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
+        setActiveSystemView(null); // Clear daily view to show the note
       } else {
         // Navigate to existing note
+        addNoteToWorkspace(targetId);
         setActiveNoteId(targetId);
+        setActiveSystemView(null); // Clear daily view to show the note
       }
     }
   }
