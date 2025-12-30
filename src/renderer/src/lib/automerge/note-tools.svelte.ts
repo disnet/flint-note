@@ -49,6 +49,76 @@ interface NoteResult {
 }
 
 /**
+ * Search result with context snippets around matches
+ */
+interface SearchNoteResult {
+  id: string;
+  title: string;
+  type: string;
+  typeName?: string;
+  created: string;
+  updated: string;
+  snippets: string[]; // Context snippets around matches
+  matchCount: number;
+}
+
+/**
+ * Extract context snippets around query matches in content
+ * Returns array of snippets with surrounding context
+ */
+function extractSearchSnippets(
+  content: string,
+  query: string,
+  maxSnippets = 3,
+  contextChars = 100
+): { snippets: string[]; matchCount: number } {
+  if (!query || !query.trim()) {
+    // No query - return first N chars as preview
+    const preview = content.slice(0, contextChars * 2);
+    return {
+      snippets: [preview + (content.length > contextChars * 2 ? '...' : '')],
+      matchCount: 0
+    };
+  }
+
+  const queryLower = query.toLowerCase();
+  const contentLower = content.toLowerCase();
+  const snippets: string[] = [];
+  let matchCount = 0;
+  let pos = 0;
+
+  // Find all matches and extract snippets
+  while ((pos = contentLower.indexOf(queryLower, pos)) !== -1) {
+    matchCount++;
+
+    if (snippets.length < maxSnippets) {
+      const start = Math.max(0, pos - contextChars);
+      const end = Math.min(content.length, pos + query.length + contextChars);
+
+      let snippet = '';
+      if (start > 0) snippet += '...';
+      snippet += content.slice(start, end);
+      if (end < content.length) snippet += '...';
+
+      snippets.push(snippet);
+    }
+
+    pos += query.length;
+  }
+
+  // If no matches found, return first N chars as preview
+  if (snippets.length === 0) {
+    const preview = content.slice(0, contextChars * 2);
+    return {
+      snippets: [preview + (content.length > contextChars * 2 ? '...' : '')],
+      matchCount: 0
+    };
+  }
+
+  return { snippets, matchCount };
+}
+
+/**
  * Convert a NoteMetadata + content to a simplified result for the AI
  * Truncates content to avoid overwhelming the context
  */
@@ -76,6 +146,32 @@ function toNoteResultFromMetadata(
 }
 
 /**
+ * Convert a NoteMetadata + content to a search result with snippets
+ */
+function toSearchNoteResult(
+  note: NoteMetadata,
+  content: string,
+  query: string
+): SearchNoteResult {
+  const noteType = getNoteType(note.type);
+  const { snippets, matchCount } = extractSearchSnippets(content, query);
+
+  const result: SearchNoteResult = {
+    id: note.id,
+    title: note.title,
+    type: note.type,
+    created: note.created,
+    updated: note.updated,
+    snippets,
+    matchCount
+  };
+  if (noteType?.name !== undefined) {
+    result.typeName = noteType.name;
+  }
+  return result;
+}
+
+/**
  * Create all note tools for the AI chat agent
  */
 export function createNoteTools(): Record<string, Tool> {
@@ -87,7 +183,7 @@ export function createNoteTools(): Record<string, Tool> {
       description:
         'Search and filter notes. Searches note titles by query string. ' +
         'Optionally filter by type, date ranges, and custom properties. ' +
-        'Returns matching notes sorted by relevance.',
+        'Returns matching notes with context snippets around query matches.',
       inputSchema: z.object({
         query: z
           .string()
@@ -167,11 +263,11 @@ export function createNoteTools(): Record<string, Tool> {
 
           const limitedResults = results.slice(0, effectiveLimit);
 
-          // Load content for each note
+          // Load content for each note and extract search snippets
           const noteResults = await Promise.all(
             limitedResults.map(async (n) => {
               const content = await getNoteContent(n.id);
-              return toNoteResultFromMetadata(n, content);
+              return toSearchNoteResult(n, content, query ?? '');
             })
           );
 
