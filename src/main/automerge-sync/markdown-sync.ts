@@ -791,13 +791,18 @@ export function setupMarkdownSync(
           }
         }
 
-        // Load content documents ONLY for notes that need syncing
-        if (notesNeedingContent.length > 0) {
+        // Load content documents for ALL notes to enable change subscriptions,
+        // but only sync notes that actually need initial syncing
+        const allNoteIds = (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
+          .filter(([, note]) => !note.archived)
+          .map(([id]) => id);
+
+        if (allNoteIds.length > 0) {
           logger.info(
-            `[MarkdownSync] Loading ${notesNeedingContent.length} content docs (${Object.keys(doc.notes).length - notesNeedingContent.length} already up to date)`
+            `[MarkdownSync] Loading ${allNoteIds.length} content docs, ${notesNeedingContent.length} need initial sync`
           );
           const loadPromises: Promise<void>[] = [];
-          for (const noteId of notesNeedingContent) {
+          for (const noteId of allNoteIds) {
             if (contentUrls[noteId]) {
               loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
             }
@@ -812,7 +817,9 @@ export function setupMarkdownSync(
               syncNoteToFile(baseDirectory, note, content, noteTypes, mappings, vaultId);
             }
           }
-        } else {
+        }
+
+        if (notesNeedingContent.length === 0) {
           logger.info(
             `[MarkdownSync] All ${Object.keys(doc.notes).length} notes already up to date`
           );
