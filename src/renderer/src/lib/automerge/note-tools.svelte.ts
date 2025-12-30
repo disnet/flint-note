@@ -22,6 +22,19 @@ import {
 } from './state.svelte';
 import type { NoteMetadata } from './types';
 
+// Token limits for safe context management (matching EPUB/PDF pattern)
+const TOKEN_LIMITS = {
+  NOTE_CONTENT_MAX: 100000, // ~350KB - hard limit for get_note
+  NOTE_CONTENT_DEFAULT: 50000, // ~175KB - default when no limit specified
+  LIST_HARD_MAX: 100, // Hard max for list operations
+  BACKLINKS_HARD_MAX: 50 // Hard max for backlinks
+};
+
+// Estimate tokens from text (roughly 1 token per 3.5 characters)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3.5);
+}
+
 /**
  * Simplified note result for AI context (avoids sending too much data)
  */
@@ -129,10 +142,15 @@ export function createNoteTools(): Record<string, Tool> {
           .number()
           .optional()
           .default(10)
-          .describe('Maximum number of results to return (default: 10)')
+          .describe(
+            `Maximum number of results to return (default: 10, max: ${TOKEN_LIMITS.LIST_HARD_MAX})`
+          )
       }),
       execute: async ({ query, filters, logic, limit }) => {
         try {
+          // Enforce hard limit
+          const effectiveLimit = Math.min(limit ?? 10, TOKEN_LIMITS.LIST_HARD_MAX);
+
           let results: NoteMetadata[];
 
           // Start with search results if query provided, otherwise all non-archived notes
@@ -147,7 +165,7 @@ export function createNoteTools(): Record<string, Tool> {
             results = filterNotes(results, { filters, logic });
           }
 
-          const limitedResults = results.slice(0, limit);
+          const limitedResults = results.slice(0, effectiveLimit);
 
           // Load content for each note
           const noteResults = await Promise.all(
@@ -177,23 +195,66 @@ export function createNoteTools(): Record<string, Tool> {
      */
     get_note: tool({
       description:
-        'Get a specific note by its ID. Returns the full note content. Use this when you need to read the complete content of a note.',
+        'Get a specific note by its ID. Returns the note content. For large notes, use offset parameter to paginate through content.',
       inputSchema: z.object({
         noteId: z
           .string()
-          .describe('The note ID (format: n-xxxxxxxx or daily-YYYY-MM-DD)')
+          .describe('The note ID (format: n-xxxxxxxx or daily-YYYY-MM-DD)'),
+        maxTokens: z
+          .number()
+          .optional()
+          .default(TOKEN_LIMITS.NOTE_CONTENT_DEFAULT)
+          .describe(
+            `Max tokens to return (default: ${TOKEN_LIMITS.NOTE_CONTENT_DEFAULT}, max: ${TOKEN_LIMITS.NOTE_CONTENT_MAX})`
+          ),
+        offset: z
+          .number()
+          .optional()
+          .describe(
+            'Character offset for large notes (0-indexed). Use when content exceeds limit.'
+          )
       }),
-      execute: async ({ noteId }) => {
+      execute: async ({ noteId, maxTokens, offset }) => {
         try {
           const note = getNote(noteId);
           if (!note) {
             return { success: false, error: `Note not found: ${noteId}` };
           }
+
+          // Enforce hard limit on maxTokens
+          const effectiveMaxTokens = Math.min(
+            maxTokens ?? TOKEN_LIMITS.NOTE_CONTENT_DEFAULT,
+            TOKEN_LIMITS.NOTE_CONTENT_MAX
+          );
+
           // Load content from separate document
-          const content = await getNoteContent(noteId);
-          // Return full content for get_note
+          const fullContent = await getNoteContent(noteId);
+          const totalChars = fullContent.length;
+          const totalTokensEstimate = estimateTokens(fullContent);
+
+          // Check if content exceeds limit and no offset provided
+          if (totalTokensEstimate > effectiveMaxTokens && offset === undefined) {
+            return {
+              success: false,
+              error: `Note content (${totalTokensEstimate} tokens) exceeds limit (${effectiveMaxTokens}). Use offset parameter to paginate.`,
+              noteId,
+              contentInfo: {
+                totalChars,
+                totalTokensEstimate,
+                maxTokensAllowed: TOKEN_LIMITS.NOTE_CONTENT_MAX
+              }
+            };
+          }
+
+          // Calculate content slice based on offset
+          const startOffset = offset ?? 0;
+          const maxChars = Math.floor(effectiveMaxTokens * 3.5);
+          const content = fullContent.slice(startOffset, startOffset + maxChars);
+          const returnedChars = content.length;
+          const truncated = startOffset + returnedChars < totalChars;
+
+          // Build result object
           const noteType = getNoteType(note.type);
-          // Build result object, excluding undefined values (Automerge doesn't allow undefined)
           const noteResult: Record<string, unknown> = {
             id: note.id,
             title: note.title,
@@ -209,9 +270,18 @@ export function createNoteTools(): Record<string, Tool> {
           if (note.props !== undefined) {
             noteResult.props = note.props;
           }
+
           return {
             success: true,
-            note: noteResult
+            note: noteResult,
+            contentInfo: {
+              totalChars,
+              totalTokensEstimate,
+              returnedChars,
+              offset: startOffset,
+              truncated,
+              nextOffset: truncated ? startOffset + returnedChars : undefined
+            }
           };
         } catch (error) {
           return {
@@ -279,10 +349,15 @@ export function createNoteTools(): Record<string, Tool> {
           .number()
           .optional()
           .default(20)
-          .describe('Maximum number of notes to return (default: 20)')
+          .describe(
+            `Maximum number of notes to return (default: 20, max: ${TOKEN_LIMITS.LIST_HARD_MAX})`
+          )
       }),
       execute: async ({ filters, logic, limit }) => {
         try {
+          // Enforce hard limit
+          const effectiveLimit = Math.min(limit ?? 20, TOKEN_LIMITS.LIST_HARD_MAX);
+
           let notes = getNotes();
 
           // Apply filters if provided
@@ -290,7 +365,7 @@ export function createNoteTools(): Record<string, Tool> {
             notes = filterNotes(notes, { filters, logic });
           }
 
-          const limitedNotes = notes.slice(0, limit);
+          const limitedNotes = notes.slice(0, effectiveLimit);
 
           // Load content for each note
           const noteResults = await Promise.all(
@@ -426,19 +501,43 @@ export function createNoteTools(): Record<string, Tool> {
       description:
         'Get notes that link to a specific note (backlinks). This shows how notes are connected. Returns the linking notes with context around each link.',
       inputSchema: z.object({
-        noteId: z.string().describe('The note ID to find backlinks for')
+        noteId: z.string().describe('The note ID to find backlinks for'),
+        limit: z
+          .number()
+          .optional()
+          .default(20)
+          .describe(
+            `Max backlinks to return (default: 20, max: ${TOKEN_LIMITS.BACKLINKS_HARD_MAX})`
+          ),
+        offset: z
+          .number()
+          .optional()
+          .default(0)
+          .describe('Number of backlinks to skip (for pagination)')
       }),
-      execute: async ({ noteId }) => {
+      execute: async ({ noteId, limit, offset }) => {
         try {
           const note = getNote(noteId);
           if (!note) {
             return { success: false, error: `Note not found: ${noteId}` };
           }
 
-          const backlinks = await getBacklinks(noteId);
+          // Enforce hard limit
+          const effectiveLimit = Math.min(limit ?? 20, TOKEN_LIMITS.BACKLINKS_HARD_MAX);
+          const effectiveOffset = offset ?? 0;
+
+          const allBacklinks = await getBacklinks(noteId);
+          const totalBacklinks = allBacklinks.length;
+
+          // Apply pagination
+          const paginatedBacklinks = allBacklinks.slice(
+            effectiveOffset,
+            effectiveOffset + effectiveLimit
+          );
+
           // Load content for each backlink note
           const backlinkResults = await Promise.all(
-            backlinks.map(async (bl) => {
+            paginatedBacklinks.map(async (bl) => {
               const content = await getNoteContent(bl.note.id);
               return {
                 note: toNoteResultFromMetadata(bl.note, content, 200),
@@ -449,11 +548,21 @@ export function createNoteTools(): Record<string, Tool> {
               };
             })
           );
+
+          const hasMore = effectiveOffset + paginatedBacklinks.length < totalBacklinks;
+
           return {
             success: true,
             noteTitle: note.title,
             backlinks: backlinkResults,
-            count: backlinks.length
+            count: backlinkResults.length,
+            totalBacklinks,
+            pagination: {
+              offset: effectiveOffset,
+              limit: effectiveLimit,
+              hasMore,
+              nextOffset: hasMore ? effectiveOffset + effectiveLimit : undefined
+            }
           };
         } catch (error) {
           return {

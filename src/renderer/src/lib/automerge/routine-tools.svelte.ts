@@ -22,6 +22,14 @@ import {
 } from './state.svelte';
 import type { AgentRoutine, RoutineListItem, SupplementaryMaterial } from './types';
 
+// Hard limits for safe context management
+const ROUTINE_LIMITS = {
+  LIST_HARD_MAX: 100, // Hard max for list operations
+  LIST_DEFAULT: 50, // Default limit for list
+  COMPLETION_HISTORY_MAX: 50, // Hard max for completion history
+  SUPPLEMENTARY_MATERIALS_MAX: 50 // Hard max for materials
+};
+
 /**
  * Simplified routine result for AI context
  */
@@ -356,11 +364,30 @@ export function createRoutineTools(): Record<string, Tool> {
           .enum(['dueDate', 'created', 'name', 'lastCompleted'])
           .optional()
           .describe('Sort field'),
-        sortOrder: z.enum(['asc', 'desc']).optional().describe('Sort order')
+        sortOrder: z.enum(['asc', 'desc']).optional().describe('Sort order'),
+        limit: z
+          .number()
+          .optional()
+          .default(ROUTINE_LIMITS.LIST_DEFAULT)
+          .describe(
+            `Max routines to return (default: ${ROUTINE_LIMITS.LIST_DEFAULT}, max: ${ROUTINE_LIMITS.LIST_HARD_MAX})`
+          ),
+        offset: z
+          .number()
+          .optional()
+          .default(0)
+          .describe('Number of routines to skip (for pagination)')
       }),
       execute: async (input) => {
         try {
-          const items = getRoutineListItems({
+          // Enforce hard limit
+          const effectiveLimit = Math.min(
+            input.limit ?? ROUTINE_LIMITS.LIST_DEFAULT,
+            ROUTINE_LIMITS.LIST_HARD_MAX
+          );
+          const effectiveOffset = input.offset ?? 0;
+
+          const allItems = getRoutineListItems({
             status: input.status,
             type: input.type,
             dueSoon: input.dueSoon,
@@ -371,10 +398,27 @@ export function createRoutineTools(): Record<string, Tool> {
             sortOrder: input.sortOrder
           });
 
+          const totalRoutines = allItems.length;
+
+          // Apply pagination
+          const paginatedItems = allItems.slice(
+            effectiveOffset,
+            effectiveOffset + effectiveLimit
+          );
+
+          const hasMore = effectiveOffset + paginatedItems.length < totalRoutines;
+
           return {
             success: true,
-            routines: items.map(listItemToResult),
-            count: items.length
+            routines: paginatedItems.map(listItemToResult),
+            count: paginatedItems.length,
+            totalRoutines,
+            pagination: {
+              offset: effectiveOffset,
+              limit: effectiveLimit,
+              hasMore,
+              nextOffset: hasMore ? effectiveOffset + effectiveLimit : undefined
+            }
           };
         } catch (error) {
           return {
@@ -408,7 +452,15 @@ export function createRoutineTools(): Record<string, Tool> {
         completionHistoryLimit: z
           .number()
           .optional()
-          .describe('Limit completion history entries')
+          .describe(
+            `Limit completion history entries (default: 10, max: ${ROUTINE_LIMITS.COMPLETION_HISTORY_MAX})`
+          ),
+        supplementaryMaterialsLimit: z
+          .number()
+          .optional()
+          .describe(
+            `Limit supplementary materials (default: 20, max: ${ROUTINE_LIMITS.SUPPLEMENTARY_MATERIALS_MAX})`
+          )
       }),
       execute: async (input) => {
         try {
@@ -434,17 +486,25 @@ export function createRoutineTools(): Record<string, Tool> {
             ...toRoutineResult(routine)
           };
 
-          // Include supplementary materials if requested
+          // Include supplementary materials if requested (with hard limit)
           if (input.includeSupplementaryMaterials && routine.supplementaryMaterials) {
-            result.supplementaryMaterials =
-              routine.supplementaryMaterials.map(formatMaterial);
+            const materialsLimit = Math.min(
+              input.supplementaryMaterialsLimit ?? 20,
+              ROUTINE_LIMITS.SUPPLEMENTARY_MATERIALS_MAX
+            );
+            const materials = routine.supplementaryMaterials.slice(0, materialsLimit);
+            result.supplementaryMaterials = materials.map(formatMaterial);
+            result.totalSupplementaryMaterials = routine.supplementaryMaterials.length;
           }
 
-          // Include completion history if requested
+          // Include completion history if requested (with hard limit)
           if (input.includeCompletionHistory && routine.completionHistory) {
             const history = routine.completionHistory;
-            const limit = input.completionHistoryLimit || 10;
-            const recentHistory = history.slice(-limit).reverse(); // Most recent first
+            const historyLimit = Math.min(
+              input.completionHistoryLimit ?? 10,
+              ROUTINE_LIMITS.COMPLETION_HISTORY_MAX
+            );
+            const recentHistory = history.slice(-historyLimit).reverse(); // Most recent first
             result.completionHistory = recentHistory;
             result.totalCompletions = history.length;
           }
