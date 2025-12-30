@@ -261,8 +261,10 @@ function ensureDefaultNoteType(): void {
 }
 
 /**
- * Migrate existing notes with special types to have explicit sourceFormat.
- * This allows users to change the note type without breaking the viewer.
+ * Migrate existing notes with legacy source type IDs.
+ * - Sets explicit sourceFormat based on the legacy type
+ * - Changes note type to DEFAULT_NOTE_TYPE_ID
+ * - Removes the legacy type entries from noteTypes
  */
 function migrateSourceFormat(): void {
   if (!docHandle) return;
@@ -270,37 +272,59 @@ function migrateSourceFormat(): void {
   const doc = docHandle.doc();
   if (!doc?.notes) return;
 
-  // Find notes that need migration: have special type but no sourceFormat
+  const LEGACY_TYPE_IDS = [PDF_NOTE_TYPE_ID, EPUB_NOTE_TYPE_ID, WEBPAGE_NOTE_TYPE_ID];
+
+  // Find notes that need migration: have legacy type ID
   const allNotes = Object.values(doc.notes) as NoteMetadata[];
   const notesToMigrate = allNotes.filter((note) => {
-    if (note.sourceFormat) return false; // Already has sourceFormat
-    return [PDF_NOTE_TYPE_ID, EPUB_NOTE_TYPE_ID, WEBPAGE_NOTE_TYPE_ID].includes(
-      note.type
-    );
+    return LEGACY_TYPE_IDS.includes(note.type);
   });
 
-  if (notesToMigrate.length === 0) return;
+  // Check if we need to remove legacy type entries
+  const legacyTypesToRemove = LEGACY_TYPE_IDS.filter((typeId) => doc.noteTypes?.[typeId]);
 
-  console.log(
-    `[Migration] Migrating ${notesToMigrate.length} notes to explicit sourceFormat`
-  );
+  if (notesToMigrate.length === 0 && legacyTypesToRemove.length === 0) return;
+
+  if (notesToMigrate.length > 0) {
+    console.log(
+      `[Migration] Migrating ${notesToMigrate.length} notes from legacy type IDs`
+    );
+  }
+  if (legacyTypesToRemove.length > 0) {
+    console.log(
+      `[Migration] Removing ${legacyTypesToRemove.length} legacy note type entries`
+    );
+  }
 
   docHandle.change((d) => {
+    // Migrate notes
     for (const note of notesToMigrate) {
       const docNote = d.notes[note.id];
       if (!docNote) continue;
 
-      // Set sourceFormat based on current type
-      switch (note.type) {
-        case PDF_NOTE_TYPE_ID:
-          docNote.sourceFormat = 'pdf';
-          break;
-        case EPUB_NOTE_TYPE_ID:
-          docNote.sourceFormat = 'epub';
-          break;
-        case WEBPAGE_NOTE_TYPE_ID:
-          docNote.sourceFormat = 'webpage';
-          break;
+      // Set sourceFormat based on current type (if not already set)
+      if (!docNote.sourceFormat) {
+        switch (note.type) {
+          case PDF_NOTE_TYPE_ID:
+            docNote.sourceFormat = 'pdf';
+            break;
+          case EPUB_NOTE_TYPE_ID:
+            docNote.sourceFormat = 'epub';
+            break;
+          case WEBPAGE_NOTE_TYPE_ID:
+            docNote.sourceFormat = 'webpage';
+            break;
+        }
+      }
+
+      // Change type to default
+      docNote.type = DEFAULT_NOTE_TYPE_ID;
+    }
+
+    // Remove legacy type entries
+    for (const typeId of legacyTypesToRemove) {
+      if (d.noteTypes?.[typeId]) {
+        delete d.noteTypes[typeId];
       }
     }
   });
@@ -2746,32 +2770,6 @@ import type { EpubNoteProps } from './types';
 export const EPUB_NOTE_TYPE_ID = 'type-epub';
 
 /**
- * Ensure the EPUB note type exists in the document
- */
-export function ensureEpubNoteType(): void {
-  if (!docHandle) return;
-
-  const doc = docHandle.doc();
-  if (!doc?.noteTypes?.[EPUB_NOTE_TYPE_ID]) {
-    docHandle.change((d) => {
-      if (!d.noteTypes) {
-        d.noteTypes = {};
-      }
-      if (!d.noteTypes[EPUB_NOTE_TYPE_ID]) {
-        d.noteTypes[EPUB_NOTE_TYPE_ID] = {
-          id: EPUB_NOTE_TYPE_ID,
-          name: 'Book',
-          purpose: 'EPUB books with reading progress and highlights',
-          icon: '📖',
-          archived: false,
-          created: nowISO()
-        };
-      }
-    });
-  }
-}
-
-/**
  * Get all non-archived EPUB notes, sorted by last read (most recent first)
  */
 export function getEpubNotes(): NoteMetadata[] {
@@ -2796,9 +2794,6 @@ export function createEpubNote(params: {
   epubAuthor?: string;
 }): string {
   if (!docHandle) throw new Error('Not initialized');
-
-  // Ensure EPUB note type exists
-  ensureEpubNoteType();
 
   const id = generateNoteId();
   const now = nowISO();
@@ -2911,32 +2906,6 @@ import type { PdfNoteProps } from './types';
 export const PDF_NOTE_TYPE_ID = 'type-pdf';
 
 /**
- * Ensure the PDF note type exists in the document
- */
-export function ensurePdfNoteType(): void {
-  if (!docHandle) return;
-
-  const doc = docHandle.doc();
-  if (!doc?.noteTypes?.[PDF_NOTE_TYPE_ID]) {
-    docHandle.change((d) => {
-      if (!d.noteTypes) {
-        d.noteTypes = {};
-      }
-      if (!d.noteTypes[PDF_NOTE_TYPE_ID]) {
-        d.noteTypes[PDF_NOTE_TYPE_ID] = {
-          id: PDF_NOTE_TYPE_ID,
-          name: 'PDF Document',
-          purpose: 'PDF documents with reading progress and highlights',
-          icon: '📄',
-          archived: false,
-          created: nowISO()
-        };
-      }
-    });
-  }
-}
-
-/**
  * Get all non-archived PDF notes, sorted by last read (most recent first)
  */
 export function getPdfNotes(): NoteMetadata[] {
@@ -2962,9 +2931,6 @@ export function createPdfNote(params: {
   pdfAuthor?: string;
 }): string {
   if (!docHandle) throw new Error('Not initialized');
-
-  // Ensure PDF note type exists
-  ensurePdfNoteType();
 
   const id = generateNoteId();
   const now = nowISO();
@@ -3078,32 +3044,6 @@ import type { WebpageNoteProps } from './types';
 export const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
 
 /**
- * Ensure the Webpage note type exists in the document
- */
-export function ensureWebpageNoteType(): void {
-  if (!docHandle) return;
-
-  const doc = docHandle.doc();
-  if (!doc?.noteTypes?.[WEBPAGE_NOTE_TYPE_ID]) {
-    docHandle.change((d) => {
-      if (!d.noteTypes) {
-        d.noteTypes = {};
-      }
-      if (!d.noteTypes[WEBPAGE_NOTE_TYPE_ID]) {
-        d.noteTypes[WEBPAGE_NOTE_TYPE_ID] = {
-          id: WEBPAGE_NOTE_TYPE_ID,
-          name: 'Web Article',
-          purpose: 'Archived web articles with reading progress and highlights',
-          icon: '🌐',
-          archived: false,
-          created: nowISO()
-        };
-      }
-    });
-  }
-}
-
-/**
  * Get all non-archived webpage notes, sorted by last read (most recent first)
  */
 export function getWebpageNotes(): NoteMetadata[] {
@@ -3131,9 +3071,6 @@ export function createWebpageNote(params: {
   webpageExcerpt?: string;
 }): string {
   if (!docHandle) throw new Error('Not initialized');
-
-  // Ensure Webpage note type exists
-  ensureWebpageNoteType();
 
   const id = generateNoteId();
   const now = nowISO();

@@ -39,9 +39,6 @@ import type {
 // Constants matching the Automerge system
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 const DAILY_NOTE_TYPE_ID = 'type-daily';
-const EPUB_NOTE_TYPE_ID = 'type-epub';
-const PDF_NOTE_TYPE_ID = 'type-pdf';
-const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
 const DECK_NOTE_TYPE_ID = 'type-deck';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
 
@@ -398,13 +395,18 @@ function transformNote(
   // Daily notes are identified by type 'daily' (not flint_kind)
   const isDaily = legacy.type === 'daily';
   let typeId: string;
+  // Determine sourceFormat for special content types
+  let sourceFormat: 'markdown' | 'epub' | 'pdf' | 'webpage' | undefined;
 
   if (isEpub) {
-    typeId = EPUB_NOTE_TYPE_ID;
+    typeId = DEFAULT_NOTE_TYPE_ID;
+    sourceFormat = 'epub';
   } else if (isPdf) {
-    typeId = PDF_NOTE_TYPE_ID;
+    typeId = DEFAULT_NOTE_TYPE_ID;
+    sourceFormat = 'pdf';
   } else if (isWebpage) {
-    typeId = WEBPAGE_NOTE_TYPE_ID;
+    typeId = DEFAULT_NOTE_TYPE_ID;
+    sourceFormat = 'webpage';
   } else if (isDeck) {
     typeId = DECK_NOTE_TYPE_ID;
   } else if (isDaily) {
@@ -480,6 +482,7 @@ function transformNote(
     title: noteTitle,
     content,
     type: typeId,
+    sourceFormat,
     created: legacy.created ?? nowISO(),
     updated: legacy.updated ?? nowISO(),
     archived: toBool(legacy.archived),
@@ -790,45 +793,6 @@ export function transformVaultData(
       name: 'Note',
       purpose: 'General purpose notes',
       icon: '📝',
-      archived: false,
-      created: nowISO()
-    };
-  }
-
-  // Ensure EPUB note type exists (needed if there are EPUB notes)
-  const hasEpubs = data.notes.some((n) => n.flint_kind === 'epub');
-  if (hasEpubs && !noteTypes[EPUB_NOTE_TYPE_ID]) {
-    noteTypes[EPUB_NOTE_TYPE_ID] = {
-      id: EPUB_NOTE_TYPE_ID,
-      name: 'Book',
-      purpose: 'EPUB books and documents',
-      icon: '📚',
-      archived: false,
-      created: nowISO()
-    };
-  }
-
-  // Ensure PDF note type exists (needed if there are PDF notes)
-  const hasPdfs = data.notes.some((n) => n.flint_kind === 'pdf');
-  if (hasPdfs && !noteTypes[PDF_NOTE_TYPE_ID]) {
-    noteTypes[PDF_NOTE_TYPE_ID] = {
-      id: PDF_NOTE_TYPE_ID,
-      name: 'PDF',
-      purpose: 'PDF documents',
-      icon: '📄',
-      archived: false,
-      created: nowISO()
-    };
-  }
-
-  // Ensure Webpage note type exists (needed if there are webpage notes)
-  const hasWebpages = data.notes.some((n) => n.flint_kind === 'webpage');
-  if (hasWebpages && !noteTypes[WEBPAGE_NOTE_TYPE_ID]) {
-    noteTypes[WEBPAGE_NOTE_TYPE_ID] = {
-      id: WEBPAGE_NOTE_TYPE_ID,
-      name: 'Webpage',
-      purpose: 'Archived web pages',
-      icon: '🌐',
       archived: false,
       created: nowISO()
     };

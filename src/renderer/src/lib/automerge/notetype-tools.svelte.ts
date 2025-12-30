@@ -20,14 +20,7 @@ import {
 /**
  * System note types that cannot be modified or archived by the agent
  */
-const PROTECTED_TYPE_IDS = new Set([
-  'type-default',
-  'type-daily',
-  'type-epub',
-  'type-pdf',
-  'type-webpage',
-  'type-deck'
-]);
+const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily', 'type-deck']);
 
 /**
  * Check if a note type ID is a protected system type

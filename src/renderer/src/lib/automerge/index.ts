@@ -227,8 +227,6 @@ export {
   clearShelfItems,
 
   // EPUB support
-  EPUB_NOTE_TYPE_ID,
-  ensureEpubNoteType,
   getEpubNotes,
   createEpubNote,
   updateEpubReadingState,
@@ -236,8 +234,6 @@ export {
   getEpubProps,
 
   // PDF support
-  PDF_NOTE_TYPE_ID,
-  ensurePdfNoteType,
   getPdfNotes,
   createPdfNote,
   updatePdfReadingState,
@@ -245,8 +241,6 @@ export {
   getPdfProps,
 
   // Webpage support
-  WEBPAGE_NOTE_TYPE_ID,
-  ensureWebpageNoteType,
   getWebpageNotes,
   createWebpageNote,
   updateWebpageReadingState,
