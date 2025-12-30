@@ -201,7 +201,7 @@
 <style>
   .backlinks-panel {
     flex-shrink: 0;
-    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
   }
 
   /* Header */
