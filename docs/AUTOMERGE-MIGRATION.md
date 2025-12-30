@@ -86,6 +86,7 @@ interface NoteType {
 }
 
 interface NotesDocument {
+  schemaVersion?: number; // Document schema version for migrations
   notes: Record<string, Note>;
   workspaces: Record<string, Workspace>;
   activeWorkspaceId: string;
@@ -310,6 +311,50 @@ Updated `src/renderer/src/main.ts` to use `App.svelte`.
 2. **Reading**: Components call getter functions (e.g., `getNotes()`) which read from `currentDoc`
 3. **Writing**: Components call mutation functions (e.g., `updateNote()`) which call `docHandle.change()`
 4. **Reactivity**: Document changes trigger subscription callback which updates `currentDoc`, propagating to all derived values
+
+## Schema Versioning & Migrations
+
+The Automerge document includes a `schemaVersion` field to track which migrations have been applied. This enables one-time migrations that run only when upgrading from an older version.
+
+### How It Works
+
+1. **Version Tracking**: `NotesDocument.schemaVersion` tracks the current schema version (defaults to 0 for existing documents)
+2. **Version Constant**: `CURRENT_SCHEMA_VERSION` in `state.svelte.ts` defines the target version
+3. **Migration Registry**: `SCHEMA_MIGRATIONS` maps version numbers to migration functions
+4. **Migration Runner**: `runSchemaMigrations()` runs on vault load, applying only needed migrations
+
+### Adding New Migrations
+
+1. Increment `CURRENT_SCHEMA_VERSION`
+2. Create a migration function that takes `NotesDocument` as parameter
+3. Register it in `SCHEMA_MIGRATIONS` with the new version number
+
+```typescript
+// In state.svelte.ts
+const CURRENT_SCHEMA_VERSION = 2; // Increment this
+
+function migrateNewFeature(d: NotesDocument): void {
+  // Migration logic here
+}
+
+const SCHEMA_MIGRATIONS: Record<number, (d: NotesDocument) => void> = {
+  1: migratePropsCleanup,
+  2: migrateNewFeature,  // Add new migration
+};
+```
+
+### Current Migrations
+
+- **Version 1** (`migratePropsCleanup`): Cleans up legacy props from old migrations
+  - Removes standard Note field keys from props (`flint_id`, `flint_title`, etc.)
+  - Converts flattened review props to structured `ReviewData` object
+
+### Key Considerations
+
+- **Idempotent by version**: Each migration runs exactly once per document
+- **Atomic**: All migrations run in a single `docHandle.change()` block
+- **Sequential**: Migrations run in order from current version to target
+- **Backward compatible**: Documents without `schemaVersion` are treated as version 0
 
 ## What's Next
 

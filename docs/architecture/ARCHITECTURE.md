@@ -130,6 +130,7 @@ The main `NotesDocument` type stored in Automerge:
 
 ```typescript
 interface NotesDocument {
+  schemaVersion?: number; // Schema version for migrations
   notes: Record<string, Note>;
   workspaces: Record<string, Workspace>;
   activeWorkspaceId: string;

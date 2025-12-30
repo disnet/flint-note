@@ -40,7 +40,10 @@ import type {
   ListRoutinesInput,
   NoteFilter,
   NoteFilterInput,
-  SourceFormat
+  SourceFormat,
+  ReviewData,
+  ReviewHistoryEntry,
+  ReviewStatus
 } from './types';
 import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 import {
@@ -216,6 +219,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Migrate notes with special types to have explicit sourceFormat
     migrateSourceFormat();
 
+    // Run schema versioned migrations
+    runSchemaMigrations();
+
     // Restore last view state if available
     restoreLastViewState();
 
@@ -348,6 +354,129 @@ function migrateSourceFormat(): void {
         delete d.noteTypes[typeId];
       }
     }
+  });
+}
+
+// ============================================================================
+// Schema Versioning & Migrations
+// ============================================================================
+
+/** Current schema version - increment when adding new migrations */
+const CURRENT_SCHEMA_VERSION = 1;
+
+/**
+ * Migration v1: Clean up legacy props from old migrations.
+ * - Removes standard Note field keys from props (flint_id, flint_title, etc.)
+ * - Converts flattened review props to structured ReviewData
+ */
+function migratePropsCleanup(d: NotesDocument): void {
+  if (!d.notes) return;
+
+  const LEGACY_PROP_KEYS = new Set([
+    'flint_id',
+    'id',
+    'flint_title',
+    'title',
+    'flint_type',
+    'type',
+    'flint_kind',
+    'flint_filename',
+    'flint_created',
+    'created',
+    'flint_updated',
+    'updated',
+    'flint_archived',
+    'archived',
+    'flint_lastOpened',
+    'lastOpened'
+  ]);
+
+  const REVIEW_PROP_KEYS = new Set([
+    'reviewEnabled',
+    'reviewCount',
+    'reviewSessionNumber',
+    'reviewInterval',
+    'reviewStatus',
+    'reviewHistory',
+    'reviewNextReview',
+    'reviewLastReviewed'
+  ]);
+
+  for (const noteId of Object.keys(d.notes)) {
+    const note = d.notes[noteId];
+    if (!note?.props) continue;
+
+    // Remove legacy prop keys
+    for (const key of LEGACY_PROP_KEYS) {
+      if (key in note.props) {
+        delete note.props[key];
+      }
+    }
+
+    // Convert flattened review props to ReviewData
+    if (!note.review && note.props.reviewEnabled !== undefined) {
+      const reviewHistory = (note.props.reviewHistory as ReviewHistoryEntry[]) ?? [];
+      note.review = {
+        enabled: Boolean(note.props.reviewEnabled),
+        lastReviewed: (note.props.reviewLastReviewed as string) || null,
+        nextSessionNumber: (note.props.reviewSessionNumber as number) ?? 1,
+        currentInterval: (note.props.reviewInterval as number) ?? 1,
+        status: (note.props.reviewStatus as ReviewStatus) ?? 'active',
+        reviewCount: (note.props.reviewCount as number) ?? 0,
+        reviewHistory: clone(reviewHistory)
+      };
+    }
+
+    // Remove flattened review props
+    for (const key of REVIEW_PROP_KEYS) {
+      if (key in note.props) {
+        delete note.props[key];
+      }
+    }
+
+    // Remove empty props object
+    if (Object.keys(note.props).length === 0) {
+      delete note.props;
+    }
+  }
+}
+
+/** Migration functions keyed by target version */
+const SCHEMA_MIGRATIONS: Record<number, (d: NotesDocument) => void> = {
+  1: migratePropsCleanup
+};
+
+/**
+ * Run schema migrations if needed.
+ * Only runs migrations for versions greater than the document's current version.
+ */
+function runSchemaMigrations(): void {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc) return;
+
+  const currentVersion = doc.schemaVersion ?? 0;
+
+  if (currentVersion >= CURRENT_SCHEMA_VERSION) {
+    return; // Already up to date
+  }
+
+  console.log(
+    `[Migration] Upgrading schema from v${currentVersion} to v${CURRENT_SCHEMA_VERSION}`
+  );
+
+  docHandle.change((d) => {
+    // Run each migration in order
+    for (let version = currentVersion + 1; version <= CURRENT_SCHEMA_VERSION; version++) {
+      const migration = SCHEMA_MIGRATIONS[version];
+      if (migration) {
+        console.log(`[Migration] Running migration to v${version}`);
+        migration(d);
+      }
+    }
+    // Update schema version
+    d.schemaVersion = CURRENT_SCHEMA_VERSION;
   });
 }
 
@@ -494,6 +623,9 @@ export async function switchVault(
 
   // Migrate notes with special types to have explicit sourceFormat
   migrateSourceFormat();
+
+  // Run schema versioned migrations
+  runSchemaMigrations();
 
   // Subscribe to changes
   handle.on('change', ({ doc }) => {
@@ -3260,11 +3392,9 @@ export function createDeckNote(title: string): string {
 import type {
   ReviewRating,
   ReviewConfig,
-  ReviewData,
   ReviewState,
   ReviewSession,
-  ReviewSessionResult,
-  ReviewHistoryEntry
+  ReviewSessionResult
 } from './types';
 import {
   DEFAULT_REVIEW_CONFIG,

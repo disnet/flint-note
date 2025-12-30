@@ -540,6 +540,8 @@ export interface GetRoutineInput {
  * The root Automerge document structure
  */
 export interface NotesDocument {
+  /** Document schema version for migrations (undefined = 0) */
+  schemaVersion?: number;
   /** All note metadata keyed by ID (content is in separate NoteContentDocument) */
   notes: Record<string, NoteMetadata>;
   /** All workspaces keyed by ID */
