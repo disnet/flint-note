@@ -149,6 +149,7 @@ export interface TransformResult {
  * Maps legacy type_name to new type IDs.
  * Special cases:
  * - "Note" type maps to "type-default"
+ * - "Daily" type maps to "type-daily"
  * - Generates new IDs for other types
  */
 export function buildTypeIdMapping(
@@ -158,10 +159,14 @@ export function buildTypeIdMapping(
 
   for (const legacyType of legacyTypes) {
     const typeName = legacyType.type_name;
+    const lowerName = typeName.toLowerCase();
 
-    if (typeName.toLowerCase() === 'note') {
+    if (lowerName === 'note') {
       // Default note type
       mapping[typeName] = DEFAULT_NOTE_TYPE_ID;
+    } else if (lowerName === 'daily') {
+      // Daily note type
+      mapping[typeName] = DAILY_NOTE_TYPE_ID;
     } else {
       // Generate new ID
       mapping[typeName] = generateNoteTypeId();
@@ -343,6 +348,68 @@ function transformNoteType(legacy: LegacyNoteTypeRow, newId: string): NoteType {
 }
 
 /**
+ * System type definitions with their canonical names and icons
+ */
+const SYSTEM_TYPE_DEFINITIONS: Record<
+  string,
+  { name: string; icon: string; defaultPurpose: string }
+> = {
+  [DEFAULT_NOTE_TYPE_ID]: {
+    name: 'Note',
+    icon: '📝',
+    defaultPurpose: 'General purpose notes'
+  },
+  [DAILY_NOTE_TYPE_ID]: {
+    name: 'Daily',
+    icon: '📅',
+    defaultPurpose: 'Daily notes for tracking progress and capturing thoughts'
+  }
+};
+
+/**
+ * Create a system type by merging legacy customizations into the system type definition.
+ * Uses system name and icon, but takes properties, purpose, editorChips, and agentInstructions
+ * from the legacy type if present.
+ */
+function createMergedSystemType(
+  legacy: LegacyNoteTypeRow,
+  systemTypeId: string
+): NoteType {
+  const systemDef = SYSTEM_TYPE_DEFINITIONS[systemTypeId];
+  if (!systemDef) {
+    throw new Error(`Unknown system type ID: ${systemTypeId}`);
+  }
+
+  // Transform the legacy type to get its custom fields
+  const transformed = transformNoteType(legacy, systemTypeId);
+
+  // Create merged type: system name/icon, but legacy customizations
+  const mergedType: NoteType = {
+    id: systemTypeId,
+    name: systemDef.name,
+    // Use legacy purpose if meaningful, otherwise use system default
+    purpose:
+      legacy.purpose && legacy.purpose.trim() ? legacy.purpose : systemDef.defaultPurpose,
+    icon: systemDef.icon,
+    archived: false,
+    created: legacy.created_at ?? nowISO()
+  };
+
+  // Copy over customizations from the legacy type
+  if (transformed.properties && transformed.properties.length > 0) {
+    mergedType.properties = transformed.properties;
+  }
+  if (transformed.editorChips) {
+    mergedType.editorChips = transformed.editorChips;
+  }
+  if (transformed.agentInstructions) {
+    mergedType.agentInstructions = transformed.agentInstructions;
+  }
+
+  return mergedType;
+}
+
+/**
  * Extract date from a daily note path
  * Legacy format: "daily/YYYY-MM-DD" or "daily/YYYY/MM/DD"
  * Returns the date in YYYY-MM-DD format, or null if not a valid daily path
@@ -392,8 +459,8 @@ function transformNote(
   const isPdf = legacy.flint_kind === 'pdf';
   const isWebpage = legacy.flint_kind === 'webpage';
   const isDeck = legacy.flint_kind === 'deck';
-  // Daily notes are identified by type 'daily' (not flint_kind)
-  const isDaily = legacy.type === 'daily';
+  // Daily notes are identified by type 'daily' (case-insensitive, not flint_kind)
+  const isDaily = legacy.type.toLowerCase() === 'daily';
   let typeId: string;
   // Determine sourceFormat for special content types
   let sourceFormat: 'markdown' | 'epub' | 'pdf' | 'webpage' | undefined;
@@ -482,12 +549,18 @@ function transformNote(
     title: noteTitle,
     content,
     type: typeId,
-    sourceFormat,
     created: legacy.created ?? nowISO(),
     updated: legacy.updated ?? nowISO(),
-    archived: toBool(legacy.archived),
-    props: Object.keys(props).length > 0 ? props : undefined
+    archived: toBool(legacy.archived)
   };
+
+  // Only include optional fields if they have values (undefined is not valid JSON for Automerge)
+  if (sourceFormat) {
+    note.sourceFormat = sourceFormat;
+  }
+  if (Object.keys(props).length > 0) {
+    note.props = props;
+  }
 
   return { note, isEpub, isPdf, isWebpage, isDeck, isDaily };
 }
@@ -770,12 +843,21 @@ export function transformVaultData(
   const typeIdMapping = buildTypeIdMapping(data.noteTypes);
 
   // Transform note types
+  // System types (Note, Daily) get merged with their legacy customizations
   const noteTypes: Record<string, NoteType> = {};
+  const systemTypeIds = new Set([DEFAULT_NOTE_TYPE_ID, DAILY_NOTE_TYPE_ID]);
+
   for (const legacyType of data.noteTypes) {
     try {
       const newId = typeIdMapping[legacyType.type_name];
       if (newId) {
-        noteTypes[newId] = transformNoteType(legacyType, newId);
+        if (systemTypeIds.has(newId)) {
+          // System type: merge legacy customizations into system definition
+          noteTypes[newId] = createMergedSystemType(legacyType, newId);
+        } else {
+          // Custom type: use regular transformation
+          noteTypes[newId] = transformNoteType(legacyType, newId);
+        }
       }
     } catch (error) {
       errors.push({
@@ -786,7 +868,7 @@ export function transformVaultData(
     }
   }
 
-  // Ensure default note type exists
+  // Ensure default note type exists (with system defaults if not from legacy)
   if (!noteTypes[DEFAULT_NOTE_TYPE_ID]) {
     noteTypes[DEFAULT_NOTE_TYPE_ID] = {
       id: DEFAULT_NOTE_TYPE_ID,
@@ -799,12 +881,12 @@ export function transformVaultData(
   }
 
   // Ensure Daily note type exists (needed if there are daily notes)
-  const hasDailyNotes = data.notes.some((n) => n.type === 'daily');
+  const hasDailyNotes = data.notes.some((n) => n.type.toLowerCase() === 'daily');
   if (hasDailyNotes && !noteTypes[DAILY_NOTE_TYPE_ID]) {
     noteTypes[DAILY_NOTE_TYPE_ID] = {
       id: DAILY_NOTE_TYPE_ID,
-      name: 'Daily Note',
-      purpose: 'Daily journal entries',
+      name: 'Daily',
+      purpose: 'Daily notes for tracking progress and capturing thoughts',
       icon: '📅',
       archived: false,
       created: nowISO()

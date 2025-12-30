@@ -113,6 +113,17 @@ const conversationCache = new Map<string, Conversation>();
 // Default note type ID
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 
+// System note types that have protected names and cannot be archived
+// Their purpose, icon, properties, and other fields can still be modified
+const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily', 'type-deck']);
+
+/**
+ * Check if a note type ID is a protected system type
+ */
+export function isProtectedType(typeId: string): boolean {
+  return PROTECTED_TYPE_IDS.has(typeId);
+}
+
 /**
  * Get the source format for a note.
  * Determines which viewer/editor to use, independent of the organizational note type.
@@ -1497,6 +1508,8 @@ export function createNoteType(params: {
 
 /**
  * Update a note type
+ * System types (default, daily, deck) can have their purpose, icon, properties, and editorChips modified,
+ * but not their name (which is protected).
  */
 export function updateNoteType(
   id: string,
@@ -1506,11 +1519,20 @@ export function updateNoteType(
 ): void {
   if (!docHandle) throw new Error('Not initialized');
 
+  // For system types, block name changes but allow other modifications
+  if (isProtectedType(id) && updates.name !== undefined) {
+    console.warn(`Cannot change name of system note type: ${id}`);
+    return;
+  }
+
   docHandle.change((doc) => {
     const noteType = doc.noteTypes?.[id];
     if (!noteType) return;
 
-    if (updates.name !== undefined) noteType.name = updates.name;
+    // Only update name for non-system types
+    if (updates.name !== undefined && !isProtectedType(id)) {
+      noteType.name = updates.name;
+    }
     if (updates.purpose !== undefined) noteType.purpose = updates.purpose;
     if (updates.icon !== undefined) noteType.icon = updates.icon;
     // Use clone() to create fresh objects safe for Automerge
@@ -1526,9 +1548,14 @@ export function updateNoteType(
 /**
  * Archive a note type (soft delete)
  * Notes keep their type assignment but type won't appear in lists
+ * System types (default, daily, deck) cannot be archived
  */
 export function archiveNoteType(id: string): void {
   if (!docHandle) throw new Error('Not initialized');
+  if (isProtectedType(id)) {
+    console.warn(`Cannot archive system note type: ${id}`);
+    return;
+  }
 
   docHandle.change((doc) => {
     const noteType = doc.noteTypes?.[id];

@@ -13,6 +13,7 @@
     createNote,
     setActiveNoteId,
     addNoteToWorkspace,
+    isProtectedType,
     type NoteMetadata,
     type PropertyDefinition
   } from '../lib/automerge';
@@ -31,6 +32,9 @@
   const noteTypes = $derived(getNoteTypes());
   const allNotes = $derived(getAllNotes());
   const selectedType = $derived(selectedTypeId ? getNoteType(selectedTypeId) : null);
+  const isSelectedTypeSystem = $derived(
+    selectedTypeId ? isProtectedType(selectedTypeId) : false
+  );
 
   // Get note count for a type
   function getNoteCount(typeId: string): number {
@@ -192,11 +196,18 @@
               <input
                 type="text"
                 class="type-name-input"
+                class:readonly={isSelectedTypeSystem}
                 value={selectedType.name}
                 oninput={(e) => scheduleTypeAutoSave('name', e.currentTarget.value)}
                 placeholder="Type name"
+                readonly={isSelectedTypeSystem}
               />
-              <span class="note-count">{getNoteCount(selectedTypeId || '')} notes</span>
+              <div class="type-meta">
+                <span class="note-count">{getNoteCount(selectedTypeId || '')} notes</span>
+                {#if isSelectedTypeSystem}
+                  <span class="system-badge">System</span>
+                {/if}
+              </div>
             </div>
           </div>
           <div class="type-actions">
@@ -261,8 +272,8 @@
         {/if}
       </div>
 
-      <!-- Danger zone -->
-      {#if selectedType.id !== 'type-default'}
+      <!-- Danger zone - hidden for system types -->
+      {#if !isSelectedTypeSystem}
         <div class="danger-zone">
           <h3 class="danger-title">Danger Zone</h3>
           {#if showDeleteConfirm}
@@ -371,7 +382,12 @@
           >
             <span class="card-icon">{noteType.icon || '📄'}</span>
             <div class="card-content">
-              <span class="card-name">{noteType.name}</span>
+              <div class="card-name-row">
+                <span class="card-name">{noteType.name}</span>
+                {#if isProtectedType(noteType.id)}
+                  <span class="system-badge-small">System</span>
+                {/if}
+              </div>
               <span class="card-count">{getNoteCount(noteType.id)} notes</span>
             </div>
             <svg
@@ -487,6 +503,24 @@
     color: var(--text-muted);
   }
 
+  .card-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .system-badge-small {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    padding: 0.125rem 0.375rem;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    color: var(--text-secondary);
+    border-radius: 0.25rem;
+    border: 1px solid var(--border-light);
+  }
+
   /* Create Form */
   .create-form {
     background: var(--bg-secondary);
@@ -597,6 +631,33 @@
   .note-count {
     font-size: 0.875rem;
     color: var(--text-secondary);
+  }
+
+  .type-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .system-badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    padding: 0.1875rem 0.5rem;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    color: var(--text-secondary);
+    border-radius: 0.25rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .type-name-input.readonly {
+    cursor: default;
+    color: var(--text-primary);
+  }
+
+  .type-name-input.readonly:hover {
+    background: transparent;
   }
 
   .type-purpose-input {

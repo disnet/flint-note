@@ -770,8 +770,6 @@ export function setupMarkdownSync(
           mappings
         );
 
-        console.log(`Notes needing content: ${JSON.stringify(notesNeedingContent)}`);
-
         // Find orphaned files (files not matching any note in the document)
         const activeNoteIds = new Set(
           (Object.entries(doc.notes) as [string, SyncNoteMetadata][])

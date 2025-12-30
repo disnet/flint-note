@@ -18,7 +18,8 @@ import {
 } from './state.svelte';
 
 /**
- * System note types that cannot be modified or archived by the agent
+ * System note types that have protected names and cannot be archived.
+ * Their purpose, icon, properties, and other fields can still be modified.
  */
 const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily', 'type-deck']);
 
@@ -268,18 +269,19 @@ export function createNoteTypeTools(): Record<string, Tool> {
             return { success: false, error: `Note type not found: ${typeId}` };
           }
 
-          // Prevent modifying system types
-          if (isProtectedType(typeId)) {
+          // For system types, only block name changes (purpose, icon, properties are allowed)
+          if (isProtectedType(typeId) && name !== undefined) {
             return {
               success: false,
-              error: `Cannot modify system note type: ${noteType.name}`
+              error: `Cannot change name of system note type: ${noteType.name}`
             };
           }
 
           const updates: Parameters<typeof updateNoteType>[1] = {};
           const updatedFields: string[] = [];
 
-          if (name !== undefined) {
+          // Only allow name changes for non-system types
+          if (name !== undefined && !isProtectedType(typeId)) {
             updates.name = name;
             updatedFields.push('name');
           }

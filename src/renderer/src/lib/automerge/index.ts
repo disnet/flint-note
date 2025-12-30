@@ -100,6 +100,9 @@ export {
   // Source format helper
   getSourceFormat,
 
+  // System type helper
+  isProtectedType,
+
   // Note getters
   getNotes,
   getAllNotes,
