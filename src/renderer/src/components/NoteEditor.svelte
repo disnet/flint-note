@@ -193,6 +193,18 @@
     const targetType = options?.targetType || 'note';
     const shouldCreate = options?.shouldCreate || false;
 
+    // Close hover popup when navigating via wikilink click
+    actionPopoverVisible = false;
+    actionPopoverIsFromHover = false;
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = null;
+    }
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+
     if (targetType === 'conversation') {
       // Navigate to conversation (never create via wikilink)
       setActiveConversationId(targetId);
