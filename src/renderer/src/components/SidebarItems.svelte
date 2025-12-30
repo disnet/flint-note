@@ -32,7 +32,6 @@
     createNote,
     nowISO,
     getSourceFormat,
-    DECK_NOTE_TYPE_ID,
     DAILY_NOTE_TYPE_ID,
     type SidebarItem,
     type SidebarItemRef
@@ -623,11 +622,11 @@
     if (!note) return false;
     // Exclude archived notes
     if (note.archived) return false;
-    // Exclude non-markdown source formats and special note types from review
+    // Exclude non-markdown source formats (epub, pdf, webpage, deck) from review
     const sourceFormat = getSourceFormat(note);
     if (sourceFormat !== 'markdown') return false;
-    // Also exclude special note types (deck, daily)
-    if (note.type === DECK_NOTE_TYPE_ID || note.type === DAILY_NOTE_TYPE_ID) return false;
+    // Also exclude daily notes from review
+    if (note.type === DAILY_NOTE_TYPE_ID) return false;
     return true;
   });
 

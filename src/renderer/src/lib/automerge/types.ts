@@ -124,7 +124,7 @@ export interface PropertyDefinition {
  * Source format for note content.
  * Determines which viewer/editor to use, independent of the organizational note type.
  */
-export type SourceFormat = 'markdown' | 'pdf' | 'epub' | 'webpage';
+export type SourceFormat = 'markdown' | 'pdf' | 'epub' | 'webpage' | 'deck';
 
 /**
  * A note in the Flint system (full note with content loaded)

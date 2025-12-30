@@ -115,7 +115,7 @@ const DEFAULT_NOTE_TYPE_ID = 'type-default';
 
 // System note types that have protected names and cannot be archived
 // Their purpose, icon, properties, and other fields can still be modified
-const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily', 'type-deck']);
+const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily']);
 
 /**
  * Check if a note type ID is a protected system type
@@ -143,6 +143,8 @@ export function getSourceFormat(note: NoteMetadata): SourceFormat {
       return 'epub';
     case WEBPAGE_NOTE_TYPE_ID:
       return 'webpage';
+    case DECK_NOTE_TYPE_ID:
+      return 'deck';
     default:
       return 'markdown';
   }
@@ -283,7 +285,12 @@ function migrateSourceFormat(): void {
   const doc = docHandle.doc();
   if (!doc?.notes) return;
 
-  const LEGACY_TYPE_IDS = [PDF_NOTE_TYPE_ID, EPUB_NOTE_TYPE_ID, WEBPAGE_NOTE_TYPE_ID];
+  const LEGACY_TYPE_IDS = [
+    PDF_NOTE_TYPE_ID,
+    EPUB_NOTE_TYPE_ID,
+    WEBPAGE_NOTE_TYPE_ID,
+    DECK_NOTE_TYPE_ID
+  ];
 
   // Find notes that need migration: have legacy type ID
   const allNotes = Object.values(doc.notes) as NoteMetadata[];
@@ -324,6 +331,9 @@ function migrateSourceFormat(): void {
             break;
           case WEBPAGE_NOTE_TYPE_ID:
             docNote.sourceFormat = 'webpage';
+            break;
+          case DECK_NOTE_TYPE_ID:
+            docNote.sourceFormat = 'deck';
             break;
         }
       }
@@ -3192,41 +3202,15 @@ import {
   createEmptyDeckConfig
 } from '../../../../shared/deck-yaml-utils';
 
-/** Deck note type ID constant */
+/** Deck note type ID constant - kept for backward compatibility during migration */
 export const DECK_NOTE_TYPE_ID = 'type-deck';
-
-/**
- * Ensure the Deck note type exists in the document
- */
-export function ensureDeckNoteType(): void {
-  if (!docHandle) return;
-
-  const doc = docHandle.doc();
-  if (!doc?.noteTypes?.[DECK_NOTE_TYPE_ID]) {
-    docHandle.change((d) => {
-      if (!d.noteTypes) {
-        d.noteTypes = {};
-      }
-      if (!d.noteTypes[DECK_NOTE_TYPE_ID]) {
-        d.noteTypes[DECK_NOTE_TYPE_ID] = {
-          id: DECK_NOTE_TYPE_ID,
-          name: 'Deck',
-          purpose: 'Filtered note lists with customizable columns and views',
-          icon: '📊',
-          archived: false,
-          created: nowISO()
-        };
-      }
-    });
-  }
-}
 
 /**
  * Get all non-archived Deck notes, sorted by updated (most recent first)
  */
 export function getDeckNotes(): NoteMetadata[] {
   return Object.values(currentDoc.notes)
-    .filter((note) => !note.archived && note.type === DECK_NOTE_TYPE_ID)
+    .filter((note) => !note.archived && getSourceFormat(note) === 'deck')
     .sort((a, b) => {
       return new Date(b.updated).getTime() - new Date(a.updated).getTime();
     });
@@ -3238,9 +3222,6 @@ export function getDeckNotes(): NoteMetadata[] {
  */
 export function createDeckNote(title: string): string {
   if (!docHandle) throw new Error('Not initialized');
-
-  // Ensure Deck note type exists
-  ensureDeckNoteType();
 
   const id = generateNoteId();
   const now = nowISO();
@@ -3254,7 +3235,8 @@ export function createDeckNote(title: string): string {
       id,
       title,
       content: yamlContent,
-      type: DECK_NOTE_TYPE_ID,
+      type: DEFAULT_NOTE_TYPE_ID,
+      sourceFormat: 'deck',
       created: now,
       updated: now,
       archived: false,

@@ -39,7 +39,6 @@ import type {
 // Constants matching the Automerge system
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 const DAILY_NOTE_TYPE_ID = 'type-daily';
-const DECK_NOTE_TYPE_ID = 'type-deck';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
 
 /**
@@ -463,7 +462,7 @@ function transformNote(
   const isDaily = legacy.type.toLowerCase() === 'daily';
   let typeId: string;
   // Determine sourceFormat for special content types
-  let sourceFormat: 'markdown' | 'epub' | 'pdf' | 'webpage' | undefined;
+  let sourceFormat: 'markdown' | 'epub' | 'pdf' | 'webpage' | 'deck' | undefined;
 
   if (isEpub) {
     typeId = DEFAULT_NOTE_TYPE_ID;
@@ -475,7 +474,8 @@ function transformNote(
     typeId = DEFAULT_NOTE_TYPE_ID;
     sourceFormat = 'webpage';
   } else if (isDeck) {
-    typeId = DECK_NOTE_TYPE_ID;
+    typeId = DEFAULT_NOTE_TYPE_ID;
+    sourceFormat = 'deck';
   } else if (isDaily) {
     typeId = DAILY_NOTE_TYPE_ID;
   } else {

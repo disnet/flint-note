@@ -251,7 +251,6 @@ export {
 
   // Deck support
   DECK_NOTE_TYPE_ID,
-  ensureDeckNoteType,
   getDeckNotes,
   createDeckNote,
 

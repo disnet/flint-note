@@ -21,7 +21,7 @@ import {
  * System note types that have protected names and cannot be archived.
  * Their purpose, icon, properties, and other fields can still be modified.
  */
-const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily', 'type-deck']);
+const PROTECTED_TYPE_IDS = new Set(['type-default', 'type-daily']);
 
 /**
  * Check if a note type ID is a protected system type

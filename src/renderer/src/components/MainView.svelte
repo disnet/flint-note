@@ -29,7 +29,6 @@
     automergeShelfStore,
     getRoutine,
     getSourceFormat,
-    DECK_NOTE_TYPE_ID,
     createDeckNote,
     pinItem,
     unpinItem,
@@ -103,7 +102,7 @@
   const isActiveNoteEpub = $derived(activeNoteSourceFormat === 'epub');
   const isActiveNotePdf = $derived(activeNoteSourceFormat === 'pdf');
   const isActiveNoteWebpage = $derived(activeNoteSourceFormat === 'webpage');
-  const isActiveNoteDeck = $derived(activeNote?.type === DECK_NOTE_TYPE_ID);
+  const isActiveNoteDeck = $derived(activeNoteSourceFormat === 'deck');
 
   // UI state
   let searchQuery = $state('');
