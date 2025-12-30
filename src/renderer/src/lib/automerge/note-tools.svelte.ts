@@ -18,7 +18,8 @@ import {
   getBacklinks,
   getNoteType,
   getNoteContent,
-  filterNotes
+  filterNotes,
+  setNoteType
 } from './state.svelte';
 import type { NoteMetadata } from './types';
 
@@ -664,6 +665,51 @@ export function createNoteTools(): Record<string, Tool> {
           return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get backlinks'
+          };
+        }
+      }
+    }),
+
+    /**
+     * Change a note's type
+     */
+    change_note_type: tool({
+      description:
+        "Change a note's type. This allows converting a note from one type to another. " +
+        'Use list_note_types to see available types first.',
+      inputSchema: z.object({
+        noteId: z.string().describe('The note ID to change the type of'),
+        typeId: z.string().describe('The new type ID (e.g., type-default, type-daily)')
+      }),
+      execute: async ({ noteId, typeId }) => {
+        try {
+          const note = getNote(noteId);
+          if (!note) {
+            return { success: false, error: `Note not found: ${noteId}` };
+          }
+
+          const noteType = getNoteType(typeId);
+          if (!noteType) {
+            return { success: false, error: `Note type not found: ${typeId}` };
+          }
+
+          const previousType = note.type;
+          const previousTypeName = getNoteType(previousType)?.name ?? previousType;
+
+          setNoteType(noteId, typeId);
+
+          return {
+            success: true,
+            message: `Changed note "${note.title || noteId}" from type "${previousTypeName}" to "${noteType.name}"`,
+            noteId,
+            previousType,
+            newType: typeId,
+            newTypeName: noteType.name
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to change note type'
           };
         }
       }

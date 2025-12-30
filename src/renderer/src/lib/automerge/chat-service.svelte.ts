@@ -105,6 +105,7 @@ When users ask about their notes:
 When users want to modify notes:
 - Use create_note to make new notes
 - Use update_note to change existing notes (title, content, or properties)
+- Use change_note_type to convert a note to a different type
 - Use archive_note to remove notes (soft delete, can be recovered)
 - Before creating a note of a specific type, use get_note_type to understand the type's properties and purpose
 
