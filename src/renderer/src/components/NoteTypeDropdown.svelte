@@ -5,6 +5,7 @@
    */
   import { onDestroy, onMount } from 'svelte';
   import { getNoteTypes, setNoteType, type NoteType } from '../lib/automerge';
+  import Tooltip from './Tooltip.svelte';
 
   interface Props {
     noteId: string;
@@ -202,22 +203,36 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={dropdownRef} class="note-type-dropdown" class:disabled class:compact>
-  <button
-    bind:this={buttonRef}
-    class="type-button"
-    onclick={toggleDropdown}
-    type="button"
-    title="Change note type"
-    {disabled}
-    aria-haspopup="true"
-    aria-expanded={isOpen}
-  >
-    <span class="type-icon">{currentType?.icon || '📄'}</span>
-    {#if !compact}
+  {#if compact}
+    <Tooltip text={currentType?.name || 'Unknown'} position="bottom">
+      <button
+        bind:this={buttonRef}
+        class="type-button"
+        onclick={toggleDropdown}
+        type="button"
+        {disabled}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+      >
+        <span class="type-icon">{currentType?.icon || '📄'}</span>
+      </button>
+    </Tooltip>
+  {:else}
+    <button
+      bind:this={buttonRef}
+      class="type-button"
+      onclick={toggleDropdown}
+      type="button"
+      title="Change note type"
+      {disabled}
+      aria-haspopup="true"
+      aria-expanded={isOpen}
+    >
+      <span class="type-icon">{currentType?.icon || '📄'}</span>
       <span class="type-name">{currentType?.name || 'Unknown'}</span>
       <span class="dropdown-icon" class:open={isOpen}>▼</span>
-    {/if}
-  </button>
+    </button>
+  {/if}
 
   {#if isOpen}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
