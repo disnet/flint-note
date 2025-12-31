@@ -1,12 +1,20 @@
 <script lang="ts">
   import type { DeckResultNote, ColumnConfig, FieldType } from '../lib/automerge/deck';
   import { getNote, getNoteTypes } from '../lib/automerge/state.svelte';
+  import { NoteLinkInput, NoteLinksInput, ArrayInput } from './inputs';
+  import Tooltip from './Tooltip.svelte';
 
   interface SchemaFieldInfo {
     name: string;
     type: FieldType;
     options?: string[];
     required?: boolean;
+    constraints?: {
+      min?: number;
+      max?: number;
+      pattern?: string;
+      options?: string[];
+    };
   }
 
   interface Props {
@@ -381,6 +389,158 @@
     onFieldSave?.(field, value);
   }
 
+  // Get schema field info for a field
+  function getSchemaField(field: string): SchemaFieldInfo | undefined {
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    return schemaFields.get(propName);
+  }
+
+  // Check if a field value violates its constraints
+  function isFieldInvalid(field: string): boolean {
+    // System fields don't have constraints
+    if (!field.startsWith('props.')) return false;
+
+    const schemaField = getSchemaField(field);
+    if (!schemaField) return false;
+
+    const value = getRawValue(field);
+    const constraints = schemaField.constraints;
+
+    // Check required
+    if (schemaField.required) {
+      if (value === undefined || value === null || value === '') return true;
+      if (Array.isArray(value) && value.length === 0) return true;
+    }
+
+    // No value and not required = valid
+    if (value === undefined || value === null || value === '') return false;
+
+    // Check constraints based on type
+    if (constraints) {
+      // Number constraints
+      if (schemaField.type === 'number' && typeof value === 'number') {
+        if (constraints.min !== undefined && value < constraints.min) return true;
+        if (constraints.max !== undefined && value > constraints.max) return true;
+      }
+
+      // Array length constraints
+      if (schemaField.type === 'array' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) return true;
+        if (constraints.max !== undefined && value.length > constraints.max) return true;
+      }
+
+      // Notelinks length constraints
+      if (schemaField.type === 'notelinks' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) return true;
+        if (constraints.max !== undefined && value.length > constraints.max) return true;
+      }
+
+      // String pattern constraints
+      if (
+        schemaField.type === 'string' &&
+        typeof value === 'string' &&
+        constraints.pattern
+      ) {
+        try {
+          const regex = new RegExp(constraints.pattern);
+          if (!regex.test(value)) return true;
+        } catch {
+          // Invalid regex pattern, ignore
+        }
+      }
+
+      // Select option constraints
+      if (schemaField.type === 'select' && constraints.options) {
+        if (!constraints.options.includes(String(value))) return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Get constraint violation message for a field
+  function getConstraintViolationMessage(field: string): string | null {
+    // System fields don't have constraints
+    if (!field.startsWith('props.')) return null;
+
+    const schemaField = getSchemaField(field);
+    if (!schemaField) return null;
+
+    const value = getRawValue(field);
+    const constraints = schemaField.constraints;
+
+    // Check required
+    if (schemaField.required) {
+      if (value === undefined || value === null || value === '') {
+        return 'This field is required';
+      }
+      if (Array.isArray(value) && value.length === 0) {
+        return 'This field is required';
+      }
+    }
+
+    // No value and not required = valid
+    if (value === undefined || value === null || value === '') return null;
+
+    // Check constraints based on type
+    if (constraints) {
+      // Number constraints
+      if (schemaField.type === 'number' && typeof value === 'number') {
+        if (constraints.min !== undefined && value < constraints.min) {
+          return `Value must be at least ${constraints.min}`;
+        }
+        if (constraints.max !== undefined && value > constraints.max) {
+          return `Value must be at most ${constraints.max}`;
+        }
+      }
+
+      // Array length constraints
+      if (schemaField.type === 'array' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) {
+          return `Must have at least ${constraints.min} item${constraints.min === 1 ? '' : 's'}`;
+        }
+        if (constraints.max !== undefined && value.length > constraints.max) {
+          return `Must have at most ${constraints.max} item${constraints.max === 1 ? '' : 's'}`;
+        }
+      }
+
+      // Notelinks length constraints
+      if (schemaField.type === 'notelinks' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) {
+          return `Must have at least ${constraints.min} link${constraints.min === 1 ? '' : 's'}`;
+        }
+        if (constraints.max !== undefined && value.length > constraints.max) {
+          return `Must have at most ${constraints.max} link${constraints.max === 1 ? '' : 's'}`;
+        }
+      }
+
+      // String pattern constraints
+      if (
+        schemaField.type === 'string' &&
+        typeof value === 'string' &&
+        constraints.pattern
+      ) {
+        try {
+          const regex = new RegExp(constraints.pattern);
+          if (!regex.test(value)) {
+            return `Value must match pattern: ${constraints.pattern}`;
+          }
+        } catch {
+          // Invalid regex pattern, ignore
+        }
+      }
+
+      // Select option constraints
+      if (schemaField.type === 'select' && constraints.options) {
+        if (!constraints.options.includes(String(value))) {
+          return `Value must be one of: ${constraints.options.join(', ')}`;
+        }
+      }
+    }
+
+    return null;
+  }
+
   // Action to register prop input refs for Tab navigation
   function registerPropRef(node: HTMLElement, field: string): { destroy: () => void } {
     propInputRefs.set(field, node);
@@ -445,15 +605,26 @@
           {@const options = getFieldOptions(column.field)}
           {@const editable = isEditable(column.field)}
           {@const inSchema = isFieldInTypeSchema(column.field)}
+          {@const invalid = isFieldInvalid(column.field)}
+          {@const violationMessage = invalid
+            ? getConstraintViolationMessage(column.field)
+            : null}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="prop-chip-inline"
             class:muted={!inSchema}
+            class:invalid
             onmousedown={(e) => e.stopPropagation()}
             onclick={(e) => e.stopPropagation()}
             onkeydown={(e) => e.stopPropagation()}
           >
-            <span class="prop-name">{getColumnLabel(column)}</span>
+            {#if violationMessage}
+              <Tooltip text={violationMessage} position="bottom">
+                <span class="prop-name">{getColumnLabel(column)}</span>
+              </Tooltip>
+            {:else}
+              <span class="prop-name">{getColumnLabel(column)}</span>
+            {/if}
             <span class="prop-divider"></span>
             {#if editable && fieldType === 'select' && options.length > 0}
               {@const currentValue = String(rawValue || '')}
@@ -505,16 +676,25 @@
                 onkeydown={(e) => handlePropKeydown(e, column.field)}
                 use:registerPropRef={column.field}
               />
-            {:else if editable && (fieldType === 'notelink' || fieldType === 'notelinks')}
-              <!-- Simplified notelink input - just text for now -->
-              <input
-                type="text"
-                class="prop-inline-input"
-                value={String(rawValue || '')}
-                placeholder="Note ID..."
-                onblur={(e) => handleFieldChange(column.field, e.currentTarget.value)}
-                onkeydown={(e) => handlePropKeydown(e, column.field)}
-                use:registerPropRef={column.field}
+            {:else if editable && fieldType === 'notelink'}
+              <NoteLinkInput
+                value={rawValue as string | null}
+                onChange={(v) => handleFieldChange(column.field, v)}
+                excludeNoteId={note.id}
+                class="prop-inline-notelink"
+              />
+            {:else if editable && fieldType === 'notelinks'}
+              <NoteLinksInput
+                value={Array.isArray(rawValue) ? (rawValue as string[]) : []}
+                onChange={(v) => handleFieldChange(column.field, v)}
+                excludeNoteId={note.id}
+                class="prop-inline-notelinks"
+              />
+            {:else if editable && fieldType === 'array'}
+              <ArrayInput
+                value={Array.isArray(rawValue) ? (rawValue as string[]) : []}
+                onChange={(v) => handleFieldChange(column.field, v)}
+                class="prop-inline-array"
               />
             {:else if editable}
               <input
@@ -525,6 +705,28 @@
                 onkeydown={(e) => handlePropKeydown(e, column.field)}
                 use:registerPropRef={column.field}
               />
+            {:else if fieldType === 'notelink' && rawValue}
+              <span class="prop-value prop-notelink"
+                >{getNoteTitleById(String(rawValue))}</span
+              >
+            {:else if fieldType === 'notelinks' && Array.isArray(rawValue) && rawValue.length > 0}
+              <span class="prop-value prop-notelinks">
+                {#if rawValue.length === 1}
+                  {getNoteTitleById(String(rawValue[0]))}
+                {:else}
+                  {getNoteTitleById(String(rawValue[0]))}
+                  <span class="prop-count">+{rawValue.length - 1}</span>
+                {/if}
+              </span>
+            {:else if fieldType === 'array' && Array.isArray(rawValue) && rawValue.length > 0}
+              <span class="prop-value prop-array">
+                {#if rawValue.length === 1}
+                  {rawValue[0]}
+                {:else}
+                  {rawValue[0]}
+                  <span class="prop-count">+{rawValue.length - 1}</span>
+                {/if}
+              </span>
             {:else}
               <span class="prop-value">{getDisplayValue(column.field) || '-'}</span>
             {/if}
@@ -703,6 +905,15 @@
     border-style: dashed;
   }
 
+  .prop-chip-inline.invalid {
+    background: var(--error-bg, rgba(239, 68, 68, 0.1));
+    border-color: var(--error-border, rgba(239, 68, 68, 0.3));
+  }
+
+  .prop-chip-inline.invalid .prop-name {
+    background: var(--error-bg, rgba(239, 68, 68, 0.15));
+  }
+
   .prop-name {
     display: flex;
     align-items: center;
@@ -721,6 +932,17 @@
     align-items: center;
     padding: 0.125rem 0.625rem 0.125rem 0.5rem;
     color: var(--text-secondary);
+  }
+
+  .prop-chip-inline .prop-notelink,
+  .prop-chip-inline .prop-notelinks {
+    color: var(--accent-primary);
+  }
+
+  .prop-chip-inline .prop-count {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    margin-left: 0.25rem;
   }
 
   .prop-inline-input,

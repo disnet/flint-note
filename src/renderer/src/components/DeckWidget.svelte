@@ -47,6 +47,12 @@
       | 'notelinks';
     options?: string[];
     required?: boolean;
+    constraints?: {
+      min?: number;
+      max?: number;
+      pattern?: string;
+      options?: string[];
+    };
   }
 
   interface Props {
@@ -77,12 +83,6 @@
 
   // Pagination state
   let currentPage = $state(0);
-
-  // Schema fields for inline editing (non-reactive Maps since they're rebuilt in effect)
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- rebuilt completely in effect, not reactive
-  let schemaFields = new Map<string, SchemaFieldInfo>();
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- rebuilt completely in effect, not reactive
-  let fieldsByType = new Map<string, Set<string>>();
 
   // Prop picker dialog state
   let isPropPickerOpen = $state(false);
@@ -178,12 +178,10 @@
     return icons;
   });
 
-  // Load schema fields from Automerge note types
-  $effect(() => {
-    // Clear existing maps
-    schemaFields.clear();
-    fieldsByType.clear();
-
+  // Load schema fields from Automerge note types (derived to avoid effect cycles)
+  const schemaFields = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- derived handles reactivity
+    const result = new Map<string, SchemaFieldInfo>();
     const noteTypesDict = getNoteTypesDict();
     const typesToCheck =
       filteredTypeIds.length > 0 ? filteredTypeIds : Object.keys(noteTypesDict);
@@ -191,22 +189,41 @@
     for (const typeId of typesToCheck) {
       const noteType = noteTypesDict[typeId];
       if (noteType?.properties) {
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation variable
-        const typeFields = new Set<string>();
         for (const prop of noteType.properties) {
-          typeFields.add(prop.name);
-          if (!schemaFields.has(prop.name)) {
-            schemaFields.set(prop.name, {
+          if (!result.has(prop.name)) {
+            result.set(prop.name, {
               name: prop.name,
               type: prop.type as SchemaFieldInfo['type'],
               options: prop.constraints?.options,
-              required: prop.required
+              required: prop.required,
+              constraints: prop.constraints
             });
           }
         }
-        fieldsByType.set(typeId, typeFields);
       }
     }
+    return result;
+  });
+
+  const fieldsByType = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- derived handles reactivity
+    const result = new Map<string, Set<string>>();
+    const noteTypesDict = getNoteTypesDict();
+    const typesToCheck =
+      filteredTypeIds.length > 0 ? filteredTypeIds : Object.keys(noteTypesDict);
+
+    for (const typeId of typesToCheck) {
+      const noteType = noteTypesDict[typeId];
+      if (noteType?.properties) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- derived handles reactivity
+        const typeFields = new Set<string>();
+        for (const prop of noteType.properties) {
+          typeFields.add(prop.name);
+        }
+        result.set(typeId, typeFields);
+      }
+    }
+    return result;
   });
 
   // Available schema fields for filter/column pickers
