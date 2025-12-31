@@ -62,7 +62,7 @@
     '.cm-content': {
       padding: '10px 14px',
       minHeight: '40px',
-      maxHeight: '120px',
+      maxHeight: '300px',
       lineHeight: '1.4'
     },
     '.cm-focused': {
@@ -284,7 +284,7 @@
   .chat-input-wrapper :global(.cm-content) {
     padding: 10px 14px;
     min-height: 40px;
-    max-height: 120px;
+    max-height: 300px;
     line-height: 1.4;
   }
 
