@@ -32,9 +32,9 @@
   const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
     { value: 'string', label: 'Text' },
     { value: 'number', label: 'Number' },
-    { value: 'boolean', label: 'Checkbox' },
+    { value: 'boolean', label: 'Boolean' },
     { value: 'date', label: 'Date' },
-    { value: 'array', label: 'Tags' },
+    { value: 'array', label: 'Array' },
     { value: 'select', label: 'Select' },
     { value: 'notelink', label: 'Note Link' },
     { value: 'notelinks', label: 'Note Links' }

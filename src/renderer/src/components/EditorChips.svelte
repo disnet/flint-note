@@ -213,9 +213,66 @@
     return def?.type ?? 'string';
   }
 
+  // Check if a field value violates its constraints
+  function isFieldInvalid(field: string): boolean {
+    if (isSystemField(field)) return false;
+
+    const def = getPropDef(field);
+    if (!def) return false;
+
+    const value = getRawValue(field);
+    const constraints = def.constraints;
+
+    // Check required
+    if (def.required) {
+      if (value === undefined || value === null || value === '') return true;
+      if (Array.isArray(value) && value.length === 0) return true;
+    }
+
+    // No value and not required = valid
+    if (value === undefined || value === null || value === '') return false;
+
+    // Check constraints based on type
+    if (constraints) {
+      // Number constraints
+      if (def.type === 'number' && typeof value === 'number') {
+        if (constraints.min !== undefined && value < constraints.min) return true;
+        if (constraints.max !== undefined && value > constraints.max) return true;
+      }
+
+      // Array length constraints
+      if (def.type === 'array' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) return true;
+        if (constraints.max !== undefined && value.length > constraints.max) return true;
+      }
+
+      // String pattern constraints
+      if (def.type === 'string' && typeof value === 'string' && constraints.pattern) {
+        try {
+          const regex = new RegExp(constraints.pattern);
+          if (!regex.test(value)) return true;
+        } catch {
+          // Invalid regex pattern, ignore
+        }
+      }
+
+      // Select option constraints
+      if (def.type === 'select' && constraints.options) {
+        if (!constraints.options.includes(String(value))) return true;
+      }
+    }
+
+    return false;
+  }
+
   // Note link picker state
   let noteLinkPickerField = $state<string | null>(null);
   let noteLinkSearchQuery = $state('');
+  let pickerPosition = $state<{ top: number; left: number } | null>(null);
+  let selectedIndex = $state(0);
+
+  // Array field input state (keyed by field name)
+  let arrayInputValues = $state<Record<string, string>>({});
 
   // Notes for the picker
   const allNotes = $derived(getAllNotes().filter((n) => !n.archived && n.id !== note.id));
@@ -229,14 +286,25 @@
       : allNotes.slice(0, 10)
   );
 
-  function openNoteLinkPicker(field: string): void {
+  function openNoteLinkPicker(field: string, inputEl: HTMLInputElement): void {
+    const chip = inputEl.closest('.chip') as HTMLElement;
+    if (chip) {
+      const rect = chip.getBoundingClientRect();
+      pickerPosition = {
+        top: rect.bottom + 4,
+        left: rect.left
+      };
+    }
     noteLinkPickerField = field;
     noteLinkSearchQuery = '';
+    selectedIndex = 0;
   }
 
   function closeNoteLinkPicker(): void {
     noteLinkPickerField = null;
     noteLinkSearchQuery = '';
+    pickerPosition = null;
+    selectedIndex = 0;
   }
 
   function selectNoteForLink(selectedNoteId: string): void {
@@ -249,11 +317,60 @@
       if (!current.includes(selectedNoteId)) {
         handleFieldChange(noteLinkPickerField, [...current, selectedNoteId]);
       }
+      // Clear search but keep picker open for adding more
+      noteLinkSearchQuery = '';
+      selectedIndex = 0;
     } else {
       // Single select
       handleFieldChange(noteLinkPickerField, selectedNoteId);
       closeNoteLinkPicker();
     }
+  }
+
+  function selectCurrentNote(): void {
+    if (filteredNotes.length > 0 && selectedIndex < filteredNotes.length) {
+      selectNoteForLink(filteredNotes[selectedIndex].id);
+    }
+  }
+
+  function handleNoteLinkKeydown(e: KeyboardEvent, field: string): void {
+    const input = e.currentTarget as HTMLInputElement;
+
+    // Open picker on focus if not already open
+    if (noteLinkPickerField !== field) {
+      openNoteLinkPicker(field, input);
+    }
+
+    if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n')) {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, filteredNotes.length - 1);
+    } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p')) {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, 0);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      selectCurrentNote();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeNoteLinkPicker();
+      input.blur();
+    }
+  }
+
+  function handleNoteLinkFocus(field: string, input: HTMLInputElement): void {
+    openNoteLinkPicker(field, input);
+  }
+
+  function handleNoteLinkBlur(): void {
+    // Delay to allow click on dropdown item
+    setTimeout(() => {
+      closeNoteLinkPicker();
+    }, 150);
+  }
+
+  function handleNoteLinkInput(value: string): void {
+    noteLinkSearchQuery = value;
+    selectedIndex = 0;
   }
 
   function removeNoteFromLinks(field: string, noteIdToRemove: string): void {
@@ -267,6 +384,38 @@
   function clearNoteLink(field: string): void {
     handleFieldChange(field, null);
   }
+
+  // Array field helpers
+  function addArrayItem(field: string): void {
+    const inputValue = arrayInputValues[field]?.trim();
+    if (!inputValue) return;
+
+    const current = (getRawValue(field) as string[]) || [];
+    // Don't add duplicates
+    if (!current.includes(inputValue)) {
+      handleFieldChange(field, [...current, inputValue]);
+    }
+    arrayInputValues[field] = '';
+  }
+
+  function removeArrayItem(field: string, item: string): void {
+    const current = (getRawValue(field) as string[]) || [];
+    handleFieldChange(
+      field,
+      current.filter((i) => i !== item)
+    );
+  }
+
+  function handleArrayKeydown(e: KeyboardEvent, field: string): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addArrayItem(field);
+    }
+  }
+
+  function handleArrayBlur(field: string): void {
+    addArrayItem(field);
+  }
 </script>
 
 {#if displayedFields.length > 0}
@@ -276,11 +425,15 @@
       {@const editable = isEditable(field)}
       {@const fieldType = getFieldType(field)}
       {@const options = getFieldOptions(field)}
+      {@const invalid = isFieldInvalid(field)}
 
       <div
         class="chip"
-        class:chip-with-picker={editable &&
-          (fieldType === 'notelink' || fieldType === 'notelinks')}
+        class:chip-expandable={editable &&
+          (fieldType === 'notelink' ||
+            fieldType === 'notelinks' ||
+            fieldType === 'array')}
+        class:chip-invalid={invalid}
       >
         <span class="chip-label">{getFieldLabel(field)}</span>
         <span class="chip-divider"></span>
@@ -304,13 +457,16 @@
                 &times;
               </button>
             {:else}
-              <button
-                type="button"
-                class="pick-btn"
-                onclick={() => openNoteLinkPicker(field)}
-              >
-                Select...
-              </button>
+              <input
+                type="text"
+                class="notelink-input"
+                value={noteLinkPickerField === field ? noteLinkSearchQuery : ''}
+                placeholder="+"
+                onfocus={(e) => handleNoteLinkFocus(field, e.currentTarget)}
+                onblur={handleNoteLinkBlur}
+                oninput={(e) => handleNoteLinkInput(e.currentTarget.value)}
+                onkeydown={(e) => handleNoteLinkKeydown(e, field)}
+              />
             {/if}
           </div>
         {:else if editable && fieldType === 'notelinks'}
@@ -336,13 +492,16 @@
                 </span>
               {/each}
             {/if}
-            <button
-              type="button"
-              class="add-link-btn"
-              onclick={() => openNoteLinkPicker(field)}
-            >
-              +
-            </button>
+            <input
+              type="text"
+              class="notelink-input"
+              value={noteLinkPickerField === field ? noteLinkSearchQuery : ''}
+              placeholder="+"
+              onfocus={(e) => handleNoteLinkFocus(field, e.currentTarget)}
+              onblur={handleNoteLinkBlur}
+              oninput={(e) => handleNoteLinkInput(e.currentTarget.value)}
+              onkeydown={(e) => handleNoteLinkKeydown(e, field)}
+            />
           </div>
         {:else if editable && fieldType === 'select' && options.length > 0}
           <select
@@ -383,27 +542,30 @@
             }}
           />
         {:else if editable && fieldType === 'array'}
-          <input
-            type="text"
-            class="chip-input"
-            value={Array.isArray(rawValue) ? rawValue.join(', ') : ''}
-            placeholder="comma-separated"
-            onblur={(e) => {
-              const val = e.currentTarget.value;
-              handleFieldChange(
-                field,
-                val
-                  ? val
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  : []
-              );
-            }}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-          />
+          <div class="chip-array">
+            {#if Array.isArray(rawValue) && rawValue.length > 0}
+              {#each rawValue as item (item)}
+                <span class="array-tag">
+                  <span class="array-tag-text">{item}</span>
+                  <button
+                    type="button"
+                    class="array-tag-remove"
+                    onclick={() => removeArrayItem(field, item)}
+                  >
+                    &times;
+                  </button>
+                </span>
+              {/each}
+            {/if}
+            <input
+              type="text"
+              class="array-input"
+              bind:value={arrayInputValues[field]}
+              placeholder="+"
+              onkeydown={(e) => handleArrayKeydown(e, field)}
+              onblur={() => handleArrayBlur(field)}
+            />
+          </div>
         {:else if editable}
           <input
             type="text"
@@ -435,25 +597,20 @@
 {/if}
 
 <!-- Note Link Picker Dropdown -->
-{#if noteLinkPickerField}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="picker-overlay" onclick={closeNoteLinkPicker} onkeydown={() => {}}></div>
-  <div class="picker-dropdown">
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      type="text"
-      class="picker-search"
-      placeholder="Search notes..."
-      bind:value={noteLinkSearchQuery}
-      autofocus
-    />
+{#if noteLinkPickerField && pickerPosition}
+  <div
+    class="picker-dropdown"
+    style="top: {pickerPosition.top}px; left: {pickerPosition.left}px;"
+  >
     <div class="picker-results">
       {#if filteredNotes.length > 0}
-        {#each filteredNotes as n (n.id)}
+        {#each filteredNotes as n, i (n.id)}
           <button
             type="button"
             class="picker-item"
-            onclick={() => selectNoteForLink(n.id)}
+            class:selected={i === selectedIndex}
+            onmousedown={() => selectNoteForLink(n.id)}
+            onmouseenter={() => (selectedIndex = i)}
           >
             <span class="picker-item-title">{n.title || 'Untitled'}</span>
           </button>
@@ -485,9 +642,18 @@
     overflow: hidden;
   }
 
-  .chip.chip-with-picker {
+  .chip.chip-expandable {
     overflow: visible;
     position: relative;
+  }
+
+  .chip.chip-invalid {
+    background: var(--error-bg, rgba(239, 68, 68, 0.1));
+    border-color: var(--error-border, rgba(239, 68, 68, 0.3));
+  }
+
+  .chip.chip-invalid .chip-label {
+    background: var(--error-bg, rgba(239, 68, 68, 0.15));
   }
 
   .chip-label {
@@ -592,19 +758,19 @@
     color: var(--text-primary);
   }
 
-  .pick-btn,
-  .add-link-btn {
-    background: none;
+  .notelink-input {
     border: none;
-    color: var(--text-muted);
-    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary);
     font-size: 0.7rem;
     padding: 0;
+    min-width: 1rem;
+    outline: none;
+    field-sizing: content;
   }
 
-  .pick-btn:hover,
-  .add-link-btn:hover {
-    color: var(--text-secondary);
+  .notelink-input::placeholder {
+    color: var(--text-muted);
   }
 
   .notelink-tag {
@@ -628,6 +794,62 @@
 
   .tag-title:hover {
     color: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* Array field styles */
+  .chip-array {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  .array-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+  }
+
+  .array-tag-text {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+  }
+
+  .array-tag-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .array-tag-remove:hover {
+    color: var(--text-primary);
+  }
+
+  .array-input {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 0;
+    min-width: 1rem;
+    outline: none;
+    field-sizing: content;
+  }
+
+  .array-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .array-input:focus {
+    background: transparent;
   }
 
   /* Expand button */
@@ -657,22 +879,10 @@
   }
 
   /* Note Link Picker */
-  .picker-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 999;
-  }
-
   .picker-dropdown {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 300px;
-    max-height: 400px;
+    width: 280px;
+    max-height: 300px;
     background: var(--bg-primary);
     border: 1px solid var(--border-medium);
     border-radius: 0.5rem;
@@ -680,16 +890,6 @@
     z-index: 1000;
     display: flex;
     flex-direction: column;
-  }
-
-  .picker-search {
-    padding: 0.75rem;
-    border: none;
-    border-bottom: 1px solid var(--border-light);
-    background: transparent;
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    outline: none;
   }
 
   .picker-results {
@@ -709,7 +909,8 @@
     transition: background 0.15s ease;
   }
 
-  .picker-item:hover {
+  .picker-item:hover,
+  .picker-item.selected {
     background: var(--bg-hover);
   }
 
