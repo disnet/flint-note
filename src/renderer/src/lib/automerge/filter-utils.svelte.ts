@@ -9,17 +9,24 @@ import type { NoteMetadata, NoteType, NoteFilterOperator } from './types';
 
 /**
  * Get the value of a field from a note for filtering
- * Supports both agent-style (no prefix) and deck-style (flint_ prefix) field names
+ *
+ * Field naming convention:
+ * - System fields: type, title, created, updated, archived (no prefix)
+ * - Custom properties: props.fieldname (e.g., props.status, props.priority)
  */
 export function getFilterFieldValue(
   note: NoteMetadata,
   field: string,
   noteTypes: Record<string, NoteType>
 ): unknown {
-  // Normalize field name (remove flint_ prefix if present for unified handling)
-  const normalizedField = field.startsWith('flint_') ? field.slice(6) : field;
+  // Handle props.* namespace for custom properties
+  if (field.startsWith('props.')) {
+    const propName = field.slice(6);
+    return note.props?.[propName];
+  }
 
-  switch (normalizedField) {
+  // System fields (no prefix)
+  switch (field) {
     case 'type':
       // Return the type name for user-friendly filtering
       return noteTypes[note.type]?.name || note.type;
@@ -35,8 +42,8 @@ export function getFilterFieldValue(
     case 'archived':
       return note.archived;
     default:
-      // Custom field from note.props
-      return note.props?.[field.startsWith('flint_') ? field : normalizedField];
+      // Unknown field
+      return undefined;
   }
 }
 

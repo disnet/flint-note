@@ -173,10 +173,10 @@
   <!-- Column controls -->
   <div class="column-controls">
     <!-- Field selector -->
-    <!-- Always exclude flint_title since title is always shown as first column -->
+    <!-- Always exclude title since title is always shown as first column -->
     <DeckFieldSelector
       {fields}
-      excludeFields={['flint_title', ...excludeFields]}
+      excludeFields={['title', ...excludeFields]}
       selectedField={column.field}
       onSelect={handleFieldChange}
       placeholder="Select column..."

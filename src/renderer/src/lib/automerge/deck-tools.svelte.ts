@@ -38,18 +38,15 @@ const DECK_LIMITS = {
 
 /**
  * System fields that are always valid in deck filters
+ * Custom properties must use props.* namespace (e.g., props.status)
  */
 const SYSTEM_FIELD_NAMES = new Set([
   'type',
-  'flint_type',
+  'type_id',
   'title',
-  'flint_title',
   'created',
-  'flint_created',
   'updated',
-  'flint_updated',
-  'archived',
-  'flint_archived'
+  'archived'
 ]);
 
 interface FilterValidationResult {
@@ -60,6 +57,10 @@ interface FilterValidationResult {
 /**
  * Validate that filter fields exist on the target note type(s).
  * Returns validation errors for unknown fields.
+ *
+ * Field naming convention:
+ * - System fields: type, title, created, updated, archived (no prefix)
+ * - Custom properties: props.fieldname (e.g., props.status)
  */
 function validateFilterFields(
   filters: Array<{ field: string; operator?: string; value: string | string[] }>,
@@ -68,9 +69,10 @@ function validateFilterFields(
   const errors: string[] = [];
 
   // Find type filter if present
-  const typeFilter = filters.find((f) => f.field === 'type' || f.field === 'flint_type');
+  const typeFilter = filters.find((f) => f.field === 'type');
 
   const targetTypeNames: string[] = [];
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation in non-reactive function
   const validProperties = new Set<string>();
   const allTypes = Object.values(noteTypes).filter((t) => !t.archived);
 
@@ -118,17 +120,39 @@ function validateFilterFields(
 
   // Validate each filter field
   for (const filter of filters) {
+    // System fields are always valid
     if (SYSTEM_FIELD_NAMES.has(filter.field)) continue;
 
-    if (!validProperties.has(filter.field)) {
-      const propList = Array.from(validProperties).sort().join(', ') || '(none)';
+    // Custom props must use props.* prefix
+    if (!filter.field.startsWith('props.')) {
+      const propList =
+        Array.from(validProperties)
+          .sort()
+          .map((p) => `props.${p}`)
+          .join(', ') || '(none)';
+      errors.push(
+        `Unknown field "${filter.field}". Custom properties must use props.* format ` +
+          `(e.g., props.${filter.field}). Available: ${propList}`
+      );
+      continue;
+    }
+
+    // Extract property name from props.fieldname
+    const propName = filter.field.slice(6);
+    if (!validProperties.has(propName)) {
+      const propList =
+        Array.from(validProperties)
+          .sort()
+          .map((p) => `props.${p}`)
+          .join(', ') || '(none)';
       if (targetTypeNames.length > 0) {
         errors.push(
-          `Unknown field "${filter.field}" for type${targetTypeNames.length > 1 ? 's' : ''} ${targetTypeNames.join(', ')}. Available properties: ${propList}`
+          `Unknown property "${propName}" for type${targetTypeNames.length > 1 ? 's' : ''} ${targetTypeNames.join(', ')}. Available: ${propList}`
         );
       } else {
         errors.push(
-          `Unknown field "${filter.field}". No note type defines this property. Use get_note_type to check available properties.`
+          `Unknown property "${propName}". No note type defines this property. ` +
+            `Use get_note_type to check available properties.`
         );
       }
     }
@@ -219,7 +243,8 @@ const filterSchema = z.object({
     .string()
     .describe(
       'Field to filter on. System fields: type (matches by type NAME like "Movies"), ' +
-        'title, created, updated, archived. Custom props: use the property name directly.'
+        'title, created, updated, archived. Custom properties: use props.* format ' +
+        '(e.g., props.status, props.priority).'
     ),
   operator: z
     .enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN', 'NOT IN', 'BETWEEN'])

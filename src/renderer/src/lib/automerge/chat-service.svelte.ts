@@ -167,15 +167,15 @@ Decks are saved filtered views of notes - like database queries that users can r
 **Deck concepts:**
 - **Views**: Each deck can have multiple named views (like tabs), each with its own filters
 - **Filters**: Conditions that notes must match. System fields for filtering:
-  - \`flint_type\` or \`type\` - matches by type NAME (e.g., "Movies", "Meeting Notes")
-  - \`flint_title\` or \`title\` - note title
-  - \`flint_created\` or \`created\` - creation date (ISO format)
-  - \`flint_updated\` or \`updated\` - last updated date (ISO format)
-  - \`flint_archived\` or \`archived\` - archived status (boolean)
-  - Custom properties: use property name directly (e.g., "status", "priority")
+  - \`type\` - matches by type NAME (e.g., "Movies", "Meeting Notes")
+  - \`title\` - note title
+  - \`created\` - creation date (ISO format)
+  - \`updated\` - last updated date (ISO format)
+  - \`archived\` - archived status (boolean)
+  - Custom properties: use \`props.\` prefix (e.g., "props.status", "props.priority")
 - **Operators**: =, !=, >, <, >=, <=, LIKE (pattern match), IN, NOT IN, BETWEEN
-- **Columns**: Which fields to display (title, type, created, updated, or custom property names)
-- **Sort**: Field and order (asc/desc) for result ordering. Use field names without flint_ prefix (e.g., "updated", "title")
+- **Columns**: Which fields to display (title, type, created, updated, or props.* for custom properties)
+- **Sort**: Field and order (asc/desc) for result ordering (e.g., "updated", "title", "props.priority")
 
 **When to create decks:**
 - User wants to track notes matching certain criteria (e.g., "all meeting notes from this month")

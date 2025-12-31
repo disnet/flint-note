@@ -369,7 +369,7 @@ function migrateSourceFormat(): void {
 // ============================================================================
 
 /** Current schema version - increment when adding new migrations */
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * Migration v1: Clean up legacy props from old migrations.
@@ -448,9 +448,104 @@ function migratePropsCleanup(d: NotesDocument): void {
   }
 }
 
+/**
+ * Migration v2: Convert deck filter field names to new props.* convention.
+ * - System fields: flint_type -> type, flint_title -> title, etc.
+ * - Custom props: fieldname -> props.fieldname
+ */
+function migrateDeckFieldNames(d: NotesDocument): void {
+  if (!d.notes) return;
+
+  const FLINT_TO_SYSTEM: Record<string, string> = {
+    flint_type: 'type',
+    flint_title: 'title',
+    flint_created: 'created',
+    flint_updated: 'updated',
+    flint_archived: 'archived'
+  };
+
+  const SYSTEM_FIELD_NAMES = new Set([
+    'type',
+    'type_id',
+    'title',
+    'created',
+    'updated',
+    'archived'
+  ]);
+
+  function migrateFieldName(field: string): string {
+    // Already migrated (props.* format)
+    if (field.startsWith('props.')) return field;
+
+    // Convert flint_* to system field name
+    if (FLINT_TO_SYSTEM[field]) return FLINT_TO_SYSTEM[field];
+
+    // Already a system field name
+    if (SYSTEM_FIELD_NAMES.has(field)) return field;
+
+    // Custom field without prefix - add props. prefix
+    return `props.${field}`;
+  }
+
+  for (const noteId of Object.keys(d.notes)) {
+    const note = d.notes[noteId];
+    if (!note?.props?.deckConfig) continue;
+
+    const deckConfig = note.props.deckConfig as DeckConfig;
+    if (!deckConfig.views) continue;
+
+    let modified = false;
+
+    for (const view of deckConfig.views) {
+      // Migrate filters
+      if (view.filters) {
+        for (const filter of view.filters) {
+          const newField = migrateFieldName(filter.field);
+          if (newField !== filter.field) {
+            filter.field = newField;
+            modified = true;
+          }
+        }
+      }
+
+      // Migrate sort field
+      if (view.sort) {
+        const newField = migrateFieldName(view.sort.field);
+        if (newField !== view.sort.field) {
+          view.sort.field = newField;
+          modified = true;
+        }
+      }
+
+      // Migrate column fields
+      if (view.columns) {
+        for (let i = 0; i < view.columns.length; i++) {
+          const col = view.columns[i];
+          const fieldName = typeof col === 'string' ? col : col.field;
+          const newField = migrateFieldName(fieldName);
+
+          if (newField !== fieldName) {
+            if (typeof col === 'string') {
+              view.columns[i] = newField;
+            } else {
+              col.field = newField;
+            }
+            modified = true;
+          }
+        }
+      }
+    }
+
+    if (modified) {
+      note.updated = nowISO();
+    }
+  }
+}
+
 /** Migration functions keyed by target version */
 const SCHEMA_MIGRATIONS: Record<number, (d: NotesDocument) => void> = {
-  1: migratePropsCleanup
+  1: migratePropsCleanup,
+  2: migrateDeckFieldNames
 };
 
 /**

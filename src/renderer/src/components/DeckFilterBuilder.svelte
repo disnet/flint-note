@@ -61,16 +61,13 @@
     return getAvailableFields(notes, getNoteTypesDict());
   });
 
-  // Value suggestions for fields (type names for flint_type)
+  // Value suggestions for fields (type names for type field)
   const valueSuggestions = $derived.by(() => {
     const suggestions: Record<string, string[]> = {};
 
-    // Add note type names as suggestions for flint_type field
+    // Add note type names as suggestions for type field
     const noteTypes = getNoteTypes();
-    suggestions['flint_type'] = noteTypes.map((t) => t.name);
-
-    // Note: Field options would need to come from note type schema properties
-    // For now, we only provide suggestions for flint_type
+    suggestions['type'] = noteTypes.map((t) => t.name);
 
     return suggestions;
   });

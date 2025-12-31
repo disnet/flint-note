@@ -39,16 +39,16 @@
     allFields.find((f) => f.name === filter.field) || null
   );
 
-  // For flint_type field, use valueSuggestions as the options (dynamically populated with note type names)
+  // For type field, use valueSuggestions as the options (dynamically populated with note type names)
   // Also works for any select-type field without predefined options
   const effectiveOptions = $derived.by(() => {
     // If the field already has options, use those
     if (selectedFieldInfo?.options && selectedFieldInfo.options.length > 0) {
       return selectedFieldInfo.options;
     }
-    // For flint_type or any select-type field, use the valueSuggestions
+    // For type or any select-type field, use the valueSuggestions
     if (
-      (filter.field === 'flint_type' || selectedFieldInfo?.type === 'select') &&
+      (filter.field === 'type' || selectedFieldInfo?.type === 'select') &&
       valueSuggestions.length > 0
     ) {
       return valueSuggestions;

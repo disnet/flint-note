@@ -138,30 +138,35 @@ function sortNotes(
 
 /**
  * Get the value to use for sorting from a note
+ *
+ * Field naming convention:
+ * - System fields: type, title, created, updated (no prefix)
+ * - Custom properties: props.fieldname (e.g., props.status)
  */
 function getSortValue(
   note: NoteMetadata,
   field: string,
   noteTypes: Record<string, NoteType>
 ): unknown {
-  // Map common field names to note properties
+  // Handle props.* namespace for custom properties
+  if (field.startsWith('props.')) {
+    const propName = field.slice(6);
+    return note.props?.[propName];
+  }
+
+  // System fields
   switch (field) {
     case 'title':
-    case 'flint_title':
       return note.title.toLowerCase();
     case 'type':
-    case 'flint_type':
       // Sort by type name, not ID
       return noteTypes[note.type]?.name?.toLowerCase() || '';
     case 'created':
-    case 'flint_created':
       return note.created;
     case 'updated':
-    case 'flint_updated':
       return note.updated;
     default:
-      // Custom field from props
-      return note.props?.[field];
+      return undefined;
   }
 }
 
@@ -247,20 +252,20 @@ export function getAvailableFields(
     }
   }
 
-  // System fields
+  // System fields (no prefix)
   const fields: FilterFieldInfo[] = [
-    { name: 'flint_type', label: 'Type', type: 'select', isSystem: true },
-    { name: 'flint_title', label: 'Title', type: 'string', isSystem: true },
-    { name: 'flint_created', label: 'Created', type: 'date', isSystem: true },
-    { name: 'flint_updated', label: 'Updated', type: 'date', isSystem: true },
-    { name: 'flint_archived', label: 'Archived', type: 'boolean', isSystem: true }
+    { name: 'type', label: 'Type', type: 'select', isSystem: true },
+    { name: 'title', label: 'Title', type: 'string', isSystem: true },
+    { name: 'created', label: 'Created', type: 'date', isSystem: true },
+    { name: 'updated', label: 'Updated', type: 'date', isSystem: true },
+    { name: 'archived', label: 'Archived', type: 'boolean', isSystem: true }
   ];
 
-  // Add custom fields with type and options from schema (default to string)
+  // Add custom fields with props.* prefix
   for (const fieldName of Array.from(customFields).sort()) {
     const schema = fieldSchemaMap.get(fieldName);
     fields.push({
-      name: fieldName,
+      name: `props.${fieldName}`,
       label: fieldName.replace(/_/g, ' '),
       type: schema?.type ?? 'string',
       options: schema?.options,

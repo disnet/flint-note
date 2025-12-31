@@ -28,19 +28,12 @@
   const allFields = $derived.by(() => {
     // Filter system fields to commonly used ones for props
     const commonSystemFields = SYSTEM_FIELDS.filter((f) =>
-      ['flint_created', 'flint_updated', 'flint_type', 'flint_kind'].includes(f.name)
+      ['created', 'updated', 'type'].includes(f.name)
     );
     const customFields = fields.filter((f) => !f.isSystem);
     const combined = [...commonSystemFields, ...customFields];
-    // Filter out excluded fields (temporary Set created fresh each derivation)
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
-    const excludeSet = new Set<string>();
-    // Also exclude variants (with/without flint_ prefix)
-    excludeFields.forEach((f) => {
-      excludeSet.add(f);
-      excludeSet.add(`flint_${f}`);
-      excludeSet.add(f.replace('flint_', ''));
-    });
+    // Filter out excluded fields
+    const excludeSet = new Set(excludeFields);
     return combined.filter((f) => !excludeSet.has(f.name));
   });
 

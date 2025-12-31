@@ -85,14 +85,27 @@ export const OPERATORS_BY_TYPE: Record<FieldType, FilterOperator[]> = {
 
 /**
  * System fields available for filtering
+ * These use bare names (no prefix) - custom properties use props.* namespace
  */
 export const SYSTEM_FIELDS: FilterFieldInfo[] = [
-  { name: 'flint_type', label: 'Type', type: 'select', isSystem: true },
-  { name: 'flint_title', label: 'Title', type: 'string', isSystem: true },
-  { name: 'flint_created', label: 'Created', type: 'date', isSystem: true },
-  { name: 'flint_updated', label: 'Updated', type: 'date', isSystem: true },
-  { name: 'flint_archived', label: 'Archived', type: 'boolean', isSystem: true }
+  { name: 'type', label: 'Type', type: 'select', isSystem: true },
+  { name: 'title', label: 'Title', type: 'string', isSystem: true },
+  { name: 'created', label: 'Created', type: 'date', isSystem: true },
+  { name: 'updated', label: 'Updated', type: 'date', isSystem: true },
+  { name: 'archived', label: 'Archived', type: 'boolean', isSystem: true }
 ];
+
+/**
+ * Set of system field names for quick lookup
+ */
+export const SYSTEM_FIELD_NAMES = new Set([
+  'type',
+  'type_id',
+  'title',
+  'created',
+  'updated',
+  'archived'
+]);
 
 /**
  * System columns available for column selection

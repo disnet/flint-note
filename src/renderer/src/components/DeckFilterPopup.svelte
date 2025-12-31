@@ -23,7 +23,7 @@
     fieldInfo: FilterFieldInfo | null;
     /** Position for the popup */
     position: { top: number; left: number };
-    /** Options for select fields (e.g., note type names for flint_type) */
+    /** Options for select fields (e.g., note type names for type field) */
     options?: string[];
     /** Called when filter is updated */
     onUpdate: (filter: DeckFilter) => void;

@@ -95,7 +95,9 @@
     if (!fieldsByType) return true; // If no type info, assume in schema
     const typeFields = fieldsByType.get(note.typeId);
     if (!typeFields) return true; // If type not found, assume in schema
-    return typeFields.has(field);
+    // Strip props. prefix to match fieldsByType which stores bare prop names
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    return typeFields.has(propName);
   }
 
   // Filter columns to only show visible ones in the list
@@ -231,20 +233,24 @@
 
   // Get display value for a field
   function getDisplayValue(field: string): string {
-    if (field === 'title' || field === 'flint_title') {
+    // System fields
+    if (field === 'title') {
       return note.title || '';
     }
-    if (field === 'type' || field === 'flint_type') {
+    if (field === 'type') {
       // Use the pre-fetched type name from the result
       return note.typeName || note.typeId;
     }
-    if (field === 'created' || field === 'flint_created') {
+    if (field === 'created') {
       return formatDate(note.created);
     }
-    if (field === 'updated' || field === 'flint_updated') {
+    if (field === 'updated') {
       return formatDate(note.updated);
     }
-    const val = note.props[field];
+
+    // Custom properties (props.* format)
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    const val = note.props[propName];
     if (val === undefined || val === null) return '';
 
     // Handle notelink/notelinks - show titles instead of IDs
@@ -277,51 +283,44 @@
 
   // Get field type
   function getFieldType(field: string): FieldType | 'system' | 'unknown' {
-    if (
-      field === 'title' ||
-      field === 'type' ||
-      field === 'flint_title' ||
-      field === 'flint_type'
-    )
-      return 'system';
-    if (
-      field === 'created' ||
-      field === 'updated' ||
-      field === 'flint_created' ||
-      field === 'flint_updated'
-    )
-      return 'date';
-    const schemaField = schemaFields.get(field);
+    if (field === 'title' || field === 'type') return 'system';
+    if (field === 'created' || field === 'updated') return 'date';
+
+    // For props.* fields, look up the schema by prop name
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    const schemaField = schemaFields.get(propName);
     return schemaField?.type ?? 'unknown';
   }
 
   // Get field options for select fields
   function getFieldOptions(field: string): string[] {
-    return schemaFields.get(field)?.options ?? [];
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    return schemaFields.get(propName)?.options ?? [];
   }
 
   // Get column label
   function getColumnLabel(column: ColumnConfig): string {
     if (column.label) return column.label;
-    return column.field.replace(/^flint_/, '').replace(/_/g, ' ');
+    // Remove props. prefix and convert underscores to spaces
+    return column.field.replace(/^props\./, '').replace(/_/g, ' ');
   }
 
   // Check if field is editable
   function isEditable(field: string): boolean {
     // System fields (except title) are not editable
-    if (field === 'type' || field === 'flint_type') return false;
-    if (field === 'created' || field === 'updated') return false;
-    if (field === 'flint_created' || field === 'flint_updated') return false;
+    if (field === 'type' || field === 'created' || field === 'updated') return false;
     return true;
   }
 
   // Get raw value for a field (for editing)
   function getRawValue(field: string): unknown {
-    if (field === 'title' || field === 'flint_title') return note.title || '';
-    if (field === 'type' || field === 'flint_type') return note.typeId;
-    if (field === 'created' || field === 'flint_created') return note.created;
-    if (field === 'updated' || field === 'flint_updated') return note.updated;
-    return note.props[field] ?? '';
+    if (field === 'title') return note.title || '';
+    if (field === 'type') return note.typeId;
+    if (field === 'created') return note.created;
+    if (field === 'updated') return note.updated;
+    // Custom properties (props.* format)
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+    return note.props[propName] ?? '';
   }
 
   // Handle inline field change (save immediately)

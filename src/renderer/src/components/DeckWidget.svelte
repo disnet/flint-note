@@ -101,6 +101,7 @@
   // Derived: active columns from the current view
   // Union of explicit columns and filter fields so users can manipulate both
   const activeColumns = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
     const seenFields = new Set<string>();
     const result: ColumnConfig[] = [];
 
@@ -128,9 +129,7 @@
 
   // Derived: get type IDs from type filter (convert names to IDs)
   const filteredTypeIds = $derived.by(() => {
-    const typeFilter = activeView.filters.find(
-      (f) => f.field === 'flint_type' || f.field === 'type'
-    );
+    const typeFilter = activeView.filters.find((f) => f.field === 'type');
     if (!typeFilter) return [];
 
     // Get the filter values (could be type names)
@@ -269,19 +268,18 @@
     // Use first filtered type, or default type
     const noteTypeId = firstFilteredTypeId || 'type-note';
 
-    // Pre-fill props from equality filters
+    // Pre-fill props from equality filters (only for props.* fields)
     const prefillProps: Record<string, unknown> = {};
     for (const filter of activeView.filters) {
       const isEquality = !filter.operator || filter.operator === '=';
       const isSimpleValue = typeof filter.value === 'string';
-      const isSystemField =
-        filter.field === 'type' ||
-        filter.field === 'flint_type' ||
-        filter.field.startsWith('flint_');
+      const isPropsField = filter.field.startsWith('props.');
       const isEmptyMarker = filter.value === EMPTY_FILTER_VALUE;
 
-      if (isEquality && isSimpleValue && !isSystemField && !isEmptyMarker) {
-        prefillProps[filter.field] = filter.value;
+      if (isEquality && isSimpleValue && isPropsField && !isEmptyMarker) {
+        // Extract prop name from props.fieldname
+        const propName = filter.field.slice(6);
+        prefillProps[propName] = filter.value;
       }
     }
 
@@ -307,8 +305,11 @@
     const note = getNote(noteId);
     if (!note) return;
 
+    // Extract prop name from props.* format
+    const propName = field.startsWith('props.') ? field.slice(6) : field;
+
     // Update note props
-    const updatedProps = { ...note.props, [field]: value };
+    const updatedProps = { ...note.props, [propName]: value };
     setNoteProps(noteId, updatedProps);
   }
 
@@ -347,9 +348,9 @@
   const filterPopupFieldInfo = $derived.by(() => {
     if (!filterPopupField) return null;
 
-    // Special handling for flint_type - always enrich with note type options
-    if (filterPopupField === 'flint_type' || filterPopupField === 'type') {
-      const baseField = SYSTEM_FIELDS.find((f) => f.name === 'flint_type');
+    // Special handling for type field - always enrich with note type options
+    if (filterPopupField === 'type') {
+      const baseField = SYSTEM_FIELDS.find((f) => f.name === 'type');
       if (baseField && noteTypeNames.length > 0) {
         return { ...baseField, options: noteTypeNames, optionIcons: typeIcons };
       }
@@ -359,18 +360,13 @@
     const schemaField = availableSchemaFields.find((f) => f.name === filterPopupField);
     if (schemaField) return schemaField;
 
-    const systemField = SYSTEM_FIELDS.find(
-      (f) =>
-        f.name === filterPopupField ||
-        f.name === `flint_${filterPopupField}` ||
-        filterPopupField === f.name.replace('flint_', '')
-    );
+    const systemField = SYSTEM_FIELDS.find((f) => f.name === filterPopupField);
     if (systemField) {
       return systemField;
     }
     return {
       name: filterPopupField,
-      label: filterPopupField.replace(/^flint_/, '').replace(/_/g, ' '),
+      label: filterPopupField.replace(/^props\./, '').replace(/_/g, ' '),
       type: 'string' as const,
       isSystem: false
     };
