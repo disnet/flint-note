@@ -105,6 +105,7 @@ let activeVaultId = $state<string | null>(null);
 // UI state (persisted in Automerge document's lastViewState)
 let activeItem = $state<ActiveItem>(null);
 let activeSystemView = $state<SystemView>(null);
+let selectedNoteTypeId = $state<string | null>(null);
 
 // Loading states
 let isInitialized = $state(false);
@@ -1891,6 +1892,20 @@ export function setActiveSystemView(view: SystemView): void {
 }
 
 /**
+ * Get the currently selected note type ID
+ */
+export function getSelectedNoteTypeId(): string | null {
+  return selectedNoteTypeId;
+}
+
+/**
+ * Set the selected note type ID (for navigating to type definition screen)
+ */
+export function setSelectedNoteTypeId(typeId: string | null): void {
+  selectedNoteTypeId = typeId;
+}
+
+/**
  * Get the currently active note metadata (convenience getter)
  */
 export function getActiveNote(): NoteMetadata | undefined {
@@ -1953,7 +1968,7 @@ export function addNoteToWorkspace(noteId: string): void {
 }
 
 /**
- * Navigate to a note or conversation by ID, or create a new note if shouldCreate is true.
+ * Navigate to a note, conversation, or type by ID, or create a new note if shouldCreate is true.
  * This is the centralized handler for wikilink clicks.
  *
  * @param targetId - The ID to navigate to (or the title if creating)
@@ -1966,7 +1981,7 @@ export async function navigateToNote(
   title: string,
   options?: {
     shouldCreate?: boolean;
-    targetType?: 'note' | 'conversation';
+    targetType?: 'note' | 'conversation' | 'type';
   }
 ): Promise<string> {
   const targetType = options?.targetType || 'note';
@@ -1976,6 +1991,11 @@ export async function navigateToNote(
     // Navigate to conversation (never create via wikilink)
     setActiveItem({ type: 'conversation', id: targetId });
     addItemToWorkspace({ type: 'conversation', id: targetId });
+    return targetId;
+  } else if (targetType === 'type') {
+    // Navigate to note type definition screen
+    setSelectedNoteTypeId(targetId);
+    setActiveSystemView('types');
     return targetId;
   } else {
     // Note handling

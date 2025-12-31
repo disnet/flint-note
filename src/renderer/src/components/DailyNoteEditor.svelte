@@ -18,6 +18,7 @@
     setActiveNoteId,
     setActiveConversationId,
     setActiveSystemView,
+    setSelectedNoteTypeId,
     addNoteToWorkspace,
     addItemToWorkspace,
     EditorConfig,
@@ -225,6 +226,10 @@
       setActiveConversationId(targetId);
       addItemToWorkspace({ type: 'conversation', id: targetId });
       setActiveSystemView(null); // Clear daily view to show the conversation
+    } else if (targetType === 'type') {
+      // Navigate to note type definition screen
+      setSelectedNoteTypeId(targetId);
+      setActiveSystemView('types');
     } else {
       // Note handling
       if (shouldCreate) {

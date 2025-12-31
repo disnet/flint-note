@@ -13,6 +13,8 @@
     setActiveItem,
     getActiveSystemView,
     setActiveSystemView,
+    getSelectedNoteTypeId,
+    setSelectedNoteTypeId,
     createNote,
     updateNote,
     archiveNote,
@@ -108,12 +110,13 @@
   let searchQuery = $state('');
   // activeSystemView is now persisted in Automerge document
   const activeSystemView: SystemView = $derived(getActiveSystemView());
+  // selectedNoteTypeId is now managed in centralized state
+  const selectedNoteTypeId = $derived(getSelectedNoteTypeId());
   let showCreateVaultModal = $state(false);
   let showArchiveWebpageModal = $state(false);
   let showLegacyMigrationModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
-  let selectedNoteTypeId = $state<string | null>(null);
   let selectedConversationId = $state<string | null>(null);
   let selectedSearchIndex = $state(0);
   let pendingChatMessage = $state<string | null>(null);
@@ -491,7 +494,7 @@
     }
     // Reset selected note type when leaving types view
     if (view !== 'types') {
-      selectedNoteTypeId = null;
+      setSelectedNoteTypeId(null);
     }
     // Reset selected conversation when leaving conversations view
     if (view !== 'conversations') {
@@ -532,14 +535,14 @@
   }
 
   function handleNoteTypeSelect(typeId: string | null): void {
-    selectedNoteTypeId = typeId;
+    setSelectedNoteTypeId(typeId);
   }
 
   function handleNoteSelectFromTypes(_noteId: string): void {
     // Navigate to the note from the types view
     // The note is already selected via setActiveNoteId in the NoteTypesView
     setActiveSystemView(null);
-    selectedNoteTypeId = null;
+    setSelectedNoteTypeId(null);
   }
 
   async function handleVaultSelect(vaultId: string): Promise<void> {

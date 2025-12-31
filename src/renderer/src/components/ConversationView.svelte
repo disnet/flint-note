@@ -24,7 +24,9 @@
     setActiveNoteId,
     getConversationEntry,
     updateConversation,
-    addNoteToWorkspace
+    addNoteToWorkspace,
+    setActiveSystemView,
+    setSelectedNoteTypeId
   } from '../lib/automerge';
   import { automergeWikilinksExtension } from '../lib/automerge/wikilinks.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
@@ -199,10 +201,16 @@
   function handleTitleWikilinkClick(
     targetId: string,
     _title: string,
-    options?: { shouldCreate?: boolean; targetType?: 'note' | 'conversation' }
+    options?: { shouldCreate?: boolean; targetType?: 'note' | 'conversation' | 'type' }
   ): void {
     if (options?.targetType === 'conversation') {
       // Don't navigate to conversations from title
+      return;
+    }
+    if (options?.targetType === 'type') {
+      // Navigate to note type definition screen
+      setSelectedNoteTypeId(targetId);
+      setActiveSystemView('types');
       return;
     }
     if (options?.shouldCreate) {

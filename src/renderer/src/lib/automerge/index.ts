@@ -173,6 +173,8 @@ export {
   setActiveItem,
   getActiveSystemView,
   setActiveSystemView,
+  getSelectedNoteTypeId,
+  setSelectedNoteTypeId,
   getActiveNote,
   getActiveConversationEntry,
   navigateToNote,

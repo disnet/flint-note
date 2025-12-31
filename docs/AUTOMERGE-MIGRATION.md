@@ -339,7 +339,7 @@ function migrateNewFeature(d: NotesDocument): void {
 
 const SCHEMA_MIGRATIONS: Record<number, (d: NotesDocument) => void> = {
   1: migratePropsCleanup,
-  2: migrateNewFeature,  // Add new migration
+  2: migrateNewFeature // Add new migration
 };
 ```
 

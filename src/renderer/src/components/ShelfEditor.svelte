@@ -13,6 +13,8 @@
     createNote,
     setActiveNoteId,
     setActiveConversationId,
+    setActiveSystemView,
+    setSelectedNoteTypeId,
     addNoteToWorkspace,
     addItemToWorkspace,
     EditorConfig,
@@ -70,6 +72,10 @@
       // Navigate to conversation (never create via wikilink)
       setActiveConversationId(targetId);
       addItemToWorkspace({ type: 'conversation', id: targetId });
+    } else if (targetType === 'type') {
+      // Navigate to note type definition screen
+      setSelectedNoteTypeId(targetId);
+      setActiveSystemView('types');
     } else {
       // Note handling
       if (shouldCreate) {
