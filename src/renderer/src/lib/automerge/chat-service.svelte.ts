@@ -180,6 +180,27 @@ ${noteTypesContext}`;
 }
 
 /**
+ * Build a date/time context message to inform the AI of the current time.
+ * Returns a formatted string with the current date, time, and timezone.
+ */
+function buildDateTimeContext(): string {
+  const now = new Date();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const formattedDate = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const formattedTime = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+  return `Current date and time: ${formattedDate}, ${formattedTime} (${timezone})`;
+}
+
+/**
  * Chat Service class that manages AI conversations with tool support
  */
 /**
@@ -346,8 +367,10 @@ export class ChatService {
       this.abortController = new AbortController();
 
       // Build messages for API
-      // Filter out empty assistant messages (like the placeholder we just added)
-      const coreMessages: ModelMessage[] = [];
+      // Start with date/time context, then filter out empty assistant messages
+      const coreMessages: ModelMessage[] = [
+        { role: 'system', content: buildDateTimeContext() }
+      ];
       for (const m of this._messages) {
         // Skip empty assistant messages
         if (m.role === 'assistant' && !m.content && !m.toolCalls?.length) {
@@ -588,7 +611,10 @@ export class ChatService {
       this.abortController = new AbortController();
 
       // Build messages for API (includes all previous messages with tool calls/results)
-      const coreMessages: ModelMessage[] = [];
+      // Start with date/time context
+      const coreMessages: ModelMessage[] = [
+        { role: 'system', content: buildDateTimeContext() }
+      ];
       for (const m of this._messages) {
         // Skip empty assistant messages
         if (m.role === 'assistant' && !m.content && !m.toolCalls?.length) {
