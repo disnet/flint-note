@@ -437,7 +437,9 @@
       class="fade-overlay"
       transition:fade={{ duration: 200, easing: cubicOut }}
       onclick={toggleExpansion}
-      onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleExpansion(); }}
+      onkeydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') toggleExpansion();
+      }}
       role="button"
       tabindex="-1"
     >

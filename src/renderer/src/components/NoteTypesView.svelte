@@ -17,8 +17,10 @@
     type NoteMetadata,
     type PropertyDefinition
   } from '../lib/automerge';
+  import { DEFAULT_PAGE_SIZE, type PageSize } from '../lib/automerge/deck';
   import EmojiPicker from './EmojiPicker.svelte';
   import PropertyEditor from './PropertyEditor.svelte';
+  import DeckPaginationControls from './DeckPaginationControls.svelte';
 
   interface Props {
     selectedTypeId?: string | null;
@@ -35,6 +37,21 @@
   const isSelectedTypeSystem = $derived(
     selectedTypeId ? isProtectedType(selectedTypeId) : false
   );
+
+  // Pagination state
+  let currentPage = $state(0);
+  let pageSize = $state<PageSize>(DEFAULT_PAGE_SIZE);
+
+  // Notes for current type (unfiltered)
+  const notesForSelectedType = $derived(
+    selectedTypeId ? getNotesForType(selectedTypeId) : []
+  );
+  const totalNotes = $derived(notesForSelectedType.length);
+  const totalPages = $derived(Math.max(1, Math.ceil(totalNotes / pageSize)));
+  const offset = $derived(currentPage * pageSize);
+
+  // Paginated notes
+  const paginatedNotes = $derived(notesForSelectedType.slice(offset, offset + pageSize));
 
   // Get note count for a type
   function getNoteCount(typeId: string): number {
@@ -141,10 +158,21 @@
     onNoteSelect?.(noteId);
   }
 
+  // Pagination handlers
+  function handlePageChange(page: number): void {
+    currentPage = page;
+  }
+
+  function handlePageSizeChange(size: PageSize): void {
+    pageSize = size;
+    currentPage = 0; // Reset to first page
+  }
+
   // Reset state when selection changes
   $effect(() => {
     if (selectedTypeId) {
       showDeleteConfirm = false;
+      currentPage = 0; // Reset pagination when switching types
     }
   });
 
@@ -247,9 +275,9 @@
       <!-- Notes in this type -->
       <div class="type-notes">
         <h2 class="section-title">Notes</h2>
-        {#if getNotesForType(selectedTypeId || '').length > 0}
+        {#if totalNotes > 0}
           <div class="notes-list">
-            {#each getNotesForType(selectedTypeId || '') as note (note.id)}
+            {#each paginatedNotes as note (note.id)}
               <button
                 class="note-item"
                 onclick={() => handleNoteClick(note.id)}
@@ -262,6 +290,14 @@
               </button>
             {/each}
           </div>
+          <DeckPaginationControls
+            {currentPage}
+            {totalPages}
+            {pageSize}
+            total={totalNotes}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
         {:else}
           <div class="empty-notes">
             <p>No notes of this type yet.</p>
