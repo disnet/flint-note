@@ -1137,9 +1137,7 @@
     padding: 0 0.75rem;
   }
 
-  .separator-container {
-    /* Transform controlled programmatically during drag */
-  }
+  /* .separator-container transform controlled programmatically during drag */
 
   .separator-row {
     display: flex;
