@@ -99,16 +99,38 @@
   const activeView = $derived.by(() => getActiveView(config));
 
   // Derived: active columns from the current view
+  // Union of explicit columns and filter fields so users can manipulate both
   const activeColumns = $derived.by(() => {
+    const seenFields = new Set<string>();
+    const result: ColumnConfig[] = [];
+
+    // First add explicit columns
     if (activeView.columns && activeView.columns.length > 0) {
-      return activeView.columns.map(normalizeColumn);
+      for (const col of activeView.columns) {
+        const normalized = normalizeColumn(col);
+        if (!seenFields.has(normalized.field)) {
+          seenFields.add(normalized.field);
+          result.push(normalized);
+        }
+      }
     }
-    return [] as ColumnConfig[];
+
+    // Then add filter fields that aren't already in columns
+    for (const filter of activeView.filters) {
+      if (!seenFields.has(filter.field)) {
+        seenFields.add(filter.field);
+        result.push(normalizeColumn({ field: filter.field }));
+      }
+    }
+
+    return result;
   });
 
-  // Derived: get type IDs from flint_type filter (convert names to IDs)
+  // Derived: get type IDs from type filter (convert names to IDs)
   const filteredTypeIds = $derived.by(() => {
-    const typeFilter = activeView.filters.find((f) => f.field === 'flint_type');
+    const typeFilter = activeView.filters.find(
+      (f) => f.field === 'flint_type' || f.field === 'type'
+    );
     if (!typeFilter) return [];
 
     // Get the filter values (could be type names)

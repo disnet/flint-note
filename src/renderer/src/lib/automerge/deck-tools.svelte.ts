@@ -19,6 +19,7 @@ import {
   getDeckConfig,
   updateDeckConfig
 } from './state.svelte';
+import type { NoteType } from './types';
 import { runDeckQuery } from './deck/deck-query.svelte';
 import {
   getActiveView,
@@ -34,6 +35,107 @@ const DECK_LIMITS = {
   QUERY_RESULT_MAX: 100, // Hard max for query results
   QUERY_RESULT_DEFAULT: 25 // Default limit for query results
 };
+
+/**
+ * System fields that are always valid in deck filters
+ */
+const SYSTEM_FIELD_NAMES = new Set([
+  'type',
+  'flint_type',
+  'title',
+  'flint_title',
+  'created',
+  'flint_created',
+  'updated',
+  'flint_updated',
+  'archived',
+  'flint_archived'
+]);
+
+interface FilterValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+/**
+ * Validate that filter fields exist on the target note type(s).
+ * Returns validation errors for unknown fields.
+ */
+function validateFilterFields(
+  filters: Array<{ field: string; operator?: string; value: string | string[] }>,
+  noteTypes: Record<string, NoteType>
+): FilterValidationResult {
+  const errors: string[] = [];
+
+  // Find type filter if present
+  const typeFilter = filters.find((f) => f.field === 'type' || f.field === 'flint_type');
+
+  const targetTypeNames: string[] = [];
+  const validProperties = new Set<string>();
+  const allTypes = Object.values(noteTypes).filter((t) => !t.archived);
+
+  if (typeFilter) {
+    // Extract type name(s) from filter value
+    const typeValues = Array.isArray(typeFilter.value)
+      ? typeFilter.value
+      : [typeFilter.value];
+    const matchedTypes: NoteType[] = [];
+    const unmatchedNames: string[] = [];
+
+    for (const typeName of typeValues) {
+      const found = allTypes.find((t) => t.name.toLowerCase() === typeName.toLowerCase());
+      if (found) {
+        matchedTypes.push(found);
+        targetTypeNames.push(found.name);
+      } else {
+        unmatchedNames.push(typeName);
+      }
+    }
+
+    // Error if any type names don't exist
+    if (unmatchedNames.length > 0) {
+      const availableTypes = allTypes.map((t) => t.name).join(', ');
+      errors.push(
+        `Type${unmatchedNames.length > 1 ? 's' : ''} not found: ${unmatchedNames.join(', ')}. Available types: ${availableTypes}`
+      );
+      return { valid: false, errors };
+    }
+
+    // Collect properties from matched types
+    for (const noteType of matchedTypes) {
+      for (const prop of noteType.properties ?? []) {
+        validProperties.add(prop.name);
+      }
+    }
+  } else {
+    // No type filter - collect from ALL non-archived types
+    for (const noteType of allTypes) {
+      for (const prop of noteType.properties ?? []) {
+        validProperties.add(prop.name);
+      }
+    }
+  }
+
+  // Validate each filter field
+  for (const filter of filters) {
+    if (SYSTEM_FIELD_NAMES.has(filter.field)) continue;
+
+    if (!validProperties.has(filter.field)) {
+      const propList = Array.from(validProperties).sort().join(', ') || '(none)';
+      if (targetTypeNames.length > 0) {
+        errors.push(
+          `Unknown field "${filter.field}" for type${targetTypeNames.length > 1 ? 's' : ''} ${targetTypeNames.join(', ')}. Available properties: ${propList}`
+        );
+      } else {
+        errors.push(
+          `Unknown field "${filter.field}". No note type defines this property. Use get_note_type to check available properties.`
+        );
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
 
 /**
  * Simplified deck result for AI context
@@ -290,6 +392,20 @@ export function createDeckTools(): Record<string, Tool> {
             config.pageSize = pageSize;
           }
 
+          // Validate filter fields before creating
+          if (views && views.length > 0) {
+            const noteTypes = getNoteTypesDict();
+            for (const view of views) {
+              const validation = validateFilterFields(view.filters, noteTypes);
+              if (!validation.valid) {
+                return {
+                  success: false,
+                  error: `Invalid filters in view "${view.name}": ${validation.errors.join('; ')}`
+                };
+              }
+            }
+          }
+
           // Create the deck note with the config directly
           // (avoids timing issue with reactive state update)
           const deckId = createDeckNote(title, config);
@@ -354,6 +470,18 @@ export function createDeckTools(): Record<string, Tool> {
             }
 
             if (views !== undefined) {
+              // Validate filter fields before updating
+              const noteTypes = getNoteTypesDict();
+              for (const view of views) {
+                const validation = validateFilterFields(view.filters, noteTypes);
+                if (!validation.valid) {
+                  return {
+                    success: false,
+                    error: `Invalid filters in view "${view.name}": ${validation.errors.join('; ')}`
+                  };
+                }
+              }
+
               config.views = views.map((v) => ({
                 name: v.name,
                 filters: v.filters.map((f) => ({

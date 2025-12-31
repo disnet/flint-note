@@ -197,6 +197,12 @@ create_deck({
 })
 \`\`\`
 
+**Before creating decks with property filters:**
+- Use \`get_note_type\` to check what properties are available for the target type
+- Filter field names must exactly match property names defined on the note type
+- System fields (type, title, created, updated, archived) are always available
+- If filtering by multiple types, ensure the property exists on ALL filtered types
+
 ## Communication Style
 
 **Wikilink format:** Always use ID-only format when referencing notes:
