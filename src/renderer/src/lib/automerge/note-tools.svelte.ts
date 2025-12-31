@@ -14,6 +14,7 @@ import {
   getNotes,
   createNote,
   updateNote,
+  updateNoteContent,
   archiveNote,
   getBacklinks,
   getNoteType,
@@ -170,6 +171,60 @@ function toSearchNoteResult(
     result.typeName = noteType.name;
   }
   return result;
+}
+
+/**
+ * Result of validating and preparing diffs for application
+ */
+interface DiffValidationResult {
+  success: boolean;
+  newContent?: string;
+  error?: string;
+  failedDiffs?: Array<{ old_text: string; reason: string }>;
+}
+
+/**
+ * Validates all diffs can be applied and returns the resulting content.
+ * Uses fail-fast: validates ALL diffs before applying any.
+ */
+function applyDiffs(
+  currentContent: string,
+  diffs: Array<{ old_text: string; new_text: string; replace_all?: boolean }>
+): DiffValidationResult {
+  // First pass: validate all old_text values exist
+  const failedDiffs: Array<{ old_text: string; reason: string }> = [];
+
+  for (const diff of diffs) {
+    if (!currentContent.includes(diff.old_text)) {
+      failedDiffs.push({
+        old_text:
+          diff.old_text.length > 50 ? diff.old_text.slice(0, 50) + '...' : diff.old_text,
+        reason: 'Text not found in content'
+      });
+    }
+  }
+
+  if (failedDiffs.length > 0) {
+    return {
+      success: false,
+      error: 'Some search texts were not found in the note content',
+      failedDiffs
+    };
+  }
+
+  // Second pass: apply all diffs in order
+  let result = currentContent;
+  for (const diff of diffs) {
+    if (diff.replace_all) {
+      // Replace all occurrences
+      result = result.split(diff.old_text).join(diff.new_text);
+    } else {
+      // Replace first occurrence only
+      result = result.replace(diff.old_text, diff.new_text);
+    }
+  }
+
+  return { success: true, newContent: result };
 }
 
 /**
@@ -525,32 +580,112 @@ export function createNoteTools(): Record<string, Tool> {
      */
     update_note: tool({
       description:
-        'Update an existing note. You can update the title, content, or both. Only provide the fields you want to change.',
+        'Update an existing note. You can update the title, content, or both. ' +
+        'For content, use either full replacement (content parameter) OR ' +
+        'search-and-replace diffs (diffs parameter). Diffs are preferred for targeted edits.',
       inputSchema: z.object({
         noteId: z.string().describe('The note ID to update'),
         title: z.string().optional().describe('New title (if updating)'),
-        content: z.string().optional().describe('New content (if updating)')
+        content: z
+          .string()
+          .optional()
+          .describe('New full content (replaces entire content)'),
+        diffs: z
+          .array(
+            z.object({
+              old_text: z
+                .string()
+                .min(1)
+                .describe(
+                  'The exact text to find and replace. Must match content exactly.'
+                ),
+              new_text: z
+                .string()
+                .describe(
+                  'The replacement text. Use empty string to delete the old_text.'
+                ),
+              replace_all: z
+                .boolean()
+                .optional()
+                .default(false)
+                .describe(
+                  'If true, replace ALL occurrences. If false (default), only first occurrence.'
+                )
+            })
+          )
+          .optional()
+          .describe(
+            'Array of search-and-replace operations. Applied in order. ' +
+              'Cannot be used together with the content parameter.'
+          )
       }),
-      execute: async ({ noteId, title, content }) => {
+      execute: async ({ noteId, title, content, diffs }) => {
         try {
+          // Validate note exists
           const note = getNote(noteId);
           if (!note) {
             return { success: false, error: `Note not found: ${noteId}` };
           }
 
-          const updates: { title?: string; content?: string } = {};
-          if (title !== undefined) updates.title = title;
-          if (content !== undefined) updates.content = content;
+          // Validate mutually exclusive content update modes
+          if (content !== undefined && diffs !== undefined && diffs.length > 0) {
+            return {
+              success: false,
+              error:
+                "Cannot use both 'content' and 'diffs' parameters. " +
+                "Use 'content' for full replacement or 'diffs' for targeted edits."
+            };
+          }
 
-          if (Object.keys(updates).length === 0) {
+          // Check if any updates were provided
+          const hasUpdates =
+            title !== undefined ||
+            content !== undefined ||
+            (diffs !== undefined && diffs.length > 0);
+
+          if (!hasUpdates) {
             return { success: false, error: 'No updates provided' };
           }
 
-          updateNote(noteId, updates);
+          const updatedFields: string[] = [];
+
+          // Handle title update
+          if (title !== undefined) {
+            updateNote(noteId, { title });
+            updatedFields.push('title');
+          }
+
+          // Handle content update (full replacement)
+          if (content !== undefined) {
+            await updateNoteContent(noteId, content);
+            updatedFields.push('content');
+          }
+
+          // Handle diff-based content update
+          if (diffs !== undefined && diffs.length > 0) {
+            // Get current content
+            const currentContent = await getNoteContent(noteId);
+
+            // Apply diffs
+            const result = applyDiffs(currentContent, diffs);
+
+            if (!result.success) {
+              return {
+                success: false,
+                error: result.error,
+                failedDiffs: result.failedDiffs
+              };
+            }
+
+            // Update content with the result
+            await updateNoteContent(noteId, result.newContent!);
+            updatedFields.push('content');
+          }
+
           return {
             success: true,
             message: `Updated note ${noteId}`,
-            updatedFields: Object.keys(updates)
+            updatedFields
           };
         } catch (error) {
           return {
