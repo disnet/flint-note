@@ -465,11 +465,12 @@
         el.style.transform = '';
         el.style.transition = '';
       });
-      // Also clear any stuck separator transforms
-      const separatorRow = listElement.querySelector<HTMLElement>('.separator-row');
-      if (separatorRow) {
-        separatorRow.style.transform = '';
-        separatorRow.style.transition = '';
+      // Also clear any stuck separator container transforms
+      const separatorContainer =
+        listElement.querySelector<HTMLElement>('.separator-container');
+      if (separatorContainer) {
+        separatorContainer.style.transform = '';
+        separatorContainer.style.transition = '';
       }
       listElement.style.pointerEvents = '';
     }
@@ -756,40 +757,42 @@
     {/if}
     {#each unifiedList as listItem, index (listItem.type === 'separator' ? 'separator' : `${listItem.item.type}:${listItem.item.id}`)}
       {#if listItem.type === 'separator'}
-        <div class="separator-row" style:transform={getItemTransform(index)}>
-          <div class="separator-line"></div>
-          {#if recentItems.length > 0}
-            <button class="clear-all" onclick={handleClearAll}>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                class="down-arrow"
-              >
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <polyline points="7,14 12,19 17,14"></polyline>
-              </svg>
-              close all
-            </button>
-          {/if}
+        <div class="separator-container" style:transform={getItemTransform(index)}>
+          <div class="separator-row">
+            <div class="separator-line"></div>
+            {#if recentItems.length > 0}
+              <button class="clear-all" onclick={handleClearAll}>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  class="down-arrow"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <polyline points="7,14 12,19 17,14"></polyline>
+                </svg>
+                close all
+              </button>
+            {/if}
+          </div>
+          <button class="new-note-btn" onclick={handleNewNote}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Note
+          </button>
         </div>
-        <button class="new-note-btn" onclick={handleNewNote}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          New Note
-        </button>
       {:else}
         <div
           class="sidebar-item"
@@ -1065,13 +1068,16 @@
     padding: 0 0.75rem;
   }
 
+  .separator-container {
+    /* Transform controlled programmatically during drag */
+  }
+
   .separator-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.4rem;
     padding: 0.5rem 0;
-    /* Transform controlled programmatically during drag */
   }
 
   .empty-pinned-area {
