@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * System navigation views for the Automerge sidebar
-   * Includes Notes, Daily, Inbox, Review, Routines, Note Types, Conversations, and Settings
+   * Includes Notes, Daily, Inbox, Review, Routines, Note Types, and Settings
    */
   import {
     getReviewStats,
@@ -16,21 +16,12 @@
       | 'search'
       | 'types'
       | 'daily'
-      | 'conversations'
       | 'review'
       | 'inbox'
       | 'routines'
       | null;
     onSystemViewSelect: (
-      view:
-        | 'settings'
-        | 'types'
-        | 'daily'
-        | 'conversations'
-        | 'review'
-        | 'inbox'
-        | 'routines'
-        | null
+      view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines' | null
     ) => void;
   }
 
@@ -48,14 +39,7 @@
   const routinesDueCount = $derived(getRoutinesDueNow().length);
 
   function setActiveView(
-    view:
-      | 'settings'
-      | 'types'
-      | 'daily'
-      | 'conversations'
-      | 'review'
-      | 'inbox'
-      | 'routines'
+    view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines'
   ): void {
     onSystemViewSelect(view);
   }
@@ -171,24 +155,6 @@
         ></path>
       </svg>
       Note Types
-    </button>
-
-    <button
-      class="nav-item"
-      class:active={activeSystemView === 'conversations'}
-      onclick={() => setActiveView('conversations')}
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-      Conversations
     </button>
 
     <button

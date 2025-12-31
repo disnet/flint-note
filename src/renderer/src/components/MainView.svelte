@@ -9,7 +9,6 @@
     getNoteTypes,
     getActiveItem,
     getActiveNote,
-    getActiveConversationEntry,
     setActiveItem,
     getActiveSystemView,
     setActiveSystemView,
@@ -49,7 +48,6 @@
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
-    type ConversationIndexEntry,
     type SidebarItem,
     type SystemView
   } from '../lib/automerge';
@@ -69,8 +67,6 @@
   import APIKeySettings from './APIKeySettings.svelte';
   import DebugSettings from './DebugSettings.svelte';
   import AboutSettings from './AboutSettings.svelte';
-  import ConversationList from './ConversationList.svelte';
-  import ConversationView from './ConversationView.svelte';
   import ReviewView from './ReviewView.svelte';
   import InboxView from './InboxView.svelte';
   import RoutinesView from './RoutinesView.svelte';
@@ -90,7 +86,6 @@
   const noteTypes = $derived(getNoteTypes());
   const activeItem = $derived(getActiveItem());
   const activeNote = $derived(getActiveNote());
-  const activeConversation = $derived(getActiveConversationEntry());
   const vaults = $derived(getNonArchivedVaults());
   const activeVault = $derived(getActiveVault());
 
@@ -117,7 +112,6 @@
   let showLegacyMigrationModal = $state(false);
   let newVaultName = $state('');
   let searchInputFocused = $state(false);
-  let selectedConversationId = $state<string | null>(null);
   let selectedSearchIndex = $state(0);
   let pendingChatMessage = $state<string | null>(null);
 
@@ -478,15 +472,7 @@
   }
 
   function handleSystemViewSelect(
-    view:
-      | 'settings'
-      | 'types'
-      | 'daily'
-      | 'conversations'
-      | 'review'
-      | 'inbox'
-      | 'routines'
-      | null
+    view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines' | null
   ): void {
     setActiveSystemView(view);
     if (view) {
@@ -496,23 +482,6 @@
     if (view !== 'types') {
       setSelectedNoteTypeId(null);
     }
-    // Reset selected conversation when leaving conversations view
-    if (view !== 'conversations') {
-      selectedConversationId = null;
-    }
-  }
-
-  // Handle conversation selection from conversations view
-  function handleConversationSelectFromView(conv: ConversationIndexEntry): void {
-    setActiveItem({ type: 'conversation', id: conv.id });
-    selectedConversationId = conv.id;
-    // Stay in conversations view to show the conversation in main area
-  }
-
-  // Handle navigating to settings from conversation view
-  function handleGoToSettingsFromConversation(): void {
-    setActiveSystemView('settings');
-    selectedConversationId = null;
   }
 
   // Handle legacy migration
@@ -524,14 +493,6 @@
 
   function handleLegacyMigrationCancel(): void {
     showLegacyMigrationModal = false;
-  }
-
-  // Handle new conversation from conversations view
-  function handleNewConversationFromView(): void {
-    // Clear active conversation - ChatService will create new on first message
-    setActiveItem(null);
-    sidebarState.openPanel('chat');
-    setActiveSystemView(null);
   }
 
   function handleNoteTypeSelect(typeId: string | null): void {
@@ -1264,45 +1225,6 @@
           {:else if activeSystemView === 'daily'}
             <!-- Daily View -->
             <DailyView onNoteSelect={handleNoteSelect} />
-          {:else if activeSystemView === 'conversations'}
-            <!-- Conversations View -->
-            {#if selectedConversationId}
-              <!-- Single Conversation View -->
-              <ConversationView
-                conversationId={selectedConversationId}
-                onGoToSettings={handleGoToSettingsFromConversation}
-              />
-            {:else}
-              <!-- Conversations List -->
-              <div class="conversations-view">
-                <div class="conversations-view-header">
-                  <h2>Conversations</h2>
-                  <button class="create-btn" onclick={handleNewConversationFromView}>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    New Chat
-                  </button>
-                </div>
-                <div class="conversations-list-wrapper">
-                  <ConversationList
-                    activeConversationId={activeItem?.type === 'conversation'
-                      ? activeItem.id
-                      : null}
-                    onConversationSelect={handleConversationSelectFromView}
-                    onNewConversation={handleNewConversationFromView}
-                  />
-                </div>
-              </div>
-            {/if}
           {:else if activeSystemView === 'review'}
             <!-- Review View -->
             <ReviewView />
@@ -1319,15 +1241,6 @@
                   pendingChatMessage = `Execute the routine "${routine.name}". First read the routine details using get_routine to understand the full instructions, then follow them to complete the routine.`;
                   sidebarState.openPanel('chat');
                 }
-              }}
-            />
-          {:else if activeItem?.type === 'conversation' && activeConversation}
-            <!-- Conversation selected from sidebar -->
-            <ConversationView
-              conversationId={activeConversation.id}
-              onGoToSettings={() => {
-                setActiveSystemView('settings');
-                setActiveItem(null);
               }}
             />
           {:else if activeNote}
@@ -2100,37 +2013,5 @@
 
   .flex-1 {
     flex: 1;
-  }
-
-  /* Conversations View */
-  .conversations-view {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 1.5rem;
-    max-width: 600px;
-  }
-
-  .conversations-view-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    flex-shrink: 0;
-  }
-
-  .conversations-view-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-  }
-
-  .conversations-list-wrapper {
-    flex: 1;
-    overflow-y: auto;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-secondary);
   }
 </style>

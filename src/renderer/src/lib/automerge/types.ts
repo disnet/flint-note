@@ -53,7 +53,6 @@ export type SystemView =
   | 'search'
   | 'types'
   | 'daily'
-  | 'conversations'
   | 'review'
   | 'inbox'
   | 'routines'
