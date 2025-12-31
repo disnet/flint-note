@@ -5,6 +5,11 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import {
+  serializeDeckConfig,
+  parseDeckYaml,
+  type DeckConfig
+} from '../../shared/deck-yaml-utils';
 
 /**
  * Note metadata interface (without content) matching the Automerge document structure
@@ -178,6 +183,7 @@ export function getTypeName(
 
 /**
  * Build markdown content with YAML frontmatter.
+ * For deck notes, serializes props.deckConfig to YAML code block in content.
  */
 export function buildMarkdownWithFrontmatter(note: SyncNote): string {
   const frontmatterData: Record<string, unknown> = {
@@ -186,12 +192,28 @@ export function buildMarkdownWithFrontmatter(note: SyncNote): string {
     type: note.type || 'type-default'
   };
 
-  // Only add props section if there are props to write
+  // Check if this is a deck note with deckConfig in props
+  const deckConfig = note.props?.deckConfig as DeckConfig | undefined;
+
+  // Only add props section if there are props to write (excluding deckConfig which goes in content)
   if (note.props && Object.keys(note.props).length > 0) {
-    frontmatterData.props = note.props;
+    // Create a copy of props without deckConfig (it's serialized in content)
+    const propsForFrontmatter = { ...note.props };
+    delete propsForFrontmatter.deckConfig;
+
+    if (Object.keys(propsForFrontmatter).length > 0) {
+      frontmatterData.props = propsForFrontmatter;
+    }
   }
 
   const frontmatter = `---\n${yaml.dump(frontmatterData)}---\n\n`;
+
+  // For deck notes, serialize deckConfig to YAML code block
+  if (deckConfig) {
+    const deckYaml = serializeDeckConfig(deckConfig);
+    return frontmatter + '```flint-deck\n' + deckYaml + '```\n';
+  }
+
   const content = note.content || '';
   return frontmatter + content;
 }
@@ -209,6 +231,7 @@ export interface ParsedMarkdownFile {
 
 /**
  * Parse a markdown file with YAML frontmatter.
+ * For deck notes, parses flint-deck code block and stores as props.deckConfig.
  * Returns parsed data or null if parsing fails.
  */
 export function parseMarkdownFile(fileContent: string): ParsedMarkdownFile | null {
@@ -221,7 +244,7 @@ export function parseMarkdownFile(fileContent: string): ParsedMarkdownFile | nul
 
   try {
     const frontmatter = yaml.load(match[1]) as Record<string, unknown>;
-    const content = match[2] || '';
+    let content = match[2] || '';
 
     if (!frontmatter || !frontmatter.id) {
       return null;
@@ -242,6 +265,18 @@ export function parseMarkdownFile(fileContent: string): ParsedMarkdownFile | nul
     for (const [key, value] of Object.entries(frontmatter)) {
       if (!systemFields.has(key)) {
         props[key] = value;
+      }
+    }
+
+    // Check for flint-deck code block and parse as structured config
+    const deckMatch = content.match(/```flint-deck\n([\s\S]*?)```/);
+    if (deckMatch) {
+      const deckConfig = parseDeckYaml(deckMatch[1]);
+      if (deckConfig) {
+        // Store the parsed config in props
+        props.deckConfig = deckConfig;
+        // Clear content since deck config is now in props
+        content = '';
       }
     }
 

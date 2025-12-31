@@ -255,6 +255,8 @@ export {
   DECK_NOTE_TYPE_ID,
   getDeckNotes,
   createDeckNote,
+  getDeckConfig,
+  updateDeckConfig,
 
   // Review mode
   getReviewState,

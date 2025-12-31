@@ -789,6 +789,20 @@ export interface WebpageNoteProps {
   archivedAt?: string;
 }
 
+// ============================================================================
+// Deck Types
+// ============================================================================
+
+/**
+ * Deck-specific properties stored in Note.props
+ * Decks are filtered views of notes - the config is stored as structured data
+ * and only serialized to YAML during file system export.
+ */
+export interface DeckNoteProps {
+  /** The structured deck configuration */
+  deckConfig: import('../../../../shared/deck-yaml-utils').DeckConfig;
+}
+
 /**
  * Metadata extracted from a webpage during archiving
  */

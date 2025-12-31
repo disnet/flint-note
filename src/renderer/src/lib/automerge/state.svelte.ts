@@ -86,6 +86,7 @@ import {
   clearContentCache
 } from './content-docs.svelte';
 import { searchIndex } from './search-index.svelte';
+import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
 
 // --- Private reactive state ---
 
@@ -222,6 +223,11 @@ export async function initializeState(vaultId?: string): Promise<void> {
 
     // Run schema versioned migrations
     runSchemaMigrations();
+
+    // Migrate deck notes from YAML content to structured props (async, runs in background)
+    migrateDeckConfigsToProps().catch((err) => {
+      console.error('[Migration] Deck config migration failed:', err);
+    });
 
     // Restore last view state if available
     restoreLastViewState();
@@ -479,6 +485,86 @@ function runSchemaMigrations(): void {
     // Update schema version
     d.schemaVersion = CURRENT_SCHEMA_VERSION;
   });
+}
+
+/**
+ * Migrate existing deck notes that have YAML content to use structured props.deckConfig.
+ * This runs asynchronously after other migrations since it needs to load content documents.
+ */
+async function migrateDeckConfigsToProps(): Promise<void> {
+  if (!docHandle) return;
+
+  const doc = docHandle.doc();
+  if (!doc?.notes) return;
+
+  // Find deck notes without props.deckConfig
+  const deckNotesToMigrate: string[] = [];
+  for (const noteId of Object.keys(doc.notes)) {
+    const note = doc.notes[noteId];
+    if (!note) continue;
+
+    // Check if this is a deck note (by sourceFormat or by having deck note type)
+    const isDeck =
+      note.sourceFormat === 'deck' ||
+      note.type === 'type-flint-deck' ||
+      note.type === 'Deck';
+
+    if (!isDeck) continue;
+
+    // Check if already migrated (has deckConfig in props)
+    if (note.props?.deckConfig) continue;
+
+    deckNotesToMigrate.push(noteId);
+  }
+
+  if (deckNotesToMigrate.length === 0) return;
+
+  console.log(
+    `[Migration] Migrating ${deckNotesToMigrate.length} deck notes to structured config`
+  );
+
+  // Process each deck note
+  for (const noteId of deckNotesToMigrate) {
+    try {
+      // Load content from content document
+      const content = await getNoteContent(noteId);
+      if (!content) continue;
+
+      // Try to parse flint-deck code block
+      const deckMatch = content.match(/```flint-deck\n([\s\S]*?)```/);
+      const configYaml = deckMatch ? deckMatch[1] : content.trim();
+
+      // Skip if empty
+      if (!configYaml) continue;
+
+      // Parse the YAML
+      const deckConfig = parseDeckYaml(configYaml);
+      if (!deckConfig) {
+        console.warn(`[Migration] Failed to parse deck config for note ${noteId}`);
+        continue;
+      }
+
+      // Update the note's props.deckConfig
+      docHandle.change((d) => {
+        const note = d.notes[noteId];
+        if (!note) return;
+
+        if (!note.props) {
+          note.props = {};
+        }
+        note.props.deckConfig = clone(deckConfig);
+
+        // Also ensure sourceFormat is set
+        if (!note.sourceFormat) {
+          note.sourceFormat = 'deck';
+        }
+
+        console.log(`[Migration] Migrated deck note ${noteId} to structured config`);
+      });
+    } catch (err) {
+      console.error(`[Migration] Error migrating deck note ${noteId}:`, err);
+    }
+  }
 }
 
 /**
@@ -3349,10 +3435,7 @@ export function getWebpageProps(noteId: string): WebpageNoteProps | undefined {
 
 // --- Deck Support ---
 
-import {
-  serializeDeckConfig,
-  createEmptyDeckConfig
-} from '../../../../shared/deck-yaml-utils';
+import { createEmptyDeckConfig } from '../../../../shared/deck-yaml-utils';
 
 /** Deck note type ID constant - kept for backward compatibility during migration */
 export const DECK_NOTE_TYPE_ID = 'type-deck';
@@ -3370,29 +3453,31 @@ export function getDeckNotes(): NoteMetadata[] {
 
 /**
  * Create a Deck note with default configuration
+ * Config is stored as structured data in note.props.deckConfig
  * @returns The new note's ID
  */
-export function createDeckNote(title: string): string {
+export function createDeckNote(title: string, config?: DeckConfig): string {
   if (!docHandle) throw new Error('Not initialized');
 
   const id = generateNoteId();
   const now = nowISO();
 
-  // Create default deck configuration as YAML content
-  const defaultConfig = createEmptyDeckConfig();
-  const yamlContent = serializeDeckConfig(defaultConfig);
+  // Use provided config or create default deck configuration
+  const deckConfig = config ?? createEmptyDeckConfig();
 
   docHandle.change((doc) => {
     doc.notes[id] = {
       id,
       title,
-      content: yamlContent,
+      content: '', // Content not used for decks - config is in props
       type: DEFAULT_NOTE_TYPE_ID,
       sourceFormat: 'deck',
       created: now,
       updated: now,
       archived: false,
-      props: {}
+      props: {
+        deckConfig: clone(deckConfig)
+      }
     };
 
     // Auto-add to recent items in active workspace
@@ -3405,6 +3490,34 @@ export function createDeckNote(title: string): string {
   });
 
   return id;
+}
+
+/**
+ * Get the deck configuration for a deck note
+ * Returns null if note is not a deck or doesn't have a config
+ */
+export function getDeckConfig(noteId: string): DeckConfig | null {
+  const note = currentDoc.notes[noteId];
+  if (!note || getSourceFormat(note) !== 'deck') return null;
+  return (note.props?.deckConfig as DeckConfig) ?? null;
+}
+
+/**
+ * Update the deck configuration for a deck note
+ */
+export function updateDeckConfig(noteId: string, config: DeckConfig): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const note = doc.notes[noteId];
+    if (!note) return;
+
+    if (!note.props) {
+      note.props = {};
+    }
+    note.props.deckConfig = clone(config);
+    note.updated = nowISO();
+  });
 }
 
 // --- Review Mode ---

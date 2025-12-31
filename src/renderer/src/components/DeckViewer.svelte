@@ -1,16 +1,11 @@
 <script lang="ts">
   import type { NoteMetadata } from '../lib/automerge';
-  import { updateNoteContent, getNoteContent } from '../lib/automerge';
+  import { getDeckConfig, updateDeckConfig } from '../lib/automerge';
   import type { DeckConfig } from '../lib/automerge/deck';
-  import {
-    parseDeckYamlWithWarnings,
-    serializeDeckConfig,
-    createEmptyDeckConfig
-  } from '../../../shared/deck-yaml-utils';
-  import type { DeckValidationWarning } from '../../../shared/deck-yaml-utils';
+  import { createEmptyDeckConfig } from '../../../shared/deck-yaml-utils';
   import DeckWidget from './DeckWidget.svelte';
   import NoteTypeDropdown from './NoteTypeDropdown.svelte';
-  import { tick, onMount } from 'svelte';
+  import { tick } from 'svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -26,78 +21,17 @@
 
   // UI state
   let titleTextarea: HTMLTextAreaElement | null = $state(null);
-  let noteContent = $state<string>('');
 
-  // Load content on mount and when note changes
-  async function loadContent(): Promise<void> {
-    const content = await getNoteContent(note.id);
-    noteContent = content;
-  }
-
-  onMount(() => {
-    loadContent();
+  // Get deck config directly from note.props - no async loading or YAML parsing needed
+  const deckConfig = $derived.by(() => {
+    return getDeckConfig(note.id) ?? createEmptyDeckConfig();
   });
-
-  // Reload when note id changes
-  $effect(() => {
-    void note.id;
-    loadContent();
-  });
-
-  // Extract deck config from note content
-  const parsedResult = $derived.by(() => {
-    const content = noteContent || '';
-
-    // Look for flint-deck code block
-    const deckBlockMatch = content.match(/```flint-deck\n([\s\S]*?)```/);
-    if (!deckBlockMatch) {
-      return {
-        config: createEmptyDeckConfig(),
-        warnings: [] as DeckValidationWarning[],
-        hasBlock: false
-      };
-    }
-
-    const yamlContent = deckBlockMatch[1];
-    const result = parseDeckYamlWithWarnings(yamlContent);
-
-    if (!result) {
-      return {
-        config: createEmptyDeckConfig(),
-        warnings: [] as DeckValidationWarning[],
-        hasBlock: true
-      };
-    }
-
-    return {
-      config: result.config,
-      warnings: result.warnings,
-      hasBlock: true
-    };
-  });
-
-  const deckConfig = $derived(parsedResult.config);
-  const validationWarnings = $derived(parsedResult.warnings);
 
   /**
-   * Update the note content with new deck config
+   * Update the deck config directly in note.props
    */
   function handleConfigChange(newConfig: DeckConfig): void {
-    const content = noteContent || '';
-    const yamlStr = serializeDeckConfig(newConfig);
-    const newBlock = '```flint-deck\n' + yamlStr + '```';
-
-    let newContent: string;
-    if (content.includes('```flint-deck')) {
-      // Replace existing block
-      newContent = content.replace(/```flint-deck\n[\s\S]*?```/, newBlock);
-    } else {
-      // Add block at beginning (or just the block if empty)
-      newContent = content.trim() ? newBlock + '\n\n' + content.trim() : newBlock;
-    }
-
-    noteContent = newContent;
-    updateNoteContent(note.id, newContent);
+    updateDeckConfig(note.id, newConfig);
   }
 
   // Title handling
@@ -169,12 +103,7 @@
 
   <!-- Deck Widget -->
   <div class="deck-content">
-    <DeckWidget
-      config={deckConfig}
-      onConfigChange={handleConfigChange}
-      {onNoteOpen}
-      {validationWarnings}
-    />
+    <DeckWidget config={deckConfig} onConfigChange={handleConfigChange} {onNoteOpen} />
   </div>
 </div>
 

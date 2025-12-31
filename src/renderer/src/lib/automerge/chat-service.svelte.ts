@@ -19,6 +19,7 @@ import { createNoteTypeTools } from './notetype-tools.svelte';
 import { createEpubTools } from './epub-tools.svelte';
 import { createPdfTools } from './pdf-tools.svelte';
 import { createRoutineTools } from './routine-tools.svelte';
+import { createDeckTools } from './deck-tools.svelte';
 import {
   createConversation,
   addMessageToConversation,
@@ -151,6 +152,50 @@ Routine types:
 - "backlog" - One-off tasks for later
 
 **Backlog pattern:** When you discover issues during other work (broken links, inconsistencies, cleanup opportunities), silently create a backlog routine to track it. Do NOT interrupt the user - continue with your primary task and let them review backlog items later.
+
+## Deck Operations
+
+Decks are saved filtered views of notes - like database queries that users can revisit. Use decks to help users organize and browse their notes by specific criteria.
+
+- Use list_decks to see all saved decks
+- Use get_deck to view a deck's full configuration (views, filters, columns, sort)
+- Use create_deck to make new decks with custom filters
+- Use update_deck to modify deck configuration
+- Use archive_deck to remove a deck
+- Use run_deck_query to execute a deck's query and preview matching notes
+
+**Deck concepts:**
+- **Views**: Each deck can have multiple named views (like tabs), each with its own filters
+- **Filters**: Conditions that notes must match. System fields for filtering:
+  - \`flint_type\` or \`type\` - matches by type NAME (e.g., "Movies", "Meeting Notes")
+  - \`flint_title\` or \`title\` - note title
+  - \`flint_created\` or \`created\` - creation date (ISO format)
+  - \`flint_updated\` or \`updated\` - last updated date (ISO format)
+  - \`flint_archived\` or \`archived\` - archived status (boolean)
+  - Custom properties: use property name directly (e.g., "status", "priority")
+- **Operators**: =, !=, >, <, >=, <=, LIKE (pattern match), IN, NOT IN, BETWEEN
+- **Columns**: Which fields to display (title, type, created, updated, or custom property names)
+- **Sort**: Field and order (asc/desc) for result ordering. Use field names without flint_ prefix (e.g., "updated", "title")
+
+**When to create decks:**
+- User wants to track notes matching certain criteria (e.g., "all meeting notes from this month")
+- User needs a reusable query they'll check regularly
+- User wants to organize notes by custom properties (e.g., "tasks by priority")
+
+**Example deck creation:**
+\`\`\`
+create_deck({
+  title: "Recent Project Notes",
+  views: [{
+    name: "This Week",
+    filters: [
+      { field: "type", value: "Project" },
+      { field: "updated", operator: ">=", value: "2024-01-01" }
+    ],
+    sort: { field: "updated", order: "desc" }
+  }]
+})
+\`\`\`
 
 ## Communication Style
 
@@ -425,13 +470,14 @@ export class ChatService {
         }
       }
 
-      // Create tools (note tools + note type tools + EPUB tools + PDF tools + routine tools)
+      // Create tools (note tools + note type tools + EPUB tools + PDF tools + routine tools + deck tools)
       const tools = {
         ...createNoteTools(),
         ...createNoteTypeTools(),
         ...createEpubTools(),
         ...createPdfTools(),
-        ...createRoutineTools()
+        ...createRoutineTools(),
+        ...createDeckTools()
       };
 
       // Create OpenRouter provider pointing to our proxy
@@ -674,7 +720,8 @@ export class ChatService {
         ...createNoteTools(),
         ...createEpubTools(),
         ...createPdfTools(),
-        ...createRoutineTools()
+        ...createRoutineTools(),
+        ...createDeckTools()
       };
 
       // Create OpenRouter provider
