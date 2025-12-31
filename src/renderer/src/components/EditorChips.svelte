@@ -15,6 +15,7 @@
     setActiveNoteId,
     addNoteToWorkspace
   } from '../lib/automerge';
+  import Tooltip from './Tooltip.svelte';
 
   interface Props {
     /** The current note */
@@ -246,6 +247,12 @@
         if (constraints.max !== undefined && value.length > constraints.max) return true;
       }
 
+      // Notelinks length constraints
+      if (def.type === 'notelinks' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) return true;
+        if (constraints.max !== undefined && value.length > constraints.max) return true;
+      }
+
       // String pattern constraints
       if (def.type === 'string' && typeof value === 'string' && constraints.pattern) {
         try {
@@ -265,6 +272,84 @@
     return false;
   }
 
+  // Get constraint violation message for a field
+  function getConstraintViolationMessage(field: string): string | null {
+    if (isSystemField(field)) return null;
+
+    const def = getPropDef(field);
+    if (!def) return null;
+
+    const value = getRawValue(field);
+    const constraints = def.constraints;
+
+    // Check required
+    if (def.required) {
+      if (value === undefined || value === null || value === '') {
+        return 'This field is required';
+      }
+      if (Array.isArray(value) && value.length === 0) {
+        return 'This field is required';
+      }
+    }
+
+    // No value and not required = valid
+    if (value === undefined || value === null || value === '') return null;
+
+    // Check constraints based on type
+    if (constraints) {
+      // Number constraints
+      if (def.type === 'number' && typeof value === 'number') {
+        if (constraints.min !== undefined && value < constraints.min) {
+          return `Value must be at least ${constraints.min}`;
+        }
+        if (constraints.max !== undefined && value > constraints.max) {
+          return `Value must be at most ${constraints.max}`;
+        }
+      }
+
+      // Array length constraints
+      if (def.type === 'array' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) {
+          return `Must have at least ${constraints.min} item${constraints.min === 1 ? '' : 's'}`;
+        }
+        if (constraints.max !== undefined && value.length > constraints.max) {
+          return `Must have at most ${constraints.max} item${constraints.max === 1 ? '' : 's'}`;
+        }
+      }
+
+      // Notelinks length constraints
+      if (def.type === 'notelinks' && Array.isArray(value)) {
+        if (constraints.min !== undefined && value.length < constraints.min) {
+          return `Must have at least ${constraints.min} link${constraints.min === 1 ? '' : 's'}`;
+        }
+        if (constraints.max !== undefined && value.length > constraints.max) {
+          return `Must have at most ${constraints.max} link${constraints.max === 1 ? '' : 's'}`;
+        }
+      }
+
+      // String pattern constraints
+      if (def.type === 'string' && typeof value === 'string' && constraints.pattern) {
+        try {
+          const regex = new RegExp(constraints.pattern);
+          if (!regex.test(value)) {
+            return `Value must match pattern: ${constraints.pattern}`;
+          }
+        } catch {
+          // Invalid regex pattern, ignore
+        }
+      }
+
+      // Select option constraints
+      if (def.type === 'select' && constraints.options) {
+        if (!constraints.options.includes(String(value))) {
+          return `Value must be one of: ${constraints.options.join(', ')}`;
+        }
+      }
+    }
+
+    return null;
+  }
+
   // Note link picker state
   let noteLinkPickerField = $state<string | null>(null);
   let noteLinkSearchQuery = $state('');
@@ -273,6 +358,79 @@
 
   // Array field input state (keyed by field name)
   let arrayInputValues = $state<Record<string, string>>({});
+
+  // Track which list field is expanded (for notelinks and array)
+  let expandedListField = $state<string | null>(null);
+  let listDropdownPosition = $state<{ top: number; left: number } | null>(null);
+  let listCloseTimeout: ReturnType<typeof setTimeout> | null = null;
+  let listItemsContainer: HTMLDivElement | null = null;
+
+  function scrollListToBottom(): void {
+    // Use tick to wait for DOM update
+    setTimeout(() => {
+      if (listItemsContainer) {
+        listItemsContainer.scrollTop = listItemsContainer.scrollHeight;
+      }
+    }, 0);
+  }
+
+  function openListDropdown(field: string, el: HTMLElement): void {
+    // Cancel any pending close
+    if (listCloseTimeout) {
+      clearTimeout(listCloseTimeout);
+      listCloseTimeout = null;
+    }
+    const rect = el.getBoundingClientRect();
+    const dropdownWidth = 240;
+    const dropdownHeight = 280;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Calculate horizontal position
+    let left = rect.left;
+    if (left + dropdownWidth > viewportWidth - 8) {
+      // Would overflow right, align to right edge of trigger
+      left = Math.max(8, rect.right - dropdownWidth);
+    }
+
+    // Calculate vertical position
+    let top = rect.bottom + 4;
+    if (top + dropdownHeight > viewportHeight - 8) {
+      // Would overflow bottom, position above
+      top = Math.max(8, rect.top - dropdownHeight - 4);
+    }
+
+    listDropdownPosition = { top, left };
+    expandedListField = field;
+  }
+
+  function scheduleCloseListDropdown(): void {
+    // Schedule close with delay to allow mouse to move to dropdown
+    if (listCloseTimeout) {
+      clearTimeout(listCloseTimeout);
+    }
+    listCloseTimeout = setTimeout(() => {
+      expandedListField = null;
+      listDropdownPosition = null;
+      listCloseTimeout = null;
+    }, 150);
+  }
+
+  function cancelCloseListDropdown(): void {
+    if (listCloseTimeout) {
+      clearTimeout(listCloseTimeout);
+      listCloseTimeout = null;
+    }
+  }
+
+  function closeListDropdown(): void {
+    if (listCloseTimeout) {
+      clearTimeout(listCloseTimeout);
+      listCloseTimeout = null;
+    }
+    expandedListField = null;
+    listDropdownPosition = null;
+  }
 
   // Notes for the picker
   const allNotes = $derived(getAllNotes().filter((n) => !n.archived && n.id !== note.id));
@@ -287,13 +445,57 @@
   );
 
   function openNoteLinkPicker(field: string, inputEl: HTMLInputElement): void {
+    // Try to find parent chip, otherwise use the input's parent container
     const chip = inputEl.closest('.chip') as HTMLElement;
+    const listDropdown = inputEl.closest('.list-dropdown') as HTMLElement;
+
+    const pickerWidth = 280;
+    const pickerHeight = 300;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let top = 0;
+    let left = 0;
+
     if (chip) {
       const rect = chip.getBoundingClientRect();
-      pickerPosition = {
-        top: rect.bottom + 4,
-        left: rect.left
-      };
+      left = rect.left;
+      top = rect.bottom + 4;
+
+      // Check horizontal overflow
+      if (left + pickerWidth > viewportWidth - 8) {
+        left = Math.max(8, rect.right - pickerWidth);
+      }
+
+      // Check vertical overflow
+      if (top + pickerHeight > viewportHeight - 8) {
+        top = Math.max(8, rect.top - pickerHeight - 4);
+      }
+    } else if (listDropdown) {
+      const rect = listDropdown.getBoundingClientRect();
+
+      // Try to position to the right first
+      if (rect.right + pickerWidth + 4 <= viewportWidth - 8) {
+        left = rect.right + 4;
+        top = rect.top;
+      } else if (rect.left - pickerWidth - 4 >= 8) {
+        // Position to the left if right doesn't fit
+        left = rect.left - pickerWidth - 4;
+        top = rect.top;
+      } else {
+        // Fall back to below
+        left = Math.max(8, Math.min(rect.left, viewportWidth - pickerWidth - 8));
+        top = rect.bottom + 4;
+      }
+
+      // Check vertical overflow
+      if (top + pickerHeight > viewportHeight - 8) {
+        top = Math.max(8, viewportHeight - pickerHeight - 8);
+      }
+    }
+
+    if (top > 0 || left > 0) {
+      pickerPosition = { top, left };
     }
     noteLinkPickerField = field;
     noteLinkSearchQuery = '';
@@ -316,6 +518,7 @@
       const current = (getRawValue(noteLinkPickerField) as string[]) || [];
       if (!current.includes(selectedNoteId)) {
         handleFieldChange(noteLinkPickerField, [...current, selectedNoteId]);
+        scrollListToBottom();
       }
       // Clear search but keep picker open for adding more
       noteLinkSearchQuery = '';
@@ -394,6 +597,7 @@
     // Don't add duplicates
     if (!current.includes(inputValue)) {
       handleFieldChange(field, [...current, inputValue]);
+      scrollListToBottom();
     }
     arrayInputValues[field] = '';
   }
@@ -412,10 +616,6 @@
       addArrayItem(field);
     }
   }
-
-  function handleArrayBlur(field: string): void {
-    addArrayItem(field);
-  }
 </script>
 
 {#if displayedFields.length > 0}
@@ -426,6 +626,7 @@
       {@const fieldType = getFieldType(field)}
       {@const options = getFieldOptions(field)}
       {@const invalid = isFieldInvalid(field)}
+      {@const violationMessage = invalid ? getConstraintViolationMessage(field) : null}
 
       <div
         class="chip"
@@ -435,7 +636,13 @@
             fieldType === 'array')}
         class:chip-invalid={invalid}
       >
-        <span class="chip-label">{getFieldLabel(field)}</span>
+        {#if violationMessage}
+          <Tooltip text={violationMessage} position="bottom">
+            <span class="chip-label">{getFieldLabel(field)}</span>
+          </Tooltip>
+        {:else}
+          <span class="chip-label">{getFieldLabel(field)}</span>
+        {/if}
         <span class="chip-divider"></span>
 
         {#if editable && fieldType === 'notelink'}
@@ -470,38 +677,47 @@
             {/if}
           </div>
         {:else if editable && fieldType === 'notelinks'}
-          <!-- Multiple note links -->
-          <div class="chip-notelinks">
-            {#if Array.isArray(rawValue) && rawValue.length > 0}
-              {#each rawValue as linkedId (linkedId)}
-                <span class="notelink-tag">
-                  <button
-                    type="button"
-                    class="tag-title"
-                    onclick={() => handleNotelinkClick(linkedId)}
-                  >
-                    {getNoteTitleById(linkedId)}
-                  </button>
-                  <button
-                    type="button"
-                    class="tag-remove"
-                    onclick={() => removeNoteFromLinks(field, linkedId)}
-                  >
-                    &times;
-                  </button>
-                </span>
-              {/each}
+          <!-- Multiple note links - collapsed summary -->
+          {@const notelinksArray = Array.isArray(rawValue) ? rawValue : []}
+          <div
+            class="chip-list-trigger"
+            role="button"
+            tabindex="0"
+            onmouseenter={(e) => openListDropdown(field, e.currentTarget)}
+            onmouseleave={scheduleCloseListDropdown}
+            onfocus={(e) => openListDropdown(field, e.currentTarget)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                openListDropdown(field, e.currentTarget);
+              }
+            }}
+          >
+            {#if notelinksArray.length === 0}
+              <span class="list-empty">+</span>
+            {:else if notelinksArray.length === 1}
+              <button
+                type="button"
+                class="list-preview-link"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleNotelinkClick(notelinksArray[0]);
+                }}
+              >
+                {getNoteTitleById(notelinksArray[0])}
+              </button>
+            {:else}
+              <button
+                type="button"
+                class="list-preview-link"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleNotelinkClick(notelinksArray[0]);
+                }}
+              >
+                {getNoteTitleById(notelinksArray[0])}
+              </button>
+              <span class="list-count">+{notelinksArray.length - 1}</span>
             {/if}
-            <input
-              type="text"
-              class="notelink-input"
-              value={noteLinkPickerField === field ? noteLinkSearchQuery : ''}
-              placeholder="+"
-              onfocus={(e) => handleNoteLinkFocus(field, e.currentTarget)}
-              onblur={handleNoteLinkBlur}
-              oninput={(e) => handleNoteLinkInput(e.currentTarget.value)}
-              onkeydown={(e) => handleNoteLinkKeydown(e, field)}
-            />
           </div>
         {:else if editable && fieldType === 'select' && options.length > 0}
           <select
@@ -542,30 +758,24 @@
             }}
           />
         {:else if editable && fieldType === 'array'}
-          <div class="chip-array">
-            {#if Array.isArray(rawValue) && rawValue.length > 0}
-              {#each rawValue as item (item)}
-                <span class="array-tag">
-                  <span class="array-tag-text">{item}</span>
-                  <button
-                    type="button"
-                    class="array-tag-remove"
-                    onclick={() => removeArrayItem(field, item)}
-                  >
-                    &times;
-                  </button>
-                </span>
-              {/each}
+          <!-- Array - collapsed summary -->
+          {@const arrayItems = Array.isArray(rawValue) ? rawValue : []}
+          <button
+            type="button"
+            class="chip-list-trigger"
+            onmouseenter={(e) => openListDropdown(field, e.currentTarget)}
+            onmouseleave={scheduleCloseListDropdown}
+            onfocus={(e) => openListDropdown(field, e.currentTarget)}
+          >
+            {#if arrayItems.length === 0}
+              <span class="list-empty">+</span>
+            {:else if arrayItems.length === 1}
+              <span class="list-preview">{arrayItems[0]}</span>
+            {:else}
+              <span class="list-preview">{arrayItems[0]}</span>
+              <span class="list-count">+{arrayItems.length - 1}</span>
             {/if}
-            <input
-              type="text"
-              class="array-input"
-              bind:value={arrayInputValues[field]}
-              placeholder="+"
-              onkeydown={(e) => handleArrayKeydown(e, field)}
-              onblur={() => handleArrayBlur(field)}
-            />
-          </div>
+          </button>
         {:else if editable}
           <input
             type="text"
@@ -596,7 +806,7 @@
   </div>
 {/if}
 
-<!-- Note Link Picker Dropdown -->
+<!-- Note Link Picker Dropdown (for single notelink) -->
 {#if noteLinkPickerField && pickerPosition}
   <div
     class="picker-dropdown"
@@ -617,6 +827,85 @@
         {/each}
       {:else}
         <div class="picker-empty">No notes found</div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<!-- List Dropdown (for notelinks and array) -->
+{#if expandedListField && listDropdownPosition}
+  {@const fieldDef = getPropDef(expandedListField)}
+  {@const isNotelinks = fieldDef?.type === 'notelinks'}
+  {@const listValue = getRawValue(expandedListField)}
+  {@const items = Array.isArray(listValue) ? listValue : []}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="list-dropdown"
+    style="top: {listDropdownPosition.top}px; left: {listDropdownPosition.left}px;"
+    onmouseenter={cancelCloseListDropdown}
+    onmouseleave={closeListDropdown}
+  >
+    <div class="list-dropdown-items" bind:this={listItemsContainer}>
+      {#if items.length > 0}
+        {#each items as item (item)}
+          <div class="list-dropdown-item">
+            {#if isNotelinks}
+              <button
+                type="button"
+                class="list-item-link"
+                onclick={() => handleNotelinkClick(item)}
+              >
+                {getNoteTitleById(item)}
+              </button>
+            {:else}
+              <span class="list-item-text">{item}</span>
+            {/if}
+            <button
+              type="button"
+              class="list-item-remove"
+              onclick={() => {
+                if (isNotelinks) {
+                  removeNoteFromLinks(expandedListField!, item);
+                } else {
+                  removeArrayItem(expandedListField!, item);
+                }
+              }}
+            >
+              &times;
+            </button>
+          </div>
+        {/each}
+      {:else}
+        <div class="list-dropdown-empty">No items</div>
+      {/if}
+    </div>
+    <div class="list-dropdown-add">
+      {#if isNotelinks}
+        <input
+          type="text"
+          class="list-add-input"
+          placeholder="Add note..."
+          value={noteLinkPickerField === expandedListField ? noteLinkSearchQuery : ''}
+          onfocus={(e) => handleNoteLinkFocus(expandedListField!, e.currentTarget)}
+          onblur={handleNoteLinkBlur}
+          oninput={(e) => handleNoteLinkInput(e.currentTarget.value)}
+          onkeydown={(e) => handleNoteLinkKeydown(e, expandedListField!)}
+        />
+      {:else}
+        <input
+          type="text"
+          class="list-add-input"
+          placeholder="Add item..."
+          bind:value={arrayInputValues[expandedListField!]}
+          onkeydown={(e) => handleArrayKeydown(e, expandedListField!)}
+        />
+        <button
+          type="button"
+          class="list-add-btn"
+          onclick={() => addArrayItem(expandedListField!)}
+        >
+          +
+        </button>
       {/if}
     </div>
   </div>
@@ -712,6 +1001,13 @@
   .chip-input[type='text'] {
     field-sizing: content;
     min-width: 2rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chip-input[type='text']:focus {
+    max-width: none;
   }
 
   .chip-input[type='number'] {
@@ -720,8 +1016,7 @@
   }
 
   /* Note link styles */
-  .chip-notelink,
-  .chip-notelinks {
+  .chip-notelink {
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -736,14 +1031,19 @@
     font-size: 0.7rem;
     padding: 0;
     text-decoration: underline;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
   }
 
   .notelink-value:hover {
     color: var(--accent-primary-hover, var(--accent-primary));
+    max-width: none;
   }
 
-  .clear-btn,
-  .tag-remove {
+  .clear-btn {
     background: none;
     border: none;
     color: var(--text-muted);
@@ -753,8 +1053,7 @@
     line-height: 1;
   }
 
-  .clear-btn:hover,
-  .tag-remove:hover {
+  .clear-btn:hover {
     color: var(--text-primary);
   }
 
@@ -771,85 +1070,6 @@
 
   .notelink-input::placeholder {
     color: var(--text-muted);
-  }
-
-  .notelink-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.125rem;
-    background: var(--bg-tertiary);
-    border-radius: 0.25rem;
-    padding: 0 0.25rem;
-  }
-
-  .tag-title {
-    background: none;
-    border: none;
-    color: var(--accent-primary);
-    cursor: pointer;
-    font-size: 0.65rem;
-    padding: 0;
-    text-decoration: underline;
-  }
-
-  .tag-title:hover {
-    color: var(--accent-primary-hover, var(--accent-primary));
-  }
-
-  /* Array field styles */
-  .chip-array {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.375rem;
-    flex-wrap: wrap;
-  }
-
-  .array-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.125rem;
-    background: var(--bg-tertiary);
-    border-radius: 0.25rem;
-    padding: 0 0.25rem;
-  }
-
-  .array-tag-text {
-    font-size: 0.65rem;
-    color: var(--text-secondary);
-  }
-
-  .array-tag-remove {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0;
-    line-height: 1;
-  }
-
-  .array-tag-remove:hover {
-    color: var(--text-primary);
-  }
-
-  .array-input {
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    padding: 0;
-    min-width: 1rem;
-    outline: none;
-    field-sizing: content;
-  }
-
-  .array-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .array-input:focus {
-    background: transparent;
   }
 
   /* Expand button */
@@ -924,5 +1144,181 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 0.875rem;
+  }
+
+  /* List trigger button (collapsed view for notelinks/array) */
+  .chip-list-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+  }
+
+  .chip-list-trigger:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .list-empty {
+    color: var(--text-muted);
+  }
+
+  .list-preview {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-count {
+    color: var(--text-muted);
+    font-size: 0.6rem;
+  }
+
+  .list-preview-link {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0;
+    text-decoration: underline;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-preview-link:hover {
+    color: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* List dropdown */
+  .list-dropdown {
+    position: fixed;
+    width: 240px;
+    max-height: 280px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list-dropdown-items {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 200px;
+    padding: 0.25rem;
+  }
+
+  .list-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  .list-dropdown-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .list-item-link {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-align: left;
+    text-decoration: underline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-item-link:hover {
+    color: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  .list-item-text {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-item-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 0.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .list-item-remove:hover {
+    color: var(--text-primary);
+  }
+
+  .list-dropdown-empty {
+    padding: 0.75rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  .list-dropdown-add {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .list-add-input {
+    flex: 1;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    padding: 0.375rem 0.5rem;
+    outline: none;
+  }
+
+  .list-add-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .list-add-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .list-add-btn {
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 0.25rem;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+  }
+
+  .list-add-btn:hover {
+    opacity: 0.9;
   }
 </style>
