@@ -639,6 +639,10 @@
       case 'daily':
         setActiveSystemView('daily');
         setActiveItem(null);
+        // Focus today's entry after the view mounts
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('daily-view-focus-today'));
+        }, 50);
         break;
       case 'review':
         setActiveSystemView('review');
