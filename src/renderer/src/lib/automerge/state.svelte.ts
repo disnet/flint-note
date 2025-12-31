@@ -1838,7 +1838,10 @@ export function createNoteType(params: {
 export function updateNoteType(
   id: string,
   updates: Partial<
-    Pick<NoteType, 'name' | 'purpose' | 'icon' | 'properties' | 'editorChips'>
+    Pick<
+      NoteType,
+      'name' | 'purpose' | 'icon' | 'properties' | 'editorChips' | 'agentInstructions'
+    >
   >
 ): void {
   if (!docHandle) throw new Error('Not initialized');
@@ -1865,6 +1868,9 @@ export function updateNoteType(
     }
     if (updates.editorChips !== undefined) {
       noteType.editorChips = [...updates.editorChips];
+    }
+    if (updates.agentInstructions !== undefined) {
+      noteType.agentInstructions = updates.agentInstructions;
     }
   });
 }

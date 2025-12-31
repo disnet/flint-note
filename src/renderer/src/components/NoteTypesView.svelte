@@ -117,7 +117,10 @@
   }
 
   // Schedule auto-save for type fields
-  function scheduleTypeAutoSave(field: 'name' | 'purpose' | 'icon', value: string): void {
+  function scheduleTypeAutoSave(
+    field: 'name' | 'purpose' | 'icon' | 'agentInstructions',
+    value: string
+  ): void {
     if (!selectedTypeId) return;
 
     if (saveTimeout) {
@@ -270,6 +273,18 @@
           editorChips={selectedType.editorChips ?? []}
           onEditorChipsUpdate={handleEditorChipsUpdate}
         />
+      </div>
+
+      <!-- Agent Instructions section -->
+      <div class="type-agent-instructions">
+        <h2 class="section-title">Agent Instructions</h2>
+        <textarea
+          class="agent-instructions-input"
+          value={selectedType.agentInstructions || ''}
+          oninput={(e) =>
+            scheduleTypeAutoSave('agentInstructions', e.currentTarget.value)}
+          placeholder="Instructions for AI agents when working with notes of this type..."
+        ></textarea>
       </div>
 
       <!-- Notes in this type -->
@@ -741,6 +756,46 @@
   .type-properties {
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-light);
+  }
+
+  /* Agent Instructions */
+  .type-agent-instructions {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .agent-instructions-input {
+    width: 100%;
+    padding: 0.5rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+    min-height: 3em;
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .agent-instructions-input:hover {
+    background: var(--bg-secondary);
+  }
+
+  .agent-instructions-input:focus {
+    outline: none;
+    background: var(--bg-primary);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+  }
+
+  .agent-instructions-input::placeholder {
+    color: var(--text-muted);
   }
 
   /* Type Notes */
