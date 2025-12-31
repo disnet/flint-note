@@ -527,9 +527,43 @@ export class ChatService {
             this.pendingStepText += event.text;
             break;
 
-          case 'tool-call':
+          case 'tool-call': {
             // This step has tool calls - the buffered text is commentary
             this.currentStepHasToolCalls = true;
+
+            // Check if the tool call is invalid (e.g., Zod validation failed)
+            // The AI SDK marks invalid tool calls with invalid: true and includes error details
+            const toolCallEvent = event as typeof event & {
+              invalid?: boolean;
+              error?: { name?: string; cause?: { cause?: { message?: string } } };
+            };
+            const isInvalid = toolCallEvent.invalid === true;
+            let errorMessage: string | undefined;
+            if (isInvalid && toolCallEvent.error) {
+              // Extract error message from nested structure
+              // error.cause.cause.message contains the Zod error details
+              const zodMessage = toolCallEvent.error.cause?.cause?.message;
+              if (zodMessage) {
+                try {
+                  // Parse Zod error JSON to get a cleaner message
+                  const zodErrors = JSON.parse(zodMessage);
+                  if (Array.isArray(zodErrors) && zodErrors.length > 0) {
+                    errorMessage = zodErrors
+                      .map(
+                        (e: { path?: string[]; message?: string }) =>
+                          `${e.path?.join('.') || 'input'}: ${e.message || 'invalid'}`
+                      )
+                      .join('; ');
+                  }
+                } catch {
+                  errorMessage = zodMessage;
+                }
+              }
+              if (!errorMessage) {
+                errorMessage = toolCallEvent.error.name || 'Tool input validation failed';
+              }
+            }
+
             // Add tool call with the preceding commentary from this step
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
@@ -537,8 +571,9 @@ export class ChatService {
                 id: event.toolCallId,
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
-                status: 'running',
-                commentary: this.pendingStepText.trim() || undefined
+                status: isInvalid ? 'error' : 'running',
+                commentary: this.pendingStepText.trim() || undefined,
+                error: errorMessage
               });
               // Update tool activity with current tool name
               msg.toolActivity = {
@@ -550,6 +585,7 @@ export class ChatService {
             this.pendingStepText = '';
             this.currentStepText = '';
             break;
+          }
 
           case 'tool-result':
             // Update tool call with result
@@ -557,8 +593,58 @@ export class ChatService {
             this.updateLastAssistantMessage((msg) => {
               const toolCall = msg.toolCalls?.find((tc) => tc.id === event.toolCallId);
               if (toolCall) {
-                toolCall.result = clone(event.output);
-                toolCall.status = 'completed';
+                const clonedOutput = clone(event.output);
+                toolCall.result = clonedOutput;
+
+                // Detect error results in various formats
+                let isError = false;
+                let errorMessage: string | undefined;
+
+                // Check if output is a string that looks like an error
+                if (typeof clonedOutput === 'string') {
+                  // String output might be an error message
+                  const lower = clonedOutput.toLowerCase();
+                  if (
+                    lower.includes('error') ||
+                    lower.includes('invalid') ||
+                    lower.includes('failed')
+                  ) {
+                    isError = true;
+                    errorMessage = clonedOutput;
+                  }
+                } else if (clonedOutput && typeof clonedOutput === 'object') {
+                  const output = clonedOutput as Record<string, unknown>;
+                  // Our tools return { success: false, error: "..." }
+                  if (output.success === false && typeof output.error === 'string') {
+                    isError = true;
+                    errorMessage = output.error;
+                  }
+                  // AI SDK validation errors may have isError flag
+                  else if (output.isError === true) {
+                    isError = true;
+                    errorMessage =
+                      typeof output.error === 'string'
+                        ? output.error
+                        : typeof output.message === 'string'
+                          ? output.message
+                          : 'Tool execution failed';
+                  }
+                  // Check for { error: "..." } without success field
+                  else if (
+                    typeof output.error === 'string' &&
+                    output.success === undefined
+                  ) {
+                    isError = true;
+                    errorMessage = output.error;
+                  }
+                }
+
+                if (isError) {
+                  toolCall.status = 'error';
+                  toolCall.error = errorMessage;
+                } else {
+                  toolCall.status = 'completed';
+                }
               }
             });
             break;
@@ -578,9 +664,18 @@ export class ChatService {
         }
       }
 
-      // Clear tool activity after streaming completes
+      // Clear tool activity after streaming completes and mark any stuck tools as errors
       this.updateLastAssistantMessage((msg) => {
         msg.toolActivity = { isActive: false };
+        // Mark any tools still in 'running' status as errors (no result was received)
+        if (msg.toolCalls) {
+          for (const tc of msg.toolCalls) {
+            if (tc.status === 'running') {
+              tc.status = 'error';
+              tc.error = 'Tool did not return a result';
+            }
+          }
+        }
       });
 
       // Check if stopped because agent wanted to continue but hit limit
@@ -595,14 +690,33 @@ export class ChatService {
       // Don't report abort errors
       if (error instanceof Error && error.name === 'AbortError') {
         this._status = 'ready';
+        // Clear tool activity on abort
+        this.updateLastAssistantMessage((msg) => {
+          msg.toolActivity = { isActive: false };
+        });
         return;
       }
 
       this._error = error instanceof Error ? error : new Error('Unknown error');
       this._status = 'error';
 
-      // Update assistant message to show error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Update assistant message to show error and mark any running tools as failed
       this.updateLastAssistantMessage((msg) => {
+        // Clear tool activity
+        msg.toolActivity = { isActive: false };
+
+        // Mark any running tool calls as error
+        if (msg.toolCalls) {
+          for (const tc of msg.toolCalls) {
+            if (tc.status === 'running') {
+              tc.status = 'error';
+              tc.error = errorMessage;
+            }
+          }
+        }
+
         if (!msg.content) {
           msg.content = 'Sorry, an error occurred while processing your request.';
         }
@@ -768,17 +882,48 @@ export class ChatService {
             this.pendingStepText += event.text;
             break;
 
-          case 'tool-call':
+          case 'tool-call': {
             // This step has tool calls - the buffered text is commentary
             this.currentStepHasToolCalls = true;
+
+            // Check if the tool call is invalid (e.g., Zod validation failed)
+            const toolCallEvent = event as typeof event & {
+              invalid?: boolean;
+              error?: { name?: string; cause?: { cause?: { message?: string } } };
+            };
+            const isInvalid = toolCallEvent.invalid === true;
+            let errorMessage: string | undefined;
+            if (isInvalid && toolCallEvent.error) {
+              const zodMessage = toolCallEvent.error.cause?.cause?.message;
+              if (zodMessage) {
+                try {
+                  const zodErrors = JSON.parse(zodMessage);
+                  if (Array.isArray(zodErrors) && zodErrors.length > 0) {
+                    errorMessage = zodErrors
+                      .map(
+                        (e: { path?: string[]; message?: string }) =>
+                          `${e.path?.join('.') || 'input'}: ${e.message || 'invalid'}`
+                      )
+                      .join('; ');
+                  }
+                } catch {
+                  errorMessage = zodMessage;
+                }
+              }
+              if (!errorMessage) {
+                errorMessage = toolCallEvent.error.name || 'Tool input validation failed';
+              }
+            }
+
             this.updateLastAssistantMessage((msg) => {
               if (!msg.toolCalls) msg.toolCalls = [];
               msg.toolCalls.push({
                 id: event.toolCallId,
                 name: event.toolName,
                 args: event.input as Record<string, unknown>,
-                status: 'running',
-                commentary: this.pendingStepText.trim() || undefined
+                status: isInvalid ? 'error' : 'running',
+                commentary: this.pendingStepText.trim() || undefined,
+                error: errorMessage
               });
               msg.toolActivity = {
                 isActive: true,
@@ -788,14 +933,65 @@ export class ChatService {
             this.pendingStepText = '';
             this.currentStepText = '';
             break;
+          }
 
           case 'tool-result':
             // Clone the output to ensure it's plain JSON (no proxies or reactive metadata)
             this.updateLastAssistantMessage((msg) => {
               const toolCall = msg.toolCalls?.find((tc) => tc.id === event.toolCallId);
               if (toolCall) {
-                toolCall.result = clone(event.output);
-                toolCall.status = 'completed';
+                const clonedOutput = clone(event.output);
+                toolCall.result = clonedOutput;
+
+                // Detect error results in various formats
+                let isError = false;
+                let errorMessage: string | undefined;
+
+                // Check if output is a string that looks like an error
+                if (typeof clonedOutput === 'string') {
+                  // String output might be an error message
+                  const lower = clonedOutput.toLowerCase();
+                  if (
+                    lower.includes('error') ||
+                    lower.includes('invalid') ||
+                    lower.includes('failed')
+                  ) {
+                    isError = true;
+                    errorMessage = clonedOutput;
+                  }
+                } else if (clonedOutput && typeof clonedOutput === 'object') {
+                  const output = clonedOutput as Record<string, unknown>;
+                  // Our tools return { success: false, error: "..." }
+                  if (output.success === false && typeof output.error === 'string') {
+                    isError = true;
+                    errorMessage = output.error;
+                  }
+                  // AI SDK validation errors may have isError flag
+                  else if (output.isError === true) {
+                    isError = true;
+                    errorMessage =
+                      typeof output.error === 'string'
+                        ? output.error
+                        : typeof output.message === 'string'
+                          ? output.message
+                          : 'Tool execution failed';
+                  }
+                  // Check for { error: "..." } without success field
+                  else if (
+                    typeof output.error === 'string' &&
+                    output.success === undefined
+                  ) {
+                    isError = true;
+                    errorMessage = output.error;
+                  }
+                }
+
+                if (isError) {
+                  toolCall.status = 'error';
+                  toolCall.error = errorMessage;
+                } else {
+                  toolCall.status = 'completed';
+                }
               }
             });
             break;
@@ -815,9 +1011,18 @@ export class ChatService {
         }
       }
 
-      // Clear tool activity after streaming completes
+      // Clear tool activity after streaming completes and mark any stuck tools as errors
       this.updateLastAssistantMessage((msg) => {
         msg.toolActivity = { isActive: false };
+        // Mark any tools still in 'running' status as errors (no result was received)
+        if (msg.toolCalls) {
+          for (const tc of msg.toolCalls) {
+            if (tc.status === 'running') {
+              tc.status = 'error';
+              tc.error = 'Tool did not return a result';
+            }
+          }
+        }
       });
 
       // Check if stopped because agent wanted to continue but hit limit
@@ -831,13 +1036,33 @@ export class ChatService {
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         this._status = 'ready';
+        // Clear tool activity on abort
+        this.updateLastAssistantMessage((msg) => {
+          msg.toolActivity = { isActive: false };
+        });
         return;
       }
 
       this._error = error instanceof Error ? error : new Error('Unknown error');
       this._status = 'error';
 
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Update assistant message to show error and mark any running tools as failed
       this.updateLastAssistantMessage((msg) => {
+        // Clear tool activity
+        msg.toolActivity = { isActive: false };
+
+        // Mark any running tool calls as error
+        if (msg.toolCalls) {
+          for (const tc of msg.toolCalls) {
+            if (tc.status === 'running') {
+              tc.status = 'error';
+              tc.error = errorMessage;
+            }
+          }
+        }
+
         if (!msg.content) {
           msg.content = 'Sorry, an error occurred while processing your request.';
         }
