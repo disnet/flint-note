@@ -1,5 +1,13 @@
 <script lang="ts">
   import type { FieldType } from '../lib/automerge/deck';
+  import {
+    NumberInput,
+    BooleanInput,
+    DateInput,
+    SelectInput,
+    NoteLinkInput,
+    NoteLinksInput
+  } from './inputs';
 
   interface Props {
     value: unknown;
@@ -12,6 +20,10 @@
     options?: string[];
     /** Suggestions for text fields (shown as dropdown) */
     suggestions?: string[];
+    /** Called when a linked note is clicked for navigation */
+    onNoteClick?: (noteId: string) => void;
+    /** Current note ID to exclude from picker */
+    excludeNoteId?: string;
   }
 
   let {
@@ -22,7 +34,9 @@
     onKeyDown,
     autoFocus = false,
     options = [],
-    suggestions = []
+    suggestions = [],
+    onNoteClick,
+    excludeNoteId
   }: Props = $props();
 
   let inputRef = $state<HTMLInputElement | HTMLSelectElement | null>(null);
@@ -32,7 +46,12 @@
 
   // Sync local text input with parent value
   $effect(() => {
-    if (fieldType !== 'select' && fieldType !== 'boolean') {
+    if (
+      fieldType !== 'select' &&
+      fieldType !== 'boolean' &&
+      fieldType !== 'notelink' &&
+      fieldType !== 'notelinks'
+    ) {
       textValue = value === null || value === undefined ? '' : String(value);
     }
   });
@@ -80,11 +99,6 @@
     }
 
     onChange(newValue);
-  }
-
-  function handleSelectChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    onChange(select.value);
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
@@ -137,7 +151,12 @@
       showSuggestions = false;
     }, 150);
     // Commit text value on blur
-    if (fieldType !== 'select' && fieldType !== 'boolean') {
+    if (
+      fieldType !== 'select' &&
+      fieldType !== 'boolean' &&
+      fieldType !== 'notelink' &&
+      fieldType !== 'notelinks'
+    ) {
       handleTextCommit();
     }
   }
@@ -191,61 +210,51 @@
   onclick={(e) => e.stopPropagation()}
 >
   {#if fieldType === 'notelink'}
-    <!-- For notelink, show a simple text input for now -->
-    <!-- TODO: Integrate with Automerge note picker when available -->
-    <input
-      bind:this={inputRef}
-      type="text"
-      value={getInputValue()}
-      oninput={handleInput}
-      onkeydown={handleKeyDown}
-      class="cell-input"
-      placeholder="Note ID..."
-    />
+    <div class="cell-notelink">
+      <NoteLinkInput
+        value={value as string | null}
+        onChange={(v) => onChange(v)}
+        {onNoteClick}
+        {excludeNoteId}
+        class="cell-notelink-input"
+      />
+    </div>
   {:else if fieldType === 'notelinks'}
-    <!-- For notelinks, show a simple text input for now -->
-    <input
-      bind:this={inputRef}
-      type="text"
-      value={Array.isArray(value) ? value.join(', ') : ''}
-      oninput={(e) => {
-        const input = e.target as HTMLInputElement;
-        onChange(
-          input.value
-            .split(',')
-            .map((v) => v.trim())
-            .filter(Boolean)
-        );
-      }}
-      onkeydown={handleKeyDown}
-      class="cell-input"
-      placeholder="Note IDs (comma-separated)..."
-    />
+    <div class="cell-notelinks">
+      <NoteLinksInput
+        value={Array.isArray(value) ? (value as string[]) : []}
+        onChange={(v) => onChange(v)}
+        {onNoteClick}
+        {excludeNoteId}
+        class="cell-notelinks-input"
+      />
+    </div>
   {:else if fieldType === 'boolean'}
-    <input
-      bind:this={inputRef}
-      type="checkbox"
-      checked={Boolean(value)}
-      oninput={handleInput}
-      onkeydown={handleKeyDown}
+    <BooleanInput
+      value={Boolean(value)}
+      onChange={(v) => onChange(v)}
       class="cell-checkbox"
     />
   {:else if fieldType === 'select' && options.length > 0}
-    <!-- Select dropdown for fields with options -->
-    <select
-      bind:this={inputRef}
+    <SelectInput
+      value={value as string | null}
+      {options}
+      onChange={(v) => onChange(v)}
+      placeholder="Select..."
       class="cell-select"
-      value={value ?? ''}
-      onchange={handleSelectChange}
-      onkeydown={handleKeyDown}
-      onmousedown={(e) => e.stopPropagation()}
-      onfocus={(e) => e.stopPropagation()}
-    >
-      <option value="">Select...</option>
-      {#each options as opt (opt)}
-        <option value={opt}>{opt}</option>
-      {/each}
-    </select>
+    />
+  {:else if fieldType === 'number'}
+    <NumberInput
+      value={value as number | null}
+      onChange={(v) => onChange(v)}
+      class="cell-input"
+    />
+  {:else if fieldType === 'date'}
+    <DateInput
+      value={value as string | null}
+      onChange={(v) => onChange(v)}
+      class="cell-input"
+    />
   {:else if suggestions.length > 0}
     <!-- Text input with suggestions dropdown -->
     <div class="cell-input-container">
@@ -334,7 +343,23 @@
     color: var(--text-muted, #999);
   }
 
-  .cell-select {
+  /* Wrappers for shared input components */
+  .cell-notelink,
+  .cell-notelinks {
+    width: 100%;
+  }
+
+  /* Global styles for shared inputs in cell context */
+  :global(.cell-notelink .notelink-input-container) {
+    width: 100%;
+  }
+
+  :global(.cell-notelinks .notelinks-trigger) {
+    width: 100%;
+    padding: 0.25rem 0.375rem;
+  }
+
+  :global(.editable-cell .cell-select) {
     width: 100%;
     padding: 0.25rem 0.375rem;
     border: 1px solid var(--accent-primary, #2196f3);
@@ -345,18 +370,13 @@
     font-family: inherit;
     outline: none;
     cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.375rem center;
-    padding-right: 1.5rem;
   }
 
-  .cell-select:focus {
+  :global(.editable-cell .cell-select:focus) {
     box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
   }
 
-  .cell-checkbox {
+  :global(.editable-cell .cell-checkbox) {
     width: 1rem;
     height: 1rem;
     cursor: pointer;
