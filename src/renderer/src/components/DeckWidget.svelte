@@ -189,9 +189,10 @@
   });
 
   // Available schema fields for filter/column pickers
+  // When a type filter is active, only show props from notes of that type
   const availableSchemaFields = $derived.by(() => {
     const notes = Object.values(getNotesDict());
-    return getAvailableFields(notes, getNoteTypesDict());
+    return getAvailableFields(notes, getNoteTypesDict(), filteredTypeIds);
   });
 
   // Effective config that includes pending filter edits

@@ -10,7 +10,12 @@ import type {
   DeckSort
 } from '../../../../../shared/deck-yaml-utils';
 import { getActiveView, DEFAULT_PAGE_SIZE } from '../../../../../shared/deck-yaml-utils';
-import type { DeckQueryResult, DeckQueryOptions, FilterFieldInfo } from './deck-types';
+import type {
+  DeckQueryResult,
+  DeckQueryOptions,
+  FilterFieldInfo,
+  FieldType
+} from './deck-types';
 import { noteToResultNote, EMPTY_FILTER_VALUE } from './deck-types';
 import {
   getFilterFieldValue,
@@ -188,19 +193,57 @@ export function getFieldValues(
 
 /**
  * Get all available fields for filtering (system + custom props)
+ * @param allNotes - All notes in the vault
+ * @param noteTypes - Note types dictionary for looking up field types and options
+ * @param filteredTypeIds - Optional array of type IDs to filter props by
  */
 export function getAvailableFields(
   allNotes: NoteMetadata[],
-  _noteTypes: Record<string, NoteType>
+  noteTypes: Record<string, NoteType>,
+  filteredTypeIds?: string[]
 ): FilterFieldInfo[] {
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
   const customFields = new Set<string>();
 
-  // Collect all custom prop fields from notes
+  // Collect custom prop fields from notes, optionally filtered by type
   for (const note of allNotes) {
     if (note.archived) continue;
+    // If type filter is active, only include props from matching notes
+    if (filteredTypeIds && filteredTypeIds.length > 0) {
+      if (!note.type || !filteredTypeIds.includes(note.type)) {
+        continue;
+      }
+    }
     if (note.props) {
       Object.keys(note.props).forEach((key) => customFields.add(key));
+    }
+  }
+
+  // Build a map of field name -> schema info from note types
+  // When type filter is active, only look at those types; otherwise look at all
+  const typeIdsToCheck =
+    filteredTypeIds && filteredTypeIds.length > 0
+      ? filteredTypeIds
+      : Object.keys(noteTypes);
+
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation
+  const fieldSchemaMap = new Map<string, { type: FieldType; options?: string[] }>();
+  for (const typeId of typeIdsToCheck) {
+    const noteType = noteTypes[typeId];
+    if (noteType?.properties) {
+      for (const prop of noteType.properties) {
+        // Only set if not already set (first type wins)
+        // or if new one has options and existing doesn't
+        const existing = fieldSchemaMap.get(prop.name);
+        const hasOptions =
+          prop.constraints?.options && prop.constraints.options.length > 0;
+        if (!existing || (hasOptions && !existing.options)) {
+          fieldSchemaMap.set(prop.name, {
+            type: prop.type as FieldType,
+            options: prop.constraints?.options
+          });
+        }
+      }
     }
   }
 
@@ -213,12 +256,14 @@ export function getAvailableFields(
     { name: 'flint_archived', label: 'Archived', type: 'boolean', isSystem: true }
   ];
 
-  // Add custom fields (default to string type, could be enhanced to infer from values)
+  // Add custom fields with type and options from schema (default to string)
   for (const fieldName of Array.from(customFields).sort()) {
+    const schema = fieldSchemaMap.get(fieldName);
     fields.push({
       name: fieldName,
       label: fieldName.replace(/_/g, ' '),
-      type: 'string',
+      type: schema?.type ?? 'string',
+      options: schema?.options,
       isSystem: false
     });
   }
