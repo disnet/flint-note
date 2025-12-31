@@ -433,7 +433,14 @@
   ></div>
 
   {#if showFadeGradient}
-    <div class="fade-overlay" transition:fade={{ duration: 200, easing: cubicOut }}>
+    <div
+      class="fade-overlay"
+      transition:fade={{ duration: 200, easing: cubicOut }}
+      onclick={toggleExpansion}
+      onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleExpansion(); }}
+      role="button"
+      tabindex="-1"
+    >
       <div class="fade-gradient"></div>
       {#if showExpandControls}
         <button
@@ -489,6 +496,7 @@
     align-items: flex-end;
     justify-content: center;
     z-index: 1;
+    cursor: pointer;
   }
 
   .fade-gradient {
