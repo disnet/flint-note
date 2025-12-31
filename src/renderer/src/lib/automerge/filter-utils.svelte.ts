@@ -41,6 +41,18 @@ export function getFilterFieldValue(
       return note.updated;
     case 'archived':
       return note.archived;
+    case 'sourceFormat':
+      return note.sourceFormat || 'markdown';
+    case 'lastOpened':
+      return note.lastOpened;
+    case 'review.enabled':
+      return note.review?.enabled ?? false;
+    case 'review.status':
+      return note.review?.status;
+    case 'review.lastReviewed':
+      return note.review?.lastReviewed;
+    case 'review.reviewCount':
+      return note.review?.reviewCount ?? 0;
     default:
       // Unknown field
       return undefined;
@@ -92,13 +104,12 @@ export function applyFilterOperator(
       return compareValues(noteValue, filterValue) <= 0;
 
     case 'LIKE': {
-      // SQL LIKE pattern matching: % matches any sequence, _ matches any single char
-      const pattern = String(filterValue).replace(/%/g, '.*').replace(/_/g, '.');
-      const regex = new RegExp(`^${pattern}$`, 'i');
+      // Simple "contains" matching - case insensitive substring search
+      const searchTerm = String(filterValue).toLowerCase();
       if (Array.isArray(noteStr)) {
-        return noteStr.some((v) => regex.test(v));
+        return noteStr.some((v) => v.toLowerCase().includes(searchTerm));
       }
-      return regex.test(noteStr);
+      return noteStr.toLowerCase().includes(searchTerm);
     }
 
     case 'IN': {

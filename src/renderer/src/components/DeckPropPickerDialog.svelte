@@ -26,12 +26,8 @@
 
   // Combine system fields and custom fields, excluding already selected
   const allFields = $derived.by(() => {
-    // Filter system fields to commonly used ones for props
-    const commonSystemFields = SYSTEM_FIELDS.filter((f) =>
-      ['created', 'updated', 'type'].includes(f.name)
-    );
     const customFields = fields.filter((f) => !f.isSystem);
-    const combined = [...commonSystemFields, ...customFields];
+    const combined = [...SYSTEM_FIELDS, ...customFields];
     // Filter out excluded fields
     const excludeSet = new Set(excludeFields);
     return combined.filter((f) => !excludeSet.has(f.name));

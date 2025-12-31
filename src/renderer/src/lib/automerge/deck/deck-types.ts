@@ -72,15 +72,15 @@ import type { FilterOperator } from '../../../../../shared/deck-yaml-utils';
  * Operators grouped by field type for UI
  */
 export const OPERATORS_BY_TYPE: Record<FieldType, FilterOperator[]> = {
-  string: ['=', '!=', 'LIKE', 'IN', 'NOT IN'],
+  string: ['=', '!=', 'LIKE'],
   number: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN'],
   boolean: ['=', '!='],
   date: ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN'],
   array: ['IN', '=', '!=', 'NOT IN'],
   select: ['=', '!=', 'IN', 'NOT IN'],
-  notelink: ['=', '!=', 'IN', 'NOT IN'],
+  notelink: ['=', '!='],
   notelinks: ['IN', 'NOT IN', '=', '!='],
-  system: ['=', '!=', 'LIKE', 'IN', 'NOT IN']
+  system: ['=', '!=', 'LIKE']
 };
 
 /**
@@ -92,7 +92,25 @@ export const SYSTEM_FIELDS: FilterFieldInfo[] = [
   { name: 'title', label: 'Title', type: 'string', isSystem: true },
   { name: 'created', label: 'Created', type: 'date', isSystem: true },
   { name: 'updated', label: 'Updated', type: 'date', isSystem: true },
-  { name: 'archived', label: 'Archived', type: 'boolean', isSystem: true }
+  { name: 'archived', label: 'Archived', type: 'boolean', isSystem: true },
+  {
+    name: 'sourceFormat',
+    label: 'Source Format',
+    type: 'select',
+    isSystem: true,
+    options: ['markdown', 'pdf', 'epub', 'webpage', 'deck']
+  },
+  { name: 'lastOpened', label: 'Last Opened', type: 'date', isSystem: true },
+  { name: 'review.enabled', label: 'Review Enabled', type: 'boolean', isSystem: true },
+  {
+    name: 'review.status',
+    label: 'Review Status',
+    type: 'select',
+    isSystem: true,
+    options: ['active', 'retired']
+  },
+  { name: 'review.lastReviewed', label: 'Last Reviewed', type: 'date', isSystem: true },
+  { name: 'review.reviewCount', label: 'Review Count', type: 'number', isSystem: true }
 ];
 
 /**
@@ -104,7 +122,13 @@ export const SYSTEM_FIELD_NAMES = new Set([
   'title',
   'created',
   'updated',
-  'archived'
+  'archived',
+  'sourceFormat',
+  'lastOpened',
+  'review.enabled',
+  'review.status',
+  'review.lastReviewed',
+  'review.reviewCount'
 ]);
 
 /**
@@ -206,6 +230,19 @@ export interface DeckResultNote {
   updated: string;
   /** Custom properties from note.props */
   props: Record<string, unknown>;
+  /** Whether the note is archived */
+  archived: boolean;
+  /** Source format (markdown, pdf, epub, webpage, deck) */
+  sourceFormat?: string;
+  /** Last time the note was opened */
+  lastOpened?: string;
+  /** Review data */
+  review?: {
+    enabled: boolean;
+    status?: 'active' | 'retired';
+    lastReviewed: string | null;
+    reviewCount: number;
+  };
 }
 
 /**
@@ -260,7 +297,18 @@ export function noteToResultNote(
     typeIcon: noteType?.icon || '📝',
     created: note.created,
     updated: note.updated,
-    props: note.props || {}
+    props: note.props || {},
+    archived: note.archived,
+    sourceFormat: note.sourceFormat,
+    lastOpened: note.lastOpened,
+    review: note.review
+      ? {
+          enabled: note.review.enabled,
+          status: note.review.status,
+          lastReviewed: note.review.lastReviewed,
+          reviewCount: note.review.reviewCount
+        }
+      : undefined
   };
 }
 

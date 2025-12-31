@@ -41,8 +41,12 @@ export function runDeckQuery(
   const sort = view.sort;
   const pageSize = config.pageSize || DEFAULT_PAGE_SIZE;
 
-  // Step 1: Filter out archived notes (unless requested)
-  let notes = includeArchived ? allNotes : allNotes.filter((n) => !n.archived);
+  // Check if there's an archived filter - if so, we need to include archived notes
+  const hasArchivedFilter = filters.some((f) => f.field === 'archived');
+
+  // Step 1: Filter out archived notes (unless requested or there's an archived filter)
+  let notes =
+    includeArchived || hasArchivedFilter ? allNotes : allNotes.filter((n) => !n.archived);
 
   // Step 2: Apply filters
   notes = notes.filter((note) => matchesFilters(note, filters, noteTypes));

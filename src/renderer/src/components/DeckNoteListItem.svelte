@@ -88,6 +88,10 @@
       field === 'type' ||
       field === 'created' ||
       field === 'updated' ||
+      field === 'archived' ||
+      field === 'sourceFormat' ||
+      field === 'lastOpened' ||
+      field.startsWith('review.') ||
       field.startsWith('flint_')
     ) {
       return true;
@@ -247,6 +251,27 @@
     if (field === 'updated') {
       return formatDate(note.updated);
     }
+    if (field === 'archived') {
+      return note.archived ? 'Yes' : 'No';
+    }
+    if (field === 'sourceFormat') {
+      return note.sourceFormat || 'markdown';
+    }
+    if (field === 'lastOpened') {
+      return note.lastOpened ? formatDate(note.lastOpened) : '';
+    }
+    if (field === 'review.enabled') {
+      return note.review?.enabled ? 'Yes' : 'No';
+    }
+    if (field === 'review.status') {
+      return note.review?.status || '';
+    }
+    if (field === 'review.lastReviewed') {
+      return note.review?.lastReviewed ? formatDate(note.review.lastReviewed) : '';
+    }
+    if (field === 'review.reviewCount') {
+      return String(note.review?.reviewCount ?? 0);
+    }
 
     // Custom properties (props.* format)
     const propName = field.startsWith('props.') ? field.slice(6) : field;
@@ -284,7 +309,12 @@
   // Get field type
   function getFieldType(field: string): FieldType | 'system' | 'unknown' {
     if (field === 'title' || field === 'type') return 'system';
-    if (field === 'created' || field === 'updated') return 'date';
+    if (field === 'created' || field === 'updated' || field === 'lastOpened')
+      return 'date';
+    if (field === 'archived' || field === 'review.enabled') return 'boolean';
+    if (field === 'sourceFormat' || field === 'review.status') return 'select';
+    if (field === 'review.lastReviewed') return 'date';
+    if (field === 'review.reviewCount') return 'number';
 
     // For props.* fields, look up the schema by prop name
     const propName = field.startsWith('props.') ? field.slice(6) : field;
@@ -294,6 +324,12 @@
 
   // Get field options for select fields
   function getFieldOptions(field: string): string[] {
+    if (field === 'sourceFormat') {
+      return ['markdown', 'pdf', 'epub', 'webpage', 'deck'];
+    }
+    if (field === 'review.status') {
+      return ['active', 'retired'];
+    }
     const propName = field.startsWith('props.') ? field.slice(6) : field;
     return schemaFields.get(propName)?.options ?? [];
   }
@@ -307,8 +343,18 @@
 
   // Check if field is editable
   function isEditable(field: string): boolean {
-    // System fields (except title) are not editable
-    if (field === 'type' || field === 'created' || field === 'updated') return false;
+    // System fields (except title) are not editable inline
+    if (
+      field === 'type' ||
+      field === 'created' ||
+      field === 'updated' ||
+      field === 'archived' ||
+      field === 'sourceFormat' ||
+      field === 'lastOpened' ||
+      field.startsWith('review.')
+    ) {
+      return false;
+    }
     return true;
   }
 
@@ -318,6 +364,13 @@
     if (field === 'type') return note.typeId;
     if (field === 'created') return note.created;
     if (field === 'updated') return note.updated;
+    if (field === 'archived') return note.archived;
+    if (field === 'sourceFormat') return note.sourceFormat || 'markdown';
+    if (field === 'lastOpened') return note.lastOpened;
+    if (field === 'review.enabled') return note.review?.enabled ?? false;
+    if (field === 'review.status') return note.review?.status;
+    if (field === 'review.lastReviewed') return note.review?.lastReviewed;
+    if (field === 'review.reviewCount') return note.review?.reviewCount ?? 0;
     // Custom properties (props.* format)
     const propName = field.startsWith('props.') ? field.slice(6) : field;
     return note.props[propName] ?? '';
