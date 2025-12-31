@@ -107,6 +107,74 @@
   let contextMenuItemType = $state<'note' | 'conversation' | null>(null);
   let contextMenuSection = $state<'pinned' | 'recent' | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
+  let contextMenuElement: HTMLDivElement | undefined = $state();
+  let submenuElement: HTMLDivElement | undefined = $state();
+
+  // Adjust context menu position after rendering to stay within viewport
+  $effect(() => {
+    if (contextMenuOpen && contextMenuElement) {
+      const rect = contextMenuElement.getBoundingClientRect();
+      const padding = 8;
+      let { x, y } = contextMenuPosition;
+      let needsUpdate = false;
+
+      // Adjust horizontal position if menu extends past right edge
+      if (rect.right > window.innerWidth - padding) {
+        x = window.innerWidth - rect.width - padding;
+        needsUpdate = true;
+      }
+
+      // Adjust vertical position if menu extends past bottom edge
+      if (rect.bottom > window.innerHeight - padding) {
+        y = window.innerHeight - rect.height - padding;
+        needsUpdate = true;
+      }
+
+      // Ensure minimum padding from edges
+      if (x < padding) {
+        x = padding;
+        needsUpdate = true;
+      }
+      if (y < padding) {
+        y = padding;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        contextMenuPosition = { x, y };
+      }
+    }
+  });
+
+  // Adjust submenu position to stay within viewport
+  $effect(() => {
+    if (workspaceSubmenuOpen && submenuElement && contextMenuElement) {
+      const submenuRect = submenuElement.getBoundingClientRect();
+      const padding = 8;
+
+      // Check if submenu extends past right edge
+      if (submenuRect.right > window.innerWidth - padding) {
+        // Position submenu to the left of the parent menu instead
+        submenuElement.style.left = 'auto';
+        submenuElement.style.right = '100%';
+        submenuElement.style.marginLeft = '0';
+        submenuElement.style.marginRight = '0.25rem';
+      } else {
+        submenuElement.style.left = '100%';
+        submenuElement.style.right = 'auto';
+        submenuElement.style.marginLeft = '0.25rem';
+        submenuElement.style.marginRight = '0';
+      }
+
+      // Check if submenu extends past bottom edge
+      if (submenuRect.bottom > window.innerHeight - padding) {
+        const overflow = submenuRect.bottom - (window.innerHeight - padding);
+        submenuElement.style.top = `${-overflow}px`;
+      } else {
+        submenuElement.style.top = '0';
+      }
+    }
+  });
 
   function handleItemClick(item: SidebarItem): void {
     onItemSelect(item);
@@ -886,6 +954,7 @@
 <!-- Context menu -->
 {#if contextMenuOpen}
   <div
+    bind:this={contextMenuElement}
     class="context-menu"
     style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
     role="menu"
@@ -1025,7 +1094,7 @@
 
         <!-- Workspace submenu -->
         {#if workspaceSubmenuOpen}
-          <div class="context-submenu" role="menu">
+          <div bind:this={submenuElement} class="context-submenu" role="menu">
             {#each workspaces as workspace (workspace.id)}
               {#if workspace.id !== activeWorkspace?.id}
                 <button
