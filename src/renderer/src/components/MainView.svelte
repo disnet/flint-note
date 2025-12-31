@@ -7,6 +7,7 @@
   import {
     getAllNotes,
     getNoteTypes,
+    getNoteType,
     getActiveItem,
     getActiveNote,
     setActiveItem,
@@ -613,12 +614,24 @@
     input.click();
   }
 
-  // Show in Finder handler
+  // Show in Finder handler - reveals the note file in Finder
   async function handleShowInFinder(): Promise<void> {
     const vault = getActiveVault();
-    if (vault?.baseDirectory) {
-      await window.api?.showItemInFolder({ path: vault.baseDirectory });
+    if (!vault?.baseDirectory || !activeNote) {
+      // Fallback to vault directory if no active note
+      if (vault?.baseDirectory) {
+        await window.api?.showItemInFolder({ path: vault.baseDirectory });
+      }
+      return;
     }
+
+    // Get the note type name for the path
+    const noteType = getNoteType(activeNote.type);
+    const typeName = noteType?.name ?? 'Note';
+
+    // Construct the note file path: <vault>/notes/<TypeName>/<note-title>.md
+    const notePath = `${vault.baseDirectory}/notes/${typeName}/${activeNote.title}.md`;
+    await window.api?.showItemInFolder({ path: notePath });
   }
 
   // Focus title handler
@@ -1474,6 +1487,7 @@
       !isActiveNoteEpub &&
       !isActiveNotePdf &&
       !isActiveNoteWebpage}
+    showShowInFinder={!!getActiveVault()?.baseDirectory}
     onClose={() => (moreMenuOpen = false)}
     onPin={handlePin}
     onUnpin={handleUnpin}
@@ -1482,6 +1496,7 @@
     onToggleReview={handleToggleReview}
     onArchive={handleArchiveFromMenu}
     onUnarchive={handleUnarchiveFromMenu}
+    onShowInFinder={handleShowInFinder}
   />
 {/if}
 

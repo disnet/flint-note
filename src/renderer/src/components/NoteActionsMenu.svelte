@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Actions menu popup for notes in the safe zone.
-   * Shows options: Pin, Add to Shelf, Preview mode, Enable review, Archive/Unarchive
+   * Shows options: Pin, Add to Shelf, Preview mode, Enable review, Archive/Unarchive, Show in Finder
    */
   interface Props {
     visible: boolean;
@@ -13,6 +13,7 @@
     isReviewEnabled: boolean;
     isArchived: boolean;
     showPreviewMode?: boolean;
+    showShowInFinder?: boolean;
     onClose: () => void;
     onPin: () => void;
     onUnpin: () => void;
@@ -21,6 +22,7 @@
     onToggleReview: () => void;
     onArchive: () => void;
     onUnarchive: () => void;
+    onShowInFinder?: () => void;
   }
 
   let {
@@ -33,6 +35,7 @@
     isReviewEnabled,
     isArchived,
     showPreviewMode = true,
+    showShowInFinder = false,
     onClose,
     onPin,
     onUnpin,
@@ -40,7 +43,8 @@
     onTogglePreview,
     onToggleReview,
     onArchive,
-    onUnarchive
+    onUnarchive,
+    onShowInFinder
   }: Props = $props();
 
   let menuElement: HTMLDivElement | undefined = $state();
@@ -75,6 +79,11 @@
     } else {
       onArchive();
     }
+    onClose();
+  }
+
+  function handleShowInFinderClick(): void {
+    onShowInFinder?.();
     onClose();
   }
 
@@ -267,6 +276,35 @@
         </svg>
       {/if}
     </button>
+
+    {#if showShowInFinder}
+      <div class="menu-divider"></div>
+
+      <!-- Show in Finder -->
+      <button
+        type="button"
+        class="menu-item"
+        onclick={handleShowInFinderClick}
+        onmousedown={handleMouseDown}
+        role="menuitem"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+          ></path>
+        </svg>
+        <span>Show in Finder</span>
+      </button>
+    {/if}
 
     <div class="menu-divider"></div>
 
