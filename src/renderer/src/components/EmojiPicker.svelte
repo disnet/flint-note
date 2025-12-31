@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { emojiData } from '../lib/emoji/emoji-data.svelte';
+  import type { EmojiCategory, EmojiSearchResult } from '../lib/emoji/types';
+  import { EMOJI_GROUP_ORDER, EMOJI_GROUPS } from '../lib/emoji/types';
+
   interface Props {
     value?: string;
     onselect: (emoji: string) => void;
@@ -7,429 +11,83 @@
   let { value = $bindable(''), onselect }: Props = $props();
 
   let searchQuery = $state('');
+  let debouncedQuery = $state('');
   let isOpen = $state(false);
   let buttonRef = $state<HTMLButtonElement | null>(null);
+  let scrollContainer = $state<HTMLDivElement | null>(null);
   let dropdownPosition = $state({ top: 0, left: 0, openUpward: false });
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Emoji to keywords mapping for better search
-  const emojiKeywords: Record<string, string> = {
-    '📝': 'memo note writing pencil',
-    '📚': 'books library reading study',
-    '💡': 'idea light bulb bright',
-    '⚡': 'lightning bolt energy power fast',
-    '🎯': 'target goal dart aim',
-    '✅': 'check mark done complete',
-    '📌': 'pin pushpin tack',
-    '🔖': 'bookmark tag',
-    '📋': 'clipboard list todo',
-    '📊': 'chart graph data analytics',
-    '✨': 'sparkle shine star magic',
-    '🔥': 'fire flame hot',
-    '💎': 'gem diamond jewel',
-    '🎨': 'art palette paint color',
-    '🎭': 'theater mask drama',
-    '🎪': 'circus tent',
-    '🎬': 'movie film clapper',
-    '🎵': 'music note',
-    '🎼': 'music score',
-    '🎹': 'piano keyboard music',
-    '🎸': 'guitar music',
-    '🎺': 'trumpet music',
-    '🎷': 'saxophone music',
-    '🥁': 'drum music',
-    '🎤': 'microphone music sing',
-    '📖': 'book open reading',
-    '📕': 'book red closed',
-    '📔': 'book orange notebook',
-    '📓': 'book notebook',
-    '📒': 'book ledger',
-    '📃': 'page document paper',
-    '📜': 'scroll paper parchment',
-    '📄': 'page document',
-    '📰': 'newspaper news',
-    '📑': 'bookmark tabs',
-    '📈': 'chart increasing graph up',
-    '📉': 'chart decreasing graph down',
-    '💼': 'briefcase work business',
-    '📁': 'folder file directory',
-    '📂': 'folder open file',
-    '📅': 'calendar date',
-    '📆': 'calendar tear-off date',
-    '💻': 'laptop computer',
-    '⌨️': 'keyboard typing',
-    '🖥️': 'desktop computer monitor',
-    '🌱': 'seedling plant grow',
-    '🌿': 'herb plant leaf',
-    '🍀': 'clover lucky four leaf',
-    '🌸': 'flower blossom cherry',
-    '🌺': 'hibiscus flower',
-    '🌻': 'sunflower flower',
-    '🌼': 'blossom flower',
-    '🌷': 'tulip flower',
-    '🌹': 'rose flower',
-    '🌲': 'tree evergreen pine',
-    '🌳': 'tree deciduous',
-    '🌴': 'palm tree tropical',
-    '🌵': 'cactus desert',
-    '🍃': 'leaf fluttering wind',
-    '🍂': 'leaf autumn fall',
-    '🍁': 'maple leaf autumn fall',
-    '🍄': 'mushroom',
-    '🌰': 'chestnut',
-    '🌊': 'wave water ocean',
-    '💧': 'droplet water',
-    '☀️': 'sun sunny bright',
-    '⭐': 'star',
-    '🌙': 'moon night',
-    '🌈': 'rainbow colorful',
-    '❄️': 'snowflake snow cold winter',
-    '🍎': 'apple fruit red',
-    '🍊': 'orange fruit tangerine',
-    '🍋': 'lemon fruit yellow',
-    '🍌': 'banana fruit yellow',
-    '🍉': 'watermelon fruit',
-    '🍇': 'grapes fruit purple',
-    '🍓': 'strawberry fruit red',
-    '🍒': 'cherry fruit red',
-    '🍑': 'peach fruit',
-    '🍍': 'pineapple fruit tropical',
-    '🥝': 'kiwi fruit green',
-    '🍅': 'tomato vegetable red',
-    '🥑': 'avocado vegetable green',
-    '🍆': 'eggplant vegetable purple',
-    '🌽': 'corn vegetable',
-    '🥒': 'cucumber vegetable green',
-    '🍞': 'bread loaf',
-    '🥐': 'croissant pastry',
-    '☕': 'coffee hot beverage',
-    '🍵': 'tea beverage hot',
-    '⚽': 'soccer ball football sport',
-    '🏀': 'basketball sport',
-    '🏈': 'football sport american',
-    '⚾': 'baseball sport',
-    '🎾': 'tennis sport',
-    '🏐': 'volleyball sport',
-    '🎱': 'pool billiards 8 ball',
-    '🏓': 'ping pong table tennis',
-    '🎮': 'game controller video gaming',
-    '🎲': 'dice game',
-    '🎰': 'slot machine casino',
-    '🎳': 'bowling sport',
-    '🚗': 'car automobile vehicle',
-    '🚕': 'taxi cab vehicle',
-    '🚙': 'suv vehicle',
-    '🚌': 'bus vehicle',
-    '🚎': 'trolleybus vehicle',
-    '🚓': 'police car vehicle',
-    '🚑': 'ambulance vehicle emergency',
-    '🚒': 'fire truck vehicle emergency',
-    '🚚': 'truck vehicle delivery',
-    '🚛': 'truck vehicle semi',
-    '🚲': 'bicycle bike',
-    '✈️': 'airplane plane flight travel',
-    '🚀': 'rocket space launch',
-    '🛸': 'ufo flying saucer alien',
-    '🚢': 'ship boat cruise',
-    '⛵': 'sailboat boat',
-    '⚓': 'anchor ship boat',
-    '🏰': 'castle fortress',
-    '🏯': 'japanese castle',
-    '🏁': 'checkered flag racing finish',
-    '🚩': 'red flag warning',
-    '🎌': 'crossed flags japan',
-    '🏴': 'black flag pirate',
-    '🏳️': 'white flag surrender'
-  };
+  // Load emoji data when picker opens
+  $effect(() => {
+    if (isOpen && !emojiData.isLoaded && !emojiData.isLoading) {
+      emojiData.load();
+    }
+  });
 
-  const emojiCategories = {
-    'Frequently Used': ['📝', '📚', '💡', '⚡', '🎯', '✅', '📌', '🔖', '📋', '📊'],
-    Symbols: [
-      '💡',
-      '⚡',
-      '✨',
-      '🔥',
-      '💎',
-      '🎯',
-      '🎨',
-      '🎭',
-      '🎪',
-      '🎬',
-      '🎵',
-      '🎼',
-      '🎹',
-      '🎸',
-      '🎺',
-      '🎷',
-      '🥁',
-      '🎤'
-    ],
-    Objects: [
-      '📝',
-      '📚',
-      '📖',
-      '📕',
-      '📔',
-      '📓',
-      '📒',
-      '📃',
-      '📜',
-      '📄',
-      '📰',
-      '📑',
-      '🔖',
-      '📋',
-      '📊',
-      '📈',
-      '📉',
-      '💼',
-      '📁',
-      '📂',
-      '🗂️',
-      '📅',
-      '📆',
-      '🗓️',
-      '📇',
-      '🗃️',
-      '🗄️',
-      '🗑️',
-      '💻',
-      '⌨️',
-      '🖥️',
-      '🖨️',
-      '🖱️',
-      '🖲️',
-      '💾',
-      '💿',
-      '📀',
-      '🎥',
-      '🎬',
-      '📷',
-      '📸',
-      '📹',
-      '📼',
-      '🔍',
-      '🔎',
-      '🔬',
-      '🔭',
-      '📡',
-      '🕯️',
-      '💡',
-      '🔦',
-      '🏮',
-      '📗',
-      '📘',
-      '📙'
-    ],
-    Nature: [
-      '🌱',
-      '🌿',
-      '🍀',
-      '🌸',
-      '🌺',
-      '🌻',
-      '🌼',
-      '🌷',
-      '🌹',
-      '🥀',
-      '🌲',
-      '🌳',
-      '🌴',
-      '🌵',
-      '🌾',
-      '🍃',
-      '🍂',
-      '🍁',
-      '🍄',
-      '🌰',
-      '🌊',
-      '💧',
-      '☀️',
-      '⭐',
-      '🌙',
-      '⛈️',
-      '🌈',
-      '🔥',
-      '❄️'
-    ],
-    Food: [
-      '🍎',
-      '🍊',
-      '🍋',
-      '🍌',
-      '🍉',
-      '🍇',
-      '🍓',
-      '🫐',
-      '🍈',
-      '🍒',
-      '🍑',
-      '🥭',
-      '🍍',
-      '🥥',
-      '🥝',
-      '🍅',
-      '🥑',
-      '🍆',
-      '🌽',
-      '🌶️',
-      '🫑',
-      '🥒',
-      '🥬',
-      '🥦',
-      '🍄',
-      '🥜',
-      '🌰',
-      '🍞',
-      '🥐',
-      '🥖',
-      '🥨',
-      '🥯',
-      '🧀',
-      '🥚',
-      '☕',
-      '🍵',
-      '🧃',
-      '🥤'
-    ],
-    Activities: [
-      '⚽',
-      '🏀',
-      '🏈',
-      '⚾',
-      '🥎',
-      '🎾',
-      '🏐',
-      '🏉',
-      '🥏',
-      '🎱',
-      '🏓',
-      '🏸',
-      '🥅',
-      '🏒',
-      '🏑',
-      '🥍',
-      '🏏',
-      '🪃',
-      '🥊',
-      '🥋',
-      '⛳',
-      '⛸️',
-      '🎿',
-      '⛷️',
-      '🏂',
-      '🪂',
-      '🏋️',
-      '🤸',
-      '🤺',
-      '🤾',
-      '🎯',
-      '🎮',
-      '🎲',
-      '🎰',
-      '🎳'
-    ],
-    Travel: [
-      '🚗',
-      '🚕',
-      '🚙',
-      '🚌',
-      '🚎',
-      '🏎️',
-      '🚓',
-      '🚑',
-      '🚒',
-      '🚐',
-      '🚚',
-      '🚛',
-      '🚜',
-      '🛴',
-      '🚲',
-      '🛵',
-      '🏍️',
-      '🛺',
-      '🚔',
-      '🚍',
-      '🚘',
-      '🚖',
-      '🚡',
-      '🚠',
-      '🚟',
-      '🚃',
-      '🚋',
-      '🚝',
-      '🚄',
-      '🚅',
-      '🚈',
-      '🚂',
-      '🚆',
-      '🚇',
-      '🚊',
-      '🚉',
-      '✈️',
-      '🛫',
-      '🛬',
-      '🛩️',
-      '💺',
-      '🚁',
-      '🛸',
-      '🚀',
-      '🛰️',
-      '🚢',
-      '⛵',
-      '🛶',
-      '⛴️',
-      '🛳️',
-      '⚓',
-      '🏰',
-      '🏯',
-      '🗾',
-      '⛩️',
-      '🏛️'
-    ],
-    Flags: ['🏁', '🚩', '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏳️‍⚧️', '🏴‍☠️']
-  };
+  // Debounce search input
+  $effect(() => {
+    // Read searchQuery synchronously to track it as a dependency
+    const query = searchQuery;
 
-  const allEmojis = [...new Set(Object.values(emojiCategories).flat())];
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      debouncedQuery = query;
+    }, 150);
 
-  let filteredEmojis = $derived(
-    searchQuery.trim() === ''
-      ? emojiCategories
-      : {
-          'Search Results': allEmojis.filter((emoji) => {
-            const keywords = emojiKeywords[emoji] || '';
-            return keywords.toLowerCase().includes(searchQuery.toLowerCase());
-          })
-        }
-  );
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+    };
+  });
+
+  // Get search results or categories
+  let searchResults = $derived.by((): EmojiSearchResult[] | null => {
+    if (!debouncedQuery.trim() || !emojiData.isLoaded) return null;
+    return emojiData.search(debouncedQuery);
+  });
+
+  let categories = $derived.by((): EmojiCategory[] => {
+    if (!emojiData.isLoaded) return [];
+    return emojiData.getCategories();
+  });
 
   function selectEmoji(emoji: string): void {
     value = emoji;
     onselect(emoji);
     isOpen = false;
     searchQuery = '';
+    debouncedQuery = '';
   }
 
   function handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       isOpen = false;
       searchQuery = '';
+      debouncedQuery = '';
     }
+  }
+
+  function scrollToCategory(groupId: number): void {
+    const element = scrollContainer?.querySelector(`[data-group="${groupId}"]`);
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function calculatePosition(): void {
     if (!buttonRef) return;
 
     const rect = buttonRef.getBoundingClientRect();
-    const dropdownHeight = 400; // max-height of dropdown
-    const dropdownWidth = 320; // min-width of dropdown
+    const dropdownHeight = 450;
+    const dropdownWidth = 360;
     const padding = 8;
 
-    // Check if there's enough space below
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
     const openUpward = spaceBelow < dropdownHeight + padding && spaceAbove > spaceBelow;
 
-    // Calculate top position
     let top: number;
     if (openUpward) {
       top = rect.top - dropdownHeight - 4;
@@ -437,7 +95,6 @@
       top = rect.bottom + 4;
     }
 
-    // Calculate left position with viewport boundary check
     let left = rect.left;
     if (left + dropdownWidth > window.innerWidth - padding) {
       left = window.innerWidth - dropdownWidth - padding;
@@ -456,10 +113,10 @@
     isOpen = !isOpen;
     if (!isOpen) {
       searchQuery = '';
+      debouncedQuery = '';
     }
   }
 
-  // Close when clicking outside
   function handleClickOutside(event: MouseEvent): void {
     const target = event.target as Element;
     if (
@@ -468,10 +125,10 @@
     ) {
       isOpen = false;
       searchQuery = '';
+      debouncedQuery = '';
     }
   }
 
-  // Update position on scroll/resize when open
   $effect(() => {
     if (!isOpen) return;
 
@@ -512,24 +169,63 @@
       />
     </div>
 
-    <div class="emoji-categories">
-      {#each Object.entries(filteredEmojis) as [category, emojis] (category)}
-        <div class="emoji-category">
-          <div class="category-name">{category}</div>
-          <div class="emoji-grid">
-            {#each emojis as emoji (emoji)}
-              <button
-                type="button"
-                class="emoji-item"
-                onclick={() => selectEmoji(emoji)}
-                title={emoji}
-              >
-                {emoji}
-              </button>
-            {/each}
+    {#if !debouncedQuery.trim() && emojiData.isLoaded}
+      <div class="category-tabs">
+        {#each EMOJI_GROUP_ORDER as groupId (groupId)}
+          <button
+            type="button"
+            class="category-tab"
+            onclick={() => scrollToCategory(groupId)}
+            title={EMOJI_GROUPS[groupId]?.name}
+          >
+            {EMOJI_GROUPS[groupId]?.icon}
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="emoji-content" bind:this={scrollContainer}>
+      {#if emojiData.isLoading}
+        <div class="loading-state">Loading emojis...</div>
+      {:else if searchResults}
+        {#if searchResults.length === 0}
+          <div class="empty-state">No emojis found for "{debouncedQuery}"</div>
+        {:else}
+          <div class="emoji-category">
+            <div class="category-name">Search Results</div>
+            <div class="emoji-grid">
+              {#each searchResults as result (result.emoji)}
+                <button
+                  type="button"
+                  class="emoji-item"
+                  onclick={() => selectEmoji(result.emoji)}
+                  title={result.label}
+                >
+                  {result.emoji}
+                </button>
+              {/each}
+            </div>
           </div>
-        </div>
-      {/each}
+        {/if}
+      {:else}
+        {#each categories as category (category.id)}
+          <div class="emoji-category" data-group={category.id}>
+            <div class="category-name">{category.name}</div>
+            <div class="emoji-grid">
+              {#each category.emojis as emoji (emoji.hexcode)}
+                <button
+                  type="button"
+                  class="emoji-item"
+                  onclick={() => selectEmoji(emoji.emoji)}
+                  title={emoji.label}
+                >
+                  {emoji.emoji}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      {/if}
     </div>
   </div>
 {/if}
@@ -566,10 +262,10 @@
   .emoji-picker-dropdown {
     position: fixed;
     z-index: 10000;
-    min-width: 320px;
-    max-width: 400px;
-    max-height: 400px;
-    overflow-y: auto;
+    width: 360px;
+    max-height: 450px;
+    display: flex;
+    flex-direction: column;
     background: var(--bg-primary);
     border: 1px solid var(--border-medium);
     border-radius: 8px;
@@ -577,12 +273,9 @@
   }
 
   .search-box {
-    position: sticky;
-    top: 0;
     padding: 12px;
-    background: var(--bg-primary);
     border-bottom: 1px solid var(--border-medium);
-    z-index: 1;
+    flex-shrink: 0;
   }
 
   .search-input {
@@ -600,8 +293,38 @@
     border-color: var(--accent-primary);
   }
 
-  .emoji-categories {
-    padding: 8px;
+  .category-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-medium);
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+
+  .category-tab {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .category-tab:hover {
+    background: var(--bg-hover);
+  }
+
+  .emoji-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px 8px;
   }
 
   .emoji-category {
@@ -615,6 +338,11 @@
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    padding: 8px 0 4px;
+    z-index: 1;
   }
 
   .emoji-grid {
@@ -644,5 +372,13 @@
 
   .emoji-item:active {
     transform: scale(0.95);
+  }
+
+  .loading-state,
+  .empty-state {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
   }
 </style>
