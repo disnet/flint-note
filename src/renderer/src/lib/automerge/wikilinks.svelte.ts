@@ -93,13 +93,7 @@ export interface WikilinkHoverHandler {
   ): void;
 }
 
-// Effects
-const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
-const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
-const forceWikilinkUpdate = StateEffect.define<boolean>();
-
-// Interface for selected wikilink data
-interface SelectedWikilink {
+export interface SelectedWikilink {
   from: number;
   to: number;
   identifier: string;
@@ -110,6 +104,13 @@ interface SelectedWikilink {
   conversationId?: string;
   typeId?: string;
 }
+
+export type WikilinkEditDisplayTextHandler = (wikilink: SelectedWikilink) => void;
+
+// Effects
+const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
+const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
+const forceWikilinkUpdate = StateEffect.define<boolean>();
 
 // State field to store the currently selected wikilink (cursor adjacent to it)
 const selectedWikilinkField = StateField.define<SelectedWikilink | null>({
@@ -169,6 +170,13 @@ const wikilinkHoverHandlerField = StateField.define<WikilinkHoverHandler | null>
     return value;
   }
 });
+
+// State field to store the edit display text handler
+const wikilinkEditDisplayTextHandlerField =
+  StateField.define<WikilinkEditDisplayTextHandler | null>({
+    create: () => null,
+    update: (v) => v
+  });
 
 /**
  * Check if an identifier is a conversation ID
@@ -808,7 +816,8 @@ ${noteTypeRules}
  */
 export function automergeWikilinksExtension(
   onWikilinkClick: WikilinkClickHandler,
-  onWikilinkHover?: WikilinkHoverHandler
+  onWikilinkHover?: WikilinkHoverHandler,
+  onWikilinkEditDisplayText?: WikilinkEditDisplayTextHandler
 ): Extension {
   // Initialize completion icon styles
   updateCompletionIconStyles();
@@ -872,6 +881,21 @@ export function automergeWikilinksExtension(
           }
           return false;
         }
+      },
+      // Alt-Enter to edit wikilink display text
+      {
+        key: 'Alt-Enter',
+        run: (view) => {
+          const selected = getSelectedWikilink(view);
+          if (selected) {
+            const handler = view.state.field(wikilinkEditDisplayTextHandlerField);
+            if (handler) {
+              handler(selected);
+              return true;
+            }
+          }
+          return false;
+        }
       }
     ])
   );
@@ -880,6 +904,7 @@ export function automergeWikilinksExtension(
     wikilinkTheme,
     wikilinkHandlerField.init(() => onWikilinkClick),
     wikilinkHoverHandlerField.init(() => onWikilinkHover || null),
+    wikilinkEditDisplayTextHandlerField.init(() => onWikilinkEditDisplayText || null),
     selectedWikilinkField,
     wikilinkField,
     autocompletion({

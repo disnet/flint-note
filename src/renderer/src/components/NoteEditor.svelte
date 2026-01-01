@@ -26,7 +26,7 @@
     setSelectedNoteTypeId,
     type BacklinkResult
   } from '../lib/automerge';
-  import type { WikilinkTargetType } from '../lib/automerge';
+  import type { WikilinkTargetType, SelectedWikilink } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import NoteHeader from './NoteHeader.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
@@ -61,7 +61,7 @@
   const effectivePreviewMode = $derived(previewMode || isReadonly);
 
   let editorContainer: HTMLElement | null = $state(null);
-  let editorView: EditorView | null = null;
+  let editorView: EditorView | null = $state(null);
 
   // Track current note ID for detecting note switches
   let currentNoteId = $state(note.id);
@@ -126,6 +126,7 @@
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
       onWikilinkHover: handleWikilinkHover,
+      onWikilinkEditDisplayText: handleWikilinkEditDisplayText,
       onCursorChange: () => positionTracker?.savePosition(),
       placeholder: 'Start writing...',
       // Deck widget support - navigate to notes when clicked in embedded decks
@@ -683,6 +684,67 @@
     editPopoverVisible = true;
   }
 
+  // Handler for Alt-Enter keyboard shortcut to edit wikilink display text
+  function handleWikilinkEditDisplayText(wikilink: SelectedWikilink): void {
+    if (!editorView) return;
+
+    // Save current selection
+    const selection = editorView.state.selection.main;
+    savedSelection = { anchor: selection.anchor, head: selection.head };
+
+    // Hide action popover if visible
+    actionPopoverVisible = false;
+
+    // Set edit popover data
+    editPopoverIdentifier = wikilink.identifier;
+
+    // Resolve display text (same logic as handleActionPopoverEdit)
+    if (wikilink.identifier === wikilink.title) {
+      if (wikilink.targetType === 'conversation') {
+        if (wikilink.conversationId && wikilink.exists) {
+          const conv = getConversationEntry(wikilink.conversationId);
+          editPopoverDisplayText = conv?.title || wikilink.title;
+        } else {
+          editPopoverDisplayText = wikilink.title;
+        }
+      } else if (wikilink.noteId && wikilink.exists) {
+        const notes = getAllNotes();
+        const linkedNote = notes.find((n) => n.id === wikilink.noteId);
+        editPopoverDisplayText = linkedNote?.title || wikilink.title;
+      } else {
+        editPopoverDisplayText = wikilink.title;
+      }
+    } else {
+      editPopoverDisplayText = wikilink.title;
+    }
+
+    // Set position info
+    editPopoverFrom = wikilink.from;
+    editPopoverTo = wikilink.to;
+
+    // Position edit popover
+    const coords = editorView.coordsAtPos(wikilink.from);
+    if (coords) {
+      linkRect = {
+        left: coords.left,
+        top: coords.top,
+        bottom: coords.bottom,
+        height: coords.bottom - coords.top
+      };
+      const position = calculatePopoverPosition(
+        coords.left,
+        coords.top,
+        coords.bottom,
+        400,
+        100
+      );
+      editPopoverX = position.x;
+      editPopoverY = position.y;
+    }
+
+    editPopoverVisible = true;
+  }
+
   // Edit popover handlers
   function handleEditPopoverSave(newDisplayText: string): void {
     if (!editorView) return;
@@ -785,7 +847,7 @@
         return;
       }
 
-      if (selected && !editPopoverVisible && !actionPopoverIsFromHover) {
+      if (selected && !editPopoverVisible) {
         // Show action popup for cursor-adjacent wikilink
         const coords = editorView.coordsAtPos(selected.from);
         if (coords) {
@@ -817,8 +879,9 @@
           actionPopoverVisible = true;
           actionPopoverIsFromHover = false;
         }
-      } else if ((!selected || editPopoverVisible) && !actionPopoverIsFromHover) {
+      } else if (!selected || editPopoverVisible) {
         actionPopoverVisible = false;
+        actionPopoverIsFromHover = false;
       }
     }, 100);
 

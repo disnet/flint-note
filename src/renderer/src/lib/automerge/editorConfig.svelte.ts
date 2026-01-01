@@ -21,7 +21,8 @@ import { markdownListStyling, listStylingTheme } from '../markdownListStyling';
 import {
   automergeWikilinksExtension,
   type WikilinkClickHandler,
-  type WikilinkHoverHandler
+  type WikilinkHoverHandler,
+  type WikilinkEditDisplayTextHandler
 } from './wikilinks.svelte';
 import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
@@ -32,6 +33,8 @@ import type { NotesDocument } from './types';
 export interface EditorConfigOptions {
   onWikilinkClick?: WikilinkClickHandler;
   onWikilinkHover?: WikilinkHoverHandler;
+  /** Handler for editing wikilink display text (Alt-Enter) */
+  onWikilinkEditDisplayText?: WikilinkEditDisplayTextHandler;
   /** @deprecated Use automergeSync instead for CRDT text editing */
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
@@ -153,7 +156,8 @@ export class EditorConfig {
         ? [
             automergeWikilinksExtension(
               this.options.onWikilinkClick,
-              this.options.onWikilinkHover
+              this.options.onWikilinkHover,
+              this.options.onWikilinkEditDisplayText
             )
           ]
         : []),
