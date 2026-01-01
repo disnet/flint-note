@@ -14,6 +14,70 @@ import { logger } from './logger';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+/**
+ * Retry configuration for network requests
+ */
+const RETRY_CONFIG = {
+  /** Maximum number of retry attempts */
+  maxRetries: 3,
+  /** Base delay in milliseconds (will be multiplied by attempt number) */
+  baseDelayMs: 1000,
+  /** Request timeout in milliseconds */
+  timeoutMs: 30000
+};
+
+/**
+ * Check if an error is a network error that should be retried
+ */
+function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const message = error.message.toLowerCase();
+  const name = error.name.toLowerCase();
+
+  // Network-related errors that are worth retrying
+  return (
+    name === 'aborterror' ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('econnrefused') ||
+    message.includes('econnreset') ||
+    message.includes('enotfound') ||
+    message.includes('socket') ||
+    message.includes('network') ||
+    message.includes('failed to fetch')
+  );
+}
+
+/**
+ * Sleep for a specified number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with timeout support
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export class ChatServer {
   private server: Server | null = null;
   private port: number = 0;
@@ -135,61 +199,112 @@ export class ChatServer {
       return;
     }
 
-    try {
-      // Forward request to OpenRouter with API key
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://flintnote.com',
-          'X-Title': 'Flint Notes'
-        },
-        body: JSON.stringify(body)
-      });
+    // Retry loop with exponential backoff for network errors
+    let lastError: Error | null = null;
 
-      // Copy response headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
+    for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+      try {
+        // Wait before retry (exponential backoff)
+        if (attempt > 0) {
+          const delayMs = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1);
+          logger.info('Retrying API request', { attempt, delayMs });
+          await sleep(delayMs);
+        }
 
-      // Forward content-type header
-      const contentType = response.headers.get('content-type');
-      if (contentType) {
-        res.setHeader('Content-Type', contentType);
-      }
+        // Forward request to OpenRouter with API key and timeout
+        const response = await fetchWithTimeout(
+          OPENROUTER_API_URL,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+              'HTTP-Referer': 'https://flintnote.com',
+              'X-Title': 'Flint Notes'
+            },
+            body: JSON.stringify(body)
+          },
+          RETRY_CONFIG.timeoutMs
+        );
 
-      res.writeHead(response.status);
+        // Copy response headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
 
-      // Stream the response body
-      if (response.body) {
-        const reader = response.body.getReader();
-        const pump = async (): Promise<void> => {
-          const { done, value } = await reader.read();
-          if (done) {
-            res.end();
-            return;
-          }
-          res.write(value);
+        // Forward content-type header
+        const contentType = response.headers.get('content-type');
+        if (contentType) {
+          res.setHeader('Content-Type', contentType);
+        }
+
+        res.writeHead(response.status);
+
+        // Stream the response body
+        if (response.body) {
+          const reader = response.body.getReader();
+          const pump = async (): Promise<void> => {
+            const { done, value } = await reader.read();
+            if (done) {
+              res.end();
+              return;
+            }
+            res.write(value);
+            await pump();
+          };
           await pump();
-        };
-        await pump();
-      } else {
-        res.end();
-      }
-    } catch (error) {
-      logger.error('Proxy request failed', { error });
+        } else {
+          res.end();
+        }
 
-      // Check if headers have already been sent (streaming started)
-      if (res.headersSent) {
-        res.end();
+        // Success - exit retry loop
         return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+
+        // Check if headers have already been sent (streaming started)
+        // If so, we can't retry - just end the response
+        if (res.headersSent) {
+          logger.error('Proxy request failed after streaming started', { error });
+          res.end();
+          return;
+        }
+
+        // Check if this is a retryable network error
+        if (isRetryableError(error) && attempt < RETRY_CONFIG.maxRetries) {
+          logger.warn('Retryable network error, will retry', {
+            error: lastError.message,
+            attempt: attempt + 1,
+            maxRetries: RETRY_CONFIG.maxRetries
+          });
+          continue;
+        }
+
+        // Not retryable or max retries reached - break out of loop
+        break;
       }
-
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error occurred';
-
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: errorMessage }));
     }
+
+    // All retries failed - send error response
+    logger.error('Proxy request failed after retries', {
+      error: lastError?.message,
+      attempts: RETRY_CONFIG.maxRetries + 1
+    });
+
+    const errorMessage = lastError?.message ?? 'Unknown error occurred';
+
+    // Enhance error message for network errors
+    let userMessage = errorMessage;
+    if (lastError && isRetryableError(lastError)) {
+      userMessage = `Network error: ${errorMessage}. Please check your internet connection.`;
+    }
+
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: userMessage,
+        isNetworkError: lastError ? isRetryableError(lastError) : false,
+        retriesAttempted: RETRY_CONFIG.maxRetries
+      })
+    );
   }
 
   /**
