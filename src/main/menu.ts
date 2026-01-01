@@ -494,6 +494,12 @@ export function createApplicationMenu(): Menu {
             sendToRenderer('menu-action', 'show-changelog');
           }
         },
+        {
+          label: 'Show Debug Logs in Finder',
+          click: (): void => {
+            sendToRenderer('menu-action', 'show-debug-logs');
+          }
+        },
         ...(!isMac
           ? [
               { type: 'separator' as const },

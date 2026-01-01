@@ -68,6 +68,10 @@ declare global {
         success: boolean;
         error?: string;
       }>;
+      showLogsInFolder: () => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
 
       // Secure storage operations
       secureStorageAvailable: () => Promise<boolean>;

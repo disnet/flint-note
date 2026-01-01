@@ -705,6 +705,9 @@
       case 'show-in-finder':
         handleShowInFinder();
         break;
+      case 'show-debug-logs':
+        window.api?.showLogsInFolder();
+        break;
 
       // Edit actions
       case 'find':

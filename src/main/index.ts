@@ -620,6 +620,20 @@ app.whenReady().then(async () => {
     }
   });
 
+  ipcMain.handle('show-logs-in-folder', async () => {
+    try {
+      const logsPath = logger.getLogsPath();
+      shell.showItemInFolder(logsPath);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to show logs in folder', { error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   // Archive webpage for Automerge (returns HTML content instead of saving to filesystem)
   ipcMain.handle('archive-webpage', async (_event, params: { url: string }) => {
     try {

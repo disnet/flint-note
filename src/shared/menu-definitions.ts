@@ -138,6 +138,11 @@ export const windowMenuItems: MenuItemDef[] = [
 export const helpMenuItems: MenuItemDef[] = [
   { label: 'Documentation', action: 'open-docs' },
   { label: "What's New", action: 'show-changelog' },
+  {
+    label: 'Show Debug Logs in Finder',
+    labelWin: 'Show Debug Logs in Explorer',
+    action: 'show-debug-logs'
+  },
   { type: 'separator' },
   { label: 'Check for Updates...', action: 'check-updates' },
   { type: 'separator' },
