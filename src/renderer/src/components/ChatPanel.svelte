@@ -682,8 +682,10 @@
                 <ChatInput
                   bind:this={chatInputRef}
                   value={localInput}
-                  placeholder="Ask Flint anything...use [[ to link notes"
-                  disabled={isLoading}
+                  placeholder={isOffline
+                    ? 'Offline - check your connection'
+                    : 'Ask Flint anything...use [[ to link notes'}
+                  disabled={isLoading || isOffline}
                   onValueChange={handleInputChange}
                   onSubmit={handleInputSubmit}
                   onWikilinkClick={navigateToNote}
@@ -792,7 +794,7 @@
                 <button
                   type="submit"
                   class="send-button"
-                  disabled={isLoading || !localInput.trim()}
+                  disabled={isLoading || !localInput.trim() || isOffline}
                   aria-label="Send message"
                 >
                   <svg
