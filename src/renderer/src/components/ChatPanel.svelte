@@ -236,6 +236,16 @@
     previousStatus = status;
   });
 
+  // Auto-focus input when panel opens
+  $effect(() => {
+    if (isOpen && apiKeyConfigured && chatService && chatInputRef) {
+      // Small delay to ensure panel transition completes
+      requestAnimationFrame(() => {
+        chatInputRef?.focus();
+      });
+    }
+  });
+
   // Calculate context usage whenever messages change
   // Use JSON.stringify to detect deep changes in message content
   $effect(() => {
