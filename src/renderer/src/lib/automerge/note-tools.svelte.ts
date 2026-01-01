@@ -550,7 +550,12 @@ export function createNoteTools(): Record<string, Tool> {
         'Create a new note in the vault. Returns the ID of the created note. The note will be added to the current workspace.',
       inputSchema: z.object({
         title: z.string().optional().describe('Note title (can be empty)'),
-        content: z.string().optional().describe('Note content in markdown format'),
+        content: z
+          .string()
+          .optional()
+          .describe(
+            'Note content in markdown format. IMPORTANT: Use actual newline characters for line breaks, not the literal two-character sequence \\n.'
+          ),
         type: z
           .string()
           .optional()
@@ -589,7 +594,9 @@ export function createNoteTools(): Record<string, Tool> {
         content: z
           .string()
           .optional()
-          .describe('New full content (replaces entire content)'),
+          .describe(
+            'New full content (replaces entire content). IMPORTANT: Use actual newline characters for line breaks, not the literal two-character sequence \\n.'
+          ),
         diffs: z
           .array(
             z.object({
@@ -602,7 +609,7 @@ export function createNoteTools(): Record<string, Tool> {
               new_text: z
                 .string()
                 .describe(
-                  'The replacement text. Use empty string to delete the old_text.'
+                  'The replacement text. Use empty string to delete. IMPORTANT: Use actual newline characters, not literal \\n.'
                 ),
               replace_all: z
                 .boolean()
