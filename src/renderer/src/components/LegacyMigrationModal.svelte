@@ -4,11 +4,8 @@
    */
   import {
     detectLegacyVaults,
-    detectLegacyVaultAtPath,
-    browseForVault,
     migrateLegacyVault,
     getMigrationProgress,
-    getIsMigrating,
     resetMigrationState,
     type LegacyVaultInfo,
     type MigrationResult
@@ -22,16 +19,48 @@
   let { onComplete, onCancel }: Props = $props();
 
   // Component state
-  type Stage = 'detecting' | 'select' | 'progress' | 'complete' | 'error';
+  type Stage = 'detecting' | 'progress' | 'complete' | 'error';
   let stage = $state<Stage>('detecting');
-  let detectedVaults = $state<LegacyVaultInfo[]>([]);
-  let selectedVault = $state<LegacyVaultInfo | null>(null);
-  let migrationResult = $state<MigrationResult | null>(null);
   let detectionError = $state<string | null>(null);
+
+  // Multi-vault migration state
+  let vaultsToMigrate = $state<LegacyVaultInfo[]>([]);
+  let currentVaultIndex = $state(0);
+  let migrationResults = $state<MigrationResult[]>([]);
 
   // Derived state
   let progress = $derived(getMigrationProgress());
-  let isMigrating = $derived(getIsMigrating());
+
+  // Current vault being migrated
+  let currentVault = $derived(vaultsToMigrate[currentVaultIndex] ?? null);
+
+  // Aggregate stats from all migration results
+  let aggregateStats = $derived.by(() => {
+    const stats = {
+      notes: 0,
+      noteTypes: 0,
+      workspaces: 0,
+      epubs: 0,
+      successCount: 0,
+      failureCount: 0,
+      totalErrors: [] as Array<{ vault: string; message: string }>
+    };
+    for (const result of migrationResults) {
+      if (result.success && result.stats) {
+        stats.notes += result.stats.notes;
+        stats.noteTypes += result.stats.noteTypes;
+        stats.workspaces += result.stats.workspaces;
+        stats.epubs += result.stats.epubs;
+        stats.successCount++;
+      } else {
+        stats.failureCount++;
+        const vault = vaultsToMigrate[migrationResults.indexOf(result)];
+        const errorMsg = result.errors?.[0]?.message ?? 'Unknown error';
+        stats.totalErrors.push({ vault: vault?.name ?? 'Unknown', message: errorMsg });
+      }
+    }
+    return stats;
+  });
 
   // Initialize detection on mount
   $effect(() => {
@@ -47,45 +76,45 @@
 
     try {
       const vaults = await detectLegacyVaults();
-      detectedVaults = vaults;
-      stage = 'select';
+
+      // Filter out already migrated vaults
+      vaultsToMigrate = vaults.filter((v) => !v.hasExistingMigration);
+
+      if (vaultsToMigrate.length === 0) {
+        // No vaults to migrate - either none found or all already migrated
+        onCancel();
+        return;
+      }
+
+      // Start auto-migration
+      await migrateAllVaults();
     } catch (error) {
       detectionError = error instanceof Error ? error.message : 'Failed to detect vaults';
-      stage = 'select';
+      stage = 'error';
     }
   }
 
-  async function handleBrowse(): Promise<void> {
-    const path = await browseForVault();
-    if (!path) return;
-
-    const vaultInfo = await detectLegacyVaultAtPath(path);
-    if (vaultInfo) {
-      // Check if already in list
-      const exists = detectedVaults.some((v) => v.path === vaultInfo.path);
-      if (!exists) {
-        detectedVaults = [...detectedVaults, vaultInfo];
-      }
-      selectedVault = vaultInfo;
-    } else {
-      detectionError = 'No legacy Flint vault found at that location';
-    }
-  }
-
-  async function handleMigrate(): Promise<void> {
-    if (!selectedVault) return;
-
+  async function migrateAllVaults(): Promise<void> {
     stage = 'progress';
-    migrationResult = null;
+    migrationResults = [];
+    currentVaultIndex = 0;
 
-    const result = await migrateLegacyVault(
-      selectedVault.path,
-      selectedVault.name,
-      selectedVault.syncDirectoryName
-    );
+    for (let i = 0; i < vaultsToMigrate.length; i++) {
+      currentVaultIndex = i;
+      const vault = vaultsToMigrate[i];
 
-    migrationResult = result;
-    stage = result.success ? 'complete' : 'error';
+      const result = await migrateLegacyVault(
+        vault.path,
+        vault.name,
+        vault.syncDirectoryName
+      );
+
+      migrationResults = [...migrationResults, result];
+    }
+
+    // All done - determine final stage based on results
+    const anySuccess = migrationResults.some((r) => r.success);
+    stage = anySuccess ? 'complete' : 'error';
   }
 
   function handleComplete(): void {
@@ -93,19 +122,9 @@
     onComplete();
   }
 
-  function handleCancel(): void {
-    if (!isMigrating) {
-      resetMigrationState();
-      onCancel();
-    }
-  }
-
-  function formatDate(dateString: string): string {
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return dateString;
-    }
+  function handleClose(): void {
+    resetMigrationState();
+    onCancel();
   }
 
   function progressPercentage(): number {
@@ -127,30 +146,14 @@
       <h2 id="migration-title">
         {#if stage === 'detecting'}
           Detecting Legacy Vaults...
-        {:else if stage === 'select'}
-          Import Legacy Vault
         {:else if stage === 'progress'}
-          Migration in Progress
+          Migrating Vaults...
         {:else if stage === 'complete'}
           Migration Complete
         {:else}
           Migration Failed
         {/if}
       </h2>
-      {#if stage === 'select' && !isMigrating}
-        <button class="close-button" onclick={handleCancel} aria-label="Close">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      {/if}
     </div>
 
     <!-- Content -->
@@ -160,75 +163,20 @@
           <div class="spinner"></div>
           <p>Looking for legacy Flint vaults...</p>
         </div>
-      {:else if stage === 'select'}
-        <div class="select-content">
-          {#if detectionError}
-            <div class="error-banner">{detectionError}</div>
-          {/if}
-
-          <p class="intro-text">
-            Select a legacy vault to migrate to the new Automerge format. Your original
-            files will not be modified.
-          </p>
-
-          {#if detectedVaults.length > 0}
-            <div class="vault-list">
-              {#each detectedVaults as vault (vault.path)}
-                <button
-                  class="vault-item"
-                  class:selected={selectedVault?.path === vault.path}
-                  class:already-migrated={vault.hasExistingMigration}
-                  onclick={() => (selectedVault = vault)}
-                  disabled={vault.hasExistingMigration}
-                >
-                  <div class="vault-info">
-                    <span class="vault-icon">
-                      {vault.hasExistingMigration ? '✓' : '📁'}
-                    </span>
-                    <div class="vault-details">
-                      <span class="vault-name">{vault.name}</span>
-                      <span class="vault-path">{vault.path}</span>
-                    </div>
-                  </div>
-                  <div class="vault-stats">
-                    <span class="stat">{vault.noteCount} notes</span>
-                    {#if vault.epubCount > 0}
-                      <span class="stat">{vault.epubCount} EPUBs</span>
-                    {/if}
-                    <span class="stat date">{formatDate(vault.lastModified)}</span>
-                    {#if vault.hasExistingMigration}
-                      <span class="migrated-badge">Already migrated</span>
-                    {/if}
-                  </div>
-                </button>
-              {/each}
-            </div>
-          {:else}
-            <div class="empty-state">
-              <p>No legacy vaults found automatically.</p>
-              <p class="subtle">Use the browse button to locate a vault manually.</p>
-            </div>
-          {/if}
-
-          <button class="browse-button" onclick={handleBrowse}>
-            <span class="button-icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-                ></path>
-              </svg>
-            </span>
-            Browse for Vault...
-          </button>
-        </div>
       {:else if stage === 'progress'}
         <div class="progress-content">
+          <!-- Multi-vault progress indicator -->
+          {#if vaultsToMigrate.length > 1}
+            <div class="vault-progress-indicator">
+              Vault {currentVaultIndex + 1} of {vaultsToMigrate.length}
+            </div>
+          {/if}
+
+          <!-- Current vault name -->
+          {#if currentVault}
+            <div class="current-vault-name">{currentVault.name}</div>
+          {/if}
+
           <div class="progress-info">
             <div class="progress-phase">
               {#if progress?.phase === 'extracting'}
@@ -282,44 +230,48 @@
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
-          <h3>Migration Successful!</h3>
+          <h3>
+            {#if vaultsToMigrate.length === 1}
+              Migration Successful!
+            {:else}
+              Migrated {aggregateStats.successCount} of {vaultsToMigrate.length} Vaults
+            {/if}
+          </h3>
 
-          {#if migrationResult?.stats}
-            <div class="stats-grid">
-              <div class="stat-item">
-                <span class="stat-value">{migrationResult.stats.notes}</span>
-                <span class="stat-label">Notes</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-value">{migrationResult.stats.noteTypes}</span>
-                <span class="stat-label">Note Types</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-value">{migrationResult.stats.workspaces}</span>
-                <span class="stat-label">Workspaces</span>
-              </div>
-              {#if migrationResult.stats.epubs > 0}
-                <div class="stat-item">
-                  <span class="stat-value">{migrationResult.stats.epubs}</span>
-                  <span class="stat-label">EPUBs</span>
-                </div>
-              {/if}
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value">{aggregateStats.notes}</span>
+              <span class="stat-label">Notes</span>
             </div>
-          {/if}
+            <div class="stat-item">
+              <span class="stat-value">{aggregateStats.noteTypes}</span>
+              <span class="stat-label">Note Types</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{aggregateStats.workspaces}</span>
+              <span class="stat-label">Workspaces</span>
+            </div>
+            {#if aggregateStats.epubs > 0}
+              <div class="stat-item">
+                <span class="stat-value">{aggregateStats.epubs}</span>
+                <span class="stat-label">EPUBs</span>
+              </div>
+            {/if}
+          </div>
 
-          {#if migrationResult?.errors && migrationResult.errors.length > 0}
+          {#if aggregateStats.totalErrors.length > 0}
             <div class="warnings-section">
-              <h4>Warnings ({migrationResult.errors.length})</h4>
+              <h4>Failed Vaults ({aggregateStats.failureCount})</h4>
               <div class="warnings-list">
-                {#each migrationResult.errors.slice(0, 5) as error, i (i)}
+                {#each aggregateStats.totalErrors.slice(0, 5) as error, i (i)}
                   <div class="warning-item">
-                    <span class="warning-type">{error.entity}</span>
+                    <span class="warning-type">{error.vault}</span>
                     <span class="warning-message">{error.message}</span>
                   </div>
                 {/each}
-                {#if migrationResult.errors.length > 5}
+                {#if aggregateStats.totalErrors.length > 5}
                   <div class="warning-more">
-                    +{migrationResult.errors.length - 5} more warnings
+                    +{aggregateStats.totalErrors.length - 5} more failures
                   </div>
                 {/if}
               </div>
@@ -343,15 +295,19 @@
           </div>
           <h3>Migration Failed</h3>
 
-          {#if migrationResult?.errors && migrationResult.errors.length > 0}
+          {#if detectionError}
             <div class="error-details">
-              {migrationResult.errors[0].message}
+              {detectionError}
+            </div>
+          {:else if aggregateStats.totalErrors.length > 0}
+            <div class="error-details">
+              {aggregateStats.totalErrors[0].message}
             </div>
           {/if}
 
           <p class="error-help">
-            Your original vault has not been modified. You can try again or contact
-            support.
+            Your original vaults have not been modified. Please contact support if the
+            issue persists.
           </p>
         </div>
       {/if}
@@ -359,22 +315,10 @@
 
     <!-- Footer -->
     <div class="modal-footer">
-      {#if stage === 'select'}
-        <button class="secondary-button" onclick={handleCancel}> Cancel </button>
-        <button
-          class="primary-button"
-          onclick={handleMigrate}
-          disabled={!selectedVault || selectedVault.hasExistingMigration}
-        >
-          Migrate Vault
-        </button>
-      {:else if stage === 'complete'}
+      {#if stage === 'complete'}
         <button class="primary-button" onclick={handleComplete}> Open Vault </button>
       {:else if stage === 'error'}
-        <button class="secondary-button" onclick={() => (stage = 'select')}>
-          Try Again
-        </button>
-        <button class="primary-button" onclick={handleCancel}> Close </button>
+        <button class="primary-button" onclick={handleClose}> Close </button>
       {/if}
     </div>
   </div>
@@ -432,26 +376,6 @@
     color: var(--text-primary);
   }
 
-  .close-button {
-    background: none;
-    border: none;
-    padding: 0.5rem;
-    cursor: pointer;
-    color: var(--text-secondary);
-    border-radius: 0.375rem;
-    transition: all 0.2s;
-  }
-
-  .close-button:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-
-  .close-button svg {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
   .modal-content {
     flex: 1;
     overflow-y: auto;
@@ -491,163 +415,29 @@
     }
   }
 
-  /* Select state */
-  .select-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .intro-text {
-    color: var(--text-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .error-banner {
-    background: var(--error-bg, rgba(239, 68, 68, 0.1));
-    color: var(--error-text, #ef4444);
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .vault-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  .vault-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border: 2px solid transparent;
-    border-radius: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    width: 100%;
-  }
-
-  .vault-item:hover:not(:disabled) {
-    border-color: var(--accent-primary);
-  }
-
-  .vault-item.selected {
-    border-color: var(--accent-primary);
-    background: rgba(59, 130, 246, 0.05);
-  }
-
-  .vault-item:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .vault-info {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .vault-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-  }
-
-  .vault-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .vault-name {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .vault-path {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .vault-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding-left: 2.25rem;
-  }
-
-  .stat {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    background: var(--bg-primary);
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-  }
-
-  .stat.date {
-    color: var(--text-tertiary);
-  }
-
-  .migrated-badge {
-    font-size: 0.75rem;
-    color: var(--success-text, #10b981);
-    background: var(--success-bg, rgba(16, 185, 129, 0.1));
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-secondary);
-  }
-
-  .empty-state .subtle {
-    font-size: 0.875rem;
-    color: var(--text-tertiary);
-  }
-
-  .browse-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: var(--bg-secondary);
-    border: 1px dashed var(--border-light);
-    border-radius: 0.5rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .browse-button:hover {
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
-    background: rgba(59, 130, 246, 0.05);
-  }
-
-  .browse-button svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
   /* Progress state */
   .progress-content {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     padding: 1rem;
+  }
+
+  .vault-progress-indicator {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    align-self: center;
+  }
+
+  .current-vault-name {
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
   .progress-info {
@@ -853,17 +643,13 @@
   }
 
   /* Buttons */
-  .primary-button,
-  .secondary-button {
+  .primary-button {
     padding: 0.625rem 1.25rem;
     border-radius: 0.5rem;
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-  }
-
-  .primary-button {
     background: var(--accent-primary);
     color: var(--accent-text);
     border: none;
@@ -876,15 +662,5 @@
   .primary-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  .secondary-button {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-  }
-
-  .secondary-button:hover {
-    background: var(--bg-tertiary);
   }
 </style>
