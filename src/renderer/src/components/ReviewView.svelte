@@ -23,6 +23,11 @@
     getReviewService,
     type ReviewService
   } from '../lib/automerge/review-service.svelte';
+  import {
+    initNetworkStatus,
+    isOnline as getIsOnline,
+    isRecovering as getIsRecovering
+  } from '../lib/network-status.svelte';
   import ReviewStats from './ReviewStats.svelte';
   import ReviewHistoryView from './ReviewHistoryView.svelte';
   import ReviewSessionSummary from './ReviewSessionSummary.svelte';
@@ -95,6 +100,15 @@
 
     init();
   });
+
+  // Initialize network status listeners
+  $effect(() => {
+    initNetworkStatus();
+  });
+
+  // Network status (reactive)
+  const isOffline = $derived(!getIsOnline());
+  const isRecoveringFromOffline = $derived(getIsRecovering());
 
   // Restore session on mount if there's an active session
   $effect(() => {
@@ -473,6 +487,7 @@
         onUpdateConfig={handleConfigUpdate}
         hasSavedSession={hasActiveSession()}
         nextSessionAvailableAt={nextSessionTime}
+        {isOffline}
       />
     {:else if activeTab === 'history'}
       <ReviewHistoryView />
@@ -542,9 +557,11 @@
                     <button
                       class="regenerate-btn"
                       onclick={regenerateChallenge}
-                      disabled={isGeneratingPrompt || isAnalyzingResponse}
+                      disabled={isGeneratingPrompt || isAnalyzingResponse || isOffline}
                       aria-label="Regenerate challenge"
-                      title="Generate a new challenge for this note"
+                      title={isOffline
+                        ? 'Offline - cannot regenerate'
+                        : 'Generate a new challenge for this note'}
                     >
                       {#if isGeneratingPrompt}
                         <span>Generating</span>
@@ -685,6 +702,32 @@
             {#if sessionState === 'prompting'}
               <!-- Prompting controls -->
               <div class="review-controls">
+                {#if isOffline}
+                  <div class="offline-banner">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                      <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                    </svg>
+                    <span>You're offline - AI features unavailable</span>
+                  </div>
+                {:else if isRecoveringFromOffline}
+                  <div class="recovering-banner">
+                    <div class="spinner-small"></div>
+                    <span>Reconnecting...</span>
+                  </div>
+                {/if}
                 <div class="response-hint">
                   Tip: Press Cmd/Ctrl+Enter to submit · Escape to end session · Use
                   [[wikilinks]] to link notes
@@ -716,7 +759,7 @@
                   <button
                     class="action-btn primary"
                     onclick={submitResponse}
-                    disabled={isAnalyzingResponse || !userResponse.trim()}
+                    disabled={isAnalyzingResponse || !userResponse.trim() || isOffline}
                   >
                     {isAnalyzingResponse ? 'Submitting...' : 'Submit Response'}
                   </button>
@@ -1223,6 +1266,39 @@
     border-top: 1px solid var(--border-light);
     background: var(--bg-primary);
     padding: 1rem 2rem;
+  }
+
+  .offline-banner {
+    padding: 8px 12px;
+    background: var(--warning-bg, #fffbeb);
+    color: var(--warning-text, #b45309);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .recovering-banner {
+    padding: 8px 12px;
+    background: var(--info-bg, #eff6ff);
+    color: var(--info-text, #1d4ed8);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 
   .review-controls .response-hint {

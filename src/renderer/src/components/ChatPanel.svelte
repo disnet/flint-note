@@ -12,6 +12,11 @@
     type ChatMessage,
     type ToolCall
   } from '../lib/automerge/chat-service.svelte';
+  import {
+    initNetworkStatus,
+    isOnline as getIsOnline,
+    isRecovering as getIsRecovering
+  } from '../lib/network-status.svelte';
   import InlineToolWidget from './InlineToolWidget.svelte';
   import {
     getActiveConversationEntry,
@@ -118,6 +123,11 @@
     init();
   });
 
+  // Initialize network status listeners on mount
+  $effect(() => {
+    initNetworkStatus();
+  });
+
   // Derived state from chat service
   const messages = $derived(chatService?.messages ?? []);
   const status = $derived(chatService?.status ?? 'ready');
@@ -126,6 +136,12 @@
   const conversationId = $derived(chatService?.conversationId ?? null);
   const activeConversation = $derived(getActiveConversationEntry());
   const awaitingContinue = $derived(status === 'awaiting_continue');
+  const hasNetworkError = $derived(chatService?.hasNetworkError ?? false);
+  const canRetry = $derived(chatService?.canRetry ?? false);
+
+  // Network status (reactive)
+  const isOffline = $derived(!getIsOnline());
+  const isRecoveringFromOffline = $derived(getIsRecovering());
 
   // Handle initial message when panel opens (for routine execution, etc.)
   $effect(() => {
@@ -368,6 +384,12 @@
   async function handleContinue(): Promise<void> {
     if (!chatService) return;
     await chatService.continueConversation(modelStore.selectedModel);
+  }
+
+  // Handle retry after network error
+  async function handleRetry(): Promise<void> {
+    if (!chatService || !canRetry) return;
+    await chatService.retry();
   }
 
   // Handle escape key: blur input first, then close panel
@@ -620,17 +642,50 @@
 
           {#snippet controls()}
             <form class="chat-input-form" onsubmit={handleSubmit}>
+              {#if isOffline}
+                <div class="offline-banner">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                  </svg>
+                  <span>You're offline</span>
+                </div>
+              {:else if isRecoveringFromOffline}
+                <div class="recovering-banner">
+                  <div class="spinner-small"></div>
+                  <span>Reconnecting...</span>
+                </div>
+              {/if}
               {#if error}
-                <div class="error-banner">
-                  {error.message}
+                <div class="error-banner" class:network-error={hasNetworkError}>
+                  <span class="error-message-text">{error.message}</span>
+                  {#if canRetry}
+                    <button type="button" class="retry-button" onclick={handleRetry}>
+                      Retry
+                    </button>
+                  {/if}
                 </div>
               {/if}
               <div class="input-container">
                 <ChatInput
                   bind:this={chatInputRef}
                   value={localInput}
-                  placeholder="Ask Flint anything...use [[ to link notes"
-                  disabled={isLoading}
+                  placeholder={isOffline
+                    ? 'Offline - check your connection'
+                    : 'Ask Flint anything...use [[ to link notes'}
+                  disabled={isLoading || isOffline}
                   onValueChange={handleInputChange}
                   onSubmit={handleInputSubmit}
                   onWikilinkClick={navigateToNote}
@@ -739,7 +794,7 @@
                 <button
                   type="submit"
                   class="send-button"
-                  disabled={isLoading || !localInput.trim()}
+                  disabled={isLoading || !localInput.trim() || isOffline}
                   aria-label="Send message"
                 >
                   <svg
@@ -1002,6 +1057,69 @@
     border-radius: 6px;
     font-size: 0.8125rem;
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .error-banner.network-error {
+    background: var(--warning-bg, #fffbeb);
+    color: var(--warning-text, #b45309);
+  }
+
+  .error-message-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .retry-button {
+    padding: 4px 10px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+  }
+
+  .retry-button:hover {
+    background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  .offline-banner {
+    padding: 8px 12px;
+    background: var(--warning-bg, #fffbeb);
+    color: var(--warning-text, #b45309);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .recovering-banner {
+    padding: 8px 12px;
+    background: var(--info-bg, #eff6ff);
+    color: var(--info-text, #1d4ed8);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 
   .input-container {

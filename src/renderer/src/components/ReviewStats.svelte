@@ -13,6 +13,7 @@
     onUpdateConfig: (config: Partial<ReviewConfig>) => void;
     hasSavedSession?: boolean;
     nextSessionAvailableAt?: Date | null;
+    isOffline?: boolean;
   }
 
   let {
@@ -23,7 +24,8 @@
     onReviewNote,
     onUpdateConfig,
     hasSavedSession = false,
-    nextSessionAvailableAt = null
+    nextSessionAvailableAt = null,
+    isOffline = false
   }: Props = $props();
 
   let showNotesTable = $state(false);
@@ -70,17 +72,47 @@
   </div>
 
   <div class="review-actions">
+    {#if isOffline}
+      <div class="offline-notice">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+          <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+        <span>You're offline - review requires an internet connection</span>
+      </div>
+    {/if}
+
     {#if hasSavedSession && onResumeSession}
       <div class="saved-session-notice">
         <p class="notice-text">You have a paused review session</p>
-        <button class="start-review-btn resume" onclick={onResumeSession}>
+        <button
+          class="start-review-btn resume"
+          onclick={onResumeSession}
+          disabled={isOffline}
+        >
           Resume Session
         </button>
       </div>
     {/if}
 
     {#if stats.dueThisSession > 0 && !nextSessionAvailableAt}
-      <button class="start-review-btn primary" onclick={onStartReview}>
+      <button
+        class="start-review-btn primary"
+        onclick={onStartReview}
+        disabled={isOffline}
+      >
         Start Review ({stats.dueThisSession})
       </button>
     {:else if nextSessionAvailableAt}
@@ -281,7 +313,7 @@
             oninput={() => handleSearchChange(searchQuery)}
           />
         </div>
-        <ReviewNotesTable {onReviewNote} {searchQuery} />
+        <ReviewNotesTable {onReviewNote} {searchQuery} {isOffline} />
       </div>
     {/if}
   </div>
@@ -413,6 +445,32 @@
 
   .start-review-btn:active {
     transform: translateY(0);
+  }
+
+  .start-review-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .start-review-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .offline-notice {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 16px;
+    background: var(--warning-bg, #fffbeb);
+    color: var(--warning-text, #b45309);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
   }
 
   .no-reviews {

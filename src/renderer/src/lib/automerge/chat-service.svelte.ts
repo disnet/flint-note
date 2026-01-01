@@ -30,6 +30,12 @@ import {
 import { clone } from './utils';
 import type { PersistedToolCall } from './types';
 import { DEFAULT_MODEL } from '../../config/models';
+import {
+  isNetworkError,
+  detectNetworkErrorType,
+  getNetworkErrorMessage,
+  NetworkError
+} from '../network-status.svelte';
 
 /**
  * Tool activity state for inline widget display during streaming
@@ -84,7 +90,17 @@ export type ChatStatus =
   | 'submitting'
   | 'streaming'
   | 'error'
+  | 'network_error'
   | 'awaiting_continue';
+
+/**
+ * Stored request parameters for retry capability
+ */
+interface LastRequestParams {
+  text: string;
+  model?: string;
+  type: 'send' | 'continue';
+}
 
 /**
  * Maximum number of tool call rounds before prompting user to continue
@@ -276,6 +292,10 @@ export class ChatService {
   private currentStepHasToolCalls = false;
   // Track if stopped at step limit
   private _stoppedAtLimit = $state<boolean>(false);
+  // Track if the last error was a network error (for retry UI)
+  private _isNetworkError = $state<boolean>(false);
+  // Store last request params for retry capability
+  private _lastRequestParams: LastRequestParams | null = null;
 
   constructor(proxyPort: number) {
     this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
@@ -324,6 +344,23 @@ export class ChatService {
   }
 
   /**
+   * Check if last error was a network error (reactive)
+   */
+  get hasNetworkError(): boolean {
+    return this._isNetworkError;
+  }
+
+  /**
+   * Check if retry is available
+   */
+  get canRetry(): boolean {
+    return (
+      (this._status === 'error' || this._status === 'network_error') &&
+      this._lastRequestParams !== null
+    );
+  }
+
+  /**
    * Load an existing conversation
    */
   async loadConversation(conversationId: string): Promise<void> {
@@ -365,8 +402,12 @@ export class ChatService {
   async sendMessage(text: string, model?: string): Promise<void> {
     if (!text.trim() || this.isLoading) return;
 
+    // Store request params for potential retry
+    this._lastRequestParams = { text: text.trim(), model, type: 'send' };
+
     // Clear any previous error and reset step tracking
     this._error = null;
+    this._isNetworkError = false;
     this._stoppedAtLimit = false;
 
     // Ensure we have a conversation
@@ -697,10 +738,21 @@ export class ChatService {
         return;
       }
 
-      this._error = error instanceof Error ? error : new Error('Unknown error');
-      this._status = 'error';
+      // Check if this is a network error
+      const isNetwork = error instanceof Error && isNetworkError(error);
+      this._isNetworkError = isNetwork;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (isNetwork) {
+        const networkErrorType = detectNetworkErrorType(error as Error);
+        const networkMessage = getNetworkErrorMessage(networkErrorType);
+        this._error = new NetworkError(networkMessage, networkErrorType, error as Error);
+        this._status = 'network_error';
+      } else {
+        this._error = error instanceof Error ? error : new Error('Unknown error');
+        this._status = 'error';
+      }
+
+      const errorMessage = this._error.message;
 
       // Update assistant message to show error and mark any running tools as failed
       this.updateLastAssistantMessage((msg) => {
@@ -718,7 +770,9 @@ export class ChatService {
         }
 
         if (!msg.content) {
-          msg.content = 'Sorry, an error occurred while processing your request.';
+          msg.content = isNetwork
+            ? 'Connection error. Please check your internet and try again.'
+            : 'Sorry, an error occurred while processing your request.';
         }
       });
     } finally {
@@ -743,9 +797,13 @@ export class ChatService {
   async continueConversation(model?: string): Promise<void> {
     if (this._status !== 'awaiting_continue' || !this._conversationId) return;
 
+    // Store request params for potential retry
+    this._lastRequestParams = { text: '', model, type: 'continue' };
+
     // Reset step tracking for another round
     this._stoppedAtLimit = false;
     this._error = null;
+    this._isNetworkError = false;
 
     // Create assistant message placeholder and persist
     const assistantMessageId = await addMessageToConversation(this._conversationId, {
@@ -1043,10 +1101,21 @@ export class ChatService {
         return;
       }
 
-      this._error = error instanceof Error ? error : new Error('Unknown error');
-      this._status = 'error';
+      // Check if this is a network error
+      const isNetwork = error instanceof Error && isNetworkError(error);
+      this._isNetworkError = isNetwork;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (isNetwork) {
+        const networkErrorType = detectNetworkErrorType(error as Error);
+        const networkMessage = getNetworkErrorMessage(networkErrorType);
+        this._error = new NetworkError(networkMessage, networkErrorType, error as Error);
+        this._status = 'network_error';
+      } else {
+        this._error = error instanceof Error ? error : new Error('Unknown error');
+        this._status = 'error';
+      }
+
+      const errorMessage = this._error.message;
 
       // Update assistant message to show error and mark any running tools as failed
       this.updateLastAssistantMessage((msg) => {
@@ -1064,11 +1133,53 @@ export class ChatService {
         }
 
         if (!msg.content) {
-          msg.content = 'Sorry, an error occurred while processing your request.';
+          msg.content = isNetwork
+            ? 'Connection error. Please check your internet and try again.'
+            : 'Sorry, an error occurred while processing your request.';
         }
       });
     } finally {
       this.abortController = null;
+    }
+  }
+
+  /**
+   * Retry the last failed request
+   * Only works when status is 'error' or 'network_error' and there's a stored request
+   */
+  async retry(): Promise<void> {
+    if (!this.canRetry || !this._lastRequestParams) return;
+
+    const { text, model, type } = this._lastRequestParams;
+
+    // Remove the failed assistant message before retrying
+    if (this._messages.length > 0) {
+      const lastMessage = this._messages[this._messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        this._messages = this._messages.slice(0, -1);
+      }
+
+      // For 'send' type, also remove the user message to re-add it cleanly
+      if (type === 'send' && this._messages.length > 0) {
+        const secondLastMessage = this._messages[this._messages.length - 1];
+        if (secondLastMessage.role === 'user') {
+          this._messages = this._messages.slice(0, -1);
+        }
+      }
+    }
+
+    // Clear error state
+    this._error = null;
+    this._isNetworkError = false;
+    this._status = 'ready';
+
+    // Retry based on request type
+    if (type === 'send') {
+      await this.sendMessage(text, model);
+    } else {
+      // For continue, we need to set the status back to awaiting_continue first
+      this._status = 'awaiting_continue';
+      await this.continueConversation(model);
     }
   }
 
@@ -1082,6 +1193,8 @@ export class ChatService {
     this._error = null;
     this._status = 'ready';
     this._stoppedAtLimit = false;
+    this._isNetworkError = false;
+    this._lastRequestParams = null;
   }
 
   /**

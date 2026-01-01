@@ -11,9 +11,10 @@
   interface Props {
     onReviewNote: (noteId: string) => void;
     searchQuery?: string;
+    isOffline?: boolean;
   }
 
-  let { onReviewNote, searchQuery = '' }: Props = $props();
+  let { onReviewNote, searchQuery = '', isOffline = false }: Props = $props();
 
   interface EnrichedReviewItem {
     note: NoteMetadata;
@@ -201,7 +202,12 @@
             </span>
 
             {#if item.review.status !== 'retired'}
-              <button class="review-btn" onclick={() => onReviewNote(item.note.id)}>
+              <button
+                class="review-btn"
+                onclick={() => onReviewNote(item.note.id)}
+                disabled={isOffline}
+                title={isOffline ? 'Offline - cannot start review' : undefined}
+              >
                 Review Now
               </button>
             {/if}
@@ -406,6 +412,17 @@
 
   .review-btn:active {
     transform: translateY(0);
+  }
+
+  .review-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .review-btn:disabled:hover {
+    transform: none;
+    background: var(--accent-primary);
   }
 
   .history-content {
