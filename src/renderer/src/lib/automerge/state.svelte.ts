@@ -1013,7 +1013,7 @@ export async function createNote(params: {
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'note', id });
+      ws.recentItemIds.push({ type: 'note', id });
     }
   });
 
@@ -1498,7 +1498,7 @@ export function addItemToWorkspace(ref: SidebarItemRef): void {
     // Don't add duplicates to recent
     if (ws.recentItemIds.some((r) => r.type === ref.type && r.id === ref.id)) return;
 
-    ws.recentItemIds.unshift(ref);
+    ws.recentItemIds.push(ref);
   });
 }
 
@@ -1599,7 +1599,7 @@ export function moveItemToWorkspace(
         (r) => r.type === ref.type && r.id === ref.id
       );
       if (!alreadyPinned && !alreadyRecent) {
-        targetWs.recentItemIds.unshift({ type: ref.type, id: ref.id });
+        targetWs.recentItemIds.push({ type: ref.type, id: ref.id });
       }
     }
   });
@@ -1724,9 +1724,9 @@ export function unpinItem(ref: SidebarItemRef): void {
     if (index !== -1) {
       ws.pinnedItemIds.splice(index, 1);
 
-      // Add to recent items when unpinned (at the start)
+      // Add to recent items when unpinned (at the end)
       if (!ws.recentItemIds.some((r) => r.type === ref.type && r.id === ref.id)) {
-        ws.recentItemIds.unshift(ref);
+        ws.recentItemIds.push(ref);
       }
     }
   });
@@ -2598,7 +2598,7 @@ export async function createConversation(params?: {
       const ws = doc.workspaces[doc.activeWorkspaceId];
       if (ws) {
         ensureWorkspaceArrays(ws);
-        ws.recentItemIds.unshift({ type: 'conversation', id });
+        ws.recentItemIds.push({ type: 'conversation', id });
       }
     }
   });
@@ -2927,8 +2927,8 @@ export function bumpItemToRecent(ref: SidebarItemRef): void {
       ws.recentItemIds.splice(existingIndex, 1);
     }
 
-    // Add to front
-    ws.recentItemIds.unshift(ref);
+    // Add to end
+    ws.recentItemIds.push(ref);
   });
 }
 
@@ -3206,7 +3206,7 @@ export function createEpubNote(params: {
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'note', id });
+      ws.recentItemIds.push({ type: 'note', id });
     }
   });
 
@@ -3344,7 +3344,7 @@ export function createPdfNote(params: {
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'note', id });
+      ws.recentItemIds.push({ type: 'note', id });
     }
   });
 
@@ -3490,7 +3490,7 @@ export function createWebpageNote(params: {
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'note', id });
+      ws.recentItemIds.push({ type: 'note', id });
     }
   });
 
@@ -3587,7 +3587,7 @@ export function createDeckNote(title: string, config?: DeckConfig): string {
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
-      ws.recentItemIds.unshift({ type: 'note', id });
+      ws.recentItemIds.push({ type: 'note', id });
     }
   });
 

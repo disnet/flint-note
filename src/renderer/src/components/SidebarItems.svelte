@@ -49,6 +49,31 @@
   const recentItems = $derived(getRecentItems());
   const activeItem = $derived(getActiveItem());
 
+  // Track recent items length to detect new items being added
+  let prevRecentLength = $state<number | null>(null);
+
+  // Scroll to end when a new item is added to recent items
+  $effect(() => {
+    const currentLength = recentItems.length;
+    // Only scroll if we have a previous length (not first render) and length increased
+    if (prevRecentLength !== null && currentLength > prevRecentLength) {
+      // New item was added, scroll to end after DOM update
+      tick().then(() => {
+        // Find the scroll container (parent with overflow-y: auto)
+        const scrollContainer = listElement?.closest(
+          '.sidebar-content'
+        ) as HTMLElement | null;
+        if (scrollContainer) {
+          scrollContainer.scrollTo({
+            top: scrollContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      });
+    }
+    prevRecentLength = currentLength;
+  });
+
   // Build unified list: pinned items + separator + recent items
   type ListItem =
     | {
