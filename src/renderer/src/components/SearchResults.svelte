@@ -9,7 +9,7 @@
     EnhancedSearchResult,
     TextSegment
   } from '../lib/automerge';
-  import { highlightMatch } from '../lib/automerge';
+  import { highlightMatch, getNoteType } from '../lib/automerge';
 
   type AnySearchResult = SearchResult | EnhancedSearchResult;
 
@@ -102,8 +102,15 @@
 
   /**
    * Get note type icon and name
+   * Always looks up current note type from state to ensure fresh data
    */
   function getNoteTypeInfo(result: AnySearchResult): { icon: string; name: string } {
+    // Always look up current note type from state for fresh data
+    const currentType = getNoteType(result.note.type);
+    if (currentType) {
+      return { icon: currentType.icon, name: currentType.name };
+    }
+    // Fallback to cached matchedType if state lookup fails
     if (result.matchedType) {
       return { icon: result.matchedType.icon, name: result.matchedType.name };
     }

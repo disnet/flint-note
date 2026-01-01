@@ -2037,15 +2037,16 @@ export function getActiveItem(): ActiveItem {
 
 /**
  * Set the active item (also persists to document)
- * Also updates lastOpened timestamp for notes
+ * Also updates lastOpened timestamp for notes and adds to workspace
  */
 export function setActiveItem(item: ActiveItem): void {
   activeItem = item;
   persistViewState();
 
-  // Update lastOpened for notes
+  // Update lastOpened for notes and add to workspace
   if (item?.type === 'note' && item.id) {
     markNoteOpened(item.id);
+    addItemToWorkspace({ type: 'note', id: item.id });
   }
 }
 
