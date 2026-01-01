@@ -369,7 +369,27 @@
     if (!chatService) return;
     await chatService.continueConversation(modelStore.selectedModel);
   }
+
+  // Handle escape key: blur input first, then close panel
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (!isOpen) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // If input is focused, blur it first
+      if (chatInputRef?.isFocused()) {
+        chatInputRef.blur();
+      } else {
+        // Input not focused, close the panel
+        onClose();
+      }
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeyDown} />
 
 {#if isOpen}
   <div class="chat-panel" class:visible={isOpen} class:expanded={isExpanded}>

@@ -238,6 +238,18 @@
     }
   }
 
+  /** Blur the editor */
+  export function blur(): void {
+    if (editorView) {
+      editorView.contentDOM.blur();
+    }
+  }
+
+  /** Check if editor is focused */
+  export function isFocused(): boolean {
+    return editorView?.hasFocus ?? false;
+  }
+
   /** Clear the editor content */
   export function clear(): void {
     if (editorView) {
