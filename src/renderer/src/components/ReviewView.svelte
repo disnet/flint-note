@@ -487,6 +487,7 @@
         onUpdateConfig={handleConfigUpdate}
         hasSavedSession={hasActiveSession()}
         nextSessionAvailableAt={nextSessionTime}
+        {isOffline}
       />
     {:else if activeTab === 'history'}
       <ReviewHistoryView />
