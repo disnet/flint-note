@@ -313,7 +313,7 @@
             oninput={() => handleSearchChange(searchQuery)}
           />
         </div>
-        <ReviewNotesTable {onReviewNote} {searchQuery} />
+        <ReviewNotesTable {onReviewNote} {searchQuery} {isOffline} />
       </div>
     {/if}
   </div>
