@@ -274,6 +274,16 @@ declare global {
         ) => void;
         removeMigrationListeners: () => void;
         browseForVault: () => Promise<string | null>;
+        readLegacyVaultPaths: () => Promise<
+          Array<{
+            id: string;
+            name: string;
+            path: string;
+            created?: string;
+            last_accessed?: string;
+            last_modified?: string;
+          }>
+        >;
       };
     };
   }

@@ -46,12 +46,20 @@
     deleteWorkspace,
     importEpubFile,
     importPdfFile,
+    isLegacyVault,
+    finalizeLegacyVaultMigration,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
     type SidebarItem,
-    type SystemView
+    type SystemView,
+    type Vault
   } from '../lib/automerge';
+  import {
+    migrateLegacyVault,
+    getMigrationProgress,
+    resetMigrationState
+  } from '../lib/automerge/legacy-migration.svelte';
   import LeftSidebar from './LeftSidebar.svelte';
   import NoteEditor from './NoteEditor.svelte';
   import SearchResults from './SearchResults.svelte';
@@ -112,6 +120,12 @@
   let showArchiveWebpageModal = $state(false);
   let showLegacyMigrationModal = $state(false);
   let newVaultName = $state('');
+
+  // Lazy legacy vault migration state
+  let isMigratingLegacyVault = $state(false);
+  let migratingVault = $state<Vault | null>(null);
+  let migrationError = $state<string | null>(null);
+  const migrationProgress = $derived(getMigrationProgress());
   let searchInputFocused = $state(false);
   let selectedSearchIndex = $state(0);
   let pendingChatMessage = $state<string | null>(null);
@@ -508,8 +522,64 @@
   }
 
   async function handleVaultSelect(vaultId: string): Promise<void> {
-    await switchVault(vaultId);
-    setActiveItem(null);
+    const vault = vaults.find((v) => v.id === vaultId);
+    if (!vault) return;
+
+    // Check if this is a legacy vault that needs migration
+    if (isLegacyVault(vault)) {
+      await migrateAndSwitchToVault(vault);
+    } else {
+      await switchVault(vaultId);
+      setActiveItem(null);
+    }
+  }
+
+  /**
+   * Migrate a legacy vault and switch to it after migration completes
+   */
+  async function migrateAndSwitchToVault(vault: Vault): Promise<void> {
+    if (!vault.legacyPath) return;
+
+    isMigratingLegacyVault = true;
+    migratingVault = vault;
+    migrationError = null;
+
+    try {
+      const result = await migrateLegacyVault(vault.legacyPath, vault.name);
+
+      if (result.success && result.vault) {
+        // Update the vault entry with migration results
+        finalizeLegacyVaultMigration(
+          vault.id,
+          result.vault.docUrl,
+          result.vault.baseDirectory
+        );
+
+        // Switch to the now-migrated vault
+        await switchVault(vault.id);
+        setActiveItem(null);
+      } else {
+        // Handle migration failure
+        const errorMsg =
+          result.errors?.[0]?.message ?? 'Migration failed for unknown reason';
+        migrationError = errorMsg;
+        console.error('Migration failed:', result.errors);
+      }
+    } catch (error) {
+      migrationError = error instanceof Error ? error.message : String(error);
+      console.error('Migration error:', error);
+    } finally {
+      isMigratingLegacyVault = false;
+      migratingVault = null;
+      resetMigrationState();
+    }
+  }
+
+  /**
+   * Cancel/dismiss migration error
+   */
+  function dismissMigrationError(): void {
+    migrationError = null;
   }
 
   function handleCreateVault(): void {
@@ -522,6 +592,68 @@
       createVault(newVaultName.trim());
       showCreateVaultModal = false;
       newVaultName = '';
+    }
+  }
+
+  /**
+   * Browse for a vault directory to import
+   */
+  async function handleBrowseForVault(): Promise<void> {
+    try {
+      const selectedPath = await window.api?.legacyMigration.browseForVault();
+      if (!selectedPath) return;
+
+      // Close the create vault modal
+      showCreateVaultModal = false;
+
+      // Detect if it's a valid legacy vault
+      const detectedVault = await window.api?.legacyMigration.detectLegacyVaultAtPath({
+        vaultPath: selectedPath,
+        existingVaults: vaults.map((v) => ({ baseDirectory: v.baseDirectory }))
+      });
+
+      if (detectedVault) {
+        // Start migration
+        isMigratingLegacyVault = true;
+        migratingVault = {
+          id: '',
+          name: detectedVault.name,
+          docUrl: '',
+          archived: false,
+          created: new Date().toISOString(),
+          legacyPath: detectedVault.path
+        };
+        migrationError = null;
+
+        try {
+          const result = await migrateLegacyVault(detectedVault.path, detectedVault.name);
+
+          if (result.success && result.vault) {
+            // Re-initialize state to pick up the new vault
+            await initializeState();
+            // Switch to the new vault
+            await switchVault(result.vault.id);
+            setActiveItem(null);
+          } else {
+            const errorMsg =
+              result.errors?.[0]?.message ?? 'Migration failed for unknown reason';
+            migrationError = errorMsg;
+            console.error('Migration failed:', result.errors);
+          }
+        } catch (error) {
+          migrationError = error instanceof Error ? error.message : String(error);
+          console.error('Migration error:', error);
+        } finally {
+          isMigratingLegacyVault = false;
+          migratingVault = null;
+          resetMigrationState();
+        }
+      } else {
+        migrationError = 'No valid vault found at the selected location';
+      }
+    } catch (error) {
+      migrationError = error instanceof Error ? error.message : String(error);
+      console.error('Browse error:', error);
     }
   }
 
@@ -1386,6 +1518,10 @@
         >
         <button class="modal-btn primary" onclick={submitCreateVault}>Create</button>
       </div>
+      <div class="modal-divider"><span>or</span></div>
+      <button class="modal-btn secondary full-width" onclick={handleBrowseForVault}>
+        Open Vault from Directory
+      </button>
     </div>
   </div>
 {/if}
@@ -1473,6 +1609,71 @@
     onComplete={handleLegacyMigrationComplete}
     onCancel={handleLegacyMigrationCancel}
   />
+{/if}
+
+<!-- Legacy Vault Migration Progress Overlay -->
+{#if isMigratingLegacyVault && migratingVault}
+  <div class="migration-overlay">
+    <div class="migration-modal">
+      <div class="migration-icon">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+          />
+        </svg>
+      </div>
+      <h3>Importing "{migratingVault.name}"</h3>
+      {#if migrationProgress}
+        <p class="migration-message">{migrationProgress.message}</p>
+        <div class="progress-bar-container">
+          <div
+            class="progress-bar"
+            style="width: {migrationProgress.total > 0
+              ? (migrationProgress.current / migrationProgress.total) * 100
+              : 0}%"
+          ></div>
+        </div>
+        <p class="migration-phase">{migrationProgress.phase}</p>
+      {:else}
+        <p class="migration-message">Starting migration...</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar indeterminate"></div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<!-- Migration Error Modal -->
+{#if migrationError}
+  <div class="migration-overlay">
+    <div class="migration-modal error">
+      <div class="migration-icon error">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="m15 9-6 6" />
+          <path d="m9 9 6 6" />
+        </svg>
+      </div>
+      <h3>Import Failed</h3>
+      <p class="migration-error-message">{migrationError}</p>
+      <button class="dismiss-button" onclick={dismissMigrationError}>Dismiss</button>
+    </div>
+  </div>
 {/if}
 
 <!-- Note Actions Menu -->
@@ -2007,6 +2208,39 @@
     cursor: not-allowed;
   }
 
+  .modal-btn.secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+  }
+
+  .modal-btn.secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .modal-btn.full-width {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modal-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+  }
+
+  .modal-divider::before,
+  .modal-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
   /* Workspace Form */
   .workspace-form {
     margin-bottom: 1rem;
@@ -2035,5 +2269,148 @@
 
   .flex-1 {
     flex: 1;
+  }
+
+  /* Migration Overlay */
+  .migration-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+
+  .migration-modal {
+    background: var(--bg-primary);
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: fadeInUp 0.2s ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .migration-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-light);
+    border-radius: 50%;
+    color: var(--accent-primary);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .migration-icon.error {
+    background: var(--error-bg, #fee);
+    color: var(--error-text, #dc2626);
+    animation: none;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+  }
+
+  .migration-modal h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+  }
+
+  .migration-modal.error h3 {
+    color: var(--error-text, #dc2626);
+  }
+
+  .migration-message {
+    margin: 0 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .migration-error-message {
+    margin: 0 0 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    word-break: break-word;
+  }
+
+  .migration-phase {
+    margin: 0.5rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: capitalize;
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-bar.indeterminate {
+    width: 30%;
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+
+  .dismiss-button {
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-primary);
+    color: var(--accent-text, white);
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .dismiss-button:hover {
+    background: var(--accent-primary-hover, var(--accent-primary));
   }
 </style>

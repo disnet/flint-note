@@ -14,6 +14,7 @@
   import {
     getActiveWorkspace,
     updateVaultInState,
+    isLegacyVault,
     type NoteMetadata,
     type Vault,
     type SearchResult,
@@ -253,10 +254,11 @@
           {#if isVaultDropdownOpen}
             <div class="vault-dropdown">
               {#each vaults as vault (vault.id)}
-                <div class="vault-item-container">
+                <div class="vault-item-container" class:legacy={isLegacyVault(vault)}>
                   <button
                     class="vault-item"
                     class:active={activeVault?.id === vault.id}
+                    class:legacy={isLegacyVault(vault)}
                     onclick={() => handleVaultSelect(vault.id)}
                   >
                     <svg
@@ -273,25 +275,32 @@
                       />
                     </svg>
                     <span class="vault-item-name">{vault.name}</span>
+                    {#if isLegacyVault(vault)}
+                      <span class="legacy-badge" title="Click to import this vault"
+                        >Import</span
+                      >
+                    {/if}
                   </button>
-                  <button
-                    class="archive-btn"
-                    onclick={(e) => handleArchiveVault(vault, e)}
-                    title="Archive vault"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
+                  {#if !isLegacyVault(vault)}
+                    <button
+                      class="archive-btn"
+                      onclick={(e) => handleArchiveVault(vault, e)}
+                      title="Archive vault"
                     >
-                      <rect width="20" height="5" x="2" y="3" rx="1" />
-                      <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                      <path d="m9.5 11 5 0" />
-                    </svg>
-                  </button>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <rect width="20" height="5" x="2" y="3" rx="1" />
+                        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                        <path d="m9.5 11 5 0" />
+                      </svg>
+                    </button>
+                  {/if}
                 </div>
               {/each}
 
@@ -608,6 +617,27 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Legacy vault styling */
+  .vault-item.legacy {
+    opacity: 0.9;
+  }
+
+  .legacy-badge {
+    font-size: 0.65rem;
+    padding: 0.125rem 0.375rem;
+    background: var(--accent-light);
+    color: var(--accent-primary);
+    border-radius: 0.25rem;
+    margin-left: auto;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .vault-item-container.legacy:hover .legacy-badge {
+    background: var(--accent-primary);
+    color: var(--accent-text, white);
   }
 
   .archive-btn {

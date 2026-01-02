@@ -59,3 +59,11 @@ export {
   scanForLegacyVaults,
   getCommonVaultLocations
 } from './utils';
+
+// Legacy config reader
+export {
+  getLegacyConfigPath,
+  readLegacyVaultPaths,
+  getLegacyCurrentVaultId,
+  type LegacyConfigVault
+} from './legacy-config-reader';

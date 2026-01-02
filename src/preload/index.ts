@@ -347,7 +347,19 @@ const api = {
     },
 
     // Browse for a vault directory
-    browseForVault: () => electronAPI.ipcRenderer.invoke('browse-for-vault')
+    browseForVault: () => electronAPI.ipcRenderer.invoke('browse-for-vault'),
+
+    // Read legacy vault paths from old app's config.yml
+    readLegacyVaultPaths: (): Promise<
+      {
+        id: string;
+        name: string;
+        path: string;
+        created?: string;
+        last_accessed?: string;
+        last_modified?: string;
+      }[]
+    > => electronAPI.ipcRenderer.invoke('read-legacy-vault-paths')
   }
 };
 

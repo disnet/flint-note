@@ -6,17 +6,22 @@
   import { onMount } from 'svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import MainView from './components/MainView.svelte';
-  import LegacyMigrationModal from './components/LegacyMigrationModal.svelte';
   import { initializeState, getIsLoading, getNonArchivedVaults } from './lib/automerge';
-  import { detectLegacyVaults } from './lib/automerge/legacy-migration.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
+
+  // Legacy vault config type (from old app's config.yml)
+  interface LegacyVaultConfig {
+    id: string;
+    name: string;
+    path: string;
+    created?: string;
+    last_accessed?: string;
+  }
 
   // Track if we have vaults
   let hasVaults = $state(false);
   let initError = $state<string | null>(null);
-
-  // Legacy vault detection state
-  let showMigrationModal = $state(false);
+  let detectedLegacyVaults = $state<LegacyVaultConfig[]>([]);
 
   // Derive loading state reactively
   const isLoading = $derived(getIsLoading());
@@ -29,16 +34,19 @@
       const vaults = getNonArchivedVaults();
       hasVaults = vaults.length > 0;
 
-      // If no vaults, check for legacy vaults to migrate
+      // If no vaults, check for legacy vaults in old app's config.yml
       if (!hasVaults) {
         try {
-          const legacyVaults = await detectLegacyVaults();
-          // If we found legacy vaults, show the migration modal
-          if (legacyVaults.length > 0) {
-            showMigrationModal = true;
+          // Read legacy vault paths from old app's config.yml
+          const legacyVaultConfigs =
+            await window.api?.legacyMigration.readLegacyVaultPaths();
+
+          if (legacyVaultConfigs && legacyVaultConfigs.length > 0) {
+            // Store detected legacy vaults to pass to FirstTimeExperience
+            detectedLegacyVaults = legacyVaultConfigs;
           }
         } catch (err) {
-          console.warn('Failed to detect legacy vaults:', err);
+          console.warn('Failed to read legacy vault paths:', err);
         }
       }
     } catch (err) {
@@ -50,19 +58,6 @@
   // Handle vault creation
   function handleVaultCreated(): void {
     hasVaults = true;
-  }
-
-  // Handle migration completion
-  async function handleMigrationComplete(): Promise<void> {
-    showMigrationModal = false;
-    // Re-initialize state to load the newly created vault
-    await initializeState();
-    hasVaults = getNonArchivedVaults().length > 0;
-  }
-
-  // Handle migration cancel
-  function handleMigrationCancel(): void {
-    showMigrationModal = false;
   }
 
   // Theme application
@@ -139,15 +134,11 @@
     </div>
   </div>
 {:else if !hasVaults}
-  <!-- First-time experience or migration modal -->
-  {#if showMigrationModal}
-    <LegacyMigrationModal
-      onComplete={handleMigrationComplete}
-      onCancel={handleMigrationCancel}
-    />
-  {:else}
-    <FirstTimeExperience onVaultCreated={handleVaultCreated} />
-  {/if}
+  <!-- First-time experience -->
+  <FirstTimeExperience
+    onVaultCreated={handleVaultCreated}
+    legacyVaults={detectedLegacyVaults}
+  />
 {:else}
   <!-- Main app interface -->
   <MainView />

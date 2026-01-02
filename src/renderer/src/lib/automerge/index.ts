@@ -97,6 +97,13 @@ export {
   createVault,
   switchVault,
 
+  // Legacy vault helpers
+  isLegacyVault,
+  hasLegacyVaults,
+  createLegacyVaultEntries,
+  clearLegacyVaultFields,
+  finalizeLegacyVaultMigration,
+
   // Source format helper
   getSourceFormat,
 
@@ -395,7 +402,8 @@ export {
   getRepo,
   archiveVault,
   compactVaultDocument,
-  getStorageStats
+  getStorageStats,
+  saveVaults
 } from './repo';
 
 // ID generation

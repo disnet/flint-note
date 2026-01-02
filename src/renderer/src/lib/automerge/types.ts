@@ -602,7 +602,7 @@ export interface Vault {
   id: string;
   /** Display name */
   name: string;
-  /** Automerge document URL */
+  /** Automerge document URL (empty string for legacy vaults not yet migrated) */
   docUrl: string;
   /** Optional base directory for file system sync */
   baseDirectory?: string;
@@ -610,6 +610,10 @@ export interface Vault {
   archived: boolean;
   /** ISO timestamp of creation */
   created: string;
+  /** Path to legacy vault directory (present = needs migration) */
+  legacyPath?: string;
+  /** Note count from legacy vault (for display in UI before migration) */
+  legacyNoteCount?: number;
 }
 
 // ============================================================================

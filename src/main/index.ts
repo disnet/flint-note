@@ -44,7 +44,8 @@ import {
 import {
   detectLegacyVaults,
   detectLegacyVaultAtPath,
-  getMigrationDocumentData
+  getMigrationDocumentData,
+  readLegacyVaultPaths
 } from './migration';
 import fontList from 'font-list';
 
@@ -956,6 +957,16 @@ app.whenReady().then(async () => {
     }
 
     return result.filePaths[0];
+  });
+
+  // Read legacy vault paths from old app's config.yml
+  ipcMain.handle('read-legacy-vault-paths', async () => {
+    try {
+      return await readLegacyVaultPaths();
+    } catch (error) {
+      logger.error('Failed to read legacy vault paths', { error });
+      return [];
+    }
   });
 
   await createWindow(settingsStorageService);

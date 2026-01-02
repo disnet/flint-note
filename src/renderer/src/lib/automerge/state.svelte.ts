@@ -61,6 +61,7 @@ import {
   generateRoutineCompletionId,
   generateRoutineMaterialId,
   generatePropertyId,
+  generateVaultId,
   nowISO,
   clone,
   cloneIfObject
@@ -771,6 +772,100 @@ export function createVault(name: string): Vault {
   const vault = createVaultInRepo(repo, name);
   addVaultToState(vault);
   return vault;
+}
+
+// --- Legacy vault helpers ---
+
+/**
+ * Check if a vault is a legacy vault that needs migration.
+ * A vault is legacy if it has a legacyPath but no docUrl (or empty docUrl).
+ */
+export function isLegacyVault(vault: Vault): boolean {
+  return !!vault.legacyPath && !vault.docUrl;
+}
+
+/**
+ * Check if there are any legacy vaults in the current vault list
+ */
+export function hasLegacyVaults(): boolean {
+  return vaults.some(isLegacyVault);
+}
+
+/**
+ * Legacy vault info from config.yml
+ */
+interface LegacyConfigVault {
+  id: string;
+  name: string;
+  path: string;
+  created?: string;
+  last_accessed?: string;
+}
+
+/**
+ * Create Vault entries from legacy config vault info.
+ * These vaults have legacyPath set but no docUrl, indicating they need migration.
+ */
+export function createLegacyVaultEntries(legacyVaults: LegacyConfigVault[]): Vault[] {
+  return legacyVaults.map((lv) => ({
+    id: generateVaultId(),
+    name: lv.name,
+    docUrl: '', // Empty indicates not yet migrated
+    archived: false,
+    created: lv.created || nowISO(),
+    legacyPath: lv.path
+    // legacyNoteCount will be populated when user selects the vault
+  }));
+}
+
+/**
+ * Clear legacy vault fields after successful migration.
+ * This converts a legacy vault entry into a regular vault.
+ */
+export function clearLegacyVaultFields(vaultId: string): void {
+  vaults = vaults.map((v) => {
+    if (v.id === vaultId) {
+      // Create new vault object without legacy fields
+      const cleanVault: Vault = {
+        id: v.id,
+        name: v.name,
+        docUrl: v.docUrl,
+        baseDirectory: v.baseDirectory,
+        archived: v.archived,
+        created: v.created
+      };
+      return cleanVault;
+    }
+    return v;
+  });
+  saveVaults(vaults);
+}
+
+/**
+ * Update a legacy vault after successful migration.
+ * Sets the docUrl and baseDirectory, then clears legacy fields.
+ */
+export function finalizeLegacyVaultMigration(
+  vaultId: string,
+  docUrl: string,
+  baseDirectory?: string
+): void {
+  vaults = vaults.map((v) => {
+    if (v.id === vaultId) {
+      // Create migrated vault without legacy fields
+      const migratedVault: Vault = {
+        id: v.id,
+        name: v.name,
+        docUrl,
+        baseDirectory,
+        archived: v.archived,
+        created: v.created
+      };
+      return migratedVault;
+    }
+    return v;
+  });
+  saveVaults(vaults);
 }
 
 /**
