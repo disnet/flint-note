@@ -148,8 +148,17 @@
 
   // Vault dropdown state
   let isVaultDropdownOpen = $state(false);
+  let vaultButtonElement = $state<HTMLElement | null>(null);
+  let dropdownPosition = $state({ top: 0, left: 0 });
 
   function toggleVaultDropdown(): void {
+    if (!isVaultDropdownOpen && vaultButtonElement) {
+      const rect = vaultButtonElement.getBoundingClientRect();
+      dropdownPosition = {
+        top: rect.bottom + 4, // 4px gap below button
+        left: rect.left
+      };
+    }
     isVaultDropdownOpen = !isVaultDropdownOpen;
   }
 
@@ -220,6 +229,7 @@
             class="vault-button"
             class:open={isVaultDropdownOpen}
             onclick={toggleVaultDropdown}
+            bind:this={vaultButtonElement}
           >
             <span class="vault-display">
               <svg
@@ -252,7 +262,10 @@
           </button>
 
           {#if isVaultDropdownOpen}
-            <div class="vault-dropdown">
+            <div
+              class="vault-dropdown"
+              style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px;"
+            >
               {#each vaults as vault (vault.id)}
                 <div class="vault-item-container" class:legacy={isLegacyVault(vault)}>
                   <button
@@ -545,15 +558,12 @@
 
   /* Vault Dropdown */
   .vault-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
+    position: fixed;
     z-index: 100;
     background: var(--bg-primary);
     border: 1px solid var(--border-medium);
     border-radius: 0.5rem;
     box-shadow: 0 4px 12px var(--shadow-medium);
-    margin-top: 0.25rem;
     min-width: 200px;
     max-width: 280px;
     overflow: hidden;
