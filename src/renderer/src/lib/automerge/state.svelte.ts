@@ -60,6 +60,7 @@ import {
   generateRoutineId,
   generateRoutineCompletionId,
   generateRoutineMaterialId,
+  generatePropertyId,
   nowISO,
   clone,
   cloneIfObject
@@ -1818,8 +1819,12 @@ export function createNoteType(params: {
     };
     // Only add optional fields if they're defined (Automerge doesn't allow undefined)
     // Use clone() to create fresh objects safe for Automerge
+    // Ensure each property has a stable id for rename tracking
     if (params.properties !== undefined) {
-      noteType.properties = clone(params.properties);
+      noteType.properties = clone(params.properties).map((p) => ({
+        ...p,
+        id: p.id || generatePropertyId()
+      }));
     }
     if (params.editorChips !== undefined) {
       noteType.editorChips = [...params.editorChips];
@@ -1862,10 +1867,51 @@ export function updateNoteType(
     }
     if (updates.purpose !== undefined) noteType.purpose = updates.purpose;
     if (updates.icon !== undefined) noteType.icon = updates.icon;
-    // Use clone() to create fresh objects safe for Automerge
+
+    // Handle property updates with rename detection and propagation
     if (updates.properties !== undefined) {
-      noteType.properties = clone(updates.properties);
+      const oldProps = noteType.properties || [];
+
+      // Ensure each new property has an id
+      const newProps = clone(updates.properties).map((p) => ({
+        ...p,
+        id: p.id || generatePropertyId()
+      }));
+
+      // Detect renames by comparing old and new properties by id
+      const renames = new Map<string, string>();
+      for (const newProp of newProps) {
+        if (!newProp.id) continue;
+        const oldProp = oldProps.find((p) => p.id === newProp.id);
+        if (oldProp && oldProp.name !== newProp.name) {
+          renames.set(oldProp.name, newProp.name);
+        }
+      }
+
+      // Propagate renames to all notes of this type
+      if (renames.size > 0) {
+        const allNotes = Object.values(doc.notes) as NoteMetadata[];
+        for (const note of allNotes) {
+          if (note.type === id && note.props) {
+            for (const [oldName, newName] of renames) {
+              if (oldName in note.props) {
+                // Use cloneIfObject to avoid "Cannot create a reference to existing document object"
+                note.props[newName] = cloneIfObject(note.props[oldName]);
+                delete note.props[oldName];
+              }
+            }
+          }
+        }
+
+        // Also update editorChips to use the new property names
+        if (noteType.editorChips) {
+          noteType.editorChips = noteType.editorChips.map((c) => renames.get(c) || c);
+        }
+      }
+
+      noteType.properties = newProps;
     }
+
     if (updates.editorChips !== undefined) {
       noteType.editorChips = [...updates.editorChips];
     }

@@ -105,6 +105,8 @@ export interface PropertyConstraints {
  * Definition of a property field in a note type schema
  */
 export interface PropertyDefinition {
+  /** Unique identifier for this property (stable across renames) */
+  id?: string;
   /** Property name (used as key in note.props) */
   name: string;
   /** Data type of the property */

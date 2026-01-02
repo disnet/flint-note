@@ -155,6 +155,14 @@ export function generateRoutineMaterialId(): string {
 }
 
 /**
+ * Generate a property ID
+ * Format: "prop-xxxxxxxx"
+ */
+export function generatePropertyId(): string {
+  return generateId('prop');
+}
+
+/**
  * Get current ISO timestamp
  */
 export function nowISO(): string {

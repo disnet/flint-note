@@ -8,6 +8,7 @@
     PropertyType,
     PropertyConstraints
   } from '../lib/automerge';
+  import { generatePropertyId } from '../lib/automerge/utils';
 
   interface Props {
     /** Current property definitions */
@@ -43,6 +44,15 @@
   // Auto-save timeout
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Ensures a property has an id. Legacy properties without ids get one assigned.
+   * This is critical for rename tracking to work properly.
+   */
+  function ensurePropertyId(prop: PropertyDefinition): PropertyDefinition {
+    if (prop.id) return prop;
+    return { ...prop, id: generatePropertyId() };
+  }
+
   function scheduleAutoSave(): void {
     if (saveTimeout) {
       clearTimeout(saveTimeout);
@@ -56,6 +66,7 @@
 
   function addProperty(): void {
     const newProp: PropertyDefinition = {
+      id: generatePropertyId(),
       name: '',
       type: 'string',
       description: '',
@@ -70,7 +81,8 @@
     value: string | boolean | PropertyType
   ): void {
     const updated = [...properties];
-    updated[index] = { ...updated[index], [field]: value };
+    // Ensure property has an id before updating (for legacy properties)
+    updated[index] = ensurePropertyId({ ...updated[index], [field]: value });
     onUpdate(updated);
     scheduleAutoSave();
   }
@@ -96,7 +108,8 @@
       prop.constraints.format = value || undefined;
     }
 
-    updated[index] = prop;
+    // Ensure property has an id before updating (for legacy properties)
+    updated[index] = ensurePropertyId(prop);
     onUpdate(updated);
     scheduleAutoSave();
   }
@@ -120,7 +133,8 @@
       prop.default = value;
     }
 
-    updated[index] = prop;
+    // Ensure property has an id before updating (for legacy properties)
+    updated[index] = ensurePropertyId(prop);
     onUpdate(updated);
     scheduleAutoSave();
   }
@@ -136,7 +150,8 @@
       prop.constraints.options = [];
     }
     prop.constraints.options = [...prop.constraints.options, ''];
-    updated[propIndex] = prop;
+    // Ensure property has an id before updating (for legacy properties)
+    updated[propIndex] = ensurePropertyId(prop);
     onUpdate(updated);
   }
 
@@ -147,7 +162,8 @@
       prop.constraints.options = prop.constraints.options.filter(
         (_, i) => i !== optionIndex
       );
-      updated[propIndex] = prop;
+      // Ensure property has an id before updating (for legacy properties)
+      updated[propIndex] = ensurePropertyId(prop);
       onUpdate(updated);
       scheduleAutoSave();
     }
@@ -163,7 +179,8 @@
     if (prop.constraints?.options) {
       prop.constraints.options = [...prop.constraints.options];
       prop.constraints.options[optionIndex] = value;
-      updated[propIndex] = prop;
+      // Ensure property has an id before updating (for legacy properties)
+      updated[propIndex] = ensurePropertyId(prop);
       onUpdate(updated);
       scheduleAutoSave();
     }
