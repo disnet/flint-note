@@ -54,6 +54,7 @@ import {
   readLegacyVaultPaths
 } from './migration';
 import { scanMarkdownDirectory, getMarkdownImportData } from './markdown-import';
+import { detectAutomergeVault } from './automerge-import';
 import fontList from 'font-list';
 
 // Handle unhandled promise rejections from automerge-repo when documents are unavailable.
@@ -843,12 +844,21 @@ app.whenReady().then(async () => {
   // Automerge sync IPC handlers
   ipcMain.handle(
     'init-vault-sync',
-    async (event, params: { vaultId: string; baseDirectory: string; docUrl: string }) => {
+    async (
+      event,
+      params: {
+        vaultId: string;
+        baseDirectory: string;
+        docUrl: string;
+        vaultName: string;
+      }
+    ) => {
       try {
         return initializeVaultRepo(
           params.vaultId,
           params.baseDirectory,
           params.docUrl,
+          params.vaultName,
           event.sender
         );
       } catch (error) {
@@ -1078,6 +1088,22 @@ app.whenReady().then(async () => {
         return scanMarkdownDirectory(params.dirPath);
       } catch (error) {
         logger.error('Failed to detect markdown directory', {
+          error,
+          dirPath: params.dirPath
+        });
+        return null;
+      }
+    }
+  );
+
+  // Detect if a directory contains an automerge vault (.automerge/manifest.json)
+  ipcMain.handle(
+    'detect-automerge-vault',
+    async (_event, params: { dirPath: string }) => {
+      try {
+        return await detectAutomergeVault(params.dirPath);
+      } catch (error) {
+        logger.error('Failed to detect automerge vault', {
           error,
           dirPath: params.dirPath
         });

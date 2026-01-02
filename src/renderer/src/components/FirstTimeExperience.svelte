@@ -20,6 +20,12 @@
     getImportProgress,
     resetImportState
   } from '../lib/automerge/markdown-import.svelte';
+  import {
+    importAutomergeVault,
+    getAutomergeImportProgress,
+    resetAutomergeImportState,
+    type AutomergeVaultInfo
+  } from '../lib/automerge/automerge-import.svelte';
 
   // Legacy vault config type (from old app's config.yml)
   interface LegacyVaultConfig {
@@ -46,8 +52,13 @@
   let migrationError = $state<string | null>(null);
   const migrationProgress = $derived(getMigrationProgress());
   const markdownProgress = $derived(getImportProgress());
-  // Use markdown progress when available, otherwise use legacy migration progress
-  const currentProgress = $derived(markdownProgress || migrationProgress);
+  const automergeProgress = $derived(getAutomergeImportProgress());
+  // Use automerge progress when available, then markdown, then legacy migration progress
+  const currentProgress = $derived(
+    automergeProgress
+      ? { ...automergeProgress, current: 0, total: 0 }
+      : markdownProgress || migrationProgress
+  );
 
   // New vault creation state
   let vaultName = $state('My Notes');
@@ -90,14 +101,25 @@
 
   /**
    * Browse for a vault directory to import
-   * Supports both legacy vaults and plain markdown directories
+   * Supports automerge vaults, legacy vaults, and plain markdown directories
    */
   async function handleBrowseForVault(): Promise<void> {
     try {
       const selectedPath = await window.api?.legacyMigration.browseForVault();
       if (!selectedPath) return;
 
-      // First, check for legacy vault
+      // First, check for automerge vault (already synced vault with .automerge directory)
+      const automergeVault = await window.api?.automergeImport.detectAutomergeVault({
+        dirPath: selectedPath
+      });
+
+      if (automergeVault?.isValid) {
+        // Import the automerge vault
+        await handleImportAutomergeVault(automergeVault);
+        return;
+      }
+
+      // Check for legacy vault (SQLite-based)
       const detectedVault = await window.api?.legacyMigration.detectLegacyVaultAtPath({
         vaultPath: selectedPath,
         existingVaults: []
@@ -124,12 +146,47 @@
         return;
       }
 
-      // Neither legacy vault nor markdown directory
-      migrationError =
-        "The selected directory doesn't contain a Flint vault or markdown files";
+      // Show appropriate error based on what was found
+      if (automergeVault && !automergeVault.isValid) {
+        migrationError = automergeVault.error || 'Invalid Flint vault';
+      } else {
+        migrationError =
+          "The selected directory doesn't contain a Flint vault or markdown files";
+      }
     } catch (error) {
       migrationError = error instanceof Error ? error.message : String(error);
       console.error('Browse error:', error);
+    }
+  }
+
+  /**
+   * Import an automerge vault from a directory with .automerge
+   */
+  async function handleImportAutomergeVault(
+    vaultInfo: AutomergeVaultInfo
+  ): Promise<void> {
+    isMigrating = true;
+    migratingVaultName = vaultInfo.name;
+    migrationError = null;
+
+    try {
+      const result = await importAutomergeVault(vaultInfo.path, vaultInfo.name);
+
+      if (result.success && result.vault) {
+        // Successfully imported - notify parent
+        onVaultCreated();
+      } else {
+        // Handle import failure
+        migrationError = result.error ?? 'Import failed for unknown reason';
+        console.error('Automerge import failed:', result.error);
+      }
+    } catch (error) {
+      migrationError = error instanceof Error ? error.message : String(error);
+      console.error('Automerge import error:', error);
+    } finally {
+      isMigrating = false;
+      migratingVaultName = null;
+      resetAutomergeImportState();
     }
   }
 

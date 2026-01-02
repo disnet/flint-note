@@ -309,7 +309,8 @@ export async function connectVaultSync(r: Repo, vault: Vault): Promise<void> {
     await syncAPI.initVaultSync({
       vaultId: vault.id,
       baseDirectory: vault.baseDirectory,
-      docUrl: vault.docUrl
+      docUrl: vault.docUrl,
+      vaultName: vault.name
     });
 
     // Create and connect the renderer-side network adapter

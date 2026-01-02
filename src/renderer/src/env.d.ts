@@ -150,6 +150,7 @@ declare global {
           vaultId: string;
           baseDirectory: string;
           docUrl: string;
+          vaultName: string;
         }) => Promise<{ success: boolean }>;
         disposeVaultSync: (params: { vaultId: string }) => Promise<void>;
         selectSyncDirectory: () => Promise<string | null>;
@@ -307,6 +308,18 @@ declare global {
             content: string;
             categoryName: string | null;
           }>;
+        } | null>;
+      };
+
+      // Automerge vault import operations (from .automerge directories)
+      automergeImport: {
+        detectAutomergeVault: (params: { dirPath: string }) => Promise<{
+          path: string;
+          name: string;
+          docUrl: string;
+          created: string;
+          isValid: boolean;
+          error?: string;
         } | null>;
       };
 

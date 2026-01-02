@@ -215,8 +215,12 @@ const api = {
       electronAPI.ipcRenderer.removeAllListeners('automerge-repo-message');
     },
 
-    initVaultSync: (params: { vaultId: string; baseDirectory: string; docUrl: string }) =>
-      electronAPI.ipcRenderer.invoke('init-vault-sync', params),
+    initVaultSync: (params: {
+      vaultId: string;
+      baseDirectory: string;
+      docUrl: string;
+      vaultName: string;
+    }) => electronAPI.ipcRenderer.invoke('init-vault-sync', params),
 
     disposeVaultSync: (params: { vaultId: string }) =>
       electronAPI.ipcRenderer.invoke('dispose-vault-sync', params),
@@ -391,6 +395,21 @@ const api = {
         categoryName: string | null;
       }>;
     } | null> => electronAPI.ipcRenderer.invoke('get-markdown-import-data', params)
+  },
+
+  // Automerge vault import operations (for importing from .automerge directories)
+  automergeImport: {
+    // Detect if a directory contains an automerge vault
+    detectAutomergeVault: (params: {
+      dirPath: string;
+    }): Promise<{
+      path: string;
+      name: string;
+      docUrl: string;
+      created: string;
+      isValid: boolean;
+      error?: string;
+    } | null> => electronAPI.ipcRenderer.invoke('detect-automerge-vault', params)
   },
 
   // Startup command listener (for CLI arguments)

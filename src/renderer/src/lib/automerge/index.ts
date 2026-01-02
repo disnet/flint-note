@@ -532,3 +532,16 @@ export type {
   MarkdownImportResult,
   MarkdownImportError
 } from './markdown-import.svelte';
+
+// Automerge vault import (from .automerge directories)
+export {
+  importAutomergeVault,
+  getAutomergeImportProgress,
+  getIsAutomergeImporting,
+  resetAutomergeImportState
+} from './automerge-import.svelte';
+export type {
+  AutomergeVaultInfo,
+  AutomergeImportProgress,
+  AutomergeImportResult
+} from './automerge-import.svelte';

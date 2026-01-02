@@ -29,12 +29,23 @@ const vaultRepos = new Map<string, VaultRepoEntry>();
 const activeVaultByWebContents = new Map<number, string>();
 
 /**
+ * Vault manifest schema for import/export
+ */
+interface VaultManifest {
+  version: 1;
+  docUrl: string;
+  name: string;
+  created: string;
+}
+
+/**
  * Initialize a vault's main-process repo for file system sync.
  */
 export function initializeVaultRepo(
   vaultId: string,
   baseDirectory: string,
   docUrl: string,
+  vaultName: string,
   webContents: WebContents
 ): { success: boolean } {
   // Clean up existing repo for this vault if any
@@ -47,6 +58,29 @@ export function initializeVaultRepo(
   if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
   }
+
+  // Write or update manifest file for vault import/export
+  const manifestPath = path.join(storageDir, 'manifest.json');
+  let existingCreated: string | undefined;
+
+  // Preserve existing created timestamp if manifest exists
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const existingManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      existingCreated = existingManifest.created;
+    } catch {
+      // Ignore parse errors, will create new manifest
+    }
+  }
+
+  const manifest: VaultManifest = {
+    version: 1,
+    docUrl,
+    name: vaultName,
+    created: existingCreated || new Date().toISOString()
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  logger.info(`[VaultManager] Wrote vault manifest to ${manifestPath}`);
 
   // Create storage adapter for this vault
   const storage = new NodeFSStorageAdapter(storageDir);

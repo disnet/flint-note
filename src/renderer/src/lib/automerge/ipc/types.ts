@@ -42,6 +42,7 @@ export interface InitVaultSyncParams {
   vaultId: string;
   baseDirectory: string;
   docUrl: string;
+  vaultName: string;
 }
 
 /**
