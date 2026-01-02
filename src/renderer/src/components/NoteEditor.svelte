@@ -339,7 +339,10 @@
   $effect(() => {
     if (editorContainer && !isLoadingContent && contentHandle) {
       // Check if we need to create/recreate the editor
-      const needsNewEditor = !editorView || note.id !== currentNoteId;
+      // Also check if editor is attached to a different (stale) container - happens when toggling preview mode
+      const editorDetached =
+        editorView && editorView.dom.parentElement !== editorContainer;
+      const needsNewEditor = !editorView || note.id !== currentNoteId || editorDetached;
 
       if (needsNewEditor) {
         // Pre-hide scroll container if we have a saved scroll position

@@ -622,7 +622,7 @@ const TUTORIAL_AGENT_CONTENT = `The AI agent is your knowledge partner - it hand
 ## Opening the Agent
 
 **Shortcut**: \`Cmd/Ctrl + Shift + A\`
-**Or**: Click the agent icon in the toolbar
+**Or**: Click the floating agent icon in the editor
 
 ## What the Agent Can Do
 
