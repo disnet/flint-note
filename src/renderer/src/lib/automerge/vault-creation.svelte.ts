@@ -8,7 +8,8 @@ import {
   createWorkspace,
   createNoteType,
   createNote,
-  connectVaultSync
+  connectVaultSync,
+  pinItem
 } from './state.svelte';
 import { getRepo } from './repo';
 import type { Vault } from './types';
@@ -35,6 +36,25 @@ export interface VaultCreationOptions {
   templateId: string;
   /** Onboarding option IDs to include (['welcome', 'tutorials', 'quick-reference']) */
   onboardingIds: string[];
+}
+
+/**
+ * Replace {{type:Name}} placeholders with [[type-id|Name]] wikilinks
+ */
+function replaceTypePlaceholders(
+  content: string,
+  noteTypeNameToId: Record<string, string>
+): string {
+  // Match {{type:TypeName}} pattern
+  return content.replace(/\{\{type:([^}]+)\}\}/g, (_match, typeName) => {
+    const typeId = noteTypeNameToId[typeName];
+    if (typeId) {
+      // Return wikilink format: [[type-id|DisplayName]]
+      return `[[${typeId}|${typeName}]]`;
+    }
+    // If type not found, leave as plain text
+    return typeName;
+  });
 }
 
 /**
@@ -67,29 +87,51 @@ export async function applyVaultTemplate(templateId: string): Promise<void> {
   // Create sample notes with their correct types and props
   for (const note of template.notes) {
     const typeId = note.typeName ? noteTypeNameToId[note.typeName] : undefined;
-    await createNote({
+    // Replace type placeholders in content with actual wikilinks
+    const processedContent = replaceTypePlaceholders(note.content, noteTypeNameToId);
+    const noteId = await createNote({
       title: note.title,
-      content: note.content,
+      content: processedContent,
       type: typeId,
       props: note.props
     });
+
+    // Pin the note if marked as pinned
+    if (note.pinned) {
+      pinItem({ type: 'note', id: noteId });
+    }
   }
 }
 
 /**
  * Create onboarding notes in the current vault.
  * Must be called after vault creation and state initialization.
+ * Notes with duplicate titles are skipped to avoid duplicates when
+ * multiple onboarding options include the same note.
  */
 export async function applyOnboardingContent(onboardingIds: string[]): Promise<void> {
+  const createdTitles: Record<string, boolean> = {};
+
   for (const optionId of onboardingIds) {
     const option = getOnboardingOption(optionId);
     if (!option) continue;
 
     for (const note of option.notes) {
-      await createNote({
+      // Skip if we already created a note with this title
+      if (createdTitles[note.title]) {
+        continue;
+      }
+
+      const noteId = await createNote({
         title: note.title,
         content: note.content
       });
+      createdTitles[note.title] = true;
+
+      // Pin the note if marked as pinned
+      if (note.pinned) {
+        pinItem({ type: 'note', id: noteId });
+      }
     }
   }
 }

@@ -27,6 +27,8 @@ export interface TemplateNote {
   typeName?: string;
   /** Property values for the note (keys must match property names in the note type) */
   props?: Record<string, unknown>;
+  /** Whether this note should be pinned in the sidebar */
+  pinned?: boolean;
 }
 
 export interface VaultTemplate {
@@ -42,6 +44,8 @@ export interface VaultTemplate {
 export interface OnboardingNote {
   title: string;
   content: string;
+  /** Whether this note should be pinned in the sidebar */
+  pinned?: boolean;
 }
 
 export interface OnboardingOption {
@@ -57,139 +61,171 @@ export interface OnboardingOption {
 // ============================================================================
 
 // Sample notes for Personal Knowledge Base template
-const ARTICLE_EXAMPLE = `This is an example Article note for summarizing content you've read.
-
-## Source
-- Title: Example Article
-- Author: Jane Doe
-- URL: https://example.com/article
+const ARTICLE_EXAMPLE = `Really interesting piece on how our brains handle context switching. Explains why it takes ~23 minutes to fully refocus after an interruption.
 
 ## Key Takeaways
-1. First important point from the article
-2. Second key insight
-3. Third notable idea
+- The "attention residue" concept - part of your brain stays on the previous task
+- Batching similar tasks is way more effective than I thought
+- Even quick glances at email count as interruptions
 
 ## Summary
-Write a brief summary of the main ideas here. This helps you remember the core content without re-reading the entire piece.
+Basically argues that multitasking is a myth. When we think we're multitasking, we're actually just switching rapidly between tasks, and each switch has a cognitive cost. The author cites a UC Irvine study that found it takes an average of 23 minutes to return to the original task after an interruption.
 
 ## My Thoughts
-Add your own reflections, critiques, or how this connects to other ideas in your knowledge base.
+This explains so much about my afternoon productivity crashes. I've been checking Slack way too often. Going to try:
+- Turning off notifications for 2-hour blocks
+- Checking email only 3x per day
 
-## Related
-- [[Other concepts to link to]]
+Wonder if this connects to [[Deep Work]] ideas?
 `;
 
-const CONCEPT_EXAMPLE = `This is an example Concept note for capturing ideas you want to develop.
-
-## Definition
-A clear, concise explanation of the concept in your own words.
+const CONCEPT_EXAMPLE = `The idea that small, consistent actions compound over time into massive results. Like compound interest but for habits and skills.
 
 ## Why It Matters
-Explain why this concept is important or useful to understand.
+Gets me out of the "I need to make big changes" mindset. 1% better each day = 37x better over a year (math checks out, surprisingly).
 
 ## Examples
-- Example 1: A practical application
-- Example 2: Another way this shows up
+- Writing 200 words daily → a book in a year
+- 10 minutes of stretching → actually touching my toes now
+- Learning one new keyboard shortcut per week
 
 ## Connections
-This concept relates to:
-- [[Other concepts]]
-- [[Related ideas]]
+- Related to [[Atomic Habits]] book notes
+- Opposite of the "motivation" trap - don't wait to feel like it
+- Works because habits reduce decision fatigue
 
-## Questions
-- What aspects need more exploration?
-- How does this apply to my work?
+## Open Questions
+- How do you pick which 1% improvements to focus on?
+- What about things that need a big initial push to get started?
 `;
 
-const RESOURCE_EXAMPLE = `This is an example Resource note for tracking useful tools and references.
-
-## Overview
-A brief description of what this resource is and why it's valuable.
+const RESOURCE_EXAMPLE = `Free tool for creating diagrams as code. Way faster than dragging boxes around in Figma when I just need a quick flowchart.
 
 ## Links
-- Main site: https://example.com
-- Documentation: https://docs.example.com
-- Tutorial: https://example.com/getting-started
+- Main site: https://excalidraw.com
+- VS Code extension (handy for README diagrams)
 
-## Use Cases
-- When to use this resource
-- Problems it solves
-- Projects where it's applicable
+## When I Use It
+- Quick architecture sketches during planning
+- Explaining async flows to the team
+- Hand-drawn style looks less "formal" which helps in early discussions
 
-## Notes
-Any tips, tricks, or important details to remember about using this resource.
+## Tips
+- Cmd+D to duplicate elements
+- The library feature saves common shapes - I have arrows and database symbols saved
+- Export as SVG for crisp images in docs
+- There's a collaboration mode but haven't tried it yet
 `;
 
 // Sample notes for Project Notes template
-const MEETING_EXAMPLE = `Example meeting note showing how to capture discussions and action items.
+const MEETING_EXAMPLE = `Weekly sync - ran a bit long because we got into the weeds on the API redesign.
 
-## Agenda
-1. Project status update
-2. Discuss blockers
-3. Plan next steps
-
-## Discussion Notes
-- Reviewed current progress on main deliverables
-- Identified two blocking issues that need resolution
-- Agreed on timeline for next milestone
+## What We Covered
+- Sprint is on track, should hit the demo deadline
+- API breaking changes - agreed to version the endpoints instead of migrating everything at once
+- Sarah's out next week, Marcus covering her PRs
 
 ## Action Items
-- [ ] @Alice: Complete the design review by Friday
-- [ ] @Bob: Set up meeting with stakeholders
-- [ ] @Carol: Update project documentation
+- [ ] I need to write up the versioning proposal by Thursday
+- [ ] Marcus: Review the auth PR (blocked on this)
+- [ ] Whole team: Update your ticket estimates, planning is Monday
 
-## Decisions Made
-- Decided to postpone feature X to next sprint
-- Approved budget for additional resources
-
-## Next Meeting
-Scheduled for next Tuesday at 2pm
-`;
-
-const TASK_EXAMPLE = `Example task note showing how to track work items.
-
-## Description
-A clear description of what needs to be done for this task.
-
-## Acceptance Criteria
-- [ ] First requirement to complete
-- [ ] Second requirement
-- [ ] Third requirement
+## Decisions
+- Going with REST over GraphQL for now - team more familiar, can revisit later
+- Pushing the dashboard redesign to next quarter
 
 ## Notes
-Any additional context, approach ideas, or things to remember while working on this task.
-
-## Related
-- [[Related meeting notes]]
-- [[Relevant decisions]]
+Jamie mentioned some performance issues on the search page - not urgent but should look into it. Might be related to that N+1 query I noticed last week.
 `;
 
-const DECISION_EXAMPLE = `Example decision note for documenting choices and their rationale.
+const TASK_EXAMPLE = `Add email validation to the signup form. Users are entering invalid emails and then can't recover their accounts.
+
+## What Done Looks Like
+- [x] Basic format validation (has @, valid domain)
+- [ ] Check for common typos (gmial.com, etc)
+- [ ] Show inline error message, not just on submit
+- [ ] Add unit tests
+
+## Notes
+The validation library we use elsewhere is \`validator.js\` - should probably use that for consistency.
+
+Check with design if we want to show suggestions for typos ("Did you mean gmail.com?") or just reject.
 
 ## Context
-Describe the situation or problem that required a decision.
+This came from 3 support tickets last week. See [[Q4 Support Analysis]] for the pattern.
+`;
 
-## Options Considered
-1. **Option A**: Description and pros/cons
-2. **Option B**: Description and pros/cons
-3. **Option C**: Description and pros/cons
+const DECISION_EXAMPLE = `We need to pick a state management approach for the new dashboard. Current Redux setup is getting unwieldy.
+
+## Options We Considered
+
+**Zustand**
+- Pros: Simple, small bundle, easy to learn
+- Cons: Less ecosystem, team would need to learn it
+
+**Stick with Redux + RTK**
+- Pros: Team knows it, good devtools
+- Cons: Still verbose, the boilerplate is what's slowing us down
+
+**React Query + Context**
+- Pros: Handles server state well, less code for our use case
+- Cons: Different mental model, mixing two approaches
 
 ## Decision
-We decided to go with **Option B** because...
+Going with **Zustand** for the new dashboard.
 
-## Rationale
-- Primary reason for this choice
-- Supporting factors
-- Trade-offs we accepted
+## Why
+- Dashboard is mostly client-side state (filters, UI state)
+- We can try it in isolation without touching existing Redux code
+- If it doesn't work out, migration back isn't too painful
 
-## Consequences
-- Expected positive outcomes
-- Potential risks to monitor
-- Follow-up actions needed
+Marcus had concerns about splitting approaches but agreed to try it scoped to this feature first.
+`;
 
-## Related
-- [[Meeting where this was discussed]]
-- [[Tasks created from this decision]]
+// Guide notes explaining the note types
+// Use {{type:Name}} placeholder syntax - gets replaced with [[type-id|Name]] during vault creation
+const PKB_GUIDE = `This vault is set up with three note types to help you build a personal knowledge base. Use whatever works for you - these are just starting points.
+
+## {{type:Article}}
+For capturing ideas from things you read - articles, blog posts, papers, books. The goal is to summarize in your own words so you actually remember it later.
+
+See [[The Cost of Context Switching]] for an example.
+
+## {{type:Concept}}
+For ideas you want to develop over time. Could be something you're learning, a mental model, or just a thought you want to explore. I like to revisit these and add to them as I learn more.
+
+See [[Compound Growth]] for an example.
+
+## {{type:Resource}}
+For tools, websites, references - anything you want to find again. I use these as quick-reference cards for stuff I don't want to keep googling.
+
+See [[Excalidraw]] for an example.
+
+---
+
+Feel free to create your own note types or modify these. The properties on each type (like "source" for {{type:Article}}s) show up in the editor so you can track metadata without cluttering the note itself.
+`;
+
+const PROJECT_GUIDE = `This vault is set up for tracking project work. Three note types to start:
+
+## {{type:Meeting}}
+For meeting notes. Has date and attendees fields so you can find "that meeting where we discussed X" later. I try to always capture action items with checkboxes.
+
+See [[Team Sync - Dec 12]] for an example.
+
+## {{type:Task}}
+For work items. The status field (todo/in-progress/done) makes it easy to see what's active. I like breaking down acceptance criteria as checkboxes.
+
+See [[Signup form email validation]] for an example.
+
+## {{type:Decision}}
+For documenting choices and why we made them. Super useful when someone asks "why did we do it this way?" six months later. The status field tracks whether it's still pending or approved.
+
+See [[Dashboard state management]] for an example.
+
+---
+
+The workspaces (Active, Planning, Archive) are a suggestion for organizing notes by project phase. Move notes between them as projects progress.
 `;
 
 export const VAULT_TEMPLATES: VaultTemplate[] = [
@@ -257,29 +293,34 @@ export const VAULT_TEMPLATES: VaultTemplate[] = [
     ],
     notes: [
       {
-        title: 'Example Article',
+        title: 'How to Use This Vault',
+        content: PKB_GUIDE,
+        pinned: true
+      },
+      {
+        title: 'The Cost of Context Switching',
         content: ARTICLE_EXAMPLE,
         typeName: 'Article',
         props: {
-          source: 'https://example.com/article',
-          author: 'Jane Doe',
-          readDate: '2024-01-15'
+          source: 'https://hbr.org/2022/08/the-cost-of-context-switching',
+          author: 'Sophie Leroy',
+          readDate: '2024-11-20'
         }
       },
       {
-        title: 'Example Concept',
+        title: 'Compound Growth',
         content: CONCEPT_EXAMPLE,
         typeName: 'Concept',
         props: {
-          maturity: 'seedling'
+          maturity: 'growing'
         }
       },
       {
-        title: 'Example Resource',
+        title: 'Excalidraw',
         content: RESOURCE_EXAMPLE,
         typeName: 'Resource',
         props: {
-          url: 'https://example.com',
+          url: 'https://excalidraw.com',
           category: 'tool'
         }
       }
@@ -338,29 +379,34 @@ export const VAULT_TEMPLATES: VaultTemplate[] = [
     ],
     notes: [
       {
-        title: 'Example Meeting',
+        title: 'How to Use This Vault',
+        content: PROJECT_GUIDE,
+        pinned: true
+      },
+      {
+        title: 'Team Sync - Dec 12',
         content: MEETING_EXAMPLE,
         typeName: 'Meeting',
         props: {
-          date: '2024-01-16',
-          attendees: 'Alice, Bob, Carol'
+          date: '2024-12-12',
+          attendees: 'Me, Sarah, Marcus, Jamie'
         }
       },
       {
-        title: 'Example Task',
+        title: 'Signup form email validation',
         content: TASK_EXAMPLE,
         typeName: 'Task',
         props: {
           status: 'in-progress',
-          due: '2024-01-20'
+          due: '2024-12-20'
         }
       },
       {
-        title: 'Example Decision',
+        title: 'Dashboard state management',
         content: DECISION_EXAMPLE,
         typeName: 'Decision',
         props: {
-          date: '2024-01-10',
+          date: '2024-12-10',
           status: 'approved'
         }
       }
@@ -372,241 +418,540 @@ export const VAULT_TEMPLATES: VaultTemplate[] = [
 // Onboarding Content
 // ============================================================================
 
-const WELCOME_NOTE_CONTENT = `Welcome to Flint! This note will help you get started.
+// Philosophy note - explains the "why" behind Flint
+const PHILOSOPHY_NOTE_CONTENT = `Most note apps optimize for capture. Flint optimizes for *knowledge* - turning information into understanding that lasts.
+
+## The Problem
+
+Notes pile up. You capture ideas, save articles, jot down meeting notes. But then what? Most of it sits there, never revisited. The information doesn't become knowledge.
+
+## The Deep Knowledge Cycle
+
+Flint is built around three interconnected phases:
+
+### 1. Externalize - Get Ideas Out
+
+Capture thoughts without worrying about organization. Daily notes, quick ideas, meeting notes - just write. The goal is frictionless capture so nothing gets lost.
+
+Note types handle structure for you. A meeting note knows it needs attendees and action items. A concept note knows it's something to develop over time.
+
+### 2. Internalize - Make Ideas Yours
+
+This is where notes become knowledge:
+
+- **Wikilinks** make connections explicit - type \`[[\` to link related ideas
+- **The AI agent** helps you synthesize, summarize, and discover connections
+- **Processing** transforms raw capture into lasting understanding
+
+### 3. Resurface - Bring Knowledge Back
+
+Notes you don't revisit might as well not exist. Flint brings ideas back at optimal intervals:
+
+- **Review system** uses spaced repetition with AI-generated prompts
+- **Active recall** builds lasting memory (answer from memory, then check)
+- **Daily notes** anchor your thinking in time
+
+## Philosophy
+
+**AI amplifies thinking, doesn't replace it.** The agent handles mechanical tasks - organizing, searching, suggesting connections. You do the thinking.
+
+**Plain text permanence.** Your notes are markdown files. No lock-in, works with any tool, yours forever.
+
+**Local-first.** Your data stays on your machine. Cloud sync is standard file sync (Dropbox, iCloud) - you control it.
+
+---
+
+Now go write something. The system adapts to you.
+
+→ See [[Getting Started with Flint]] for practical essentials
+`;
+
+// Quick start note - practical essentials for power users
+const QUICK_START_CONTENT = `Everything you need to start building knowledge.
+
+## Essential Shortcuts
+
+- **New note**: \`Cmd/Ctrl + Shift + N\`
+- **Search**: \`Cmd/Ctrl + K\`
+- **Daily notes**: \`Cmd/Ctrl + 2\`
+- **Review**: \`Cmd/Ctrl + 3\`
+- **Toggle agent**: \`Cmd/Ctrl + Shift + A\`
+
+## Three Features That Matter Most
+
+### 1. AI Agent (\`Cmd/Ctrl + Shift + A\`)
+
+Your knowledge partner. Ask it to:
+- "Create a meeting note for tomorrow's standup"
+- "Find notes about authentication"
+- "Summarize my notes from last week"
+- "Suggest wikilinks for this note"
+
+The agent understands your notes, follows wikilinks, and works across your entire vault.
+
+### 2. Daily Notes (\`Cmd/Ctrl + 2\`)
+
+Your capture hub:
+- Week view shows 7 days for context
+- Journal entries, quick thoughts, anything time-anchored
+- Natural place to link out to permanent notes
+- Navigate: \`[\` / \`]\` for weeks, \`T\` for today
+
+### 3. Review System (\`Cmd/Ctrl + 3\`)
+
+Turn passive notes into active knowledge:
+1. Enable review on any note (click Review button or ask the agent)
+2. AI generates a challenge testing your understanding
+3. Respond from memory, get feedback
+4. Notes resurface at optimal intervals
+
+## Wikilinks: The Glue
+
+Type \`[[\` to link notes. Connections make knowledge compound. Backlinks show what links *to* a note.
+
+## Just Start
+
+Create a note. Write what you're thinking. Link to related ideas. Let structure emerge.
+
+→ See [[The Deep Knowledge Cycle]] for the philosophy behind Flint
+`;
+
+// Welcome hub note - links to all tutorials
+const WELCOME_HUB_CONTENT = `Flint helps you build knowledge that lasts - not just store information.
+
+## What Makes Flint Different
+
+Most tools optimize for capture. Flint optimizes for the complete cycle:
+
+**Externalize** (capture freely) → **Internalize** (make it yours) → **Resurface** (remember it)
+
+See [[The Deep Knowledge Cycle]] for the full philosophy.
 
 ## Quick Start
 
-**Create a new note** by pressing \`Cmd/Ctrl + N\` or clicking the + button in the sidebar.
+- **New note**: \`Cmd/Ctrl + Shift + N\`
+- **Search**: \`Cmd/Ctrl + K\`
+- **Toggle AI agent**: \`Cmd/Ctrl + Shift + A\`
 
-**Link notes together** by typing \`[[\` and selecting a note, or just type \`[[Note Title]]\` to create a wikilink.
+## Your Learning Path
 
-**Search everything** with \`Cmd/Ctrl + K\` to quickly find and navigate to any note.
+### Start Here
+1. [[Tutorial: Notes and Connections]] - Create notes, link ideas
+2. Open the AI agent (\`Cmd/Ctrl + Shift + A\`) and ask it something
 
-## Key Features
+### Go Deeper
+3. [[Tutorial: The AI Agent]] - Your knowledge partner
+4. [[Tutorial: Daily Notes]] - Capture and reflect
+5. [[Tutorial: Review System]] - Active learning that sticks
 
-- **Wikilinks**: Connect your thoughts with \`[[Note Title]]\` links
-- **Workspaces**: Organize notes into different contexts (work, personal, projects)
-- **Note Types**: Categorize notes with types like Meeting, Task, or create your own
-- **Properties**: Add structured data to notes (dates, tags, status)
-- **Full-text Search**: Find any note instantly
+### Reference
+- [[Quick Reference Card]] - All shortcuts and syntax
 
-## Tips
-
-1. Use the left sidebar to navigate between notes and workspaces
-2. Pin frequently used notes to keep them at the top
-3. Archive notes you don't need anymore instead of deleting them
-4. Your notes are stored locally and work offline
-
-Happy note-taking!
+Welcome to building knowledge that lasts.
 `;
 
-const TUTORIAL_1_CONTENT = `This tutorial covers the basics of creating and editing notes in Flint.
+// Merged basics tutorial - notes, wikilinks, types, workspaces
+const TUTORIAL_NOTES_CONTENT = `This tutorial covers the foundations: creating notes, connecting them, and organizing your vault.
 
 ## Creating Notes
 
-There are several ways to create a new note:
+**Keyboard**: \`Cmd/Ctrl + Shift + N\`
+**Search**: \`Cmd/Ctrl + K\` → type a title → select "Create new note"
+**From wikilink**: Type \`[[New Note Title]]\` → click the link to create it
 
-1. **Keyboard shortcut**: Press \`Cmd/Ctrl + N\`
-2. **Sidebar button**: Click the + button at the top of the sidebar
-3. **Quick search**: Press \`Cmd/Ctrl + K\`, type a new title, and select "Create new note"
+## Wikilinks - Connecting Ideas
 
-## Editing Notes
+Type \`[[\` anywhere to link to another note. Start typing to search, or enter a new title.
 
-Notes use Markdown for formatting. Here are some basics:
+**Why link?**
+- Makes relationships explicit (not just in your head)
+- Creates backlinks automatically - see what links *to* a note
+- Builds your knowledge graph over time
 
-- **Bold**: \`**text**\` or \`Cmd/Ctrl + B\`
-- **Italic**: \`*text*\` or \`Cmd/Ctrl + I\`
-- **Headers**: Start a line with \`#\`, \`##\`, or \`###\`
-- **Lists**: Start with \`-\` or \`1.\`
-- **Code**: Use backticks for \`inline code\` or triple backticks for code blocks
+**Tip**: Don't overthink it. Link liberally. You can always clean up later.
 
-## Note Titles
+## Note Types
 
-The title is the first line of your note (the large text at the top). You can click it to rename the note, which will automatically update all links to it.
+Notes have types that give them structure:
+- **Note** - General purpose (default)
+- **Daily** - Journal entries, time-anchored
+- Custom types you create (Meeting, Task, Article, etc.)
 
-## Next Steps
+Each type can have:
+- **Properties** - structured fields (dates, status, tags)
+- **Agent instructions** - guide how the AI works with that type
 
-Try creating a few notes and experiment with formatting!
-`;
+**Change type**: \`Cmd/Ctrl + Shift + M\` or right-click
 
-const TUTORIAL_2_CONTENT = `Wikilinks are the heart of Flint - they let you connect your notes together.
-
-## Creating Wikilinks
-
-Type \`[[\` to open the link picker, then:
-- Start typing to search for an existing note
-- Select a note to insert a link
-- Or type a new title to create a link to a note that doesn't exist yet
-
-## Link Syntax
-
-Wikilinks look like this: \`[[Note Title]]\`
-
-When you click a wikilink:
-- If the note exists, it opens
-- If it doesn't exist, Flint creates it for you
-
-## Backlinks
-
-Every note shows its backlinks - other notes that link to it. This helps you discover connections and navigate your knowledge graph.
-
-## Tips
-
-1. Use descriptive titles so links are self-explanatory
-2. Don't worry about organizing - just link related ideas together
-3. Check backlinks to see how ideas connect
-4. Links are automatically updated if you rename a note
-`;
-
-const TUTORIAL_3_CONTENT = `Workspaces help you organize notes into separate contexts.
-
-## What Are Workspaces?
-
-Think of workspaces as different "views" of your notes. Each workspace can have:
-- Its own pinned notes
-- Recent notes specific to that context
-- A focused set of notes you're working with
-
-## Default Workspace
-
-Every vault starts with a default workspace. You can rename it or add more workspaces as needed.
-
-## Creating Workspaces
-
-Click on the workspace name in the sidebar to open the workspace menu, then select "New Workspace".
-
-## Switching Workspaces
-
-Use the workspace dropdown in the sidebar to switch between workspaces. Your pinned and recent notes will update to show that workspace's context.
-
-## Use Cases
-
-- **Work vs Personal**: Keep work projects separate from personal notes
-- **Projects**: Create a workspace for each major project
-- **Areas of Focus**: Learning, Research, Writing, etc.
-`;
-
-const TUTORIAL_4_CONTENT = `Note Types let you categorize notes and add structured properties.
-
-## What Are Note Types?
-
-Note types are categories for your notes, like "Meeting", "Task", or "Article". Each type can have:
-- A distinctive icon
-- A description of its purpose
-- Custom properties (fields) for structured data
-
-## Default Note Type
-
-Every vault has a default note type for general-purpose notes. You can customize it or create new types.
-
-## Creating Note Types
-
-Go to Settings > Note Types to create and manage types.
+**Manage types**: \`Cmd/Ctrl + 5\` or Settings → Note Types
 
 ## Properties
 
-Properties are fields you can add to note types:
+Properties are fields attached to notes via their type:
 - **Text**: Free-form text
-- **Date**: Calendar date picker
-- **Number**: Numeric values
-- **Boolean**: Yes/No checkboxes
+- **Date**: Calendar picker
 - **Select**: Dropdown with predefined options
+- **Notelinks**: Links to other notes
 
-## Example: Task Type
+Properties appear as chips in the editor header. Click to edit.
 
-A Task note type might have:
-- Status property (select: todo, in-progress, done)
-- Due date property (date)
-- Priority property (select: low, medium, high)
+## Workspaces
 
-This makes it easy to track and filter tasks!
+Workspaces are separate contexts with their own pinned notes. Use them for:
+- Work vs Personal
+- Different projects
+- Different areas of focus
+
+**Switch/create**: Click workspace name in sidebar
+
+## Pinning Notes
+
+Pin frequently-used notes to keep them at the top of your sidebar:
+- Right-click → Pin
+- Or \`Cmd/Ctrl + Shift + P\`
+
+## Next Steps
+
+→ [[Tutorial: The AI Agent]] - Learn what the agent can do
+→ [[Tutorial: Daily Notes]] - Structured capture
 `;
 
-const QUICK_REFERENCE_CONTENT = `# Flint Quick Reference
+// AI Agent deep-dive tutorial
+const TUTORIAL_AGENT_CONTENT = `The AI agent is your knowledge partner - it handles mechanical tasks so you can focus on thinking.
 
-## Keyboard Shortcuts
+## Opening the Agent
 
-| Action | Shortcut |
-|--------|----------|
-| New note | \`Cmd/Ctrl + N\` |
-| Search | \`Cmd/Ctrl + K\` |
-| Save | \`Cmd/Ctrl + S\` |
-| Bold | \`Cmd/Ctrl + B\` |
-| Italic | \`Cmd/Ctrl + I\` |
-| Undo | \`Cmd/Ctrl + Z\` |
-| Redo | \`Cmd/Ctrl + Shift + Z\` |
+**Shortcut**: \`Cmd/Ctrl + Shift + A\`
+**Or**: Click the agent icon in the toolbar
 
-## Markdown Formatting
+## What the Agent Can Do
 
-| Format | Syntax |
-|--------|--------|
-| Bold | \`**text**\` |
-| Italic | \`*text*\` |
-| Heading 1 | \`# Title\` |
-| Heading 2 | \`## Title\` |
-| Heading 3 | \`### Title\` |
-| Bullet list | \`- item\` |
-| Numbered list | \`1. item\` |
-| Checkbox | \`- [ ] task\` |
-| Code inline | \`\\\`code\\\`\` |
-| Link | \`[text](url)\` |
-| Wikilink | \`[[Note Title]]\` |
+### Create and Organize Notes
+- "Create a meeting note for tomorrow's standup with Sarah and Marcus"
+- "Move my inbox notes to appropriate types"
+- "Add a due date to this task"
+- "Create a concept note about spaced repetition"
 
-## Quick Tips
+### Search and Synthesize
+- "Find all notes about authentication"
+- "Summarize my meeting notes from last week"
+- "What have I written about project X?"
+- "Show me notes I haven't reviewed in a month"
 
-- **Create a wikilink**: Type \`[[\` to link to another note
-- **Pin a note**: Right-click and select "Pin" to keep it at the top
-- **Archive a note**: Move unused notes to archive instead of deleting
-- **Switch workspaces**: Click the workspace name in the sidebar
-- **Change note type**: Use the type selector in the note header
+### Suggest Connections
+- "What notes should I link from here?"
+- "Find notes related to this one"
+- "Suggest wikilinks for this note"
+
+### Understand Context
+The agent reads your notes, follows wikilinks, and understands note types. It knows the difference between a daily note and a project note. Ask it to work with "this note" or "my recent notes" - it understands context.
+
+## Philosophy: Amplification, Not Replacement
+
+The agent handles:
+- Organizing, searching, structuring
+- Finding connections you might miss
+- Mechanical transformations (summarize, format, extract)
+
+You handle:
+- Insights, judgment, understanding
+- Deciding what matters
+- Making meaning from information
+
+## Tips for Effective Use
+
+1. **Be specific**: "Create a meeting note for tomorrow's standup" beats "create a note"
+2. **Let it read context**: "Based on this note, suggest related notes"
+3. **Start fresh conversations** when switching topics
+4. **Ask for explanations**: "Why do you suggest linking to X?"
+
+## Model Selection
+
+- **Normal** (Haiku): Fast, economical, great for most tasks
+- **Plus Ultra** (Sonnet): Extra reasoning power for complex synthesis
+
+Toggle in the agent panel.
+
+## Privacy
+
+Notes are only sent to the AI when you ask about them. Your vault content stays local until you explicitly involve the agent. API keys are stored in your OS keychain.
+
+## Next Steps
+
+→ [[Tutorial: Daily Notes]] - Structured capture workflow
+→ [[Tutorial: Review System]] - Active learning
+`;
+
+// Daily Notes deep-dive tutorial
+const TUTORIAL_DAILY_CONTENT = `Daily notes are your capture hub - a place for thoughts, tasks, and reflections anchored in time.
+
+## Opening Daily View
+
+**Shortcut**: \`Cmd/Ctrl + 2\`
+**Or**: Click "Daily" in the sidebar
+
+## The Week View
+
+You see a full week at a glance:
+- Each day shows a preview or quick entry area
+- Click a day to expand and edit
+- Past days for context, future for planning
+
+## Navigation
+
+- **Previous week**: \`[\`
+- **Next week**: \`]\`
+- **Jump to today**: \`T\`
+
+## What to Capture
+
+Daily notes are flexible. Common patterns:
+
+**Morning**
+- Intentions for the day
+- What you're thinking about
+
+**Throughout the day**
+- Quick captures - ideas, observations
+- Meeting notes (or link to separate meeting notes)
+- Tasks as they come up
+
+**End of day**
+- What happened
+- What you learned
+- What's on your mind
+
+## The Capture → Process Pattern
+
+Daily notes are *ephemeral* captures. They're where ideas land first. But lasting knowledge lives in *permanent* notes.
+
+**The workflow:**
+1. Capture in daily notes freely
+2. Later, process: extract insights into permanent notes
+3. Link daily entries to permanent notes for context
+
+**Example:**
+- Daily: "Had interesting conversation with Sarah about API versioning. She suggested we look at how Stripe does it."
+- Later: Create \`[[API Versioning Patterns]]\` permanent note
+- Daily links to permanent, permanent links back
+
+## Ask the Agent
+
+The agent can help with daily notes:
+- "Summarize my daily notes from this week"
+- "What tasks did I mention this week that aren't done?"
+- "Create a weekly review from my daily notes"
+
+## Next Steps
+
+→ [[Tutorial: Review System]] - Turn notes into lasting knowledge
+`;
+
+// Review System deep-dive tutorial
+const TUTORIAL_REVIEW_CONTENT = `The review system transforms notes from passive archives into active knowledge you can actually use.
+
+## Why Review?
+
+Most notes are written once, forgotten forever. Even re-reading creates an illusion of knowledge - it feels familiar, but you can't recall or apply it when you need it.
+
+**The science**: Active recall + spaced repetition = lasting memory. You learn by struggling to retrieve, not by re-reading.
+
+## How It Works
+
+1. **Enable review** on a note (click the Review button or ask the agent)
+2. **AI generates a challenge** testing your understanding
+3. **You respond from memory** - this is the key. Don't peek at the note.
+4. **Rate your confidence** - this schedules the next review
+5. **Note resurfaces** at optimal intervals (soon if hard, later if easy)
+
+## Opening Review
+
+**Shortcut**: \`Cmd/Ctrl + 3\`
+**Or**: Click "Review" in the sidebar when notes are due
+
+## What to Review
+
+**Good candidates:**
+- Core concepts you need to internalize
+- Technical knowledge (APIs, patterns, architecture decisions)
+- Important decisions and their rationale
+- Key learnings from courses, books, or conversations
+
+**Skip these:**
+- Pure reference material (just search when needed)
+- Notes you naturally revisit anyway
+- Temporary or time-sensitive content
+- Meeting notes (unless there's a concept to retain)
+
+## During a Review Session
+
+1. Read the AI's challenge
+2. **Answer from memory** - the discomfort of recalling is what builds understanding
+3. Compare your answer to the note
+4. Be honest about your confidence
+
+## Tips for Effective Reviews
+
+- **Use your own words**, not memorized phrases
+- **Explain connections** - how does this relate to other things you know?
+- **Show understanding**, not just recognition
+- **Quality over quantity** - 20 well-chosen notes beats 100 neglected ones
+
+## The Deeper Point
+
+Review isn't about perfect recall. It's about engaging with your ideas repeatedly, from different angles, over time. Each review strengthens understanding, reveals gaps, and builds connections.
+
+That's how notes become knowledge.
+
+## Next Steps
+
+Start reviewing: enable review on your most important notes.
+
+→ [[Quick Reference Card]] - All shortcuts in one place
+`;
+
+// Updated Quick Reference - comprehensive shortcuts and syntax
+const NEW_QUICK_REFERENCE_CONTENT = `## Keyboard Shortcuts
+
+### Notes
+- **New note**: \`Cmd/Ctrl + Shift + N\`
+- **Search**: \`Cmd/Ctrl + K\`
+- **Pin/Unpin note**: \`Cmd/Ctrl + Shift + P\`
+- **Change note type**: \`Cmd/Ctrl + Shift + M\`
+- **Focus title**: \`Cmd/Ctrl + E\`
+- **Toggle preview**: \`Cmd/Ctrl + Shift + E\`
+
+### Views
+- **Inbox**: \`Cmd/Ctrl + 1\`
+- **Daily**: \`Cmd/Ctrl + 2\`
+- **Review**: \`Cmd/Ctrl + 3\`
+- **Routines**: \`Cmd/Ctrl + 4\`
+- **Note Types**: \`Cmd/Ctrl + 5\`
+- **Settings**: \`Cmd/Ctrl + 6\`
+
+### Panels
+- **Toggle sidebar**: \`Cmd/Ctrl + B\`
+- **Toggle AI agent**: \`Cmd/Ctrl + Shift + A\`
+- **Toggle shelf**: \`Cmd/Ctrl + Shift + L\`
+
+### Files
+- **New deck**: \`Cmd/Ctrl + Shift + D\`
+- **Switch vault**: \`Cmd/Ctrl + Shift + O\`
+- **Show in Finder/Explorer**: \`Cmd/Ctrl + Shift + R\`
+
+### Editing
+- **Undo**: \`Cmd/Ctrl + Z\`
+- **Redo**: \`Cmd/Ctrl + Shift + Z\`
+
+## Markdown
+
+- **Bold**: \`**text**\`
+- **Italic**: \`*text*\`
+- **Heading 1**: \`# Title\`
+- **Heading 2**: \`## Title\`
+- **Heading 3**: \`### Title\`
+- **Bullet list**: \`- item\`
+- **Numbered list**: \`1. item\`
+- **Checkbox**: \`- [ ] task\`
+- **Code inline**: \`\\\`code\\\`\`
+- **Code block**: \`\\\`\\\`\\\`language\`
+- **Link**: \`[text](url)\`
+- **Wikilink**: \`[[Note Title]]\`
+
+## Wikilinks
+
+- Type \`[[\` to open autocomplete
+- \`[[Note Title]]\` links to existing or creates new
+- \`[[Note Title|Display Text]]\` for custom display
+- Backlinks appear in the right sidebar
+- Rename a note → all links update automatically
+
+## AI Agent
+
+**Open**: \`Cmd/Ctrl + Shift + A\`
+
+Common commands:
+- "Create a [type] note about X"
+- "Find notes about X"
+- "Summarize notes from [time period]"
+- "Suggest wikilinks for this note"
+- "Enable review for this note"
+- "What have I written about X?"
+
+## Review System
+
+- **Enable**: Click Review button or ask the agent
+- **Open queue**: \`Cmd/Ctrl + 3\`
+- **Flow**: AI challenge → answer from memory → rate confidence
+- **Why**: Active recall builds lasting knowledge
+
+## Daily Notes
+
+- **Open**: \`Cmd/Ctrl + 2\`
+- **Navigate**: \`[\` prev week, \`]\` next week, \`T\` today
+- **Use for**: Capture, journal, time-anchored notes
 `;
 
 export const ONBOARDING_OPTIONS: OnboardingOption[] = [
   {
-    id: 'welcome',
-    name: 'Welcome Note',
-    description: 'A getting-started guide with tips',
-    icon: '👋',
+    id: 'philosophy-quickstart',
+    name: 'Philosophy + Quick Start',
+    description: 'Understand Flint fast: philosophy and essentials',
+    icon: '🧭',
     notes: [
       {
-        title: 'Welcome to Flint',
-        content: WELCOME_NOTE_CONTENT
+        title: 'The Deep Knowledge Cycle',
+        content: PHILOSOPHY_NOTE_CONTENT
+      },
+      {
+        title: 'Getting Started with Flint',
+        content: QUICK_START_CONTENT,
+        pinned: true
       }
     ]
   },
   {
-    id: 'tutorials',
-    name: 'Tutorial Series',
-    description: 'Step-by-step guides for key features',
+    id: 'complete-guide',
+    name: 'Complete Guide',
+    description: 'Comprehensive tutorials for all key features',
     icon: '📖',
     notes: [
       {
-        title: 'Tutorial: Creating Notes',
-        content: TUTORIAL_1_CONTENT
+        title: 'Welcome to Flint',
+        content: WELCOME_HUB_CONTENT,
+        pinned: true
       },
       {
-        title: 'Tutorial: Using Wikilinks',
-        content: TUTORIAL_2_CONTENT
+        title: 'The Deep Knowledge Cycle',
+        content: PHILOSOPHY_NOTE_CONTENT
       },
       {
-        title: 'Tutorial: Organizing with Workspaces',
-        content: TUTORIAL_3_CONTENT
+        title: 'Tutorial: Notes and Connections',
+        content: TUTORIAL_NOTES_CONTENT
       },
       {
-        title: 'Tutorial: Note Types and Properties',
-        content: TUTORIAL_4_CONTENT
+        title: 'Tutorial: The AI Agent',
+        content: TUTORIAL_AGENT_CONTENT
+      },
+      {
+        title: 'Tutorial: Daily Notes',
+        content: TUTORIAL_DAILY_CONTENT
+      },
+      {
+        title: 'Tutorial: Review System',
+        content: TUTORIAL_REVIEW_CONTENT
       }
     ]
   },
   {
     id: 'quick-reference',
     name: 'Quick Reference',
-    description: 'Keyboard shortcuts and cheat sheet',
+    description: 'All shortcuts and syntax in one card',
     icon: '⚡',
     notes: [
       {
         title: 'Quick Reference Card',
-        content: QUICK_REFERENCE_CONTENT
+        content: NEW_QUICK_REFERENCE_CONTENT
       }
     ]
   }
