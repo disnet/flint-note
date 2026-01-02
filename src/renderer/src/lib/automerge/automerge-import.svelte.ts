@@ -156,9 +156,6 @@ export async function importAutomergeVault(
     const repo = getRepo();
     await connectVaultSync(repo, vault);
 
-    // Give the network adapter time to connect and start syncing
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     // Phase 5: Now switch to the vault (document should sync from main process)
     importProgress = {
       phase: 'loading-document',

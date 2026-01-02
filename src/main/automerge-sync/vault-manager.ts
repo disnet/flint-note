@@ -109,18 +109,76 @@ export function initializeVaultRepo(
   // The renderer will have created it, we just need to sync
   repo.find(docUrl as AutomergeUrl);
 
-  // Set up markdown file sync
-  const unsubscribeMarkdownSync = setupMarkdownSync(vaultId, repo, docUrl, baseDirectory);
-
   // Set up binary file sync (PDFs, EPUBs, web archives, images)
   const unsubscribeFileSync = setupFileSync(vaultId, baseDirectory, webContents);
+
+  // Defer markdown sync until peer connects (ensures network bridge is ready)
+  // This fixes timing issues during legacy vault import where markdown sync
+  // would start before the renderer's network adapter was connected
+  let unsubscribeMarkdownSync: () => void = () => {};
+  let markdownSyncStarted = false;
+  let peerTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let syncDelayTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const startMarkdownSync = (): void => {
+    if (markdownSyncStarted) return;
+    markdownSyncStarted = true;
+    if (peerTimeoutId) {
+      clearTimeout(peerTimeoutId);
+      peerTimeoutId = null;
+    }
+    logger.info(`[VaultManager] Starting markdown sync for vault: ${vaultId}`);
+    unsubscribeMarkdownSync = setupMarkdownSync(vaultId, repo, docUrl, baseDirectory);
+  };
+
+  const onPeerConnect = (): void => {
+    networkAdapter.off('peer-candidate', onPeerConnect);
+    // Add delay after peer connects to allow initial document sync
+    // The peer-candidate event fires when network adapters connect, but
+    // Automerge still needs time to exchange sync messages and transfer the document
+    syncDelayTimeoutId = setTimeout(() => {
+      syncDelayTimeoutId = null;
+      startMarkdownSync();
+    }, 500);
+  };
+
+  if (networkAdapter.remotePeerId) {
+    // Peer already connected (unlikely but handle it)
+    startMarkdownSync();
+  } else {
+    // Wait for peer-candidate event
+    networkAdapter.on('peer-candidate', onPeerConnect);
+
+    // Fallback timeout for backward compatibility (existing vaults may work differently)
+    peerTimeoutId = setTimeout(() => {
+      if (!markdownSyncStarted) {
+        networkAdapter.off('peer-candidate', onPeerConnect);
+        logger.info(
+          `[VaultManager] Peer timeout, starting markdown sync anyway for vault: ${vaultId}`
+        );
+        startMarkdownSync();
+      }
+    }, 5000);
+  }
+
+  // Create cleanup that handles both immediate and deferred markdown sync
+  const cleanupMarkdownSync = (): void => {
+    if (peerTimeoutId) {
+      clearTimeout(peerTimeoutId);
+    }
+    if (syncDelayTimeoutId) {
+      clearTimeout(syncDelayTimeoutId);
+    }
+    networkAdapter.off('peer-candidate', onPeerConnect);
+    unsubscribeMarkdownSync();
+  };
 
   vaultRepos.set(vaultId, {
     repo,
     networkAdapter,
     baseDirectory,
     docUrl,
-    unsubscribeMarkdownSync,
+    unsubscribeMarkdownSync: cleanupMarkdownSync,
     unsubscribeFileSync
   });
 

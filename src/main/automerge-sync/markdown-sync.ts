@@ -794,152 +794,212 @@ export function setupMarkdownSync(
     );
   };
 
-  // Set up async
+  // Set up async with retry logic for document sync timing issues
   const setup = async (): Promise<void> => {
-    try {
-      // Get the document handle with timeout
-      docHandle = await repo.find<NotesDocument>(docUrl as AutomergeUrl);
+    const maxRetries = 10;
+    const retryDelayMs = 1000;
+    const waitTimeoutMs = 5000;
 
-      // Wait for document to be ready with timeout
-      const timeoutMs = 10000;
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`Timeout waiting for vault document ${vaultId}`)),
-          timeoutMs
-        );
-      });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Get the document handle
+        docHandle = await repo.find<NotesDocument>(docUrl as AutomergeUrl);
 
-      await Promise.race([docHandle.whenReady(), timeoutPromise]);
-
-      // Check if document is available
-      if (!docHandle.isReady()) {
-        logger.warn(
-          `[MarkdownSync] Vault document unavailable for ${vaultId}, skipping markdown sync`
-        );
-        return;
-      }
-
-      const doc = docHandle.doc();
-
-      if (doc && doc.notes) {
-        logger.info(`[MarkdownSync] Initial sync for vault: ${vaultId}`);
-        previousNotes = { ...doc.notes };
-        const noteTypes = doc.noteTypes;
-        const contentUrls = doc.contentUrls || {};
-
-        // Scan existing files to avoid loading content for notes that don't need syncing
-        const existingFiles = scanExistingFiles(baseDirectory);
-
-        // Determine which notes actually need their content loaded
-        const notesNeedingContent = getNotesNeedingContentLoad(
-          doc.notes,
-          noteTypes,
-          existingFiles,
-          mappings
+        logger.info(
+          `[MarkdownSync] Waiting for vault document to sync for ${vaultId} (attempt ${attempt}/${maxRetries})...`
         );
 
-        // Find orphaned files (files not matching any note in the document)
-        const activeNoteIds = new Set(
-          (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
-            .filter(([, note]) => !note.archived)
-            .map(([id]) => id)
-        );
-        const orphanedFiles: string[] = [];
-        for (const [noteId, fileInfo] of existingFiles) {
-          if (!activeNoteIds.has(noteId)) {
-            orphanedFiles.push(fileInfo.relativePath);
+        // Wait for document to sync with timeout
+        // The document may not be available immediately during import since it needs
+        // to sync from the renderer process via the network adapter
+        const doc = await new Promise<NotesDocument | undefined>((resolve) => {
+          const checkTimeout = setTimeout(() => {
+            docHandle?.off('change', onDocChange);
+            resolve(undefined);
+          }, waitTimeoutMs);
+
+          const onDocChange = (): void => {
+            try {
+              const d = docHandle?.doc();
+              if (d) {
+                clearTimeout(checkTimeout);
+                docHandle?.off('change', onDocChange);
+                resolve(d);
+              }
+            } catch {
+              // Document still unavailable, keep waiting
+            }
+          };
+
+          // Subscribe to changes - fires when document syncs
+          docHandle?.on('change', onDocChange);
+
+          // Check immediately in case document is already available
+          try {
+            const d = docHandle?.doc();
+            if (d) {
+              clearTimeout(checkTimeout);
+              docHandle?.off('change', onDocChange);
+              resolve(d);
+            }
+          } catch {
+            // Document not available yet, will wait for change event
           }
-        }
+        });
 
-        // Remove files for archived/deleted notes (files that exist but note is archived/deleted)
-        for (const [noteId] of existingFiles) {
-          const note = doc.notes[noteId];
-          if (note && note.archived) {
-            removeNoteFile(baseDirectory, noteId, mappings, vaultId);
+        if (!doc) {
+          if (attempt < maxRetries) {
+            logger.info(
+              `[MarkdownSync] Document not yet available for ${vaultId}, retrying in ${retryDelayMs}ms...`
+            );
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            continue;
           }
-        }
-
-        // Load content documents for ALL notes to enable change subscriptions,
-        // but only sync notes that actually need initial syncing
-        const allNoteIds = (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
-          .filter(([, note]) => !note.archived)
-          .map(([id]) => id);
-
-        if (allNoteIds.length > 0) {
-          logger.info(
-            `[MarkdownSync] Loading ${allNoteIds.length} content docs, ${notesNeedingContent.length} need initial sync`
+          logger.warn(
+            `[MarkdownSync] Vault document unavailable for ${vaultId} after ${maxRetries} attempts, skipping markdown sync`
           );
-          const loadPromises: Promise<void>[] = [];
-          for (const noteId of allNoteIds) {
-            if (contentUrls[noteId]) {
-              loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
+          return;
+        }
+
+        // Document is available, proceed with sync
+        if (doc && doc.notes) {
+          logger.info(`[MarkdownSync] Initial sync for vault: ${vaultId}`);
+          previousNotes = { ...doc.notes };
+          const noteTypes = doc.noteTypes;
+          const contentUrls = doc.contentUrls || {};
+
+          // Scan existing files to avoid loading content for notes that don't need syncing
+          const existingFiles = scanExistingFiles(baseDirectory);
+
+          // Determine which notes actually need their content loaded
+          const notesNeedingContent = getNotesNeedingContentLoad(
+            doc.notes,
+            noteTypes,
+            existingFiles,
+            mappings
+          );
+
+          // Find orphaned files (files not matching any note in the document)
+          const activeNoteIds = new Set(
+            (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
+              .filter(([, note]) => !note.archived)
+              .map(([id]) => id)
+          );
+          const orphanedFiles: string[] = [];
+          for (const [noteId, fileInfo] of existingFiles) {
+            if (!activeNoteIds.has(noteId)) {
+              orphanedFiles.push(fileInfo.relativePath);
             }
           }
-          // Use allSettled so individual unavailable docs don't stop the whole sync
-          const results = await Promise.allSettled(loadPromises);
-          const failures = results.filter((r) => r.status === 'rejected');
-          if (failures.length > 0) {
-            logger.debug(
-              `[MarkdownSync] ${failures.length} content docs failed to load (this is normal during migration)`
+
+          // Remove files for archived/deleted notes (files that exist but note is archived/deleted)
+          for (const [noteId] of existingFiles) {
+            const note = doc.notes[noteId];
+            if (note && note.archived) {
+              removeNoteFile(baseDirectory, noteId, mappings, vaultId);
+            }
+          }
+
+          // Load content documents for ALL notes to enable change subscriptions,
+          // but only sync notes that actually need initial syncing
+          const allNoteIds = (Object.entries(doc.notes) as [string, SyncNoteMetadata][])
+            .filter(([, note]) => !note.archived)
+            .map(([id]) => id);
+
+          if (allNoteIds.length > 0) {
+            logger.info(
+              `[MarkdownSync] Loading ${allNoteIds.length} content docs, ${notesNeedingContent.length} need initial sync`
+            );
+            const loadPromises: Promise<void>[] = [];
+            for (const noteId of allNoteIds) {
+              if (contentUrls[noteId]) {
+                loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
+              }
+            }
+            // Use allSettled so individual unavailable docs don't stop the whole sync
+            const results = await Promise.allSettled(loadPromises);
+            const failures = results.filter((r) => r.status === 'rejected');
+            if (failures.length > 0) {
+              logger.debug(
+                `[MarkdownSync] ${failures.length} content docs failed to load (this is normal during migration)`
+              );
+            }
+
+            // Sync only the notes that need it
+            for (const noteId of notesNeedingContent) {
+              const note = doc.notes[noteId];
+              if (note && !note.archived) {
+                const content = vaultContentCache.get(noteId) || '';
+                syncNoteToFile(
+                  baseDirectory,
+                  note,
+                  content,
+                  noteTypes,
+                  mappings,
+                  vaultId
+                );
+              }
+            }
+          }
+
+          if (notesNeedingContent.length === 0) {
+            logger.info(
+              `[MarkdownSync] All ${Object.keys(doc.notes).length} notes already up to date`
             );
           }
 
-          // Sync only the notes that need it
-          for (const noteId of notesNeedingContent) {
-            const note = doc.notes[noteId];
-            if (note && !note.archived) {
-              const content = vaultContentCache.get(noteId) || '';
-              syncNoteToFile(baseDirectory, note, content, noteTypes, mappings, vaultId);
-            }
+          // Import any orphaned files (created while sync wasn't running)
+          for (const filename of orphanedFiles) {
+            await importOrphanedFile(
+              filename,
+              baseDirectory,
+              mappings,
+              vaultId,
+              repo,
+              docHandle!, // docHandle is guaranteed to be set at this point
+              previousNotes,
+              vaultContentCache,
+              vaultContentHandles
+            );
           }
         }
 
-        if (notesNeedingContent.length === 0) {
-          logger.info(
-            `[MarkdownSync] All ${Object.keys(doc.notes).length} notes already up to date`
-          );
-        }
+        // Subscribe to root document changes
+        docHandle!.on('change', handleDocChange);
 
-        // Import any orphaned files (created while sync wasn't running)
-        for (const filename of orphanedFiles) {
-          await importOrphanedFile(
-            filename,
-            baseDirectory,
-            mappings,
-            vaultId,
-            repo,
-            docHandle,
-            previousNotes,
-            vaultContentCache,
-            vaultContentHandles
-          );
-        }
-      }
-
-      // Subscribe to root document changes
-      docHandle.on('change', handleDocChange);
-
-      // Set up file watcher for the notes directory (recursive to watch type subdirectories)
-      const notesDir = ensureNotesDir(baseDirectory);
-      fileWatcher = fs.watch(
-        notesDir,
-        { persistent: true, recursive: true },
-        handleFileChange
-      );
-      fileWatchers.set(vaultId, fileWatcher);
-
-      isSetup = true;
-
-      logger.info(`[MarkdownSync] Two-way sync active for vault: ${vaultId}`);
-    } catch (err) {
-      // Handle "unavailable" errors gracefully - these are expected during migration
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('is unavailable')) {
-        logger.warn(
-          `[MarkdownSync] Vault document unavailable for ${vaultId}, skipping markdown sync`
+        // Set up file watcher for the notes directory (recursive to watch type subdirectories)
+        const notesDir = ensureNotesDir(baseDirectory);
+        fileWatcher = fs.watch(
+          notesDir,
+          { persistent: true, recursive: true },
+          handleFileChange
         );
-      } else {
-        logger.error(`[MarkdownSync] Setup failed for vault ${vaultId}:`, err);
+        fileWatchers.set(vaultId, fileWatcher);
+
+        isSetup = true;
+
+        logger.info(`[MarkdownSync] Two-way sync active for vault: ${vaultId}`);
+        return; // Success - exit retry loop
+      } catch (err) {
+        // Handle "unavailable" errors with retry
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('unavailable') && attempt < maxRetries) {
+          logger.info(
+            `[MarkdownSync] Document unavailable for ${vaultId}, retrying in ${retryDelayMs}ms (attempt ${attempt}/${maxRetries})...`
+          );
+          await new Promise((r) => setTimeout(r, retryDelayMs));
+          continue;
+        }
+
+        // Final attempt failed or non-unavailable error
+        if (message.includes('unavailable')) {
+          logger.warn(
+            `[MarkdownSync] Vault document unavailable for ${vaultId} after ${maxRetries} attempts, skipping markdown sync`
+          );
+        } else {
+          logger.error(`[MarkdownSync] Setup failed for vault ${vaultId}:`, err);
+        }
+        return;
       }
     }
   };
