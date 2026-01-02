@@ -480,10 +480,8 @@
         return;
       }
 
-      // If visible from cursor position, don't interfere
-      if (actionPopoverVisible) {
-        return;
-      }
+      // If visible from cursor position, allow hover to take over
+      // Don't return - continue below to start delayed show
 
       // Clear pending hover timeout
       if (hoverTimeout) {
@@ -848,40 +846,43 @@
       }
 
       if (selected && !editPopoverVisible) {
-        // Show action popup for cursor-adjacent wikilink
-        const coords = editorView.coordsAtPos(selected.from);
-        if (coords) {
-          actionPopoverWikilinkData = {
-            identifier: selected.identifier,
-            title: selected.title,
-            exists: selected.exists,
-            noteId: selected.noteId,
-            targetType: selected.targetType,
-            conversationId: selected.conversationId
-          };
+        // Only show cursor-based popup if hover popup isn't active
+        if (!actionPopoverIsFromHover) {
+          const coords = editorView.coordsAtPos(selected.from);
+          if (coords) {
+            actionPopoverWikilinkData = {
+              identifier: selected.identifier,
+              title: selected.title,
+              exists: selected.exists,
+              noteId: selected.noteId,
+              targetType: selected.targetType,
+              conversationId: selected.conversationId
+            };
 
-          linkRect = {
-            left: coords.left,
-            top: coords.top,
-            bottom: coords.bottom,
-            height: coords.bottom - coords.top
-          };
+            linkRect = {
+              left: coords.left,
+              top: coords.top,
+              bottom: coords.bottom,
+              height: coords.bottom - coords.top
+            };
 
-          const position = calculatePopoverPosition(
-            linkRect.left,
-            linkRect.top,
-            linkRect.bottom,
-            200,
-            60
-          );
-          actionPopoverX = position.x;
-          actionPopoverY = position.y;
-          actionPopoverVisible = true;
-          actionPopoverIsFromHover = false;
+            const position = calculatePopoverPosition(
+              linkRect.left,
+              linkRect.top,
+              linkRect.bottom,
+              200,
+              60
+            );
+            actionPopoverX = position.x;
+            actionPopoverY = position.y;
+            actionPopoverVisible = true;
+          }
         }
       } else if (!selected || editPopoverVisible) {
-        actionPopoverVisible = false;
-        actionPopoverIsFromHover = false;
+        // Only hide cursor-based popups, not hover popups
+        if (!actionPopoverIsFromHover) {
+          actionPopoverVisible = false;
+        }
       }
     }, 100);
 
