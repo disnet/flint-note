@@ -15,3 +15,4 @@ export * from './capture-editor';
 export * from './capture-settings';
 export * from './capture-features';
 export * from './capture-chat';
+export * from './capture-notes';

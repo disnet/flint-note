@@ -48,6 +48,7 @@
     "screenshots:features": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-features",
     "screenshots:chat": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-chat",
     "screenshots:onboarding": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-onboarding",
+    "screenshots:notes": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-notes",
     "screenshots:debug": "npm run build && npx playwright test --config=screenshots/playwright.config.ts --debug"
   },
   "dependencies": {
