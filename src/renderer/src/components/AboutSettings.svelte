@@ -10,6 +10,12 @@
     | 'ready'
     | 'error';
 
+  interface Props {
+    onShowChangelog?: () => void;
+  }
+
+  let { onShowChangelog }: Props = $props();
+
   class AboutState {
     appVersion = $state('');
     appChannel = $state('');
@@ -120,6 +126,11 @@
           <span class="channel-badge">{about.appChannel}</span>
         {/if}
       </div>
+      {#if onShowChangelog}
+        <button class="changelog-link" onclick={() => onShowChangelog?.()}>
+          What's New
+        </button>
+      {/if}
     </div>
 
     <div class="update-section">
@@ -263,6 +274,23 @@
     background: var(--accent-primary);
     color: white;
     border-radius: 0.25rem;
+  }
+
+  .changelog-link {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0;
+    margin-top: 0.5rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .changelog-link:hover {
+    color: var(--accent-primary-hover, var(--accent-primary));
+    opacity: 0.8;
   }
 
   .update-section {

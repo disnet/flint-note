@@ -79,6 +79,7 @@
   import APIKeySettings from './APIKeySettings.svelte';
   import DebugSettings from './DebugSettings.svelte';
   import AboutSettings from './AboutSettings.svelte';
+  import ChangelogModal from './ChangelogModal.svelte';
   import ReviewView from './ReviewView.svelte';
   import InboxView from './InboxView.svelte';
   import RoutinesView from './RoutinesView.svelte';
@@ -122,6 +123,7 @@
   let showCreateVaultModal = $state(false);
   let showArchiveWebpageModal = $state(false);
   let showLegacyMigrationModal = $state(false);
+  let showChangelogModal = $state(false);
   let newVaultName = $state('');
   let newVaultSyncDirectory = $state<string | null>(null);
 
@@ -996,8 +998,7 @@
 
       // Help actions
       case 'show-changelog':
-        // Could show a changelog modal - for now open external
-        window.api?.openExternal({ url: 'https://www.flintnote.com/docs/changelog' });
+        showChangelogModal = true;
         break;
       case 'check-updates':
         window.api?.checkForUpdates();
@@ -1008,10 +1009,35 @@
     }
   }
 
+  // Check if app was upgraded and show changelog
+  async function checkForUpgrade(): Promise<void> {
+    try {
+      const versionInfo = await window.api?.getAppVersion();
+      if (!versionInfo) return;
+
+      const { version, channel } = versionInfo;
+      const isCanary = channel === 'canary';
+      const lastSeen = settingsStore.getLastSeenVersion(isCanary);
+
+      // Only show modal if there's a previous version and it's different
+      if (lastSeen && lastSeen !== version) {
+        showChangelogModal = true;
+      }
+
+      // Update last seen version
+      await settingsStore.updateLastSeenVersion(version, isCanary);
+    } catch (err) {
+      console.warn('Failed to check for upgrade:', err);
+    }
+  }
+
   // Set up menu event listeners
   onMount(() => {
     const cleanupNavigate = window.api?.onMenuNavigate(handleMenuNavigate);
     const cleanupAction = window.api?.onMenuAction(handleMenuAction);
+
+    // Check for upgrade and show changelog if needed
+    checkForUpgrade();
 
     return () => {
       cleanupNavigate?.();
@@ -1349,7 +1375,7 @@
               <div class="settings-divider"></div>
 
               <!-- About / Version -->
-              <AboutSettings />
+              <AboutSettings onShowChangelog={() => (showChangelogModal = true)} />
 
               <button class="close-settings" onclick={() => setActiveSystemView(null)}
                 >Close</button
@@ -1652,6 +1678,12 @@
     onCancel={handleLegacyMigrationCancel}
   />
 {/if}
+
+<!-- Changelog Modal -->
+<ChangelogModal
+  isOpen={showChangelogModal}
+  onClose={() => (showChangelogModal = false)}
+/>
 
 <!-- Legacy Vault Migration Progress Overlay -->
 {#if isMigratingLegacyVault && migratingVault}
