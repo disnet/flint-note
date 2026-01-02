@@ -68,6 +68,75 @@ process.on('unhandledRejection', (reason: unknown) => {
 // Module-level service references
 let chatServerInstance: ChatServer | null = null;
 
+// --- CLI argument types and parsing ---
+interface StartupCommand {
+  type: 'open-vault' | 'import-directory';
+  vaultName?: string;
+  vaultId?: string;
+  importPath?: string;
+  customVaultName?: string;
+}
+
+function parseCliArgs(): StartupCommand | null {
+  // In packaged app, process.argv[0] is the app, process.argv[1] may be the file
+  // In dev, process.argv[0] is electron, process.argv[1] is the script
+  // We need to skip electron-specific args
+  const args = process.argv.slice(is.dev ? 2 : 1);
+
+  let vaultName: string | undefined;
+  let vaultId: string | undefined;
+  let importPath: string | undefined;
+  let customVaultName: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    const nextArg = args[i + 1];
+
+    if ((arg === '--vault' || arg === '-v') && nextArg && !nextArg.startsWith('-')) {
+      vaultName = nextArg;
+      i++;
+    } else if (arg === '--vault-id' && nextArg && !nextArg.startsWith('-')) {
+      vaultId = nextArg;
+      i++;
+    } else if (
+      (arg === '--import' || arg === '-i') &&
+      nextArg &&
+      !nextArg.startsWith('-')
+    ) {
+      importPath = nextArg;
+      i++;
+    } else if (
+      (arg === '--vault-name' || arg === '-n') &&
+      nextArg &&
+      !nextArg.startsWith('-')
+    ) {
+      customVaultName = nextArg;
+      i++;
+    }
+  }
+
+  // Validate and return command
+  if (importPath) {
+    return {
+      type: 'import-directory',
+      importPath,
+      customVaultName
+    };
+  } else if (vaultName) {
+    return { type: 'open-vault', vaultName };
+  } else if (vaultId) {
+    return { type: 'open-vault', vaultId };
+  }
+
+  return null;
+}
+
+// Parse CLI args early (before app.whenReady)
+const startupCommand = parseCliArgs();
+if (startupCommand) {
+  logger.info('Parsed startup command from CLI', { startupCommand });
+}
+
 function getThemeBackgroundColor(): string {
   // Return appropriate background color based on system theme
   return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff';
@@ -210,7 +279,8 @@ async function convertImagesToDataUris(
 }
 
 async function createWindow(
-  settingsStorageService: SettingsStorageService
+  settingsStorageService: SettingsStorageService,
+  startupCmd: StartupCommand | null = null
 ): Promise<void> {
   // Load saved window state
   const savedState = await settingsStorageService.loadWindowState();
@@ -297,6 +367,15 @@ async function createWindow(
 
   mainWindow.on('ready-to-show', async () => {
     mainWindow.show();
+
+    // Send startup command to renderer after window is ready
+    if (startupCmd) {
+      // Small delay to ensure renderer is fully initialized
+      setTimeout(() => {
+        mainWindow.webContents.send('startup-command', startupCmd);
+        logger.info('Sent startup command to renderer', { startupCmd });
+      }, 500);
+    }
 
     // Stop startup tracing if it was enabled
     if (enableStartupTracing) {
@@ -1017,7 +1096,7 @@ app.whenReady().then(async () => {
     }
   );
 
-  await createWindow(settingsStorageService);
+  await createWindow(settingsStorageService, startupCommand);
   logger.info('Main window created and IPC handlers registered');
 
   // Set main window for auto-updater
@@ -1049,7 +1128,8 @@ app.whenReady().then(async () => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       logger.info('Reactivating application, creating new window');
-      await createWindow(settingsStorageService);
+      // Don't pass startupCommand on reactivation - it was already processed
+      await createWindow(settingsStorageService, null);
     }
   });
 });

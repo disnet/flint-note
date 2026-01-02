@@ -6,8 +6,24 @@
   import { onMount } from 'svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import MainView from './components/MainView.svelte';
-  import { initializeState, getIsLoading, getNonArchivedVaults } from './lib/automerge';
+  import {
+    initializeState,
+    getIsLoading,
+    getNonArchivedVaults,
+    getVaultsState,
+    switchVault,
+    importMarkdownDirectory
+  } from './lib/automerge';
   import { settingsStore } from './stores/settingsStore.svelte';
+
+  // Startup command type (matches main process)
+  interface StartupCommand {
+    type: 'open-vault' | 'import-directory';
+    vaultName?: string;
+    vaultId?: string;
+    importPath?: string;
+    customVaultName?: string;
+  }
 
   // Legacy vault config type (from old app's config.yml)
   interface LegacyVaultConfig {
@@ -22,37 +38,108 @@
   let hasVaults = $state(false);
   let initError = $state<string | null>(null);
   let detectedLegacyVaults = $state<LegacyVaultConfig[]>([]);
+  let startupError = $state<string | null>(null);
 
   // Derive loading state reactively
   const isLoading = $derived(getIsLoading());
 
-  // Initialize automerge state
-  onMount(async () => {
-    try {
-      await initializeState();
-      // Check if we have vaults after initialization
-      const vaults = getNonArchivedVaults();
-      hasVaults = vaults.length > 0;
+  // Handle startup command from CLI arguments
+  async function handleStartupCommand(command: StartupCommand): Promise<void> {
+    const vaults = getVaultsState();
 
-      // If no vaults, check for legacy vaults in old app's config.yml
-      if (!hasVaults) {
-        try {
-          // Read legacy vault paths from old app's config.yml
-          const legacyVaultConfigs =
-            await window.api?.legacyMigration.readLegacyVaultPaths();
+    if (command.type === 'open-vault') {
+      let targetVault;
 
-          if (legacyVaultConfigs && legacyVaultConfigs.length > 0) {
-            // Store detected legacy vaults to pass to FirstTimeExperience
-            detectedLegacyVaults = legacyVaultConfigs;
-          }
-        } catch (err) {
-          console.warn('Failed to read legacy vault paths:', err);
-        }
+      if (command.vaultId) {
+        // Find by ID (exact match)
+        targetVault = vaults.find((v) => v.id === command.vaultId && !v.archived);
+      } else if (command.vaultName) {
+        // Find by name (case-insensitive)
+        const searchName = command.vaultName.toLowerCase();
+        targetVault = vaults.find(
+          (v) => v.name.toLowerCase() === searchName && !v.archived
+        );
       }
-    } catch (err) {
-      console.error('Failed to initialize automerge:', err);
-      initError = err instanceof Error ? err.message : 'Failed to initialize';
+
+      if (targetVault) {
+        await switchVault(targetVault.id);
+        hasVaults = true;
+      } else {
+        const identifier = command.vaultId || command.vaultName;
+        throw new Error(`Vault not found: ${identifier}`);
+      }
+    } else if (command.type === 'import-directory') {
+      if (!command.importPath) {
+        throw new Error('Import path is required');
+      }
+
+      // Determine vault name from path or custom name
+      const pathParts = command.importPath.split(/[\\/]/);
+      const dirName = pathParts[pathParts.length - 1] || 'Imported Notes';
+      const vaultName = command.customVaultName || dirName;
+
+      // Use existing import functionality (it switches to new vault automatically)
+      const result = await importMarkdownDirectory(command.importPath, vaultName);
+
+      if (!result.success) {
+        const errorMsg = result.errors[0]?.message || 'Import failed';
+        throw new Error(errorMsg);
+      }
+
+      // Import succeeded, vault is now active
+      hasVaults = true;
     }
+  }
+
+  // Initialize automerge state
+  onMount(() => {
+    let unsubscribeStartupCommand: (() => void) | undefined;
+
+    async function init(): Promise<void> {
+      try {
+        await initializeState();
+        // Check if we have vaults after initialization
+        const vaults = getNonArchivedVaults();
+        hasVaults = vaults.length > 0;
+
+        // If no vaults, check for legacy vaults in old app's config.yml
+        if (!hasVaults) {
+          try {
+            // Read legacy vault paths from old app's config.yml
+            const legacyVaultConfigs =
+              await window.api?.legacyMigration.readLegacyVaultPaths();
+
+            if (legacyVaultConfigs && legacyVaultConfigs.length > 0) {
+              // Store detected legacy vaults to pass to FirstTimeExperience
+              detectedLegacyVaults = legacyVaultConfigs;
+            }
+          } catch (err) {
+            console.warn('Failed to read legacy vault paths:', err);
+          }
+        }
+
+        // Set up startup command listener for CLI arguments
+        unsubscribeStartupCommand = window.api?.onStartupCommand(async (command) => {
+          try {
+            await handleStartupCommand(command);
+          } catch (err) {
+            console.error('Failed to handle startup command:', err);
+            startupError =
+              err instanceof Error ? err.message : 'Failed to execute startup command';
+          }
+        });
+      } catch (err) {
+        console.error('Failed to initialize automerge:', err);
+        initError = err instanceof Error ? err.message : 'Failed to initialize';
+      }
+    }
+
+    init();
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribeStartupCommand?.();
+    };
   });
 
   // Handle vault creation
@@ -115,6 +202,14 @@
     document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
   });
 </script>
+
+{#if startupError}
+  <!-- Startup command error banner -->
+  <div class="startup-error-banner">
+    <span>Startup error: {startupError}</span>
+    <button onclick={() => (startupError = null)}>Dismiss</button>
+  </div>
+{/if}
 
 {#if isLoading}
   <!-- Loading state -->
@@ -212,5 +307,43 @@
 
   .error-content button:hover {
     background: var(--accent-primary-hover);
+  }
+
+  .startup-error-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--error-bg, #fef2f2);
+    color: var(--error-text, #dc2626);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--error-border, #fecaca);
+  }
+
+  :global([data-theme='dark']) .startup-error-banner {
+    background: #450a0a;
+    color: #fca5a5;
+    border-bottom-color: #7f1d1d;
+  }
+
+  .startup-error-banner button {
+    background: transparent;
+    border: 1px solid currentColor;
+    color: inherit;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .startup-error-banner button:hover {
+    background: rgba(0, 0, 0, 0.1);
   }
 </style>

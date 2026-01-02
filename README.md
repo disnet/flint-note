@@ -65,6 +65,27 @@ npm run check
 npm run test:run
 ```
 
+## Command Line Arguments
+
+Flint supports command line arguments for automation and scripting:
+
+```bash
+# Open a specific vault by name
+flint --vault "My Notes"
+flint -v "My Notes"
+
+# Open a vault by ID
+flint --vault-id vault-abc12345
+
+# Import a directory of markdown files as a new vault
+flint --import /path/to/markdown/folder
+flint -i /path/to/folder
+
+# Import with a custom vault name
+flint --import /path/to/folder --vault-name "Custom Name"
+flint -i /path/to/folder -n "Custom Name"
+```
+
 ## Documentation
 
 - **[Getting Started](docs/GETTING-STARTED.md)** - Step-by-step setup guide

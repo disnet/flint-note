@@ -391,6 +391,30 @@ const api = {
         categoryName: string | null;
       }>;
     } | null> => electronAPI.ipcRenderer.invoke('get-markdown-import-data', params)
+  },
+
+  // Startup command listener (for CLI arguments)
+  onStartupCommand: (
+    callback: (command: {
+      type: 'open-vault' | 'import-directory';
+      vaultName?: string;
+      vaultId?: string;
+      importPath?: string;
+      customVaultName?: string;
+    }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      command: {
+        type: 'open-vault' | 'import-directory';
+        vaultName?: string;
+        vaultId?: string;
+        importPath?: string;
+        customVaultName?: string;
+      }
+    ): void => callback(command);
+    electronAPI.ipcRenderer.on('startup-command', handler);
+    return () => electronAPI.ipcRenderer.removeListener('startup-command', handler);
   }
 };
 

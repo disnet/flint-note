@@ -309,6 +309,17 @@ declare global {
           }>;
         } | null>;
       };
+
+      // Startup command listener (for CLI arguments)
+      onStartupCommand: (
+        callback: (command: {
+          type: 'open-vault' | 'import-directory';
+          vaultName?: string;
+          vaultId?: string;
+          importPath?: string;
+          customVaultName?: string;
+        }) => void
+      ) => () => void;
     };
   }
 }
