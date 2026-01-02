@@ -3,7 +3,13 @@
    * First-time experience for automerge-based vaults
    * Shows detected legacy vaults for import or option to create new vault
    */
-  import { createVault, initializeState } from '../lib/automerge';
+  import {
+    createVault,
+    initializeState,
+    selectSyncDirectory,
+    connectVaultSync,
+    getRepo
+  } from '../lib/automerge';
   import {
     migrateLegacyVault,
     getMigrationProgress,
@@ -45,8 +51,10 @@
 
   // New vault creation state
   let vaultName = $state('My Notes');
+  let vaultSyncDirectory = $state<string | null>(null);
   let isCreating = $state(false);
   let createError = $state<string | null>(null);
+  let showCreateForm = $state(false);
 
   /**
    * Import a legacy vault by migrating it
@@ -170,6 +178,16 @@
   }
 
   /**
+   * Select a sync directory for the new vault
+   */
+  async function handleSelectSyncDirectory(): Promise<void> {
+    const directory = await selectSyncDirectory();
+    if (directory) {
+      vaultSyncDirectory = directory;
+    }
+  }
+
+  /**
    * Create a new empty vault
    */
   async function handleCreateVault(): Promise<void> {
@@ -183,10 +201,16 @@
 
     try {
       // Create the vault (this creates the automerge document)
-      createVault(vaultName.trim());
+      const vault = createVault(vaultName.trim(), vaultSyncDirectory ?? undefined);
 
       // Initialize state with the new vault
       await initializeState();
+
+      // Connect file sync if a directory was selected
+      if (vaultSyncDirectory) {
+        const repo = getRepo();
+        await connectVaultSync(repo, vault);
+      }
 
       // Notify parent
       onVaultCreated();
@@ -297,7 +321,82 @@
             <span class="button-icon">📂</span>
             Open Vault from Directory
           </button>
+          {#if !showCreateForm}
+            <button
+              class="secondary-action"
+              onclick={() => (showCreateForm = true)}
+              disabled={isMigrating}
+            >
+              <span class="button-icon">✨</span>
+              Create New Vault
+            </button>
+          {/if}
         </div>
+
+        {#if showCreateForm}
+          <div class="divider">
+            <span>or start fresh</span>
+          </div>
+
+          <div class="vault-form">
+            <label for="vault-name-legacy" class="form-label">New Vault Name</label>
+            <input
+              id="vault-name-legacy"
+              type="text"
+              class="vault-name-input"
+              bind:value={vaultName}
+              onkeydown={handleKeyDown}
+              placeholder="Enter vault name..."
+              maxlength="50"
+              disabled={isCreating}
+            />
+
+            <div class="sync-directory-section">
+              <span class="form-label-secondary">Sync to folder (optional)</span>
+              {#if vaultSyncDirectory}
+                <div class="sync-directory-selected">
+                  <span class="sync-path" title={vaultSyncDirectory}
+                    >{vaultSyncDirectory}</span
+                  >
+                  <button
+                    class="sync-clear-btn"
+                    onclick={() => (vaultSyncDirectory = null)}
+                    title="Remove sync folder"
+                    disabled={isCreating}
+                  >
+                    ✕
+                  </button>
+                </div>
+              {:else}
+                <button
+                  class="secondary-action-small"
+                  onclick={handleSelectSyncDirectory}
+                  disabled={isCreating}
+                >
+                  Choose Folder...
+                </button>
+              {/if}
+            </div>
+
+            {#if createError}
+              <div class="error-message">{createError}</div>
+            {/if}
+
+            <button
+              class="primary-action"
+              onclick={handleCreateVault}
+              disabled={isCreating || !vaultName.trim()}
+            >
+              {#if isCreating}
+                <span class="button-icon">⏳</span>
+                Creating...
+              {:else}
+                <span class="button-icon">📁</span>
+                Create Vault
+              {/if}
+            </button>
+          </div>
+        {/if}
       {:else}
         <!-- No legacy vaults - show create new vault form -->
         <div class="vault-explanation">
@@ -349,6 +448,33 @@
             maxlength="50"
             disabled={isCreating}
           />
+
+          <div class="sync-directory-section">
+            <span class="form-label-secondary">Sync to folder (optional)</span>
+            {#if vaultSyncDirectory}
+              <div class="sync-directory-selected">
+                <span class="sync-path" title={vaultSyncDirectory}
+                  >{vaultSyncDirectory}</span
+                >
+                <button
+                  class="sync-clear-btn"
+                  onclick={() => (vaultSyncDirectory = null)}
+                  title="Remove sync folder"
+                  disabled={isCreating}
+                >
+                  ✕
+                </button>
+              </div>
+            {:else}
+              <button
+                class="secondary-action-small"
+                onclick={handleSelectSyncDirectory}
+                disabled={isCreating}
+              >
+                Choose Folder...
+              </button>
+            {/if}
+          </div>
 
           {#if createError}
             <div class="error-message">{createError}</div>
@@ -551,6 +677,8 @@
   .action-buttons {
     display: flex;
     justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
   }
 
   .secondary-action {
@@ -643,6 +771,81 @@
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-primary);
+  }
+
+  .form-label-secondary {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .sync-directory-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sync-directory-selected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-tertiary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .sync-path {
+    flex: 1;
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sync-clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+  }
+
+  .sync-clear-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .sync-clear-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .secondary-action-small {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+  }
+
+  .secondary-action-small:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .secondary-action-small:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .vault-name-input {

@@ -767,9 +767,9 @@ export function updateVaultInState(
 /**
  * Create a new vault
  */
-export function createVault(name: string): Vault {
+export function createVault(name: string, baseDirectory?: string): Vault {
   const repo = getRepo();
-  const vault = createVaultInRepo(repo, name);
+  const vault = createVaultInRepo(repo, name, baseDirectory);
   addVaultToState(vault);
   return vault;
 }
@@ -3137,6 +3137,9 @@ export function getIsSyncing(): boolean {
   if (!vault) return false;
   return getCurrentSyncedVaultId() === vault.id;
 }
+
+// Re-export for use in vault creation
+export { selectSyncDirectory, connectVaultSync };
 
 /**
  * Enable file sync for the active vault by selecting a directory

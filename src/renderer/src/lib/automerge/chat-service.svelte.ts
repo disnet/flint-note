@@ -1281,6 +1281,7 @@ export class ChatService {
       id: userMessageId,
       role: 'user',
       content: text,
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- fixed timestamp, not reactive
       createdAt: new Date()
     };
     this._messages = [...this._messages, userMessage];
@@ -1297,6 +1298,7 @@ export class ChatService {
       role: 'assistant',
       content: '',
       toolCalls: [],
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- fixed timestamp, not reactive
       createdAt: new Date(),
       toolActivity: { isActive: true }
     };

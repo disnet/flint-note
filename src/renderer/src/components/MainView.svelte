@@ -48,6 +48,9 @@
     importPdfFile,
     isLegacyVault,
     finalizeLegacyVaultMigration,
+    selectSyncDirectory,
+    connectVaultSync,
+    getRepo,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -120,6 +123,7 @@
   let showArchiveWebpageModal = $state(false);
   let showLegacyMigrationModal = $state(false);
   let newVaultName = $state('');
+  let newVaultSyncDirectory = $state<string | null>(null);
 
   // Lazy legacy vault migration state
   let isMigratingLegacyVault = $state(false);
@@ -584,14 +588,31 @@
 
   function handleCreateVault(): void {
     newVaultName = '';
+    newVaultSyncDirectory = null;
     showCreateVaultModal = true;
   }
 
-  function submitCreateVault(): void {
+  async function handleSelectSyncDirectory(): Promise<void> {
+    const directory = await selectSyncDirectory();
+    if (directory) {
+      newVaultSyncDirectory = directory;
+    }
+  }
+
+  async function submitCreateVault(): Promise<void> {
     if (newVaultName.trim()) {
-      createVault(newVaultName.trim());
+      const vault = createVault(newVaultName.trim(), newVaultSyncDirectory ?? undefined);
       showCreateVaultModal = false;
       newVaultName = '';
+      const syncDir = newVaultSyncDirectory;
+      newVaultSyncDirectory = null;
+      await switchVault(vault.id);
+
+      // Connect file sync if a directory was selected
+      if (syncDir) {
+        const repo = getRepo();
+        await connectVaultSync(repo, vault);
+      }
     }
   }
 
@@ -1512,6 +1533,27 @@
         bind:value={newVaultName}
         onkeydown={(e) => e.key === 'Enter' && submitCreateVault()}
       />
+      <div class="sync-directory-section">
+        <span class="sync-label">Sync to folder (optional)</span>
+        {#if newVaultSyncDirectory}
+          <div class="sync-directory-selected">
+            <span class="sync-path" title={newVaultSyncDirectory}
+              >{newVaultSyncDirectory}</span
+            >
+            <button
+              class="sync-clear-btn"
+              onclick={() => (newVaultSyncDirectory = null)}
+              title="Remove sync folder"
+            >
+              ✕
+            </button>
+          </div>
+        {:else}
+          <button class="modal-btn secondary" onclick={handleSelectSyncDirectory}>
+            Choose Folder...
+          </button>
+        {/if}
+      </div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick={() => (showCreateVaultModal = false)}
           >Cancel</button
@@ -2239,6 +2281,55 @@
     flex: 1;
     height: 1px;
     background: var(--border-light);
+  }
+
+  /* Sync Directory Section */
+  .sync-directory-section {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sync-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .sync-directory-selected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-tertiary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .sync-path {
+    flex: 1;
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sync-clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+  }
+
+  .sync-clear-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 
   /* Workspace Form */

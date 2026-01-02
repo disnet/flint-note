@@ -183,7 +183,7 @@ export function getVaultById(id: string): Vault | undefined {
 /**
  * Create a new vault with a fresh Automerge document
  */
-export function createVault(r: Repo, name: string): Vault {
+export function createVault(r: Repo, name: string, baseDirectory?: string): Vault {
   const handle = createNewNotesDocument(r);
 
   const vault: Vault = {
@@ -191,7 +191,8 @@ export function createVault(r: Repo, name: string): Vault {
     name,
     docUrl: handle.url,
     archived: false,
-    created: nowISO()
+    created: nowISO(),
+    ...(baseDirectory && { baseDirectory })
   };
 
   const vaults = getVaults();

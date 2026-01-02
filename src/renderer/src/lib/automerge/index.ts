@@ -325,7 +325,11 @@ export {
   getDaysUntilNextDue,
   formatRecurringSchedule,
   getRoutineContextForPrompt,
-  getNoteTypesContextForPrompt
+  getNoteTypesContextForPrompt,
+
+  // File sync helpers for vault creation
+  selectSyncDirectory,
+  connectVaultSync
 } from './state.svelte';
 
 // OPFS storage for EPUB files

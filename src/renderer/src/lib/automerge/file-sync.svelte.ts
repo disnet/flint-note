@@ -3,7 +3,7 @@
  * Syncs binary files (PDFs, EPUBs, web archives, images) between OPFS and filesystem.
  */
 
-import { getIsFileSyncEnabled } from './state.svelte';
+import { getIsFileSyncEnabled, getAllNotes, getNoteContent } from './state.svelte';
 import { opfsStorage } from './opfs-storage.svelte';
 import { pdfOpfsStorage } from './pdf-opfs-storage.svelte';
 import { webpageOpfsStorage } from './webpage-opfs-storage.svelte';
@@ -11,8 +11,80 @@ import { imageOpfsStorage } from './image-opfs-storage.svelte';
 import { importPdfFromData } from './pdf-import.svelte';
 import { importEpubFromData } from './epub-import.svelte';
 import { importWebpageFromFilesystem } from './webpage-import.svelte';
+import type { EpubNoteProps, PdfNoteProps, WebpageNoteProps } from './types';
 
 export type FileType = 'pdf' | 'epub' | 'webpage' | 'image';
+
+// Regex to match OPFS image references in note content: ![alt](opfs://images/hash.ext)
+const OPFS_IMAGE_REGEX = /!\[[^\]]*\]\(opfs:\/\/images\/([a-f0-9]{8})\.(\w+)\)/gi;
+
+/**
+ * Structure containing all file hashes referenced by notes in the current vault.
+ * Used to filter file sync to only include files that belong to this vault.
+ */
+interface VaultFileHashes {
+  epubHashes: Set<string>;
+  pdfHashes: Set<string>;
+  webpageHashes: Set<string>;
+  imageRefs: Set<string>; // Format: "shortHash.extension"
+}
+
+/**
+ * Collect all file hashes referenced by notes in the current vault.
+ * This is used to filter file sync to only include files that belong to this vault,
+ * rather than syncing all files from the global OPFS storage.
+ */
+async function getVaultFileHashes(): Promise<VaultFileHashes> {
+  const result: VaultFileHashes = {
+    epubHashes: new Set(),
+    pdfHashes: new Set(),
+    webpageHashes: new Set(),
+    imageRefs: new Set()
+  };
+
+  const notes = getAllNotes();
+
+  for (const note of notes) {
+    // Check for EPUB hash in props
+    const epubHash = (note.props as EpubNoteProps | undefined)?.epubHash;
+    if (epubHash) {
+      result.epubHashes.add(epubHash);
+    }
+
+    // Check for PDF hash in props
+    const pdfHash = (note.props as PdfNoteProps | undefined)?.pdfHash;
+    if (pdfHash) {
+      result.pdfHashes.add(pdfHash);
+    }
+
+    // Check for webpage hash in props
+    const webpageHash = (note.props as WebpageNoteProps | undefined)?.webpageHash;
+    if (webpageHash) {
+      result.webpageHashes.add(webpageHash);
+    }
+
+    // For images, we need to scan note content for opfs:// references
+    try {
+      const content = await getNoteContent(note.id);
+      if (content) {
+        let match;
+        while ((match = OPFS_IMAGE_REGEX.exec(content)) !== null) {
+          const shortHash = match[1];
+          const extension = match[2];
+          result.imageRefs.add(`${shortHash}.${extension}`);
+        }
+      }
+    } catch {
+      // Content may not be available for all notes, skip silently
+    }
+  }
+
+  console.log(
+    `[FileSync] Vault file hashes: ${result.epubHashes.size} EPUBs, ${result.pdfHashes.size} PDFs, ${result.webpageHashes.size} webpages, ${result.imageRefs.size} images`
+  );
+
+  return result;
+}
 
 /**
  * Check if file sync is available (running in Electron with API access)
@@ -151,8 +223,10 @@ export async function handleFileAddedFromFilesystem(data: {
 }
 
 /**
- * Perform initial sync of all OPFS files to filesystem.
+ * Perform initial sync of OPFS files to filesystem.
  * Called when file sync is first enabled for a vault.
+ * Only syncs files that are referenced by notes in the current vault,
+ * not all files in OPFS (which may belong to other vaults).
  */
 export async function performInitialFileSync(): Promise<void> {
   if (!isFileSyncAvailable() || !getIsFileSyncEnabled()) {
@@ -165,9 +239,12 @@ export async function performInitialFileSync(): Promise<void> {
   if (!syncAPI) return;
 
   try {
-    // Sync EPUBs
-    const epubHashes = await opfsStorage.listHashes();
-    for (const hash of epubHashes) {
+    // Get file hashes that are referenced by notes in this vault
+    const vaultHashes = await getVaultFileHashes();
+
+    // Sync EPUBs (only those referenced by vault notes)
+    let epubSyncCount = 0;
+    for (const hash of vaultHashes.epubHashes) {
       const exists = await syncAPI.fileExistsOnFilesystem({ fileType: 'epub', hash });
       if (!exists) {
         const data = await opfsStorage.retrieve(hash);
@@ -177,14 +254,17 @@ export async function performInitialFileSync(): Promise<void> {
             hash,
             data: new Uint8Array(data)
           });
+          epubSyncCount++;
         }
       }
     }
-    console.log(`[FileSync] Synced ${epubHashes.length} EPUBs`);
+    console.log(
+      `[FileSync] Synced ${epubSyncCount}/${vaultHashes.epubHashes.size} EPUBs (vault-scoped)`
+    );
 
-    // Sync PDFs
-    const pdfHashes = await pdfOpfsStorage.listHashes();
-    for (const hash of pdfHashes) {
+    // Sync PDFs (only those referenced by vault notes)
+    let pdfSyncCount = 0;
+    for (const hash of vaultHashes.pdfHashes) {
       const exists = await syncAPI.fileExistsOnFilesystem({ fileType: 'pdf', hash });
       if (!exists) {
         const data = await pdfOpfsStorage.retrieve(hash);
@@ -194,14 +274,17 @@ export async function performInitialFileSync(): Promise<void> {
             hash,
             data: new Uint8Array(data)
           });
+          pdfSyncCount++;
         }
       }
     }
-    console.log(`[FileSync] Synced ${pdfHashes.length} PDFs`);
+    console.log(
+      `[FileSync] Synced ${pdfSyncCount}/${vaultHashes.pdfHashes.size} PDFs (vault-scoped)`
+    );
 
-    // Sync webpages
-    const webpageHashes = await webpageOpfsStorage.listHashes();
-    for (const hash of webpageHashes) {
+    // Sync webpages (only those referenced by vault notes)
+    let webpageSyncCount = 0;
+    for (const hash of vaultHashes.webpageHashes) {
       const exists = await syncAPI.fileExistsOnFilesystem({ fileType: 'webpage', hash });
       if (!exists) {
         const html = await webpageOpfsStorage.retrieve(hash);
@@ -214,32 +297,39 @@ export async function performInitialFileSync(): Promise<void> {
             data: encoder.encode(html),
             metadata: metadata ?? undefined
           });
+          webpageSyncCount++;
         }
       }
     }
-    console.log(`[FileSync] Synced ${webpageHashes.length} webpages`);
+    console.log(
+      `[FileSync] Synced ${webpageSyncCount}/${vaultHashes.webpageHashes.size} webpages (vault-scoped)`
+    );
 
-    // Sync images
-    const images = await imageOpfsStorage.listImages();
-    for (const image of images) {
+    // Sync images (only those referenced in vault note content)
+    let imageSyncCount = 0;
+    for (const imageRef of vaultHashes.imageRefs) {
+      const [shortHash, extension] = imageRef.split('.');
       const exists = await syncAPI.fileExistsOnFilesystem({
         fileType: 'image',
-        hash: image.shortHash,
-        extension: image.extension
+        hash: shortHash,
+        extension
       });
       if (!exists) {
-        const data = await imageOpfsStorage.retrieve(image.shortHash, image.extension);
+        const data = await imageOpfsStorage.retrieve(shortHash, extension);
         if (data) {
           await syncAPI.writeFileToFilesystem({
             fileType: 'image',
-            hash: image.shortHash,
+            hash: shortHash,
             data: new Uint8Array(data),
-            extension: image.extension
+            extension
           });
+          imageSyncCount++;
         }
       }
     }
-    console.log(`[FileSync] Synced ${images.length} images`);
+    console.log(
+      `[FileSync] Synced ${imageSyncCount}/${vaultHashes.imageRefs.size} images (vault-scoped)`
+    );
 
     console.log('[FileSync] Initial file sync complete');
   } catch (error) {
