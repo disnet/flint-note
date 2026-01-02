@@ -82,6 +82,12 @@
     z-index: 1000;
   }
 
+  /* Adjust position for screenshot mode (40px frame inset) */
+  :global([data-screenshot-mode]) .chat-fab {
+    bottom: 64px;
+    right: 64px;
+  }
+
   .chat-fab:hover {
     transform: scale(1.05);
     box-shadow:

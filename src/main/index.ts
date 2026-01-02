@@ -14,6 +14,12 @@ import { setupDevUserDataPath, getAppUserModelId } from './build-type';
 // This isolates dev builds from production on case-insensitive filesystems (macOS)
 setupDevUserDataPath();
 
+// Force HiDPI/retina rendering for screenshot automation
+// Must be called before app.whenReady()
+if (process.env.FLINT_SCREENSHOT_MODE === '1') {
+  app.commandLine.appendSwitch('force-device-scale-factor', '2');
+}
+
 // Check if startup tracing is enabled via env var
 const enableStartupTracing = process.env.TRACE_STARTUP === '1';
 

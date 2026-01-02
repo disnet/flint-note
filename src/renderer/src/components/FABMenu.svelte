@@ -167,6 +167,12 @@
     pointer-events: auto;
   }
 
+  /* Adjust position for screenshot mode (40px frame inset) */
+  :global([data-screenshot-mode]) .fab-container {
+    bottom: 64px;
+    right: 64px;
+  }
+
   /* Main FAB button - always at the bottom position */
   .fab-main {
     position: relative;

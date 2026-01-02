@@ -88,22 +88,20 @@ export async function closeQuickSearch(window: Page): Promise<void> {
 }
 
 /**
- * Open the chat panel using the FAB menu
+ * Open the chat panel via FAB menu
  */
 export async function openChatPanel(window: Page): Promise<void> {
-  // Look for the FAB menu button, then click the chat option
-  const fabButton = await window.$('.fab-menu button, .fab-button');
-  if (fabButton) {
-    await fabButton.click();
-    await waitForAnimations(window, 200);
+  // Hover over the FAB container to expand the menu
+  const fabContainer = await window.$('.fab-container');
+  if (fabContainer) {
+    await fabContainer.hover();
+    await waitForAnimations(window, 300);
 
-    // Click the chat option in the menu
-    const chatOption = await window.$(
-      '.fab-menu-item:has-text("Chat"), button:has-text("Chat")'
-    );
-    if (chatOption) {
-      await chatOption.click();
-      await waitForAnimations(window);
+    // Click the main FAB (chat) button
+    const chatButton = await window.$('.fab-main');
+    if (chatButton) {
+      await chatButton.click();
+      await waitForAnimations(window, 300);
     }
   }
 }
@@ -117,21 +115,20 @@ export async function closeFloatingPanels(window: Page): Promise<void> {
 }
 
 /**
- * Open the shelf panel using the FAB menu
+ * Open the shelf panel via FAB menu
  */
 export async function openShelfPanel(window: Page): Promise<void> {
-  const fabButton = await window.$('.fab-menu button, .fab-button');
-  if (fabButton) {
-    await fabButton.click();
-    await waitForAnimations(window, 200);
+  // Hover over the FAB container to expand the menu
+  const fabContainer = await window.$('.fab-container');
+  if (fabContainer) {
+    await fabContainer.hover();
+    await waitForAnimations(window, 300);
 
-    // Click the shelf option in the menu
-    const shelfOption = await window.$(
-      '.fab-menu-item:has-text("Shelf"), button:has-text("Shelf")'
-    );
-    if (shelfOption) {
-      await shelfOption.click();
-      await waitForAnimations(window);
+    // Click the shelf button
+    const shelfButton = await window.$('.shelf-button');
+    if (shelfButton) {
+      await shelfButton.click();
+      await waitForAnimations(window, 300);
     }
   }
 }

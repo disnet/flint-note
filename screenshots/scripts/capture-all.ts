@@ -1,18 +1,20 @@
 /**
  * Run all screenshot capture scripts
  *
- * This file re-exports all capture tests so they can be run together.
+ * This file exists for documentation purposes.
+ * Playwright automatically discovers and runs all capture-*.ts files.
  *
  * Usage:
- *   npm run screenshots          # Run all captures
- *   npm run screenshots:editor   # Run only editor captures
- *   npm run screenshots:debug    # Debug mode with inspector
+ *   npx playwright test --project=electron          # Run all captures
+ *   npx playwright test capture-editor              # Run only editor captures
+ *   npx playwright test --project=electron --debug  # Debug mode
  */
 
-// Re-export all capture tests
-export * from './capture-onboarding';
-export * from './capture-editor';
-export * from './capture-settings';
-export * from './capture-features';
-export * from './capture-chat';
-export * from './capture-notes';
+import { test } from '@playwright/test';
+
+test.describe('All Screenshots', () => {
+  test.skip('placeholder', () => {
+    // This file serves as documentation.
+    // All capture-*.ts files are run automatically by Playwright.
+  });
+});

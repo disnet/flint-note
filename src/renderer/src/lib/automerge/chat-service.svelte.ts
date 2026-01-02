@@ -107,6 +107,65 @@ interface LastRequestParams {
  */
 export const TOOL_CALL_STEP_LIMIT = 30;
 
+/**
+ * Check if we're in screenshot mode (for mock responses)
+ */
+function isScreenshotMode(): boolean {
+  return document.documentElement.hasAttribute('data-screenshot-mode');
+}
+
+/**
+ * Mock responses for screenshot mode
+ * Maps user message patterns to assistant responses
+ */
+const MOCK_RESPONSES: Array<{ pattern: RegExp; response: string }> = [
+  {
+    pattern: /hello|hi|hey/i,
+    response:
+      "Hello! I'm your AI assistant for Flint. I can help you organize your notes, find information, create new content, and much more. What would you like to work on today?"
+  },
+  {
+    pattern: /help|what can you do/i,
+    response: `I can help you with many things in Flint:
+
+- **Search & Find**: Search through your notes to find specific information
+- **Create Notes**: Help you draft and organize new notes
+- **Organize**: Suggest ways to connect and structure your knowledge
+- **Summarize**: Create summaries of your notes or documents
+- **Answer Questions**: Use your notes as context to answer questions
+
+Just ask me anything about your notes or what you'd like to create!`
+  },
+  {
+    pattern: /search|find|look for/i,
+    response:
+      "I'd be happy to search through your notes. I found several relevant notes that might help. Would you like me to show you more details about any of them?"
+  },
+  {
+    pattern: /create|new note|write/i,
+    response:
+      'I can help you create a new note. What would you like the note to be about? I can help structure it, suggest a title, or just capture your thoughts as you share them.'
+  },
+  {
+    pattern: /summarize|summary/i,
+    response:
+      'I can create a summary for you. Based on the content, here are the key points I identified. Would you like me to expand on any of these or save this as a new note?'
+  }
+];
+
+/**
+ * Get a mock response based on user input
+ */
+function getMockResponse(userMessage: string): string {
+  for (const { pattern, response } of MOCK_RESPONSES) {
+    if (pattern.test(userMessage)) {
+      return response;
+    }
+  }
+  // Default response
+  return "I understand you're asking about that. Let me help you explore this topic further. Would you like me to search your notes for related information, or would you prefer to create a new note to capture your thoughts?";
+}
+
 const BASE_SYSTEM_PROMPT = `You are an AI assistant for Flint, an intelligent note-taking system designed for natural conversation-based knowledge management. Help users capture, organize, and discover knowledge through intuitive conversation. Be proactive, direct, and substantive.
 
 ## Note Operations
@@ -401,6 +460,12 @@ export class ChatService {
    */
   async sendMessage(text: string, model?: string): Promise<void> {
     if (!text.trim() || this.isLoading) return;
+
+    // Screenshot mode: use mock responses instead of real API calls
+    if (isScreenshotMode()) {
+      await this.sendMockMessage(text.trim());
+      return;
+    }
 
     // Store request params for potential retry
     this._lastRequestParams = { text: text.trim(), model, type: 'send' };
@@ -1195,6 +1260,71 @@ export class ChatService {
     this._stoppedAtLimit = false;
     this._isNetworkError = false;
     this._lastRequestParams = null;
+  }
+
+  /**
+   * Send a mock message for screenshot mode (no API call)
+   * Simulates streaming with a realistic typing delay
+   */
+  private async sendMockMessage(text: string): Promise<void> {
+    // Ensure we have a conversation
+    if (!this._conversationId) {
+      this._conversationId = await createConversation({ addToRecent: false });
+    }
+
+    // Add user message
+    const userMessageId = await addMessageToConversation(this._conversationId, {
+      role: 'user',
+      content: text
+    });
+    const userMessage: ChatMessage = {
+      id: userMessageId,
+      role: 'user',
+      content: text,
+      createdAt: new Date()
+    };
+    this._messages = [...this._messages, userMessage];
+
+    // Create assistant message placeholder
+    const assistantMessageId = await addMessageToConversation(this._conversationId, {
+      role: 'assistant',
+      content: '',
+      toolCalls: []
+    });
+    this.currentAssistantMessageId = assistantMessageId;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      toolCalls: [],
+      createdAt: new Date(),
+      toolActivity: { isActive: true }
+    };
+    this._messages = [...this._messages, assistantMessage];
+
+    this._status = 'streaming';
+
+    // Get mock response and simulate streaming
+    const mockResponse = getMockResponse(text);
+
+    // Simulate typing delay - stream character by character
+    const charsPerChunk = 3;
+    const delayPerChunk = 20; // ms
+
+    for (let i = 0; i < mockResponse.length; i += charsPerChunk) {
+      const chunk = mockResponse.slice(i, i + charsPerChunk);
+      this.updateLastAssistantMessage((msg) => {
+        msg.content += chunk;
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayPerChunk));
+    }
+
+    // Clear tool activity
+    this.updateLastAssistantMessage((msg) => {
+      msg.toolActivity = { isActive: false };
+    });
+
+    this._status = 'ready';
   }
 
   /**

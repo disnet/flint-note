@@ -226,6 +226,12 @@
     transform: translateY(0) scale(1);
   }
 
+  /* Adjust position for screenshot mode (40px frame inset) - only for floating mode */
+  :global([data-screenshot-mode]) .shelf-panel:not(.expanded) {
+    bottom: 64px;
+    right: 64px;
+  }
+
   /* Expanded sidebar mode - flows in parent container */
   .shelf-panel.expanded {
     position: relative;

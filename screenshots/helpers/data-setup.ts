@@ -64,6 +64,9 @@ export async function setThemeDirect(
   window: Page,
   theme: 'light' | 'dark'
 ): Promise<void> {
+  // Emulate the color scheme preference so @media (prefers-color-scheme) queries work
+  await window.emulateMedia({ colorScheme: theme });
+
   await window.evaluate((t) => {
     // Set data-theme attribute on document
     document.documentElement.setAttribute('data-theme', t);

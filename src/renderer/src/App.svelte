@@ -6,6 +6,7 @@
   import { onMount } from 'svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import MainView from './components/MainView.svelte';
+  import ScreenshotFrame from './components/ScreenshotFrame.svelte';
   import {
     initializeState,
     getIsLoading,
@@ -203,41 +204,43 @@
   });
 </script>
 
-{#if startupError}
-  <!-- Startup command error banner -->
-  <div class="startup-error-banner">
-    <span>Startup error: {startupError}</span>
-    <button onclick={() => (startupError = null)}>Dismiss</button>
-  </div>
-{/if}
+<ScreenshotFrame>
+  {#if startupError}
+    <!-- Startup command error banner -->
+    <div class="startup-error-banner">
+      <span>Startup error: {startupError}</span>
+      <button onclick={() => (startupError = null)}>Dismiss</button>
+    </div>
+  {/if}
 
-{#if isLoading}
-  <!-- Loading state -->
-  <div class="app loading-state">
-    <div class="loading-content">
-      <div class="loading-spinner">🔥</div>
-      <p>Loading Flint...</p>
+  {#if isLoading}
+    <!-- Loading state -->
+    <div class="app loading-state">
+      <div class="loading-content">
+        <div class="loading-spinner">🔥</div>
+        <p>Loading Flint...</p>
+      </div>
     </div>
-  </div>
-{:else if initError}
-  <!-- Error state -->
-  <div class="app error-state">
-    <div class="error-content">
-      <h2>Failed to Initialize</h2>
-      <p>{initError}</p>
-      <button onclick={() => window.location.reload()}>Retry</button>
+  {:else if initError}
+    <!-- Error state -->
+    <div class="app error-state">
+      <div class="error-content">
+        <h2>Failed to Initialize</h2>
+        <p>{initError}</p>
+        <button onclick={() => window.location.reload()}>Retry</button>
+      </div>
     </div>
-  </div>
-{:else if !hasVaults}
-  <!-- First-time experience -->
-  <FirstTimeExperience
-    onVaultCreated={handleVaultCreated}
-    legacyVaults={detectedLegacyVaults}
-  />
-{:else}
-  <!-- Main app interface -->
-  <MainView />
-{/if}
+  {:else if !hasVaults}
+    <!-- First-time experience -->
+    <FirstTimeExperience
+      onVaultCreated={handleVaultCreated}
+      legacyVaults={detectedLegacyVaults}
+    />
+  {:else}
+    <!-- Main app interface -->
+    <MainView />
+  {/if}
+</ScreenshotFrame>
 
 <style>
   .app {

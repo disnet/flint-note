@@ -101,9 +101,22 @@ export async function launchApp(options: LaunchOptions = {}): Promise<{
   // Wait for the first BrowserWindow to open
   const window = await electronApp.firstWindow();
 
-  // Set viewport size
+  // Enable screenshot mode FIRST - before app fully loads
+  // This allows components to detect screenshot mode during initialization
+  await window.evaluate(() => {
+    document.documentElement.setAttribute('data-screenshot-mode', '');
+  });
+
+  // Set viewport size with 2x device scale factor for retina screenshots
+  // Using CDP to force device metrics since Electron doesn't expose this directly
   const viewport = options.viewport || DEFAULT_VIEWPORT;
-  await window.setViewportSize(viewport);
+  const cdpSession = await window.context().newCDPSession(window);
+  await cdpSession.send('Emulation.setDeviceMetricsOverride', {
+    width: viewport.width,
+    height: viewport.height,
+    deviceScaleFactor: 2,
+    mobile: false
+  });
 
   // Wait for app to be ready
   await waitForAppReady(window);

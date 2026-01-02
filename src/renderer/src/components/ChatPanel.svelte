@@ -99,20 +99,40 @@
   // Context popup hover state
   let showContextPopup = $state(false);
 
-  // Initialize server port and check API key on mount
+  // Initialize server port and check API key
+  // Re-runs when isOpen changes to catch screenshot mode attribute set after initial mount
   $effect(() => {
+    // Track isOpen to re-run when panel opens (screenshot mode may be set by then)
+    if (!isOpen && chatService) return; // Already initialized and panel closed
+
     const init = async (): Promise<void> => {
+      // Skip if already successfully initialized
+      if (chatService && apiKeyConfigured === true) return;
+
       try {
         // Get chat server port
         const port = await window.api?.getChatServerPort();
         serverPort = port ?? null;
+
+        // Check if we're in screenshot mode (uses mock responses, no API key needed)
+        const isScreenshotMode =
+          document.documentElement.hasAttribute('data-screenshot-mode');
+
+        // In screenshot mode, skip API key check (mock responses are used)
+        if (isScreenshotMode) {
+          apiKeyConfigured = true;
+          if (port && !chatService) {
+            chatService = createChatService(port);
+          }
+          return;
+        }
 
         // Check if API key is configured
         const isValid = await window.api?.testApiKey({ provider: 'openrouter' });
         apiKeyConfigured = isValid ?? false;
 
         // Initialize ChatService when port is available
-        if (port && isValid) {
+        if (port && isValid && !chatService) {
           chatService = createChatService(port);
         }
       } catch (error) {
@@ -846,6 +866,12 @@
   .chat-panel.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+
+  /* Adjust position for screenshot mode (40px frame inset) - only for floating mode */
+  :global([data-screenshot-mode]) .chat-panel:not(.expanded) {
+    bottom: 64px;
+    right: 64px;
   }
 
   /* Expanded sidebar mode - flows in parent container */
