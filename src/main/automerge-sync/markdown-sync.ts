@@ -487,23 +487,38 @@ export function setupMarkdownSync(
   };
 
   /**
-   * Load and subscribe to content document for a note
+   * Load and subscribe to content document for a note.
+   * Uses a timeout to handle unavailable documents gracefully.
    */
   const loadContentDoc = async (noteId: string, contentUrl: string): Promise<void> => {
     try {
       const contentHandle = await repo.find<SyncNoteContentDocument>(
         contentUrl as AutomergeUrl
       );
-      await contentHandle.whenReady();
+
+      // Use a timeout to handle unavailable documents - automerge-repo can throw
+      // internal errors when documents are unavailable that escape normal try-catch
+      const timeoutMs = 5000;
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Timeout loading content doc for ${noteId}`)),
+          timeoutMs
+        );
+      });
+
+      await Promise.race([contentHandle.whenReady(), timeoutPromise]);
 
       if (contentHandle.isReady()) {
         vaultContentHandles.set(noteId, contentHandle);
         const contentDoc = contentHandle.doc();
         vaultContentCache.set(noteId, contentDoc?.content || '');
         subscribeToContentDoc(noteId, contentHandle);
+      } else {
+        logger.debug(`[MarkdownSync] Content doc not ready for ${noteId}, skipping`);
       }
     } catch (error) {
-      logger.warn(`[MarkdownSync] Failed to load content doc for ${noteId}:`, error);
+      // Log at debug level since unavailable content docs are expected during migration
+      logger.debug(`[MarkdownSync] Failed to load content doc for ${noteId}:`, error);
     }
   };
 
@@ -782,8 +797,27 @@ export function setupMarkdownSync(
   // Set up async
   const setup = async (): Promise<void> => {
     try {
-      // Get the document handle
+      // Get the document handle with timeout
       docHandle = await repo.find<NotesDocument>(docUrl as AutomergeUrl);
+
+      // Wait for document to be ready with timeout
+      const timeoutMs = 10000;
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Timeout waiting for vault document ${vaultId}`)),
+          timeoutMs
+        );
+      });
+
+      await Promise.race([docHandle.whenReady(), timeoutPromise]);
+
+      // Check if document is available
+      if (!docHandle.isReady()) {
+        logger.warn(
+          `[MarkdownSync] Vault document unavailable for ${vaultId}, skipping markdown sync`
+        );
+        return;
+      }
 
       const doc = docHandle.doc();
 
@@ -841,7 +875,14 @@ export function setupMarkdownSync(
               loadPromises.push(loadContentDoc(noteId, contentUrls[noteId]));
             }
           }
-          await Promise.all(loadPromises);
+          // Use allSettled so individual unavailable docs don't stop the whole sync
+          const results = await Promise.allSettled(loadPromises);
+          const failures = results.filter((r) => r.status === 'rejected');
+          if (failures.length > 0) {
+            logger.debug(
+              `[MarkdownSync] ${failures.length} content docs failed to load (this is normal during migration)`
+            );
+          }
 
           // Sync only the notes that need it
           for (const noteId of notesNeedingContent) {
@@ -891,7 +932,15 @@ export function setupMarkdownSync(
 
       logger.info(`[MarkdownSync] Two-way sync active for vault: ${vaultId}`);
     } catch (err) {
-      logger.error(`[MarkdownSync] Setup failed for vault ${vaultId}:`, err);
+      // Handle "unavailable" errors gracefully - these are expected during migration
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('is unavailable')) {
+        logger.warn(
+          `[MarkdownSync] Vault document unavailable for ${vaultId}, skipping markdown sync`
+        );
+      } else {
+        logger.error(`[MarkdownSync] Setup failed for vault ${vaultId}:`, err);
+      }
     }
   };
 

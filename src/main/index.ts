@@ -50,6 +50,21 @@ import {
 import { scanMarkdownDirectory, getMarkdownImportData } from './markdown-import';
 import fontList from 'font-list';
 
+// Handle unhandled promise rejections from automerge-repo when documents are unavailable.
+// This can happen during legacy vault migration when content URLs reference non-existent documents.
+process.on('unhandledRejection', (reason: unknown) => {
+  const message = reason instanceof Error ? reason.message : String(reason);
+
+  // Suppress expected automerge-repo "Document unavailable" errors during migration
+  if (message.includes('is unavailable')) {
+    logger.debug('[Main] Suppressed automerge-repo unavailable document error:', reason);
+    return;
+  }
+
+  // Log other unhandled rejections
+  logger.error('[Main] Unhandled promise rejection:', reason);
+});
+
 // Module-level service references
 let chatServerInstance: ChatServer | null = null;
 
