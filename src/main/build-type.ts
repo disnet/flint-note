@@ -86,6 +86,12 @@ export function getAppUserModelId(): string {
  * before any code calls app.getPath('userData').
  */
 export function setupUserDataPath(): void {
+  // Allow override via environment variable (used for screenshot automation and testing)
+  if (process.env.FLINT_USER_DATA_PATH) {
+    app.setPath('userData', process.env.FLINT_USER_DATA_PATH);
+    return;
+  }
+
   const platform = os.platform();
   const homeDir = os.homedir();
 

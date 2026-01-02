@@ -41,7 +41,14 @@
     "build:linux:canary": "npm run build && electron-builder --linux --config electron-builder.canary.yml",
     "docs:dev": "vitepress dev docs-src",
     "docs:build": "vitepress build docs-src",
-    "docs:preview": "vitepress preview docs-src"
+    "docs:preview": "vitepress preview docs-src",
+    "screenshots": "npm run build && npx playwright test --config=screenshots/playwright.config.ts",
+    "screenshots:editor": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-editor",
+    "screenshots:settings": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-settings",
+    "screenshots:features": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-features",
+    "screenshots:chat": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-chat",
+    "screenshots:onboarding": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-onboarding",
+    "screenshots:debug": "npm run build && npx playwright test --config=screenshots/playwright.config.ts --debug"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.45",
@@ -96,6 +103,7 @@
     "@electron/notarize": "^3.1.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
+    "@playwright/test": "^1.57.0",
     "@rollup/plugin-wasm": "^6.2.2",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@testing-library/svelte": "^5.2.8",
@@ -112,6 +120,7 @@
     "electron-vite": "^3.1.0",
     "eslint": "^9.24.0",
     "eslint-plugin-svelte": "^3.13.0",
+    "playwright": "^1.57.0",
     "prettier": "^3.5.3",
     "prettier-plugin-svelte": "^3.3.3",
     "svelte": "^5.26.1",

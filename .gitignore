@@ -10,3 +10,8 @@ out
 .wrangler
 website/docs
 docs-src/.vitepress/cache
+
+# Screenshot automation
+screenshots/output/
+playwright-report/
+test-results/
