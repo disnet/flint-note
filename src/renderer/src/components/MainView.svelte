@@ -22,7 +22,9 @@
     addItemToWorkspace,
     getNonArchivedVaults,
     getActiveVault,
-    createVault,
+    createVaultWithOptions,
+    VAULT_TEMPLATES,
+    ONBOARDING_OPTIONS,
     switchVault,
     searchNotesEnhanced,
     searchNotesAsync,
@@ -49,8 +51,6 @@
     isLegacyVault,
     finalizeLegacyVaultMigration,
     selectSyncDirectory,
-    connectVaultSync,
-    getRepo,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -126,6 +126,8 @@
   let showChangelogModal = $state(false);
   let newVaultName = $state('');
   let newVaultSyncDirectory = $state<string | null>(null);
+  let newVaultTemplateId = $state('empty');
+  let newVaultOnboardingIds = $state<string[]>(['welcome']);
 
   // Lazy legacy vault migration state
   let isMigratingLegacyVault = $state(false);
@@ -591,7 +593,17 @@
   function handleCreateVault(): void {
     newVaultName = '';
     newVaultSyncDirectory = null;
+    newVaultTemplateId = 'empty';
+    newVaultOnboardingIds = ['welcome'];
     showCreateVaultModal = true;
+  }
+
+  function toggleNewVaultOnboarding(id: string): void {
+    if (newVaultOnboardingIds.includes(id)) {
+      newVaultOnboardingIds = newVaultOnboardingIds.filter((o) => o !== id);
+    } else {
+      newVaultOnboardingIds = [...newVaultOnboardingIds, id];
+    }
   }
 
   async function handleSelectSyncDirectory(): Promise<void> {
@@ -603,18 +615,20 @@
 
   async function submitCreateVault(): Promise<void> {
     if (newVaultName.trim()) {
-      const vault = createVault(newVaultName.trim(), newVaultSyncDirectory ?? undefined);
       showCreateVaultModal = false;
+      const vault = await createVaultWithOptions(
+        newVaultName.trim(),
+        newVaultSyncDirectory ?? undefined,
+        {
+          templateId: newVaultTemplateId,
+          onboardingIds: newVaultOnboardingIds
+        }
+      );
       newVaultName = '';
-      const syncDir = newVaultSyncDirectory;
       newVaultSyncDirectory = null;
+      newVaultTemplateId = 'empty';
+      newVaultOnboardingIds = ['welcome'];
       await switchVault(vault.id);
-
-      // Connect file sync if a directory was selected
-      if (syncDir) {
-        const repo = getRepo();
-        await connectVaultSync(repo, vault);
-      }
     }
   }
 
@@ -1550,36 +1564,79 @@
     onkeydown={(e) => e.key === 'Escape' && (showCreateVaultModal = false)}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div class="modal create-vault-modal" onclick={(e) => e.stopPropagation()}>
       <h3>Create New Vault</h3>
-      <input
-        type="text"
-        class="modal-input"
-        placeholder="Vault name"
-        bind:value={newVaultName}
-        onkeydown={(e) => e.key === 'Enter' && submitCreateVault()}
-      />
-      <div class="sync-directory-section">
-        <span class="sync-label">Sync to folder (optional)</span>
-        {#if newVaultSyncDirectory}
-          <div class="sync-directory-selected">
-            <span class="sync-path" title={newVaultSyncDirectory}
-              >{newVaultSyncDirectory}</span
-            >
-            <button
-              class="sync-clear-btn"
-              onclick={() => (newVaultSyncDirectory = null)}
-              title="Remove sync folder"
-            >
-              ✕
+      <div class="create-vault-scroll">
+        <input
+          type="text"
+          class="modal-input"
+          placeholder="Vault name"
+          bind:value={newVaultName}
+          onkeydown={(e) => e.key === 'Enter' && submitCreateVault()}
+        />
+        <div class="sync-directory-section">
+          <span class="sync-label">Sync to folder (optional)</span>
+          {#if newVaultSyncDirectory}
+            <div class="sync-directory-selected">
+              <span class="sync-path" title={newVaultSyncDirectory}
+                >{newVaultSyncDirectory}</span
+              >
+              <button
+                class="sync-clear-btn"
+                onclick={() => (newVaultSyncDirectory = null)}
+                title="Remove sync folder"
+              >
+                ✕
+              </button>
+            </div>
+          {:else}
+            <button class="modal-btn secondary" onclick={handleSelectSyncDirectory}>
+              Choose Folder...
             </button>
+          {/if}
+        </div>
+
+        <!-- Template selection -->
+        <div class="template-section">
+          <span class="section-label">Choose a template</span>
+          <div class="template-options">
+            {#each VAULT_TEMPLATES as template (template.id)}
+              <button
+                class="template-card"
+                class:selected={newVaultTemplateId === template.id}
+                onclick={() => (newVaultTemplateId = template.id)}
+                type="button"
+              >
+                <span class="template-icon">{template.icon}</span>
+                <span class="template-name">{template.name}</span>
+                <span class="template-desc">{template.description}</span>
+              </button>
+            {/each}
           </div>
-        {:else}
-          <button class="modal-btn secondary" onclick={handleSelectSyncDirectory}>
-            Choose Folder...
-          </button>
-        {/if}
+        </div>
+
+        <!-- Onboarding options -->
+        <div class="onboarding-section">
+          <span class="section-label">Include starter content (optional)</span>
+          <div class="onboarding-options">
+            {#each ONBOARDING_OPTIONS as option (option.id)}
+              <label class="onboarding-option">
+                <input
+                  type="checkbox"
+                  checked={newVaultOnboardingIds.includes(option.id)}
+                  onchange={() => toggleNewVaultOnboarding(option.id)}
+                />
+                <span class="option-icon">{option.icon}</span>
+                <div class="option-text">
+                  <span class="option-name">{option.name}</span>
+                  <span class="option-desc">{option.description}</span>
+                </div>
+              </label>
+            {/each}
+          </div>
+        </div>
       </div>
+
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick={() => (showCreateVaultModal = false)}
           >Cancel</button
@@ -2362,6 +2419,138 @@
   .sync-clear-btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  /* Create Vault Modal */
+  .create-vault-modal {
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .create-vault-scroll {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .section-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .template-section {
+    margin-top: 1rem;
+  }
+
+  .template-options {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .template-card {
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-light);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+  }
+
+  .template-card:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .template-card.selected {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  .template-icon {
+    font-size: 1.25rem;
+  }
+
+  .template-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+  }
+
+  .template-desc {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    line-height: 1.2;
+  }
+
+  .onboarding-section {
+    margin-top: 1rem;
+  }
+
+  .onboarding-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .onboarding-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .onboarding-option:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .onboarding-option input[type='checkbox'] {
+    width: 0.875rem;
+    height: 0.875rem;
+    accent-color: var(--accent-primary);
+    flex-shrink: 0;
+  }
+
+  .option-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    text-align: left;
+  }
+
+  .option-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+  }
+
+  .option-desc {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
   }
 
   /* Workspace Form */

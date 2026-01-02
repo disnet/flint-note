@@ -545,3 +545,26 @@ export type {
   AutomergeImportProgress,
   AutomergeImportResult
 } from './automerge-import.svelte';
+
+// Vault templates and onboarding
+export {
+  VAULT_TEMPLATES,
+  ONBOARDING_OPTIONS,
+  getTemplate,
+  getOnboardingOption
+} from './vault-templates';
+export type {
+  VaultTemplate,
+  OnboardingOption,
+  OnboardingNote,
+  WorkspaceTemplate,
+  NoteTypeTemplate
+} from './vault-templates';
+
+// Vault creation with templates
+export {
+  createVaultWithOptions,
+  applyVaultTemplate,
+  applyOnboardingContent
+} from './vault-creation.svelte';
+export type { VaultCreationOptions } from './vault-creation.svelte';

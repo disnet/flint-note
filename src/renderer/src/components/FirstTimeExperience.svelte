@@ -4,11 +4,11 @@
    * Shows detected legacy vaults for import or option to create new vault
    */
   import {
-    createVault,
     initializeState,
     selectSyncDirectory,
-    connectVaultSync,
-    getRepo
+    createVaultWithOptions,
+    VAULT_TEMPLATES,
+    ONBOARDING_OPTIONS
   } from '../lib/automerge';
   import {
     migrateLegacyVault,
@@ -66,6 +66,10 @@
   let isCreating = $state(false);
   let createError = $state<string | null>(null);
   let showCreateForm = $state(false);
+
+  // Template and onboarding selection
+  let selectedTemplateId = $state('empty');
+  let selectedOnboardingIds = $state<string[]>(['welcome']);
 
   /**
    * Import a legacy vault by migrating it
@@ -245,7 +249,18 @@
   }
 
   /**
-   * Create a new empty vault
+   * Toggle an onboarding option
+   */
+  function toggleOnboarding(id: string): void {
+    if (selectedOnboardingIds.includes(id)) {
+      selectedOnboardingIds = selectedOnboardingIds.filter((o) => o !== id);
+    } else {
+      selectedOnboardingIds = [...selectedOnboardingIds, id];
+    }
+  }
+
+  /**
+   * Create a new vault with selected template and onboarding
    */
   async function handleCreateVault(): Promise<void> {
     if (!vaultName.trim()) {
@@ -257,17 +272,11 @@
     createError = null;
 
     try {
-      // Create the vault (this creates the automerge document)
-      const vault = createVault(vaultName.trim(), vaultSyncDirectory ?? undefined);
-
-      // Initialize state with the new vault
-      await initializeState();
-
-      // Connect file sync if a directory was selected
-      if (vaultSyncDirectory) {
-        const repo = getRepo();
-        await connectVaultSync(repo, vault);
-      }
+      // Create the vault with template and onboarding options
+      await createVaultWithOptions(vaultName.trim(), vaultSyncDirectory ?? undefined, {
+        templateId: selectedTemplateId,
+        onboardingIds: selectedOnboardingIds
+      });
 
       // Notify parent
       onVaultCreated();
@@ -435,6 +444,48 @@
               {/if}
             </div>
 
+            <!-- Template selection -->
+            <div class="template-section">
+              <span class="form-label">Choose a template</span>
+              <div class="template-options">
+                {#each VAULT_TEMPLATES as template (template.id)}
+                  <button
+                    class="template-card"
+                    class:selected={selectedTemplateId === template.id}
+                    onclick={() => (selectedTemplateId = template.id)}
+                    disabled={isCreating}
+                    type="button"
+                  >
+                    <span class="template-icon">{template.icon}</span>
+                    <span class="template-name">{template.name}</span>
+                    <span class="template-desc">{template.description}</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Onboarding options -->
+            <div class="onboarding-section">
+              <span class="form-label">Include starter content (optional)</span>
+              <div class="onboarding-options">
+                {#each ONBOARDING_OPTIONS as option (option.id)}
+                  <label class="onboarding-option" class:disabled={isCreating}>
+                    <input
+                      type="checkbox"
+                      checked={selectedOnboardingIds.includes(option.id)}
+                      onchange={() => toggleOnboarding(option.id)}
+                      disabled={isCreating}
+                    />
+                    <span class="option-icon">{option.icon}</span>
+                    <div class="option-text">
+                      <span class="option-name">{option.name}</span>
+                      <span class="option-desc">{option.description}</span>
+                    </div>
+                  </label>
+                {/each}
+              </div>
+            </div>
+
             {#if createError}
               <div class="error-message">{createError}</div>
             {/if}
@@ -533,6 +584,48 @@
             {/if}
           </div>
 
+          <!-- Template selection -->
+          <div class="template-section">
+            <span class="form-label">Choose a template</span>
+            <div class="template-options">
+              {#each VAULT_TEMPLATES as template (template.id)}
+                <button
+                  class="template-card"
+                  class:selected={selectedTemplateId === template.id}
+                  onclick={() => (selectedTemplateId = template.id)}
+                  disabled={isCreating}
+                  type="button"
+                >
+                  <span class="template-icon">{template.icon}</span>
+                  <span class="template-name">{template.name}</span>
+                  <span class="template-desc">{template.description}</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Onboarding options -->
+          <div class="onboarding-section">
+            <span class="form-label">Include starter content (optional)</span>
+            <div class="onboarding-options">
+              {#each ONBOARDING_OPTIONS as option (option.id)}
+                <label class="onboarding-option" class:disabled={isCreating}>
+                  <input
+                    type="checkbox"
+                    checked={selectedOnboardingIds.includes(option.id)}
+                    onchange={() => toggleOnboarding(option.id)}
+                    disabled={isCreating}
+                  />
+                  <span class="option-icon">{option.icon}</span>
+                  <div class="option-text">
+                    <span class="option-name">{option.name}</span>
+                    <span class="option-desc">{option.description}</span>
+                  </div>
+                </label>
+              {/each}
+            </div>
+          </div>
+
           {#if createError}
             <div class="error-message">{createError}</div>
           {/if}
@@ -576,11 +669,12 @@
     height: 100vh;
     width: 100%;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
     padding: 2rem;
     box-sizing: border-box;
+    overflow-y: auto;
   }
 
   .welcome-content {
@@ -589,6 +683,7 @@
     text-align: center;
     animation: fadeInUp 0.6s ease-out;
     position: relative;
+    margin: auto 0;
   }
 
   @keyframes fadeInUp {
@@ -1064,6 +1159,132 @@
     background: var(--accent-primary-hover);
   }
 
+  /* Template selection */
+  .template-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .template-options {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .template-card {
+    flex: 1;
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-light);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+
+  .template-card:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .template-card.selected {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .template-card:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .template-icon {
+    font-size: 1.5rem;
+  }
+
+  .template-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+  }
+
+  .template-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+  }
+
+  /* Onboarding options */
+  .onboarding-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .onboarding-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .onboarding-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .onboarding-option:hover:not(.disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .onboarding-option.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .onboarding-option input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--accent-primary);
+    flex-shrink: 0;
+  }
+
+  .option-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    text-align: left;
+  }
+
+  .option-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .option-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
   /* Mobile responsive */
   @media (max-width: 640px) {
     .first-time-container {
@@ -1096,6 +1317,14 @@
 
     .legacy-vault-item {
       padding: 0.75rem;
+    }
+
+    .template-options {
+      flex-direction: column;
+    }
+
+    .template-card {
+      min-width: 100%;
     }
   }
 </style>

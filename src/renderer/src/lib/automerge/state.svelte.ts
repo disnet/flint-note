@@ -1069,6 +1069,7 @@ export async function createNote(params: {
   title?: string;
   content?: string;
   type?: string;
+  props?: Record<string, unknown>;
 }): Promise<string> {
   if (!docHandle) throw new Error('Not initialized');
   if (!activeVaultId) throw new Error('No active vault');
@@ -1095,7 +1096,10 @@ export async function createNote(params: {
       type: params.type || DEFAULT_NOTE_TYPE_ID,
       created: now,
       updated: now,
-      archived: false
+      archived: false,
+      ...(params.props && Object.keys(params.props).length > 0
+        ? { props: { ...params.props } }
+        : {})
     };
 
     // Store content URL in root doc for main process access
