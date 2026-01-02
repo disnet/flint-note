@@ -469,49 +469,63 @@ Now go write something. The system adapts to you.
 // Quick start note - practical essentials for power users
 const QUICK_START_CONTENT = `Everything you need to start building knowledge.
 
+## Take Notes
+
+Press \`Cmd/Ctrl + Shift + N\` to create a new note. Write whatever's on your mind - ideas, meeting notes, things you're learning. Don't worry about organization yet.
+
+## Make Links
+
+Type \`[[\` to connect notes together. Links are how knowledge compounds:
+- \`[[Project Ideas]]\` links to that note (creates it if it doesn't exist)
+- Backlinks show you what links *to* a note
+- Over time, your notes become a web of connected ideas
+
+## Use Note Types
+
+Notes have types that give them structure. The default is "Note", but you can create types like Meeting, Task, or Article - each with their own properties (dates, status, tags).
+
+- **Change a note's type**: \`Cmd/Ctrl + Shift + M\`
+- **Manage types**: \`Cmd/Ctrl + 5\`
+
+Types help you think differently about different kinds of notes, and let the AI agent understand your notes better.
+
 ## Essential Shortcuts
 
 - **New note**: \`Cmd/Ctrl + Shift + N\`
 - **Search**: \`Cmd/Ctrl + K\`
-- **Daily notes**: \`Cmd/Ctrl + 2\`
-- **Review**: \`Cmd/Ctrl + 3\`
-- **Toggle agent**: \`Cmd/Ctrl + Shift + A\`
+- **Pin note**: \`Cmd/Ctrl + Shift + P\`
+- **Change type**: \`Cmd/Ctrl + Shift + M\`
 
-## Three Features That Matter Most
+## Three Features to Explore
 
-### 1. AI Agent (\`Cmd/Ctrl + Shift + A\`)
+Once you're comfortable with notes and links, these help you get more out of your knowledge:
 
-Your knowledge partner. Ask it to:
-- "Create a meeting note for tomorrow's standup"
-- "Find notes about authentication"
-- "Summarize my notes from last week"
-- "Suggest wikilinks for this note"
+### Daily Notes (\`Cmd/Ctrl + 2\`)
 
-The agent understands your notes, follows wikilinks, and works across your entire vault.
+A week view for journaling and quick capture. Great for:
+- Morning intentions, end-of-day reflections
+- Ideas that pop up throughout the day
+- Linking out to permanent notes as things develop
 
-### 2. Daily Notes (\`Cmd/Ctrl + 2\`)
+### Review System (\`Cmd/Ctrl + 3\`)
 
-Your capture hub:
-- Week view shows 7 days for context
-- Journal entries, quick thoughts, anything time-anchored
-- Natural place to link out to permanent notes
-- Navigate: \`[\` / \`]\` for weeks, \`T\` for today
-
-### 3. Review System (\`Cmd/Ctrl + 3\`)
-
-Turn passive notes into active knowledge:
-1. Enable review on any note (click Review button or ask the agent)
-2. AI generates a challenge testing your understanding
-3. Respond from memory, get feedback
+Turn notes into lasting knowledge through spaced repetition:
+1. Enable review on important notes
+2. AI generates challenges testing your understanding
+3. Answer from memory, rate your confidence
 4. Notes resurface at optimal intervals
 
-## Wikilinks: The Glue
+### AI Agent (\`Cmd/Ctrl + Shift + A\`)
 
-Type \`[[\` to link notes. Connections make knowledge compound. Backlinks show what links *to* a note.
+Your knowledge partner. Ask it to:
+- "Create a meeting note for tomorrow"
+- "Find notes about [topic]"
+- "Suggest wikilinks for this note"
+- "Summarize my notes from last week"
 
-## Just Start
+---
 
-Create a note. Write what you're thinking. Link to related ideas. Let structure emerge.
+Start simple: take notes, make links. The rest will follow.
 
 → See [[The Deep Knowledge Cycle]] for the philosophy behind Flint
 `;
