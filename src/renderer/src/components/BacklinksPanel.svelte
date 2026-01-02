@@ -181,12 +181,16 @@
                 {#each backlink.occurrences as occurrence, idx (idx)}
                   <div class="occurrence-line">
                     <span class="line-gutter">|</span>
-                    <BacklinkLineEditor
-                      sourceNoteId={backlink.note.id}
-                      lineNumber={occurrence.lineNumber}
-                      initialText={occurrence.lineText}
-                      {onWikilinkClick}
-                    />
+                    {#if occurrence.source === 'content'}
+                      <BacklinkLineEditor
+                        sourceNoteId={backlink.note.id}
+                        lineNumber={occurrence.lineNumber}
+                        initialText={occurrence.lineText}
+                        {onWikilinkClick}
+                      />
+                    {:else}
+                      <span class="property-backlink">via {occurrence.propertyName}</span>
+                    {/if}
                   </div>
                 {/each}
               </div>
@@ -376,5 +380,12 @@
     line-height: 1.5;
     user-select: none;
     opacity: 0.5;
+  }
+
+  .property-backlink {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.5;
   }
 </style>

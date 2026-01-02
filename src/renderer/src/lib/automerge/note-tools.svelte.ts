@@ -780,10 +780,11 @@ export function createNoteTools(): Record<string, Tool> {
               const content = await getNoteContent(bl.note.id);
               return {
                 note: toNoteResultFromMetadata(bl.note, content, 200),
-                occurrences: bl.occurrences.map((occ) => ({
-                  lineNumber: occ.lineNumber,
-                  text: occ.lineText
-                }))
+                occurrences: bl.occurrences.map((occ) =>
+                  occ.source === 'content'
+                    ? { lineNumber: occ.lineNumber, text: occ.lineText }
+                    : { propertyName: occ.propertyName, text: `via ${occ.propertyName}` }
+                )
               };
             })
           );

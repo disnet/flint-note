@@ -2205,12 +2205,18 @@ export async function navigateToNote(
 
 const LINK_PATTERN = /\[\[(n-[a-f0-9]{8})(?:\|[^\]]+)?\]\]/g;
 
-export interface BacklinkOccurrence {
-  lineNumber: number; // 0-indexed line in source
-  lineText: string; // Full line text
-  charStart: number; // Link start position in line
-  charEnd: number; // Link end position in line
-}
+export type BacklinkOccurrence =
+  | {
+      source: 'content';
+      lineNumber: number; // 0-indexed line in source
+      lineText: string; // Full line text
+      charStart: number; // Link start position in line
+      charEnd: number; // Link end position in line
+    }
+  | {
+      source: 'property';
+      propertyName: string; // Name of the notelink/notelinks property
+    };
 
 export interface BacklinkResult {
   note: NoteMetadata;
@@ -2240,11 +2246,36 @@ export async function getBacklinks(noteId: string): Promise<BacklinkResult[]> {
       while ((match = LINK_PATTERN.exec(line)) !== null) {
         if (match[1] === noteId) {
           occurrences.push({
+            source: 'content',
             lineNumber: i,
             lineText: line,
             charStart: match.index,
             charEnd: match.index + match[0].length
           });
+        }
+      }
+    }
+
+    // Also check notelink/notelinks properties for references
+    const noteType = getNoteType(note.type);
+    if (noteType?.properties) {
+      for (const propDef of noteType.properties) {
+        if (propDef.type === 'notelink') {
+          const propValue = note.props?.[propDef.name] as string | undefined;
+          if (propValue === noteId) {
+            occurrences.push({
+              source: 'property',
+              propertyName: propDef.name
+            });
+          }
+        } else if (propDef.type === 'notelinks') {
+          const propValue = note.props?.[propDef.name] as string[] | undefined;
+          if (propValue?.includes(noteId)) {
+            occurrences.push({
+              source: 'property',
+              propertyName: propDef.name
+            });
+          }
         }
       }
     }
