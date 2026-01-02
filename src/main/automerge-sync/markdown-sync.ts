@@ -347,12 +347,16 @@ async function importOrphanedFile(
 
       // Create note metadata and store content URL
       docHandle.change((doc) => {
-        doc.notes[noteId] = {
+        const noteData: SyncNoteMetadata = {
           id: noteId,
           title,
-          type,
-          props: props && Object.keys(props).length > 0 ? props : undefined
+          type
         };
+        // Only add props if there are values (Automerge doesn't allow undefined)
+        if (props && Object.keys(props).length > 0) {
+          noteData.props = props;
+        }
+        doc.notes[noteId] = noteData;
         if (!doc.contentUrls) doc.contentUrls = {};
         doc.contentUrls[noteId] = contentHandle.url;
       });
@@ -696,12 +700,16 @@ export function setupMarkdownSync(
           }
         } else {
           // Note doesn't exist, create it with content doc
-          doc.notes[noteId] = {
+          const noteData: SyncNoteMetadata = {
             id: noteId,
             title,
-            type,
-            props: props && Object.keys(props).length > 0 ? props : undefined
+            type
           };
+          // Only add props if there are values (Automerge doesn't allow undefined)
+          if (props && Object.keys(props).length > 0) {
+            noteData.props = props;
+          }
+          doc.notes[noteId] = noteData;
         }
       });
     }

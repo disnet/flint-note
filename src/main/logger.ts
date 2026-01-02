@@ -114,6 +114,27 @@ class Logger {
       return meta;
     }
 
+    // Handle Error objects passed directly as meta
+    if (meta instanceof Error) {
+      return {
+        error: {
+          message: meta.message,
+          name: meta.name,
+          stack: meta.stack,
+          // Include any additional properties on the error
+          ...Object.getOwnPropertyNames(meta).reduce(
+            (acc, prop) => {
+              if (!['message', 'name', 'stack'].includes(prop)) {
+                acc[prop] = (meta as unknown as Record<string, unknown>)[prop];
+              }
+              return acc;
+            },
+            {} as Record<string, unknown>
+          )
+        }
+      };
+    }
+
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(meta)) {
       if (value instanceof Error) {
