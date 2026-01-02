@@ -9,6 +9,11 @@
     getMigrationProgress,
     resetMigrationState
   } from '../lib/automerge/legacy-migration.svelte';
+  import {
+    importMarkdownDirectory,
+    getImportProgress,
+    resetImportState
+  } from '../lib/automerge/markdown-import.svelte';
 
   // Legacy vault config type (from old app's config.yml)
   interface LegacyVaultConfig {
@@ -29,11 +34,14 @@
   // Determine if we have legacy vaults to show
   const hasLegacyVaults = $derived(legacyVaults.length > 0);
 
-  // Migration state
+  // Migration state (for both legacy and markdown imports)
   let isMigrating = $state(false);
   let migratingVaultName = $state<string | null>(null);
   let migrationError = $state<string | null>(null);
   const migrationProgress = $derived(getMigrationProgress());
+  const markdownProgress = $derived(getImportProgress());
+  // Use markdown progress when available, otherwise use legacy migration progress
+  const currentProgress = $derived(markdownProgress || migrationProgress);
 
   // New vault creation state
   let vaultName = $state('My Notes');
@@ -74,31 +82,83 @@
 
   /**
    * Browse for a vault directory to import
+   * Supports both legacy vaults and plain markdown directories
    */
   async function handleBrowseForVault(): Promise<void> {
     try {
       const selectedPath = await window.api?.legacyMigration.browseForVault();
       if (!selectedPath) return;
 
-      // Detect if it's a valid legacy vault
+      // First, check for legacy vault
       const detectedVault = await window.api?.legacyMigration.detectLegacyVaultAtPath({
         vaultPath: selectedPath,
         existingVaults: []
       });
 
       if (detectedVault) {
-        // Import the detected vault
+        // Import the detected legacy vault
         await handleImportLegacyVault({
           id: '',
           name: detectedVault.name,
           path: detectedVault.path
         });
-      } else {
-        migrationError = 'No valid vault found at the selected location';
+        return;
       }
+
+      // Check for markdown directory
+      const markdownDir = await window.api?.markdownImport.detectMarkdownDirectory({
+        dirPath: selectedPath
+      });
+
+      if (markdownDir) {
+        // Import the markdown directory
+        await handleImportMarkdownDirectory(markdownDir);
+        return;
+      }
+
+      // Neither legacy vault nor markdown directory
+      migrationError =
+        "The selected directory doesn't contain a Flint vault or markdown files";
     } catch (error) {
       migrationError = error instanceof Error ? error.message : String(error);
       console.error('Browse error:', error);
+    }
+  }
+
+  /**
+   * Import a plain markdown directory as a new vault
+   */
+  async function handleImportMarkdownDirectory(dirInfo: {
+    path: string;
+    name: string;
+    fileCount: number;
+    categories: string[];
+  }): Promise<void> {
+    isMigrating = true;
+    migratingVaultName = dirInfo.name;
+    migrationError = null;
+
+    try {
+      const result = await importMarkdownDirectory(dirInfo.path, dirInfo.name);
+
+      if (result.success && result.vault) {
+        // Successfully imported - initialize state and notify parent
+        await initializeState();
+        onVaultCreated();
+      } else {
+        // Handle import failure
+        const errorMsg =
+          result.errors?.[0]?.message ?? 'Import failed for unknown reason';
+        migrationError = errorMsg;
+        console.error('Markdown import failed:', result.errors);
+      }
+    } catch (error) {
+      migrationError = error instanceof Error ? error.message : String(error);
+      console.error('Markdown import error:', error);
+    } finally {
+      isMigrating = false;
+      migratingVaultName = null;
+      resetImportState();
     }
   }
 
@@ -162,19 +222,19 @@
         <div class="migration-modal">
           <div class="migration-spinner">🔥</div>
           <h3>Importing {migratingVaultName}...</h3>
-          {#if migrationProgress}
+          {#if currentProgress}
             <div class="progress-section">
-              <p class="progress-phase">{migrationProgress.message}</p>
-              {#if migrationProgress.total > 0}
+              <p class="progress-phase">{currentProgress.message}</p>
+              {#if currentProgress.total > 0}
                 <div class="progress-bar-container">
                   <div
                     class="progress-bar"
-                    style="width: {(migrationProgress.current / migrationProgress.total) *
+                    style="width: {(currentProgress.current / currentProgress.total) *
                       100}%"
                   ></div>
                 </div>
                 <p class="progress-count">
-                  {migrationProgress.current} / {migrationProgress.total}
+                  {currentProgress.current} / {currentProgress.total}
                 </p>
               {/if}
             </div>

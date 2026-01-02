@@ -515,3 +515,16 @@ export {
   isFileSyncAvailable
 } from './file-sync.svelte';
 export type { FileType as FileSyncFileType } from './file-sync.svelte';
+
+// Markdown directory import
+export {
+  importMarkdownDirectory,
+  getImportProgress,
+  getIsImporting,
+  resetImportState
+} from './markdown-import.svelte';
+export type {
+  MarkdownImportProgress,
+  MarkdownImportResult,
+  MarkdownImportError
+} from './markdown-import.svelte';

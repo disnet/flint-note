@@ -360,6 +360,37 @@ const api = {
         last_modified?: string;
       }[]
     > => electronAPI.ipcRenderer.invoke('read-legacy-vault-paths')
+  },
+
+  // Plain markdown directory import operations
+  markdownImport: {
+    // Detect if a directory contains markdown files
+    detectMarkdownDirectory: (params: {
+      dirPath: string;
+    }): Promise<{
+      path: string;
+      name: string;
+      fileCount: number;
+      categories: string[];
+    } | null> => electronAPI.ipcRenderer.invoke('detect-markdown-directory', params),
+
+    // Get full import data with file contents
+    getMarkdownImportData: (params: {
+      dirPath: string;
+    }): Promise<{
+      directory: {
+        path: string;
+        name: string;
+        fileCount: number;
+        categories: string[];
+      };
+      files: Array<{
+        relativePath: string;
+        title: string;
+        content: string;
+        categoryName: string | null;
+      }>;
+    } | null> => electronAPI.ipcRenderer.invoke('get-markdown-import-data', params)
   }
 };
 

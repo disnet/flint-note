@@ -47,6 +47,7 @@ import {
   getMigrationDocumentData,
   readLegacyVaultPaths
 } from './migration';
+import { scanMarkdownDirectory, getMarkdownImportData } from './markdown-import';
 import fontList from 'font-list';
 
 // Module-level service references
@@ -968,6 +969,38 @@ app.whenReady().then(async () => {
       return [];
     }
   });
+
+  // Detect if a directory contains markdown files (for plain directory import)
+  ipcMain.handle(
+    'detect-markdown-directory',
+    async (_event, params: { dirPath: string }) => {
+      try {
+        return scanMarkdownDirectory(params.dirPath);
+      } catch (error) {
+        logger.error('Failed to detect markdown directory', {
+          error,
+          dirPath: params.dirPath
+        });
+        return null;
+      }
+    }
+  );
+
+  // Get full import data for a markdown directory
+  ipcMain.handle(
+    'get-markdown-import-data',
+    async (_event, params: { dirPath: string }) => {
+      try {
+        return await getMarkdownImportData(params.dirPath);
+      } catch (error) {
+        logger.error('Failed to get markdown import data', {
+          error,
+          dirPath: params.dirPath
+        });
+        return null;
+      }
+    }
+  );
 
   await createWindow(settingsStorageService);
   logger.info('Main window created and IPC handlers registered');

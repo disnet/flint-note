@@ -285,6 +285,30 @@ declare global {
           }>
         >;
       };
+
+      // Plain markdown directory import operations
+      markdownImport: {
+        detectMarkdownDirectory: (params: { dirPath: string }) => Promise<{
+          path: string;
+          name: string;
+          fileCount: number;
+          categories: string[];
+        } | null>;
+        getMarkdownImportData: (params: { dirPath: string }) => Promise<{
+          directory: {
+            path: string;
+            name: string;
+            fileCount: number;
+            categories: string[];
+          };
+          files: Array<{
+            relativePath: string;
+            title: string;
+            content: string;
+            categoryName: string | null;
+          }>;
+        } | null>;
+      };
     };
   }
 }
