@@ -17,11 +17,11 @@ export interface LaunchOptions {
   vaultName?: string;
   /** Additional environment variables */
   env?: Record<string, string>;
-  /** Viewport size (default: 1400x960) */
+  /** Viewport size (default: 1200x900) */
   viewport?: { width: number; height: number };
 }
 
-const DEFAULT_VIEWPORT = { width: 1400, height: 960 };
+const DEFAULT_VIEWPORT = { width: 1200, height: 900 };
 
 // Track temp directories for cleanup
 const tempDirs: string[] = [];
