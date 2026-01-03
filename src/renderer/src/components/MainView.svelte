@@ -65,20 +65,17 @@
   } from '../lib/automerge/legacy-migration.svelte';
   import LeftSidebar from './LeftSidebar.svelte';
   import NoteEditor from './NoteEditor.svelte';
-  import SearchResults from './SearchResults.svelte';
+  import SearchView from './SearchView.svelte';
   import NoteTypesView from './NoteTypesView.svelte';
+  import SettingsView from './SettingsView.svelte';
   import EpubViewer from './EpubViewer.svelte';
   import PdfViewer from './PdfViewer.svelte';
   import WebpageViewer from './WebpageViewer.svelte';
   import DeckViewer from './DeckViewer.svelte';
   import DailyView from './DailyView.svelte';
-  import VaultSyncSettings from './VaultSyncSettings.svelte';
   import FABMenu from './FABMenu.svelte';
   import ChatPanel from './ChatPanel.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
-  import APIKeySettings from './APIKeySettings.svelte';
-  import DebugSettings from './DebugSettings.svelte';
-  import AboutSettings from './AboutSettings.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
   import ReviewView from './ReviewView.svelte';
   import InboxView from './InboxView.svelte';
@@ -155,55 +152,7 @@
   let moreMenuPosition = $state({ x: 0, y: 0 });
   let isPreviewMode = $state(false);
 
-  // Font settings state
-  let systemFonts = $state<string[]>([]);
-  let loadingFonts = $state(false);
-
-  // Load system fonts when custom font option is selected
-  async function loadSystemFonts(): Promise<void> {
-    if (systemFonts.length > 0 || loadingFonts) return;
-    loadingFonts = true;
-    try {
-      const fonts = await window.api?.getSystemFonts();
-      if (fonts) {
-        systemFonts = fonts;
-      }
-    } catch (error) {
-      console.error('Failed to load system fonts:', error);
-    } finally {
-      loadingFonts = false;
-    }
-  }
-
-  // Watch for custom preset selection to load fonts
-  $effect(() => {
-    if (settingsStore.settings.appearance.font?.preset === 'custom') {
-      loadSystemFonts();
-    }
-  });
-
-  // Handle font preset change
-  async function handleFontPresetChange(
-    preset: 'sans-serif' | 'serif' | 'monospace' | 'custom'
-  ): Promise<void> {
-    await settingsStore.updateFont({
-      preset,
-      customFont:
-        preset === 'custom'
-          ? settingsStore.settings.appearance.font?.customFont
-          : undefined
-    });
-  }
-
-  // Handle custom font selection
-  async function handleCustomFontChange(fontName: string): Promise<void> {
-    await settingsStore.updateFont({
-      preset: 'custom',
-      customFont: fontName
-    });
-  }
-
-  // Handle font size change
+  // Handle font size change (used by menu actions)
   async function handleFontSizeChange(size: number): Promise<void> {
     await settingsStore.updateSettings({
       appearance: {
@@ -1272,165 +1221,19 @@
             isActiveNoteDeck}
         >
           {#if activeSystemView === 'settings'}
-            <div class="settings-panel">
-              <h2>Settings</h2>
-              <div class="settings-group">
-                <label>
-                  <span>Theme</span>
-                  <select bind:value={settingsStore.settings.appearance.theme}>
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="settings-group">
-                <label>
-                  <span>Editor Font</span>
-                  <select
-                    value={settingsStore.settings.appearance.font?.preset || 'sans-serif'}
-                    onchange={(e) =>
-                      handleFontPresetChange(
-                        e.currentTarget.value as
-                          | 'sans-serif'
-                          | 'serif'
-                          | 'monospace'
-                          | 'custom'
-                      )}
-                  >
-                    <option value="sans-serif">Sans-serif</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="custom">Custom...</option>
-                  </select>
-                </label>
-              </div>
-
-              {#if settingsStore.settings.appearance.font?.preset === 'custom'}
-                <div class="settings-group">
-                  <label>
-                    <span>Custom Font</span>
-                    <select
-                      value={settingsStore.settings.appearance.font?.customFont || ''}
-                      onchange={(e) => handleCustomFontChange(e.currentTarget.value)}
-                      disabled={loadingFonts}
-                    >
-                      <option value=""
-                        >{loadingFonts ? 'Loading fonts...' : 'Select a font...'}</option
-                      >
-                      {#each systemFonts as fontName (fontName)}
-                        <option value={fontName}>{fontName}</option>
-                      {/each}
-                    </select>
-                  </label>
-                  {#if settingsStore.settings.appearance.font?.customFont}
-                    <div
-                      class="font-preview"
-                      style="font-family: '{settingsStore.settings.appearance.font
-                        .customFont}'"
-                    >
-                      The quick brown fox jumps over the lazy dog.
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-
-              <div class="settings-group">
-                <label>
-                  <span>Font Size</span>
-                  <div class="font-size-control">
-                    <input
-                      type="range"
-                      min="12"
-                      max="24"
-                      step="1"
-                      value={settingsStore.settings.appearance.fontSize ?? 16}
-                      oninput={(e) =>
-                        handleFontSizeChange(parseInt(e.currentTarget.value))}
-                    />
-                    <span class="font-size-value"
-                      >{settingsStore.settings.appearance.fontSize ?? 16}px</span
-                    >
-                  </div>
-                </label>
-              </div>
-
-              <div class="settings-divider"></div>
-
-              <!-- API Key Settings -->
-              <APIKeySettings />
-
-              <div class="settings-divider"></div>
-
-              <!-- File Sync Settings -->
-              <VaultSyncSettings />
-
-              <div class="settings-divider"></div>
-
-              <!-- Debug / Performance Settings (dev mode only) -->
-              {#if import.meta.env.DEV}
-                <DebugSettings />
-                <div class="settings-divider"></div>
-              {/if}
-
-              <!-- Legacy Vault Import -->
-              <div class="import-section">
-                <h3>Import Legacy Vault</h3>
-                <p class="import-description">
-                  Import notes from an older Flint vault (before the Automerge update).
-                  Your original files will not be modified.
-                </p>
-                <button
-                  class="action-button primary"
-                  onclick={() => (showLegacyMigrationModal = true)}
-                >
-                  Import Legacy Vault...
-                </button>
-              </div>
-
-              <div class="settings-divider"></div>
-
-              <!-- About / Version -->
-              <AboutSettings onShowChangelog={() => (showChangelogModal = true)} />
-
-              <button class="close-settings" onclick={() => setActiveSystemView(null)}
-                >Close</button
-              >
-            </div>
+            <SettingsView
+              onClose={() => setActiveSystemView(null)}
+              onShowLegacyMigrationModal={() => (showLegacyMigrationModal = true)}
+              onShowChangelog={() => (showChangelogModal = true)}
+            />
           {:else if activeSystemView === 'search'}
-            <!-- Dedicated Search View -->
-            <div class="search-view">
-              <div class="search-view-header">
-                <h2>Search Results ({searchResults.length})</h2>
-                <span class="search-query-label">for "{searchQuery}"</span>
-                <button
-                  class="close-search-btn"
-                  onclick={() => setActiveSystemView(null)}
-                  aria-label="Close search"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-              <div class="search-view-content">
-                <SearchResults
-                  results={searchResults}
-                  onSelect={handleSearchResultSelect}
-                  maxResults={50}
-                  isLoading={isSearchingContent}
-                />
-              </div>
-            </div>
+            <SearchView
+              {searchResults}
+              {searchQuery}
+              {isSearchingContent}
+              onClose={() => setActiveSystemView(null)}
+              onSelect={handleSearchResultSelect}
+            />
           {:else if activeSystemView === 'types'}
             <!-- Note Types View -->
             <NoteTypesView
@@ -1993,58 +1796,6 @@
     color: var(--text-primary);
   }
 
-  /* Search View */
-  .search-view {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .search-view-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
-    flex-shrink: 0;
-  }
-
-  .search-view-header h2 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-  }
-
-  .search-query-label {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-  }
-
-  .close-search-btn {
-    margin-left: auto;
-    padding: 0.375rem;
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-search-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .search-view-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.5rem 0;
-  }
-
   /* Main Content */
   .main-content {
     flex: 1;
@@ -2153,120 +1904,6 @@
 
   .create-note-btn:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
-  }
-
-  /* Settings Panel */
-  .settings-panel {
-    padding: 2rem;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .settings-panel h2 {
-    margin: 0 0 1.5rem;
-  }
-
-  .settings-group {
-    margin-bottom: 1rem;
-  }
-
-  .settings-group label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
-    background: var(--bg-secondary);
-    border-radius: 0.5rem;
-  }
-
-  .settings-group select {
-    padding: 0.5rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-  }
-
-  .font-preview {
-    margin-top: 0.5rem;
-    padding: 0.75rem;
-    background: var(--bg-secondary);
-    border-radius: 0.375rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: var(--text-primary);
-  }
-
-  .font-size-control {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .font-size-control input[type='range'] {
-    width: 120px;
-    accent-color: var(--accent-primary);
-  }
-
-  .font-size-value {
-    min-width: 3rem;
-    text-align: right;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-  }
-
-  .settings-divider {
-    height: 1px;
-    background: var(--border-light);
-    margin: 1.5rem 0;
-  }
-
-  .close-settings {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-tertiary, var(--bg-hover));
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-
-  /* Import Section */
-  .import-section {
-    padding: 1rem;
-  }
-
-  .import-section h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 0.75rem 0;
-    color: var(--text-primary);
-  }
-
-  .import-description {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    margin: 0 0 1rem 0;
-  }
-
-  .action-button {
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: background-color 0.15s ease;
-  }
-
-  .action-button.primary {
-    background: var(--accent-primary);
-    color: var(--accent-text);
-  }
-
-  .action-button.primary:hover {
-    background: var(--accent-primary-hover);
   }
 
   /* Modal Styles */
