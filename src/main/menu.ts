@@ -1,4 +1,4 @@
-import { app, Menu, BrowserWindow, shell, nativeImage, ipcMain } from 'electron';
+import { app, Menu, BrowserWindow, nativeImage, ipcMain } from 'electron';
 
 /**
  * IMPORTANT: Menu definitions should stay in sync with:
@@ -482,12 +482,6 @@ export function createApplicationMenu(): Menu {
     {
       label: 'Help',
       submenu: [
-        {
-          label: 'Documentation',
-          click: async (): Promise<void> => {
-            await shell.openExternal('https://www.flintnote.com/docs');
-          }
-        },
         {
           label: "What's New",
           click: (): void => {

@@ -136,7 +136,6 @@ export const windowMenuItems: MenuItemDef[] = [
  * Help menu items
  */
 export const helpMenuItems: MenuItemDef[] = [
-  { label: 'Documentation', action: 'open-docs' },
   { label: "What's New", action: 'show-changelog' },
   {
     label: 'Show Debug Logs in Finder',

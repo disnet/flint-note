@@ -61,9 +61,6 @@
       if (item.action.startsWith('navigate:')) {
         const view = item.action.replace('navigate:', '');
         window.api?.triggerMenuNavigate(view);
-      } else if (item.action === 'open-docs') {
-        // Special case for external links
-        window.api?.openExternal({ url: 'https://www.flintnote.com/docs' });
       } else {
         window.api?.triggerMenuAction(item.action);
       }
