@@ -749,6 +749,7 @@
   .search-container {
     position: relative;
     -webkit-app-region: no-drag;
+    padding-left: 0.75rem;
   }
 
   .search-input-wrapper {
@@ -793,7 +794,7 @@
   .search-dropdown {
     position: absolute;
     top: 100%;
-    left: 0;
+    left: 0.75rem;
     right: 0;
     background: var(--bg-primary);
     border: 1px solid var(--accent-primary);
