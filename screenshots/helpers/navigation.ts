@@ -299,3 +299,118 @@ export async function pinNoteByTitle(window: Page, title: string): Promise<void>
     await resetDocumentScroll(window);
   }
 }
+
+/**
+ * Start a review session for a specific note by clicking "Review Now" button.
+ * Must be in the review view first.
+ */
+export async function startReviewForNote(window: Page, noteTitle: string): Promise<void> {
+  // Wait for the review stats section to load
+  await window.waitForSelector('.review-stats', { timeout: 5000 });
+  await waitForAnimations(window, 300);
+
+  // Expand the "All Review Notes" section if not already expanded
+  const sectionToggle = await window.$('.section-toggle:has-text("All Review Notes")');
+  if (sectionToggle) {
+    // Check if the section is already expanded by looking for the notes list
+    const notesList = await window.$('.review-notes-list');
+    if (!notesList) {
+      await sectionToggle.click();
+      await waitForAnimations(window, 300);
+      // Wait for the list to appear
+      await window.waitForSelector('.review-notes-list', { timeout: 5000 });
+    }
+  }
+
+  // Find the note card by title and click its Review Now button
+  const noteCards = await window.$$('.review-notes-list .note-card');
+  for (const card of noteCards) {
+    const titleEl = await card.$('.note-title');
+    if (titleEl) {
+      const title = await titleEl.textContent();
+      if (title?.includes(noteTitle)) {
+        const reviewBtn = await card.$('.review-btn');
+        if (reviewBtn) {
+          await reviewBtn.click();
+          await waitForAnimations(window, 500);
+          // Wait for review prompt to appear
+          await window.waitForSelector('.challenge-section', { timeout: 10000 });
+          await waitForAnimations(window, 1500); // Wait for streaming to complete
+          return;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Submit a review response and wait for feedback.
+ * Must be in the prompting state first.
+ */
+export async function submitReviewResponse(
+  window: Page,
+  response: string
+): Promise<void> {
+  // Wait for the textarea to be available
+  await window.waitForSelector('.review-textarea', { timeout: 5000 });
+  await waitForAnimations(window, 200);
+
+  // Click and type in the response
+  const textarea = await window.$('.review-textarea');
+  if (textarea) {
+    await textarea.click();
+    await waitForAnimations(window, 100);
+    await window.keyboard.type(response, { delay: 10 });
+    await waitForAnimations(window, 200);
+
+    // Click submit button
+    const submitBtn = await window.$('.action-btn.primary');
+    if (submitBtn) {
+      await submitBtn.click();
+      await waitForAnimations(window, 500);
+      // Wait for feedback to appear and stream
+      await window.waitForSelector('.feedback-section', { timeout: 10000 });
+      await waitForAnimations(window, 2000); // Wait for streaming to complete
+    }
+  }
+}
+
+/**
+ * Enable review mode for a note by title.
+ * Opens the note, clicks the actions menu, and clicks "Enable Review".
+ */
+export async function enableReviewForNote(
+  window: Page,
+  noteTitle: string
+): Promise<void> {
+  // Select the note first
+  await selectNoteByTitle(window, noteTitle);
+
+  // Wait for the note to be fully loaded
+  await window.waitForSelector('.note-editor', { timeout: 5000 });
+  await waitForAnimations(window, 300);
+
+  // Click the more menu button to open the actions menu
+  // The button has class .more-menu-button and aria-label "More options"
+  const moreButton = await window.$('.more-menu-button');
+  if (moreButton) {
+    await moreButton.click();
+    await waitForAnimations(window, 300);
+
+    // Wait for the menu to appear
+    await window.waitForSelector('.actions-menu', { timeout: 5000 });
+    await waitForAnimations(window, 100);
+
+    // Click "Enable Review" button
+    const enableReviewBtn = await window.$(
+      '.actions-menu button:has-text("Enable Review")'
+    );
+    if (enableReviewBtn) {
+      await enableReviewBtn.click();
+      await waitForAnimations(window, 200);
+    }
+
+    // Reset scroll after clicking
+    await resetDocumentScroll(window);
+  }
+}

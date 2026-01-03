@@ -7,11 +7,15 @@ import {
   navigateToSystemView,
   selectNoteByTitle,
   openChatPanel,
+  closeFloatingPanels,
   fillDailyEntry,
   getTodayIndex,
   resetScrollPositions,
   resetDocumentScroll,
-  pinNoteByTitle
+  pinNoteByTitle,
+  enableReviewForNote,
+  startReviewForNote,
+  submitReviewResponse
 } from '../helpers/navigation';
 import { setupDemoVault, setThemeDirect } from '../helpers/data-setup';
 import { waitForAnimations } from '../helpers/wait-utils';
@@ -192,6 +196,83 @@ test.describe('App Screenshots', () => {
         category: 'main',
         name: 'agent-dark',
         description: 'Note with agent interaction in dark theme'
+      });
+
+      // =========================================
+      // 4. Review Mode - Prompting State
+      // =========================================
+      console.log('  📚 Capturing review mode (prompting)...');
+
+      // Close the chat panel first
+      await closeFloatingPanels(window);
+      await waitForAnimations(window, 300);
+
+      // Enable review for the note first (via the note's actions menu)
+      await enableReviewForNote(window, 'The Art of Doing Science');
+      await waitForAnimations(window, 300);
+
+      // Navigate to review view
+      await navigateToSystemView(window, 'review');
+      await waitForAnimations(window, 500);
+
+      // Start a review for "The Art of Doing Science" note
+      await startReviewForNote(window, 'The Art of Doing Science');
+      await waitForAnimations(window, 500);
+
+      // Reset scroll before capturing
+      await resetDocumentScroll(window);
+
+      // Light theme - prompting state
+      await setThemeDirect(window, 'light');
+      await waitForAnimations(window);
+      await resetDocumentScroll(window);
+      await captureScreenshot(window, {
+        category: 'main',
+        name: 'review-prompt-light',
+        description: 'Review mode with challenge prompt in light theme'
+      });
+
+      // Dark theme - prompting state
+      await setThemeDirect(window, 'dark');
+      await waitForAnimations(window);
+      await resetDocumentScroll(window);
+      await captureScreenshot(window, {
+        category: 'main',
+        name: 'review-prompt-dark',
+        description: 'Review mode with challenge prompt in dark theme'
+      });
+
+      // =========================================
+      // 5. Review Mode - Feedback State
+      // =========================================
+      console.log('  💬 Capturing review mode (feedback)...');
+
+      // Submit a thoughtful response to trigger feedback
+      const reviewResponse = `Hamming's questions force uncomfortable honesty about whether we're working on what truly matters. The tension comes from admitting that many of our projects feel "safe" rather than significant. His concept of the prepared mind suggests this isn't just about choosing harder problems - it's about building the intuition to recognize opportunities when they appear.`;
+      await submitReviewResponse(window, reviewResponse);
+      await waitForAnimations(window, 500);
+
+      // Reset scroll before capturing
+      await resetDocumentScroll(window);
+
+      // Light theme - feedback state
+      await setThemeDirect(window, 'light');
+      await waitForAnimations(window);
+      await resetDocumentScroll(window);
+      await captureScreenshot(window, {
+        category: 'main',
+        name: 'review-feedback-light',
+        description: 'Review mode with feedback in light theme'
+      });
+
+      // Dark theme - feedback state
+      await setThemeDirect(window, 'dark');
+      await waitForAnimations(window);
+      await resetDocumentScroll(window);
+      await captureScreenshot(window, {
+        category: 'main',
+        name: 'review-feedback-dark',
+        description: 'Review mode with feedback in dark theme'
       });
 
       console.log('\n✅ All screenshots complete!\n');

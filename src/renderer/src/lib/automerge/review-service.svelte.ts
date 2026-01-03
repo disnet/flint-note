@@ -10,6 +10,126 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
+/**
+ * Check if we're in screenshot mode (for mock responses)
+ */
+function isScreenshotMode(): boolean {
+  return document.documentElement.hasAttribute('data-screenshot-mode');
+}
+
+/**
+ * Mock review data for screenshot mode
+ * Maps note title patterns to mock prompts and feedback
+ */
+interface MockReviewData {
+  titlePattern: RegExp;
+  prompts: string[];
+  feedbackPatterns: Array<{
+    responsePattern: RegExp;
+    feedback: string;
+  }>;
+  defaultFeedback: string;
+}
+
+const MOCK_REVIEW_DATA: MockReviewData[] = [
+  {
+    titlePattern: /art of doing science|hamming/i,
+    prompts: [
+      `Explain the relationship between Hamming's concept of the "prepared mind" and the tolerance for ambiguity he describes. How do these two ideas work together in the creative process?`
+    ],
+    feedbackPatterns: [
+      {
+        responsePattern: /prepared|mind|intuition|luck|favor/i,
+        feedback: `Good connection to the expertise-intuition link. You're right that the "prepared mind" isn't passive waiting - it's the result of years of focused engagement. This ties to Kahneman's System 1: expertise trains our fast thinking to recognize patterns others miss. The tolerance for ambiguity Hamming describes is what allows this preparation to happen - staying with uncertainty long enough for insights to emerge.`
+      }
+    ],
+    defaultFeedback: `You're engaging with Hamming's core ideas about doing important work. Consider pushing deeper on the connection between his "important problems" framework and the practical methods he suggests - the Friday afternoons, the tolerance for ambiguity, the prepared mind. These aren't separate concepts; they're parts of a coherent approach to meaningful creative work.`
+  },
+  {
+    titlePattern: /flow state|flow/i,
+    prompts: [
+      `What conditions does Csikszentmihalyi identify as necessary for entering a flow state? How do these relate to the challenge-skill balance, and what happens when that balance is disrupted?`,
+      `Explain how the concept of "autotelic experience" connects to intrinsic motivation in flow states. Why might external rewards actually interfere with achieving flow?`
+    ],
+    feedbackPatterns: [
+      {
+        responsePattern: /challenge|skill|balance|match/i,
+        feedback: `You've identified the critical balance point correctly. When challenge exceeds skill, we get anxiety; when skill exceeds challenge, boredom. The flow channel is narrow but learnable - we can deliberately tune task difficulty or develop skills to stay in it. This connects to Hamming's idea of working on important problems: the best problems keep us at the edge of our capabilities.`
+      }
+    ],
+    defaultFeedback: `Good start on understanding flow mechanics. Consider how the conditions you've described relate to practical applications - how might you engineer your environment or tasks to make flow more likely?`
+  },
+  {
+    titlePattern: /creativity|creative|science of creativity/i,
+    prompts: [
+      `Your notes suggest creativity emerges from constraints rather than complete freedom. What evidence supports this counterintuitive claim, and what types of constraints seem most generative?`,
+      `How do the concepts of divergent and convergent thinking work together in the creative process? When should each mode dominate?`
+    ],
+    feedbackPatterns: [
+      {
+        responsePattern: /constraint|limit|focus|bound/i,
+        feedback: `You've captured the paradox well - constraints liberate by eliminating options and focusing energy. The key insight is that not all constraints are equal: generative constraints channel creativity without prescribing outcomes. This explains why rigid formulas fail while open-ended limitations (like a sonnet's structure or a budget limit) can inspire breakthrough work.`
+      }
+    ],
+    defaultFeedback: `You're exploring the relationship between structure and creativity thoughtfully. Consider how this applies to your own creative practice - what constraints have you found most productive?`
+  }
+];
+
+/**
+ * Get a mock prompt for a note title
+ */
+function getMockPrompt(noteTitle: string): string {
+  for (const data of MOCK_REVIEW_DATA) {
+    if (data.titlePattern.test(noteTitle)) {
+      // Return a random prompt from the list
+      const index = Math.floor(Math.random() * data.prompts.length);
+      return data.prompts[index];
+    }
+  }
+  // Default generic prompt
+  return `What are the key insights from this note that you want to remember? How do they connect to other ideas you've been thinking about?`;
+}
+
+/**
+ * Get mock feedback for a note title and user response
+ */
+function getMockFeedback(noteTitle: string, userResponse: string): string {
+  for (const data of MOCK_REVIEW_DATA) {
+    if (data.titlePattern.test(noteTitle)) {
+      // Check response patterns
+      for (const pattern of data.feedbackPatterns) {
+        if (pattern.responsePattern.test(userResponse)) {
+          return pattern.feedback;
+        }
+      }
+      return data.defaultFeedback;
+    }
+  }
+  // Default generic feedback
+  return `Good reflection on this material. Consider how these ideas might apply to a current project or challenge you're working on. Making concrete connections helps solidify understanding.`;
+}
+
+/**
+ * Simulate streaming text by calling the callback with progressively longer text
+ */
+async function simulateStreaming(
+  text: string,
+  onTextUpdate?: (text: string) => void
+): Promise<string> {
+  if (!onTextUpdate) return text;
+
+  const charsPerChunk = 15;
+  const delayPerChunk = 8; // ms
+
+  for (let i = 0; i < text.length; i += charsPerChunk) {
+    const chunk = text.slice(0, i + charsPerChunk);
+    onTextUpdate(chunk);
+    await new Promise((resolve) => setTimeout(resolve, delayPerChunk));
+  }
+  onTextUpdate(text);
+  return text;
+}
+
 const PROMPT_GENERATION_SYSTEM = `You are a learning coach helping users deeply engage with their notes through active review. Your role is to create review challenges that encourage explanation, connection-making, and application of concepts.
 
 When generating a review challenge:
@@ -96,6 +216,15 @@ export class ReviewService {
     noteContent: string,
     onTextUpdate?: (text: string) => void
   ): Promise<string> {
+    // Screenshot mode: use mock responses instead of real API calls
+    if (isScreenshotMode()) {
+      this._status = 'generating';
+      const mockPrompt = getMockPrompt(noteTitle);
+      const result = await simulateStreaming(mockPrompt, onTextUpdate);
+      this._status = 'ready';
+      return result;
+    }
+
     this._status = 'generating';
     this._error = null;
     this.abortController = new AbortController();
@@ -156,6 +285,15 @@ export class ReviewService {
     userResponse: string,
     onTextUpdate?: (text: string) => void
   ): Promise<string> {
+    // Screenshot mode: use mock responses instead of real API calls
+    if (isScreenshotMode()) {
+      this._status = 'generating';
+      const mockFeedback = getMockFeedback(noteTitle, userResponse);
+      const result = await simulateStreaming(mockFeedback, onTextUpdate);
+      this._status = 'ready';
+      return result;
+    }
+
     this._status = 'generating';
     this._error = null;
     this.abortController = new AbortController();
