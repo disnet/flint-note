@@ -142,6 +142,7 @@ export const helpMenuItems: MenuItemDef[] = [
     labelWin: 'Show Debug Logs in Explorer',
     action: 'show-debug-logs'
   },
+  { label: 'Toggle Developer Tools', action: 'toggle-dev-tools' },
   { type: 'separator' },
   { label: 'Check for Updates...', action: 'check-updates' },
   { type: 'separator' },

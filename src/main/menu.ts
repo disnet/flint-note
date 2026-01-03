@@ -494,6 +494,16 @@ export function createApplicationMenu(): Menu {
             sendToRenderer('menu-action', 'show-debug-logs');
           }
         },
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+          click: (): void => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow) {
+              focusedWindow.webContents.toggleDevTools();
+            }
+          }
+        },
         ...(!isMac
           ? [
               { type: 'separator' as const },
@@ -590,6 +600,14 @@ export function setupApplicationMenu(): void {
   });
 
   ipcMain.on('menu-trigger-action', (_event, action: string, ...args: unknown[]) => {
+    // Handle toggle-dev-tools directly in main process
+    if (action === 'toggle-dev-tools') {
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      if (focusedWindow) {
+        focusedWindow.webContents.toggleDevTools();
+      }
+      return;
+    }
     sendToRenderer('menu-action', action, ...args);
   });
 }
