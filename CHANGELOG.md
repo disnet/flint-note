@@ -1,8 +1,27 @@
 # Changelog - Release
 
-All notable changes to the Flint application will be documented in this file.
+## [0.14.0]
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+### Changed
+
+Huge rework of basically everything. Refreshed the UI to be cleaner and more intuitive. Rebuilt the storage layer to put down a foundation for upcoming features that I'm very excited about but won't spoil here just yet.
+
+One change to call out is that the location of your markdown files in the file system has changed. Previously vaults had note type directories at the root level:
+
+- <vault path>/
+  - projects/
+  - daily/
+  - ...
+
+But now they are nested under a `notes/` directory:
+
+- <vault path>/
+  - notes/
+    - projects/
+    - daily/
+    - ...
+
+This change allows us to add other top-level directories to sync other kinds of data without conflicting with note directories.
 
 ## [0.13.0]
 
