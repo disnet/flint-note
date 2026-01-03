@@ -1,0 +1,9 @@
+# Cloudflare Pages configuration for Flint web app
+name = "flint-app"
+compatibility_date = "2025-01-15"
+
+# Pages configuration
+pages_build_output_dir = "web-app"
+
+# Custom domain configuration (managed in dashboard):
+# - app.flintnote.com -> this Pages project

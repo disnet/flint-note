@@ -7,7 +7,7 @@ import path from 'path';
 export default defineConfig(({ mode }) => ({
   plugins: [wasm(), svelte()],
   root: 'src/renderer',
-  base: '/app/',
+  base: '/',
   define: {
     'import.meta.env.DEV': JSON.stringify(mode === 'development'),
     'import.meta.env.WEB_BUILD': JSON.stringify(true)
@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     }
   },
   build: {
-    outDir: '../../website/app',
+    outDir: '../../web-app',
     emptyOutDir: true,
     target: 'esnext',
     rollupOptions: {
