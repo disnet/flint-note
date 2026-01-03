@@ -74,10 +74,10 @@
   import DeckViewer from './DeckViewer.svelte';
   import DailyView from './DailyView.svelte';
   import FABMenu from './FABMenu.svelte';
-  import ChatPanel from './ChatPanel.svelte';
+  import ChatPanelWeb from './ChatPanelWeb.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
-  import ReviewView from './ReviewView.svelte';
+  import ReviewViewWeb from './ReviewViewWeb.svelte';
   import InboxView from './InboxView.svelte';
   import RoutinesView from './RoutinesView.svelte';
   import ImportWebpageModal from './ImportWebpageModal.svelte';
@@ -91,6 +91,7 @@
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
+  import { isElectron } from '../lib/platform.svelte';
 
   // Derived state
   const allNotes = $derived(getAllNotes());
@@ -583,9 +584,10 @@
   }
 
   /**
-   * Browse for a vault directory to import
+   * Browse for a vault directory to import (Electron only)
    */
   async function handleBrowseForVault(): Promise<void> {
+    if (!isElectron()) return;
     try {
       const selectedPath = await window.api?.legacyMigration.browseForVault();
       if (!selectedPath) return;
@@ -733,8 +735,9 @@
     input.click();
   }
 
-  // Show in Finder handler - reveals the note file in Finder
+  // Show in Finder handler - reveals the note file in Finder (Electron only)
   async function handleShowInFinder(): Promise<void> {
+    if (!isElectron()) return;
     const vault = getActiveVault();
     if (!vault?.baseDirectory || !activeNote) {
       // Fallback to vault directory if no active note
@@ -825,7 +828,9 @@
         handleShowInFinder();
         break;
       case 'show-debug-logs':
-        window.api?.showLogsInFolder();
+        if (isElectron()) {
+          window.api?.showLogsInFolder();
+        }
         break;
 
       // Edit actions
@@ -965,7 +970,9 @@
         showChangelogModal = true;
         break;
       case 'check-updates':
-        window.api?.checkForUpdates();
+        if (isElectron()) {
+          window.api?.checkForUpdates();
+        }
         break;
       case 'show-about':
         // Could show an about modal
@@ -973,8 +980,9 @@
     }
   }
 
-  // Check if app was upgraded and show changelog
+  // Check if app was upgraded and show changelog (Electron only)
   async function checkForUpgrade(): Promise<void> {
+    if (!isElectron()) return;
     try {
       const versionInfo = await window.api?.getAppVersion();
       if (!versionInfo) return;
@@ -997,8 +1005,27 @@
 
   // Set up menu event listeners
   onMount(() => {
-    const cleanupNavigate = window.api?.onMenuNavigate(handleMenuNavigate);
-    const cleanupAction = window.api?.onMenuAction(handleMenuAction);
+    let cleanupNavigate: (() => void) | undefined;
+    let cleanupAction: (() => void) | undefined;
+
+    if (isElectron()) {
+      cleanupNavigate = window.api?.onMenuNavigate(handleMenuNavigate);
+      cleanupAction = window.api?.onMenuAction(handleMenuAction);
+    }
+
+    // Web mode: Listen for custom events from HamburgerMenu
+    function handleWebMenuNavigate(event: Event): void {
+      const customEvent = event as CustomEvent<{ view: string }>;
+      handleMenuNavigate(customEvent.detail.view);
+    }
+
+    function handleWebMenuAction(event: Event): void {
+      const customEvent = event as CustomEvent<{ action: string }>;
+      handleMenuAction(customEvent.detail.action);
+    }
+
+    window.addEventListener('menu-navigate', handleWebMenuNavigate);
+    window.addEventListener('menu-action', handleWebMenuAction);
 
     // Check for upgrade and show changelog if needed
     checkForUpgrade();
@@ -1006,27 +1033,33 @@
     return () => {
       cleanupNavigate?.();
       cleanupAction?.();
+      window.removeEventListener('menu-navigate', handleWebMenuNavigate);
+      window.removeEventListener('menu-action', handleWebMenuAction);
     };
   });
 
-  // Update menu state when active note changes
+  // Update menu state when active note changes (Electron only)
   $effect(() => {
+    if (!isElectron()) return;
     const hasNote = activeNote !== null;
     window.api?.setMenuActiveNote(hasNote);
   });
 
-  // Update menu state when epub viewer is active
+  // Update menu state when epub viewer is active (Electron only)
   $effect(() => {
+    if (!isElectron()) return;
     window.api?.setMenuActiveEpub(isActiveNoteEpub);
   });
 
-  // Update menu state when pdf viewer is active
+  // Update menu state when pdf viewer is active (Electron only)
   $effect(() => {
+    if (!isElectron()) return;
     window.api?.setMenuActivePdf(isActiveNotePdf);
   });
 
-  // Update menu state when workspaces change
+  // Update menu state when workspaces change (Electron only)
   $effect(() => {
+    if (!isElectron()) return;
     const workspaces = getWorkspaces();
     const workspace = getActiveWorkspace();
     if (workspace) {
@@ -1246,7 +1279,7 @@
             <DailyView onNoteSelect={handleNoteSelect} />
           {:else if activeSystemView === 'review'}
             <!-- Review View -->
-            <ReviewView />
+            <ReviewViewWeb />
           {:else if activeSystemView === 'inbox'}
             <!-- Inbox View -->
             <InboxView />
@@ -1327,7 +1360,7 @@
         />
         <div class="right-sidebar-inner">
           {#if chatPanelOpen}
-            <ChatPanel
+            <ChatPanelWeb
               isOpen={true}
               isExpanded={true}
               onClose={() => sidebarState.closePanel()}
@@ -1468,7 +1501,7 @@
 
 <!-- Floating panels (only when not expanded) -->
 {#if !rightSidebarExpanded}
-  <ChatPanel
+  <ChatPanelWeb
     isOpen={chatPanelOpen}
     isExpanded={false}
     onClose={() => sidebarState.closePanel()}
@@ -1719,9 +1752,10 @@
     padding-right: 0.5rem;
   }
 
-  /* On Windows/Linux, no traffic lights - remove left padding */
+  /* On Windows/Linux/Web, no traffic lights - remove left padding */
   :global([data-platform='windows']) .safe-zone,
-  :global([data-platform='linux']) .safe-zone {
+  :global([data-platform='linux']) .safe-zone,
+  :global([data-platform='web']) .safe-zone {
     padding-left: 0.5rem;
     padding-right: 0; /* Window controls handle their own spacing */
   }

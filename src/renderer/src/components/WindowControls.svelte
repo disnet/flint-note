@@ -2,7 +2,9 @@
   /**
    * Custom window controls for Windows and Linux
    * macOS uses native traffic light controls via titleBarStyle: 'hiddenInset'
+   * Hidden in web mode (no window controls needed)
    */
+  import { isWeb } from '../lib/platform.svelte';
 
   function handleMinimize(): void {
     window.api?.windowMinimize();
@@ -17,48 +19,50 @@
   }
 </script>
 
-<div class="window-controls">
-  <button
-    class="window-control minimize"
-    onclick={handleMinimize}
-    aria-label="Minimize"
-    title="Minimize"
-  >
-    <svg width="10" height="1" viewBox="0 0 10 1">
-      <rect width="10" height="1" fill="currentColor" />
-    </svg>
-  </button>
+{#if !isWeb()}
+  <div class="window-controls">
+    <button
+      class="window-control minimize"
+      onclick={handleMinimize}
+      aria-label="Minimize"
+      title="Minimize"
+    >
+      <svg width="10" height="1" viewBox="0 0 10 1">
+        <rect width="10" height="1" fill="currentColor" />
+      </svg>
+    </button>
 
-  <button
-    class="window-control maximize"
-    onclick={handleMaximize}
-    aria-label="Maximize"
-    title="Maximize"
-  >
-    <svg width="10" height="10" viewBox="0 0 10 10">
-      <rect
-        x="0.5"
-        y="0.5"
-        width="9"
-        height="9"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1"
-      />
-    </svg>
-  </button>
+    <button
+      class="window-control maximize"
+      onclick={handleMaximize}
+      aria-label="Maximize"
+      title="Maximize"
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <rect
+          x="0.5"
+          y="0.5"
+          width="9"
+          height="9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+        />
+      </svg>
+    </button>
 
-  <button
-    class="window-control close"
-    onclick={handleClose}
-    aria-label="Close"
-    title="Close"
-  >
-    <svg width="10" height="10" viewBox="0 0 10 10">
-      <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2" />
-    </svg>
-  </button>
-</div>
+    <button
+      class="window-control close"
+      onclick={handleClose}
+      aria-label="Close"
+      title="Close"
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2" />
+      </svg>
+    </button>
+  </div>
+{/if}
 
 <style>
   .window-controls {

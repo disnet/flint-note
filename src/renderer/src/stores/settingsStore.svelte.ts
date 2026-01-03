@@ -1,5 +1,8 @@
 import { DEFAULT_MODEL, getModelById, type AIProvider } from '../config/models';
 import { secureStorageService } from '../services/secureStorageService';
+import { isElectron } from '../lib/platform.svelte';
+
+const SETTINGS_STORAGE_KEY = 'flint-settings';
 
 // Settings interface
 export interface AppSettings {
@@ -91,50 +94,68 @@ let isLoading = $state(true);
 let isInitialized = $state(false);
 let initializationPromise: Promise<void> | null = null;
 
-// Load settings from file system (non-sensitive data only)
+// Load settings from file system or localStorage (non-sensitive data only)
 async function loadStoredSettings(): Promise<Partial<AppSettings>> {
   try {
-    const stored = await window.api?.loadAppSettings();
-    if (stored) {
-      // Don't load API keys from file system - these should come from secure storage
-      delete (stored as Partial<AppSettings>).apiKeys;
-      return stored;
+    if (isElectron()) {
+      const stored = await window.api?.loadAppSettings();
+      if (stored) {
+        // Don't load API keys from file system - these should come from secure storage
+        delete (stored as Partial<AppSettings>).apiKeys;
+        return stored;
+      }
+    } else {
+      // Web fallback: use localStorage
+      const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        delete parsed.apiKeys;
+        return parsed;
+      }
     }
   } catch (error) {
-    console.warn('Failed to load settings from file system:', error);
+    console.warn('Failed to load settings:', error);
   }
   return {};
 }
 
-// Save settings to file system (non-sensitive data only)
+// Save settings to file system or localStorage (non-sensitive data only)
 async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
+  // Create a copy without API keys for storage
+  const safeSettings = {
+    aiProvider: settingsToSave.aiProvider,
+    modelPreferences: settingsToSave.modelPreferences,
+    appearance: settingsToSave.appearance,
+    dataAndPrivacy: settingsToSave.dataAndPrivacy,
+    advanced: settingsToSave.advanced,
+    updates: settingsToSave.updates,
+    reader: settingsToSave.reader
+  };
+
   try {
-    // Load existing settings to preserve fields like sidebarState that we don't manage
-    const currentSettings =
-      ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
+    if (isElectron()) {
+      // Load existing settings to preserve fields like sidebarState that we don't manage
+      const currentSettings =
+        ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
 
-    // Create a copy without API keys for file storage
-    const safeSettings = {
-      aiProvider: settingsToSave.aiProvider,
-      modelPreferences: settingsToSave.modelPreferences,
-      appearance: settingsToSave.appearance,
-      dataAndPrivacy: settingsToSave.dataAndPrivacy,
-      advanced: settingsToSave.advanced,
-      updates: settingsToSave.updates,
-      reader: settingsToSave.reader
-    };
+      // Merge with existing settings to preserve other fields (like sidebarState)
+      const mergedSettings = {
+        ...currentSettings,
+        ...safeSettings
+      };
 
-    // Merge with existing settings to preserve other fields (like sidebarState)
-    const mergedSettings = {
-      ...currentSettings,
-      ...safeSettings
-    };
-
-    // Use $state.snapshot to get a serializable copy
-    const serializableSettings = $state.snapshot(mergedSettings);
-    await window.api?.saveAppSettings(serializableSettings);
+      // Use $state.snapshot to get a serializable copy
+      const serializableSettings = $state.snapshot(mergedSettings);
+      await window.api?.saveAppSettings(serializableSettings);
+    } else {
+      // Web fallback: use localStorage
+      const currentStr = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      const currentSettings = currentStr ? JSON.parse(currentStr) : {};
+      const mergedSettings = { ...currentSettings, ...safeSettings };
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(mergedSettings));
+    }
   } catch (error) {
-    console.warn('Failed to save settings to file system:', error);
+    console.warn('Failed to save settings:', error);
   }
 }
 

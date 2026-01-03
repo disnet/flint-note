@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { isElectron } from '../lib/platform.svelte';
 
   type CheckState =
     | 'idle'
@@ -27,7 +28,13 @@
 
   const about = new AboutState();
 
+  const canUpdate = isElectron();
+
   async function loadVersion(): Promise<void> {
+    if (!isElectron()) {
+      about.appVersion = 'Web';
+      return;
+    }
     try {
       const result = await window.api?.getAppVersion();
       if (result) {
@@ -40,6 +47,8 @@
   }
 
   function setupListeners(): void {
+    if (!isElectron()) return;
+
     window.api?.onUpdateChecking(() => {
       about.checkStatus = 'checking';
       about.errorMsg = null;
@@ -71,11 +80,13 @@
   }
 
   function handleCheckForUpdates(): void {
+    if (!isElectron()) return;
     about.checkStatus = 'checking';
     window.api?.checkForUpdates();
   }
 
   function handleInstallUpdate(): void {
+    if (!isElectron()) return;
     window.api?.installUpdate();
   }
 
@@ -85,7 +96,9 @@
   });
 
   onDestroy(() => {
-    window.api?.removeAllUpdateListeners();
+    if (isElectron()) {
+      window.api?.removeAllUpdateListeners();
+    }
   });
 
   const statusMessage = $derived.by(() => {
@@ -134,86 +147,95 @@
     </div>
 
     <div class="update-section">
-      <div class="update-actions">
-        {#if showInstallButton}
-          <button class="action-btn primary" onclick={handleInstallUpdate}>
-            Install & Restart
-          </button>
-        {:else}
-          <button
-            class="action-btn secondary"
-            onclick={handleCheckForUpdates}
-            disabled={isChecking}
-          >
-            {isChecking ? 'Checking...' : 'Check for Updates'}
-          </button>
-        {/if}
-      </div>
-
-      {#if about.checkStatus !== 'idle'}
-        <div
-          class="status-message"
-          class:success={about.checkStatus === 'up-to-date'}
-          class:info={about.checkStatus === 'available' || about.checkStatus === 'ready'}
-          class:error={about.checkStatus === 'error'}
-        >
-          {#if about.checkStatus === 'checking'}
-            <svg
-              class="spinner"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+      {#if canUpdate}
+        <div class="update-actions">
+          {#if showInstallButton}
+            <button class="action-btn primary" onclick={handleInstallUpdate}>
+              Install & Restart
+            </button>
+          {:else}
+            <button
+              class="action-btn secondary"
+              onclick={handleCheckForUpdates}
+              disabled={isChecking}
             >
-              <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-              <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
-            </svg>
-          {:else if about.checkStatus === 'downloading'}
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: {about.downloadProgress}%"></div>
-            </div>
-          {:else if about.checkStatus === 'up-to-date'}
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          {:else if about.checkStatus === 'error'}
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          {:else if about.checkStatus === 'available' || about.checkStatus === 'ready'}
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
+              {isChecking ? 'Checking...' : 'Check for Updates'}
+            </button>
           {/if}
-          <span>{statusMessage}</span>
         </div>
+
+        {#if about.checkStatus !== 'idle'}
+          <div
+            class="status-message"
+            class:success={about.checkStatus === 'up-to-date'}
+            class:info={about.checkStatus === 'available' ||
+              about.checkStatus === 'ready'}
+            class:error={about.checkStatus === 'error'}
+          >
+            {#if about.checkStatus === 'checking'}
+              <svg
+                class="spinner"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+              </svg>
+            {:else if about.checkStatus === 'downloading'}
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {about.downloadProgress}%"></div>
+              </div>
+            {:else if about.checkStatus === 'up-to-date'}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            {:else if about.checkStatus === 'error'}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+            {:else if about.checkStatus === 'available' || about.checkStatus === 'ready'}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            {/if}
+            <span>{statusMessage}</span>
+          </div>
+        {/if}
+      {:else}
+        <p class="web-notice">
+          You're using the web version. <a href="/#download" target="_blank"
+            >Download the desktop app</a
+          > for auto-updates and additional features.
+        </p>
       {/if}
     </div>
   </div>
@@ -388,5 +410,24 @@
     height: 100%;
     background: currentColor;
     transition: width 0.2s ease;
+  }
+
+  .web-notice {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 0.375rem;
+  }
+
+  .web-notice a {
+    color: var(--accent-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .web-notice a:hover {
+    opacity: 0.8;
   }
 </style>

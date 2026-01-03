@@ -1,3 +1,7 @@
+import { isElectron } from '../lib/platform.svelte';
+
+const SIDEBAR_STORAGE_KEY = 'flint-sidebar-state';
+
 interface SidebarState {
   leftSidebar: {
     visible: boolean;
@@ -64,14 +68,24 @@ class SidebarStateStore {
   }
 
   /**
-   * Initialize the store by loading data from file system
+   * Initialize the store by loading data from file system or localStorage
    */
   private async initialize(): Promise<void> {
     this.isLoading = true;
     try {
-      const storedState = (await window.api?.loadAppSettings()) as
-        | { sidebarState?: SidebarState }
-        | undefined;
+      let storedState: { sidebarState?: SidebarState } | undefined;
+
+      if (isElectron()) {
+        storedState = (await window.api?.loadAppSettings()) as
+          | { sidebarState?: SidebarState }
+          | undefined;
+      } else {
+        // Web fallback: use localStorage
+        const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+        if (stored) {
+          storedState = { sidebarState: JSON.parse(stored) };
+        }
+      }
 
       if (storedState?.sidebarState) {
         this.state = { ...defaultState, ...storedState.sidebarState };
@@ -91,23 +105,28 @@ class SidebarStateStore {
   }
 
   /**
-   * Save current state to file system
+   * Save current state to file system or localStorage
    */
   private async saveToStorage(): Promise<void> {
     await this.ensureInitialized();
 
-    try {
-      // Snapshot the state to make it serializable for IPC
-      const stateSnapshot = $state.snapshot(this.state);
+    // Snapshot the state to make it serializable
+    const stateSnapshot = $state.snapshot(this.state);
 
-      // Load existing settings and update the sidebar state portion
-      const currentSettings =
-        ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
-      const updatedSettings = {
-        ...currentSettings,
-        sidebarState: stateSnapshot
-      };
-      await window.api?.saveAppSettings(updatedSettings);
+    try {
+      if (isElectron()) {
+        // Load existing settings and update the sidebar state portion
+        const currentSettings =
+          ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
+        const updatedSettings = {
+          ...currentSettings,
+          sidebarState: stateSnapshot
+        };
+        await window.api?.saveAppSettings(updatedSettings);
+      } else {
+        // Web fallback: use localStorage
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(stateSnapshot));
+      }
     } catch (error) {
       console.error('Failed to save sidebar state to storage:', error);
     }

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Hamburger menu component for Windows/Linux
+   * Hamburger menu component for Windows/Linux/Web
    * Shows the application menu in a dropdown format since these platforms
    * don't have a native menu bar like macOS.
    */
@@ -15,20 +15,61 @@
     getLabel,
     type MenuItemDef
   } from '../../../shared/menu-definitions';
+  import { isElectron, isWeb } from '../lib/platform.svelte';
 
   let isOpen = $state(false);
   let activeSubmenu = $state<string | null>(null);
   let buttonElement = $state<HTMLButtonElement | null>(null);
   let dropdownPosition = $state({ top: 0, left: 0 });
 
-  const menus = [
-    { id: 'file', label: 'File', items: fileMenuItems },
-    { id: 'edit', label: 'Edit', items: editMenuItems },
-    { id: 'view', label: 'View', items: viewMenuItems },
-    { id: 'workspace', label: 'Workspace', items: workspaceMenuItems },
-    { id: 'note', label: 'Note', items: noteMenuItems },
-    { id: 'help', label: 'Help', items: helpMenuItems }
-  ];
+  // Actions that require Electron and should be hidden in web mode
+  const electronOnlyActions = new Set([
+    'show-in-finder',
+    'show-debug-logs',
+    'toggle-dev-tools',
+    'check-updates'
+  ]);
+
+  // Filter menu items for web mode
+  function filterMenuItems(items: MenuItemDef[]): MenuItemDef[] {
+    if (!isWeb()) return items;
+
+    return items.filter((item) => {
+      if (item.type === 'separator') return true;
+      if (item.action && electronOnlyActions.has(item.action)) return false;
+      // Filter out role-based items that don't work in web (zoom, fullscreen handled by browser)
+      if (item.role === 'togglefullscreen') return false;
+      return true;
+    });
+  }
+
+  // Remove consecutive separators and leading/trailing separators
+  function cleanupSeparators(items: MenuItemDef[]): MenuItemDef[] {
+    return items.filter((item, i, arr) => {
+      if (item.type !== 'separator') return true;
+      // Remove leading separator
+      if (i === 0) return false;
+      // Remove trailing separator
+      if (i === arr.length - 1) return false;
+      // Remove consecutive separators
+      if (arr[i - 1]?.type === 'separator') return false;
+      return true;
+    });
+  }
+
+  const menus = $derived(
+    [
+      { id: 'file', label: 'File', items: fileMenuItems },
+      { id: 'edit', label: 'Edit', items: editMenuItems },
+      { id: 'view', label: 'View', items: viewMenuItems },
+      { id: 'workspace', label: 'Workspace', items: workspaceMenuItems },
+      { id: 'note', label: 'Note', items: noteMenuItems },
+      { id: 'help', label: 'Help', items: helpMenuItems }
+    ].map((menu) => ({
+      ...menu,
+      items: cleanupSeparators(filterMenuItems(menu.items))
+    }))
+  );
 
   function toggleMenu(): void {
     if (!isOpen && buttonElement) {
@@ -60,9 +101,64 @@
       // Handle navigation actions
       if (item.action.startsWith('navigate:')) {
         const view = item.action.replace('navigate:', '');
-        window.api?.triggerMenuNavigate(view);
+        if (isElectron()) {
+          window.api?.triggerMenuNavigate(view);
+        } else {
+          // In web mode, dispatch a custom event
+          window.dispatchEvent(new CustomEvent('menu-navigate', { detail: { view } }));
+        }
       } else {
-        window.api?.triggerMenuAction(item.action);
+        if (isElectron()) {
+          window.api?.triggerMenuAction(item.action);
+        } else {
+          // In web mode, dispatch a custom event
+          window.dispatchEvent(
+            new CustomEvent('menu-action', { detail: { action: item.action } })
+          );
+        }
+      }
+    }
+
+    // Handle role-based actions in web mode (edit operations)
+    if (item.role && isWeb()) {
+      switch (item.role) {
+        case 'undo':
+          document.execCommand('undo');
+          break;
+        case 'cut':
+          document.execCommand('cut');
+          break;
+        case 'copy':
+          document.execCommand('copy');
+          break;
+        case 'paste':
+          navigator.clipboard.readText().then((text) => {
+            document.execCommand('insertText', false, text);
+          });
+          break;
+        case 'delete':
+          document.execCommand('delete');
+          break;
+        case 'selectAll':
+          document.execCommand('selectAll');
+          break;
+        case 'resetZoom':
+        case 'zoomIn':
+        case 'zoomOut':
+          // Browser handles these natively, dispatch event for reader
+          window.dispatchEvent(
+            new CustomEvent('menu-action', {
+              detail: {
+                action:
+                  item.role === 'resetZoom'
+                    ? 'zoom-reset'
+                    : item.role === 'zoomIn'
+                      ? 'zoom-in'
+                      : 'zoom-out'
+              }
+            })
+          );
+          break;
       }
     }
 

@@ -26,6 +26,7 @@
     resetAutomergeImportState,
     type AutomergeVaultInfo
   } from '../lib/automerge/automerge-import.svelte';
+  import { isElectron } from '../lib/platform.svelte';
 
   // Legacy vault config type (from old app's config.yml)
   interface LegacyVaultConfig {
@@ -43,8 +44,11 @@
 
   let { onVaultCreated, legacyVaults = [] }: Props = $props();
 
-  // Determine if we have legacy vaults to show
-  const hasLegacyVaults = $derived(legacyVaults.length > 0);
+  // Determine if we have legacy vaults to show (only in Electron)
+  const hasLegacyVaults = $derived(isElectron() && legacyVaults.length > 0);
+
+  // Determine if file system browsing is available (Electron only)
+  const canBrowseFiles = isElectron();
 
   // Migration state (for both legacy and markdown imports)
   let isMigrating = $state(false);
@@ -104,10 +108,11 @@
   }
 
   /**
-   * Browse for a vault directory to import
+   * Browse for a vault directory to import (Electron only)
    * Supports automerge vaults, legacy vaults, and plain markdown directories
    */
   async function handleBrowseForVault(): Promise<void> {
+    if (!isElectron()) return;
     try {
       const selectedPath = await window.api?.legacyMigration.browseForVault();
       if (!selectedPath) return;
@@ -379,14 +384,16 @@
         </div>
 
         <div class="action-buttons">
-          <button
-            class="secondary-action"
-            onclick={handleBrowseForVault}
-            disabled={isMigrating}
-          >
-            <span class="button-icon">📂</span>
-            Open Vault from Directory
-          </button>
+          {#if canBrowseFiles}
+            <button
+              class="secondary-action"
+              onclick={handleBrowseForVault}
+              disabled={isMigrating}
+            >
+              <span class="button-icon">📂</span>
+              Open Vault from Directory
+            </button>
+          {/if}
           {#if !showCreateForm}
             <button
               class="secondary-action"
@@ -645,20 +652,22 @@
           </button>
         </div>
 
-        <div class="divider">
-          <span>or</span>
-        </div>
+        {#if canBrowseFiles}
+          <div class="divider">
+            <span>or</span>
+          </div>
 
-        <div class="action-buttons">
-          <button
-            class="secondary-action"
-            onclick={handleBrowseForVault}
-            disabled={isCreating}
-          >
-            <span class="button-icon">📂</span>
-            Open Vault from Directory
-          </button>
-        </div>
+          <div class="action-buttons">
+            <button
+              class="secondary-action"
+              onclick={handleBrowseForVault}
+              disabled={isCreating}
+            >
+              <span class="button-icon">📂</span>
+              Open Vault from Directory
+            </button>
+          </div>
+        {/if}
       {/if}
     </div>
   </div>

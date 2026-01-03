@@ -16,6 +16,7 @@
     importMarkdownDirectory
   } from './lib/automerge';
   import { settingsStore } from './stores/settingsStore.svelte';
+  import { isElectron } from './lib/platform.svelte';
 
   // Startup command type (matches main process)
   interface StartupCommand {
@@ -103,8 +104,8 @@
         const vaults = getNonArchivedVaults();
         hasVaults = vaults.length > 0;
 
-        // If no vaults, check for legacy vaults in old app's config.yml
-        if (!hasVaults) {
+        // If no vaults, check for legacy vaults in old app's config.yml (Electron only)
+        if (!hasVaults && isElectron()) {
           try {
             // Read legacy vault paths from old app's config.yml
             const legacyVaultConfigs =
@@ -119,16 +120,18 @@
           }
         }
 
-        // Set up startup command listener for CLI arguments
-        unsubscribeStartupCommand = window.api?.onStartupCommand(async (command) => {
-          try {
-            await handleStartupCommand(command);
-          } catch (err) {
-            console.error('Failed to handle startup command:', err);
-            startupError =
-              err instanceof Error ? err.message : 'Failed to execute startup command';
-          }
-        });
+        // Set up startup command listener for CLI arguments (Electron only)
+        if (isElectron()) {
+          unsubscribeStartupCommand = window.api?.onStartupCommand(async (command) => {
+            try {
+              await handleStartupCommand(command);
+            } catch (err) {
+              console.error('Failed to handle startup command:', err);
+              startupError =
+                err instanceof Error ? err.message : 'Failed to execute startup command';
+            }
+          });
+        }
       } catch (err) {
         console.error('Failed to initialize automerge:', err);
         initError = err instanceof Error ? err.message : 'Failed to initialize';
@@ -200,6 +203,12 @@
   // Platform detection (macos, windows, or linux)
   // Debug setting can override to simulate Windows on macOS for testing
   $effect(() => {
+    // In web mode, use 'web' platform to avoid macOS-specific UI like traffic light spacing
+    if (!isElectron()) {
+      document.documentElement.setAttribute('data-platform', 'web');
+      return;
+    }
+
     const simulateWindows = settingsStore.settings.advanced.simulateWindowsPlatform;
     const platform = simulateWindows
       ? 'windows'

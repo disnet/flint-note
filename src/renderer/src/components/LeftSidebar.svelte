@@ -21,6 +21,7 @@
     type SearchResult,
     type SidebarItem
   } from '../lib/automerge';
+  import { isWeb } from '../lib/platform.svelte';
 
   interface Props {
     activeSystemView:
@@ -224,7 +225,9 @@
     <!-- Header row with traffic light space, vault switcher, and sidebar toggle -->
     <div class="sidebar-header">
       <div class="header-row">
-        <div class="traffic-light-space"></div>
+        {#if !isWeb()}
+          <div class="traffic-light-space"></div>
+        {/if}
         <div class="hamburger-menu-container">
           <HamburgerMenu />
         </div>
@@ -502,20 +505,22 @@
     flex-shrink: 0;
   }
 
-  /* Hide traffic light space on Windows/Linux (no traffic lights) */
+  /* Hide traffic light space on Windows/Linux/Web (no traffic lights) */
   :global([data-platform='windows']) .traffic-light-space,
-  :global([data-platform='linux']) .traffic-light-space {
+  :global([data-platform='linux']) .traffic-light-space,
+  :global([data-platform='web']) .traffic-light-space {
     display: none;
   }
 
-  /* Hamburger menu container - hidden on macOS, visible on Windows/Linux */
+  /* Hamburger menu container - hidden on macOS, visible on Windows/Linux/Web */
   .hamburger-menu-container {
     display: none;
     -webkit-app-region: no-drag;
   }
 
   :global([data-platform='windows']) .hamburger-menu-container,
-  :global([data-platform='linux']) .hamburger-menu-container {
+  :global([data-platform='linux']) .hamburger-menu-container,
+  :global([data-platform='web']) .hamburger-menu-container {
     display: flex;
     align-items: center;
     margin-left: 0.75rem;
@@ -527,9 +532,10 @@
     margin-left: 0.5rem; /* Align with toggle button (70px + 0.5rem on macOS) */
   }
 
-  /* On Windows/Linux, reduce margin since hamburger menu provides left spacing */
+  /* On Windows/Linux/Web, reduce margin since hamburger menu provides left spacing */
   :global([data-platform='windows']) .vault-switcher,
-  :global([data-platform='linux']) .vault-switcher {
+  :global([data-platform='linux']) .vault-switcher,
+  :global([data-platform='web']) .vault-switcher {
     margin-left: 0.5rem;
   }
 
