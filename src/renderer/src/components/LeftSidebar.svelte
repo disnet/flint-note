@@ -10,6 +10,7 @@
   import SearchResults from './SearchResults.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import Tooltip from './Tooltip.svelte';
+  import HamburgerMenu from './HamburgerMenu.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import {
     getActiveWorkspace,
@@ -224,6 +225,9 @@
     <div class="sidebar-header">
       <div class="header-row">
         <div class="traffic-light-space"></div>
+        <div class="hamburger-menu-container">
+          <HamburgerMenu />
+        </div>
         <div class="vault-switcher">
           <button
             class="vault-button"
@@ -504,16 +508,29 @@
     display: none;
   }
 
+  /* Hamburger menu container - hidden on macOS, visible on Windows/Linux */
+  .hamburger-menu-container {
+    display: none;
+    -webkit-app-region: no-drag;
+  }
+
+  :global([data-platform='windows']) .hamburger-menu-container,
+  :global([data-platform='linux']) .hamburger-menu-container {
+    display: flex;
+    align-items: center;
+    margin-left: 0.75rem;
+  }
+
   .vault-switcher {
     position: relative;
     -webkit-app-region: no-drag;
     margin-left: 0.5rem; /* Align with toggle button (70px + 0.5rem on macOS) */
   }
 
-  /* On Windows/Linux, adjust margin to align with toggle position (0.5rem + 0.5rem) */
+  /* On Windows/Linux, reduce margin since hamburger menu provides left spacing */
   :global([data-platform='windows']) .vault-switcher,
   :global([data-platform='linux']) .vault-switcher {
-    margin-left: 1rem;
+    margin-left: 0.5rem;
   }
 
   .vault-button {
