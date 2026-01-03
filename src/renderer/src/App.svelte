@@ -197,10 +197,18 @@
     document.documentElement.style.setProperty('--font-editor-size', `${fontSize}px`);
   });
 
-  // Platform detection
+  // Platform detection (macos, windows, or linux)
+  // Debug setting can override to simulate Windows on macOS for testing
   $effect(() => {
-    const isMacOS = navigator.platform.includes('Mac');
-    document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
+    const simulateWindows = settingsStore.settings.advanced.simulateWindowsPlatform;
+    const platform = simulateWindows
+      ? 'windows'
+      : navigator.platform.includes('Mac')
+        ? 'macos'
+        : navigator.platform.includes('Win')
+          ? 'windows'
+          : 'linux';
+    document.documentElement.setAttribute('data-platform', platform);
   });
 </script>
 

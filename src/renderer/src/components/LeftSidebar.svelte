@@ -482,7 +482,7 @@
   /* Sidebar Header */
   .sidebar-header {
     flex-shrink: 0;
-    padding: 0 0.75rem 0.5rem;
+    padding: 0 0.75rem 0.5rem 0; /* No left padding - handled by traffic-light-space or platform margin */
     -webkit-app-region: drag;
   }
 
@@ -494,13 +494,26 @@
   }
 
   .traffic-light-space {
-    width: 70px;
+    width: 70px; /* Space for macOS traffic lights */
     flex-shrink: 0;
+  }
+
+  /* Hide traffic light space on Windows/Linux (no traffic lights) */
+  :global([data-platform='windows']) .traffic-light-space,
+  :global([data-platform='linux']) .traffic-light-space {
+    display: none;
   }
 
   .vault-switcher {
     position: relative;
     -webkit-app-region: no-drag;
+    margin-left: 0.5rem; /* Align with toggle button (70px + 0.5rem on macOS) */
+  }
+
+  /* On Windows/Linux, adjust margin to align with toggle position (0.5rem + 0.5rem) */
+  :global([data-platform='windows']) .vault-switcher,
+  :global([data-platform='linux']) .vault-switcher {
+    margin-left: 1rem;
   }
 
   .vault-button {

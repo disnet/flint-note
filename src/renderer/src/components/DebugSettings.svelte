@@ -5,6 +5,7 @@
     compactVaultDocument,
     getActiveVaultId
   } from '../lib/automerge/repo';
+  import { settingsStore } from '../stores/settingsStore.svelte';
 
   // State
   let stats = $state<{
@@ -192,6 +193,31 @@
       <button class="action-btn danger" onclick={handleClearIndexedDB}>
         Clear All
       </button>
+    </div>
+
+    <div class="action-item">
+      <div class="action-info">
+        <span class="action-title">Simulate Windows Platform</span>
+        <span class="action-description">
+          Show Windows-style window controls instead of macOS traffic lights. Useful for
+          testing cross-platform UI.
+        </span>
+      </div>
+      <label class="toggle-switch">
+        <input
+          type="checkbox"
+          checked={settingsStore.settings.advanced.simulateWindowsPlatform ?? false}
+          onchange={async (e) => {
+            await settingsStore.updateSettings({
+              advanced: {
+                ...settingsStore.settings.advanced,
+                simulateWindowsPlatform: e.currentTarget.checked
+              }
+            });
+          }}
+        />
+        <span class="toggle-slider"></span>
+      </label>
     </div>
   </div>
 </div>
@@ -429,5 +455,51 @@
     border-radius: 0.375rem;
     color: var(--danger-text, #dc2626);
     font-size: 0.8125rem;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary, #ccc);
+    transition: 0.2s;
+    border-radius: 24px;
+  }
+
+  .toggle-slider::before {
+    position: absolute;
+    content: '';
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background-color: var(--accent-primary);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px);
   }
 </style>

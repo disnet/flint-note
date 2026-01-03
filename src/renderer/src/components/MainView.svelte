@@ -90,6 +90,7 @@
   import UpdateWidget from './UpdateWidget.svelte';
   import Tooltip from './Tooltip.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
+  import WindowControls from './WindowControls.svelte';
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -1165,7 +1166,7 @@
 
     <!-- Main Content -->
     <div class="main-content">
-      <!-- Safe zone for window dragging (macOS traffic lights area) -->
+      <!-- Safe zone for window dragging and controls -->
       <div class="safe-zone">
         {#if !sidebarState.leftSidebar.visible}
           <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
@@ -1257,6 +1258,7 @@
             </Tooltip>
           {/if}
         </div>
+        <WindowControls />
       </div>
 
       <div
@@ -1366,10 +1368,11 @@
 
               <div class="settings-divider"></div>
 
-              <!-- Debug / Performance Settings -->
-              <DebugSettings />
-
-              <div class="settings-divider"></div>
+              <!-- Debug / Performance Settings (dev mode only) -->
+              {#if import.meta.env.DEV}
+                <DebugSettings />
+                <div class="settings-divider"></div>
+              {/if}
 
               <!-- Legacy Vault Import -->
               <div class="import-section">
@@ -1911,6 +1914,13 @@
     justify-content: space-between;
     padding-left: 70px; /* Space for traffic lights on macOS */
     padding-right: 0.5rem;
+  }
+
+  /* On Windows/Linux, no traffic lights - remove left padding */
+  :global([data-platform='windows']) .safe-zone,
+  :global([data-platform='linux']) .safe-zone {
+    padding-left: 0.5rem;
+    padding-right: 0; /* Window controls handle their own spacing */
   }
 
   .floating-sidebar-toggle {

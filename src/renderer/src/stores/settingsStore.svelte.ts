@@ -31,6 +31,7 @@ export interface AppSettings {
     debugMode: boolean;
     proxyUrl?: string;
     customEndpoints: Record<string, never>;
+    simulateWindowsPlatform?: boolean; // Debug: show Windows controls on macOS
   };
   updates: {
     lastSeenVersion: string;

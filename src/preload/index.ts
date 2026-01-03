@@ -177,6 +177,17 @@ const api = {
     electronAPI.ipcRenderer.send('menu-trigger-action', action, ...args);
   },
 
+  // Window control operations (for Windows/Linux custom title bar)
+  windowMinimize: (): void => {
+    electronAPI.ipcRenderer.send('window-minimize');
+  },
+  windowMaximize: (): void => {
+    electronAPI.ipcRenderer.send('window-maximize');
+  },
+  windowClose: (): void => {
+    electronAPI.ipcRenderer.send('window-close');
+  },
+
   // Automerge sync operations
   automergeSync: {
     sendRepoMessage: (message: {

@@ -141,6 +141,11 @@ declare global {
       triggerMenuNavigate: (view: string) => void;
       triggerMenuAction: (action: string, ...args: unknown[]) => void;
 
+      // Window control operations (Windows/Linux)
+      windowMinimize: () => void;
+      windowMaximize: () => void;
+      windowClose: () => void;
+
       // Automerge sync operations
       automergeSync: {
         sendRepoMessage: (message: unknown) => Promise<void>;
