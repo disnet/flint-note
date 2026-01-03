@@ -20,6 +20,7 @@ import { createEpubTools } from './epub-tools.svelte';
 import { createPdfTools } from './pdf-tools.svelte';
 import { createRoutineTools } from './routine-tools.svelte';
 import { createDeckTools } from './deck-tools.svelte';
+import { createWebpageTools } from './webpage-tools.svelte';
 import {
   createConversation,
   addMessageToConversation,
@@ -617,14 +618,15 @@ export class ChatService {
         }
       }
 
-      // Create tools (note tools + note type tools + EPUB tools + PDF tools + routine tools + deck tools)
+      // Create tools (note tools + note type tools + EPUB tools + PDF tools + routine tools + deck tools + webpage tools)
       const tools = {
         ...createNoteTools(),
         ...createNoteTypeTools(),
         ...createEpubTools(),
         ...createPdfTools(),
         ...createRoutineTools(),
-        ...createDeckTools()
+        ...createDeckTools(),
+        ...createWebpageTools()
       };
 
       // Create OpenRouter provider pointing to our proxy
@@ -996,10 +998,12 @@ export class ChatService {
       // Create tools
       const tools = {
         ...createNoteTools(),
+        ...createNoteTypeTools(),
         ...createEpubTools(),
         ...createPdfTools(),
         ...createRoutineTools(),
-        ...createDeckTools()
+        ...createDeckTools(),
+        ...createWebpageTools()
       };
 
       // Create OpenRouter provider
