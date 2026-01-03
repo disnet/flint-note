@@ -1,16 +1,18 @@
 # Getting Started
 
-Welcome to Flint! This guide will help you install Flint, set up your first vault, and start building deep knowledge.
+Welcome to Flint! This guide will help you install Flint, set up your first vault, and start taking notes.
 
 ## What is Flint?
 
-Flint is an **open source, local-first, AI-powered note-taking application** designed to build deep knowledge through the complete learning cycle.
+Flint is an **open source, local-first, AI-powered note-taking app** that helps you capture ideas, connect them together, and come back to what matters.
 
-**The Core Philosophy:**
+**How it works:**
 
-Flint supports **externalizing** (getting ideas out), **internalizing** (making them yours), and **resurfacing** (bringing them back repeatedly over time to ground memory).
+1. **Write** - Capture ideas without friction
+2. **Connect** - Link notes together and find relationships
+3. **Remember** - Review notes at the right time with spaced repetition
 
-Your notes stay on your machine in plain markdown files. You own and control everything. The AI assists your learning process, but the insights come from you.
+Your notes are plain markdown files on your machine. You own and control everything.
 
 ## System Requirements
 
@@ -131,9 +133,9 @@ Related: [[project-ideas]] and [[design-principles]]
 
 **Why link?**
 
-- Connection-making deepens learning (internalizing)
-- Discover unexpected relationships
+- Discover unexpected relationships between ideas
 - See all references to a concept in one place
+- Build a knowledge graph that grows with you
 
 ## Using the AI Agent
 
@@ -193,11 +195,11 @@ See [Shortcuts](/guides/shortcuts) for the complete list.
 
 Before diving deeper, review these core ideas:
 
-**[Core Concepts](/guides/core-concepts)** - Understand Flint's philosophy and the externalize/internalize/resurface cycle
+**[Core Concepts](/guides/core-concepts)** - Learn how Flint's features work together
 
-**[Note Types](/features/notes#note-types)** - Different types guide different thinking patterns
+**[Note Types](/features/notes#note-types)** - Different types for different purposes
 
-**[Review System](/features/review-system)** - Active recall builds deep retention
+**[Review System](/features/review-system)** - Spaced repetition to remember what matters
 
 ## Next Steps
 
@@ -233,4 +235,4 @@ Your notes are plain markdown in a folder. You can open them in any text editor,
 
 ---
 
-**Ready to dive deeper?** Continue with [Core Concepts](/guides/core-concepts) to understand how all of Flint's features work together to support deep knowledge building.
+**Ready to dive deeper?** Continue with [Core Concepts](/guides/core-concepts) to learn how all of Flint's features work together.

@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Flint
-  text: Ignite Deep Knowledge
-  tagline: Flint is an open source, local-first, AI-powered note-taking application designed to build deep knowledge through the complete learning cycle.
+  text: Write, connect, remember
+  tagline: An open source, local-first, AI-powered note-taking app that helps you capture ideas, link them together, and come back to what matters.
   actions:
     - theme: brand
       text: Get Started
@@ -18,15 +18,15 @@ features:
     title: Frictionless Capture
     details: Get ideas out of your head without worrying about organization up front. Think in ideas, not files.
   - icon: 🔗
-    title: Connected Thinking
-    details: Wikilinks and backlinks surface relationships between notes.
+    title: Connected Notes
+    details: Wikilinks and backlinks make relationships between notes visible and discoverable.
   - icon: 🤖
-    title: AI Learning Partner
-    details: An agent that helps you capture better, connect deeper, and resurface at the right moments.
+    title: AI Agent
+    details: An agent that helps you create notes, find connections, and generate review prompts.
   - icon: 🔄
-    title: Active Recall Practice
-    details: Review your notes with spaced repetition. Build deep retention without the overhead of maintaining flashcards.
+    title: Spaced Repetition
+    details: Review your notes at the right time. Remember what matters without maintaining flashcards.
   - icon: 🌟
     title: Open Source
-    details: Fully open source and transparent. View the code, contribute, and help shape the future of Flint on GitHub.
+    details: Fully open source and transparent. Your notes are plain text files on your machine.
 ---
