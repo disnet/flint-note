@@ -11,6 +11,7 @@ export type MenuItemDef =
       type?: undefined;
       label: string;
       accelerator?: string;
+      acceleratorWeb?: string; // Web-safe alternative (Ctrl+Shift to avoid browser conflicts)
       action?: string;
       role?: string;
       // Platform-specific label override
@@ -30,13 +31,28 @@ export interface MenuDef {
  * File menu items
  */
 export const fileMenuItems: MenuItemDef[] = [
-  { label: 'New Note', accelerator: 'CmdOrCtrl+Shift+N', action: 'new-note' },
-  { label: 'New Deck', accelerator: 'CmdOrCtrl+Shift+D', action: 'new-deck' },
+  {
+    label: 'New Note',
+    accelerator: 'CmdOrCtrl+Shift+N',
+    acceleratorWeb: 'Ctrl+Shift+N',
+    action: 'new-note'
+  },
+  {
+    label: 'New Deck',
+    accelerator: 'CmdOrCtrl+Shift+D',
+    acceleratorWeb: 'Ctrl+Shift+D',
+    action: 'new-deck'
+  },
   { label: 'Import File...', action: 'import-file' },
   { label: 'Capture Webpage...', action: 'import-webpage' },
   { label: 'New Vault...', action: 'new-vault' },
   { type: 'separator' },
-  { label: 'Switch Vault', accelerator: 'CmdOrCtrl+Shift+O', action: 'switch-vault' },
+  {
+    label: 'Switch Vault',
+    accelerator: 'CmdOrCtrl+Shift+O',
+    acceleratorWeb: 'Ctrl+Shift+O',
+    action: 'switch-vault'
+  },
   { type: 'separator' },
   {
     label: 'Show in Finder',
@@ -51,7 +67,7 @@ export const fileMenuItems: MenuItemDef[] = [
  */
 export const editMenuItems: MenuItemDef[] = [
   { label: 'Undo', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
-  { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', action: 'redo' },
+  { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', role: 'redo' },
   { type: 'separator' },
   { label: 'Cut', accelerator: 'CmdOrCtrl+X', role: 'cut' },
   { label: 'Copy', accelerator: 'CmdOrCtrl+C', role: 'copy' },
@@ -60,36 +76,84 @@ export const editMenuItems: MenuItemDef[] = [
   { type: 'separator' },
   { label: 'Select All', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
   { type: 'separator' },
-  { label: 'Find', accelerator: 'CmdOrCtrl+K', action: 'find' }
+  {
+    label: 'Find',
+    accelerator: 'CmdOrCtrl+K',
+    acceleratorWeb: 'Ctrl+Shift+K',
+    action: 'find'
+  }
 ];
 
 /**
  * View menu items
  */
 export const viewMenuItems: MenuItemDef[] = [
-  { label: 'Inbox', accelerator: 'CmdOrCtrl+1', action: 'navigate:inbox' },
-  { label: 'Daily', accelerator: 'CmdOrCtrl+2', action: 'navigate:daily' },
-  { label: 'Review', accelerator: 'CmdOrCtrl+3', action: 'navigate:review' },
-  { label: 'Routines', accelerator: 'CmdOrCtrl+4', action: 'navigate:routines' },
-  { label: 'Note Types', accelerator: 'CmdOrCtrl+5', action: 'navigate:note-types' },
-  { label: 'Settings', accelerator: 'CmdOrCtrl+6', action: 'navigate:settings' },
+  {
+    label: 'Inbox',
+    accelerator: 'CmdOrCtrl+1',
+    acceleratorWeb: 'Ctrl+Shift+1',
+    action: 'navigate:inbox'
+  },
+  {
+    label: 'Daily',
+    accelerator: 'CmdOrCtrl+2',
+    acceleratorWeb: 'Ctrl+Shift+2',
+    action: 'navigate:daily'
+  },
+  {
+    label: 'Review',
+    accelerator: 'CmdOrCtrl+3',
+    acceleratorWeb: 'Ctrl+Shift+3',
+    action: 'navigate:review'
+  },
+  {
+    label: 'Routines',
+    accelerator: 'CmdOrCtrl+4',
+    acceleratorWeb: 'Ctrl+Shift+4',
+    action: 'navigate:routines'
+  },
+  {
+    label: 'Note Types',
+    accelerator: 'CmdOrCtrl+5',
+    acceleratorWeb: 'Ctrl+Shift+5',
+    action: 'navigate:note-types'
+  },
+  {
+    label: 'Settings',
+    accelerator: 'CmdOrCtrl+6',
+    acceleratorWeb: 'Ctrl+Shift+6',
+    action: 'navigate:settings'
+  },
   { type: 'separator' },
-  { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', action: 'toggle-sidebar' },
-  { label: 'Focus Title', accelerator: 'CmdOrCtrl+E', action: 'focus-title' },
+  {
+    label: 'Toggle Sidebar',
+    accelerator: 'CmdOrCtrl+B',
+    acceleratorWeb: 'Ctrl+Shift+B',
+    action: 'toggle-sidebar'
+  },
+  {
+    label: 'Focus Title',
+    accelerator: 'CmdOrCtrl+E',
+    acceleratorWeb: 'Ctrl+Shift+T',
+    action: 'focus-title'
+  },
   {
     label: 'Toggle Preview/Edit',
     accelerator: 'CmdOrCtrl+Shift+E',
+    acceleratorWeb: 'Ctrl+Shift+E',
     action: 'toggle-preview'
   },
   { type: 'separator' },
   {
     label: 'Toggle Agent Panel',
     accelerator: 'CmdOrCtrl+Shift+A',
+    acceleratorWeb: 'Ctrl+Shift+A',
     action: 'toggle-agent'
   },
   {
     label: 'Toggle Notes Shelf',
     accelerator: 'CmdOrCtrl+Shift+L',
+    acceleratorWeb: 'Ctrl+Shift+L',
     action: 'toggle-shelf'
   },
   { type: 'separator' },
@@ -113,9 +177,19 @@ export const workspaceMenuItems: MenuItemDef[] = [
  * Note menu items
  */
 export const noteMenuItems: MenuItemDef[] = [
-  { label: 'Pin/Unpin Note', accelerator: 'CmdOrCtrl+Shift+P', action: 'toggle-pin' },
+  {
+    label: 'Pin/Unpin Note',
+    accelerator: 'CmdOrCtrl+Shift+P',
+    acceleratorWeb: 'Ctrl+Shift+P',
+    action: 'toggle-pin'
+  },
   { label: 'Add to Shelf', action: 'add-to-shelf' },
-  { label: 'Change Type', accelerator: 'CmdOrCtrl+Shift+M', action: 'change-type' },
+  {
+    label: 'Change Type',
+    accelerator: 'CmdOrCtrl+Shift+M',
+    acceleratorWeb: 'Ctrl+Shift+M',
+    action: 'change-type'
+  },
   { type: 'separator' },
   { label: 'Enable/Disable Review', action: 'toggle-review' },
   { type: 'separator' },
@@ -152,7 +226,10 @@ export const helpMenuItems: MenuItemDef[] = [
 /**
  * Convert CmdOrCtrl to platform-specific accelerator
  */
-export function convertAccelerator(accelerator: string, platform: 'mac' | 'win'): string {
+export function convertAccelerator(
+  accelerator: string,
+  platform: 'mac' | 'win' | 'web'
+): string {
   if (platform === 'mac') {
     return accelerator
       .replace(/CmdOrCtrl/g, 'Cmd')
@@ -160,8 +237,23 @@ export function convertAccelerator(accelerator: string, platform: 'mac' | 'win')
       .replace(/Shift\+/g, '⇧')
       .replace(/Alt\+/g, '⌥');
   } else {
+    // For both 'win' and 'web', show Alt+ or Ctrl+ as-is
     return accelerator.replace(/CmdOrCtrl/g, 'Ctrl');
   }
+}
+
+/**
+ * Get the appropriate accelerator for a menu item based on platform
+ */
+export function getAccelerator(
+  item: MenuItemDef,
+  platform: 'mac' | 'win' | 'web'
+): string | undefined {
+  if (item.type === 'separator') return undefined;
+  if (platform === 'web' && item.acceleratorWeb) {
+    return item.acceleratorWeb;
+  }
+  return item.accelerator;
 }
 
 /**

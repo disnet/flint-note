@@ -91,7 +91,7 @@
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
-  import { isElectron } from '../lib/platform.svelte';
+  import { isElectron, isWeb } from '../lib/platform.svelte';
 
   // Derived state
   const allNotes = $derived(getAllNotes());
@@ -1076,9 +1076,19 @@
 
   // Keyboard shortcuts
   const isMac = navigator.platform.startsWith('Mac');
+  const webMode = isWeb();
 
   function handleKeyDown(event: KeyboardEvent): void {
-    // Use Cmd on macOS, Ctrl on Windows/Linux
+    // In web mode, use Alt-based shortcuts to avoid browser conflicts
+    // In Electron mode, use Cmd (macOS) or Ctrl (Windows/Linux)
+    if (webMode) {
+      handleWebKeyDown(event);
+    } else {
+      handleElectronKeyDown(event);
+    }
+  }
+
+  function handleElectronKeyDown(event: KeyboardEvent): void {
     const modifierPressed = isMac ? event.metaKey : event.ctrlKey;
 
     // Cmd/Ctrl + Shift + N: New note
@@ -1089,20 +1099,109 @@
     // Cmd/Ctrl + K: Focus search or open quick search
     if (modifierPressed && event.key === 'k') {
       event.preventDefault();
-      if (sidebarState.leftSidebar.visible) {
-        // Sidebar is open - focus the sidebar search input
-        const searchInput = document.getElementById('search-input');
-        searchInput?.focus();
-      } else {
-        // Sidebar is closed - open quick search modal
-        quickSearchOpen = true;
-        searchInputFocused = true; // Trigger the search effect to show recent notes
-      }
+      handleFocusSearch();
     }
     // Cmd/Ctrl + B: Toggle sidebar
     if (modifierPressed && event.key === 'b') {
       event.preventDefault();
       toggleLeftSidebar();
+    }
+  }
+
+  function handleWebKeyDown(event: KeyboardEvent): void {
+    // Web mode uses Ctrl+Shift shortcuts to avoid browser conflicts
+    if (!event.ctrlKey || !event.shiftKey) return;
+
+    const key = event.key.toLowerCase();
+
+    // File shortcuts
+    if (key === 'n') {
+      event.preventDefault();
+      handleCreateNote();
+      return;
+    }
+    if (key === 'd') {
+      event.preventDefault();
+      handleCreateDeck();
+      return;
+    }
+    if (key === 'o') {
+      event.preventDefault();
+      // Toggle vault dropdown
+      const vaultButton = document.querySelector(
+        '[data-vault-dropdown]'
+      ) as HTMLElement | null;
+      vaultButton?.click();
+      return;
+    }
+
+    // Search/Find
+    if (key === 'k') {
+      event.preventDefault();
+      handleFocusSearch();
+      return;
+    }
+
+    // View shortcuts
+    if (key === 'b') {
+      event.preventDefault();
+      toggleLeftSidebar();
+      return;
+    }
+    if (key === 't') {
+      event.preventDefault();
+      handleFocusTitle();
+      return;
+    }
+    if (key === 'e') {
+      event.preventDefault();
+      handleMenuAction('toggle-preview');
+      return;
+    }
+    if (key === 'a') {
+      event.preventDefault();
+      handleMenuAction('toggle-agent');
+      return;
+    }
+    if (key === 'l') {
+      event.preventDefault();
+      handleMenuAction('toggle-shelf');
+      return;
+    }
+
+    // Navigation shortcuts (Ctrl+Shift+1-6)
+    if (key >= '1' && key <= '6') {
+      event.preventDefault();
+      const views = ['inbox', 'daily', 'review', 'routines', 'note-types', 'settings'];
+      const viewIndex = parseInt(key) - 1;
+      if (viewIndex >= 0 && viewIndex < views.length) {
+        handleMenuNavigate(views[viewIndex]);
+      }
+      return;
+    }
+
+    // Note shortcuts
+    if (key === 'p') {
+      event.preventDefault();
+      handleMenuAction('toggle-pin');
+      return;
+    }
+    if (key === 'm') {
+      event.preventDefault();
+      handleMenuAction('change-type');
+      return;
+    }
+  }
+
+  function handleFocusSearch(): void {
+    if (sidebarState.leftSidebar.visible) {
+      // Sidebar is open - focus the sidebar search input
+      const searchInput = document.getElementById('search-input');
+      searchInput?.focus();
+    } else {
+      // Sidebar is closed - open quick search modal
+      quickSearchOpen = true;
+      searchInputFocused = true;
     }
   }
 </script>

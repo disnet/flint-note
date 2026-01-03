@@ -12,10 +12,14 @@
     noteMenuItems,
     helpMenuItems,
     convertAccelerator,
+    getAccelerator,
     getLabel,
     type MenuItemDef
   } from '../../../shared/menu-definitions';
   import { isElectron, isWeb } from '../lib/platform.svelte';
+
+  // Determine display platform for shortcuts
+  const displayPlatform: 'mac' | 'win' | 'web' = $derived(isWeb() ? 'web' : 'win');
 
   let isOpen = $state(false);
   let activeSubmenu = $state<string | null>(null);
@@ -254,11 +258,12 @@
               {#if item.type === 'separator'}
                 <div class="menu-separator"></div>
               {:else}
+                {@const accel = getAccelerator(item, displayPlatform)}
                 <button class="menu-item" onclick={() => handleItemClick(item)}>
                   <span class="menu-item-label">{getLabel(item, 'win')}</span>
-                  {#if item.accelerator}
+                  {#if accel}
                     <span class="menu-item-shortcut">
-                      {convertAccelerator(item.accelerator, 'win')}
+                      {convertAccelerator(accel, displayPlatform)}
                     </span>
                   {/if}
                 </button>
