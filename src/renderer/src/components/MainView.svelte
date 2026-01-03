@@ -1657,6 +1657,7 @@
   shelfOpen={shelfPanelOpen}
   onToggleChat={() => sidebarState.togglePanel('chat')}
   onToggleShelf={() => sidebarState.togglePanel('shelf')}
+  autoHide={isActiveNoteEpub || isActiveNotePdf}
 />
 
 <!-- Floating panels (only when not expanded) -->

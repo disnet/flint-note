@@ -115,4 +115,13 @@
   :global([data-screenshot-mode]) .screenshot-content {
     border-radius: 12px;
   }
+
+  /* Override 100vh heights in screenshot mode to fit within frame */
+  :global([data-screenshot-mode] .main-view) {
+    height: 100%;
+  }
+
+  :global([data-screenshot-mode] .first-time-container) {
+    height: 100%;
+  }
 </style>

@@ -17,11 +17,11 @@ export interface LaunchOptions {
   vaultName?: string;
   /** Additional environment variables */
   env?: Record<string, string>;
-  /** Viewport size (default: 1600x900) */
+  /** Viewport size (default: 1400x960) */
   viewport?: { width: number; height: number };
 }
 
-const DEFAULT_VIEWPORT = { width: 1600, height: 900 };
+const DEFAULT_VIEWPORT = { width: 1400, height: 960 };
 
 // Track temp directories for cleanup
 const tempDirs: string[] = [];
@@ -108,8 +108,21 @@ export async function launchApp(options: LaunchOptions = {}): Promise<{
   });
 
   // Set viewport size with 2x device scale factor for retina screenshots
-  // Using CDP to force device metrics since Electron doesn't expose this directly
   const viewport = options.viewport || DEFAULT_VIEWPORT;
+
+  // Resize the actual Electron BrowserWindow to match the viewport
+  await electronApp.evaluate(
+    ({ BrowserWindow }, { width, height }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) {
+        win.setSize(width, height);
+        win.setContentSize(width, height);
+      }
+    },
+    { width: viewport.width, height: viewport.height }
+  );
+
+  // Also set device metrics via CDP for consistent scaling
   const cdpSession = await window.context().newCDPSession(window);
   await cdpSession.send('Emulation.setDeviceMetricsOverride', {
     width: viewport.width,
@@ -129,10 +142,9 @@ export async function launchApp(options: LaunchOptions = {}): Promise<{
  */
 export async function waitForAppReady(window: Page): Promise<void> {
   // Wait for either the main app or first-time experience to be visible
-  await window.waitForSelector(
-    '.main-view, .first-time-experience, [data-first-time], .vault-selector',
-    { timeout: 30000 }
-  );
+  await window.waitForSelector('.main-view, .first-time-container', {
+    timeout: 30000
+  });
 
   // Additional wait for any loading states to finish
   try {

@@ -13,6 +13,42 @@ import type { Vault } from './types';
 // Default note type ID - same as in state.svelte.ts
 const DEFAULT_NOTE_TYPE_ID = 'type-default';
 
+// Map common folder names to appropriate icons
+const FOLDER_ICON_MAP: Record<string, string> = {
+  // Knowledge & Research
+  books: '📚',
+  reading: '📖',
+  research: '🔬',
+  notes: '📝',
+  references: '📎',
+  sources: '📑',
+  // Writing & Creation
+  writing: '✍️',
+  drafts: '📄',
+  projects: '🚀',
+  ideas: '💡',
+  concepts: '🧠',
+  // Time-based
+  daily: '📅',
+  journal: '📓',
+  logs: '📋',
+  // Organization
+  archive: '📦',
+  inbox: '📥',
+  // Work
+  meetings: '👥',
+  tasks: '✅',
+  decisions: '⚖️'
+};
+
+/**
+ * Get an appropriate icon for a folder name
+ */
+function getFolderIcon(folderName: string): string {
+  const normalized = folderName.toLowerCase().trim();
+  return FOLDER_ICON_MAP[normalized] || '📁';
+}
+
 export interface MarkdownImportProgress {
   phase: 'scanning' | 'creating-types' | 'importing-notes' | 'complete' | 'error';
   message: string;
@@ -122,7 +158,7 @@ export async function importMarkdownDirectory(
         const typeId = createNoteType({
           name: category,
           purpose: `Notes imported from ${category} folder`,
-          icon: '📁'
+          icon: getFolderIcon(category)
         });
         categoryToTypeId[category] = typeId;
       } catch (error) {

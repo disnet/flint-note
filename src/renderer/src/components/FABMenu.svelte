@@ -20,9 +20,20 @@
     onToggleChat: () => void;
     /** Toggle shelf panel callback */
     onToggleShelf: () => void;
+    /** Whether to auto-hide on inactivity (default: true) */
+    autoHide?: boolean;
   }
 
-  let { chatOpen, shelfOpen, onToggleChat, onToggleShelf }: Props = $props();
+  let {
+    chatOpen,
+    shelfOpen,
+    onToggleChat,
+    onToggleShelf,
+    autoHide = true
+  }: Props = $props();
+
+  // Visibility: always visible if autoHide is false, otherwise use floatingUIState
+  const isVisible = $derived(!autoHide || floatingUIState.visible);
 
   let isHovered = $state(false);
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -86,7 +97,7 @@
 {#if !panelOpen}
   <div
     class="fab-container"
-    class:visible={floatingUIState.visible}
+    class:visible={isVisible}
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
     role="group"

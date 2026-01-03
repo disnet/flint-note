@@ -115,10 +115,39 @@ function isScreenshotMode(): boolean {
 }
 
 /**
- * Mock responses for screenshot mode
- * Maps user message patterns to assistant responses
+ * Mock tool call for screenshot mode
  */
-const MOCK_RESPONSES: Array<{ pattern: RegExp; response: string }> = [
+interface MockToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+/**
+ * Mock responses for screenshot mode
+ * Maps user message patterns to assistant responses with optional tool calls
+ */
+const MOCK_RESPONSES: Array<{
+  pattern: RegExp;
+  response: string;
+  toolCalls?: MockToolCall[];
+}> = [
+  {
+    pattern: /connection.*creativity.*flow|creativity.*flow/i,
+    response: `Your notes connect creativity and flow in two ways:
+
+**Direct link**: [[The Science of Creativity]] positions flow as central to creative work—both need clear goals and challenge-skill balance. The key insight: creativity *precedes* flow (finding the problem), while flow emerges *during* execution.
+
+**Via constraints**: [[Connection between constraints and creativity]] argues constraints enable flow by creating clear challenges and reducing decision fatigue. Your [[Flow States]] research supports this with the challenge-skill balance diagram.`,
+    toolCalls: [
+      { name: 'search_notes', args: { query: 'creativity flow' } },
+      { name: 'get_note', args: { id: 'n-science-creativity' } },
+      { name: 'get_note', args: { id: 'n-constraints-creativity' } },
+      { name: 'get_note', args: { id: 'n-flow-states' } },
+      { name: 'search_notes', args: { query: 'challenge skill balance' } },
+      { name: 'get_backlinks', args: { noteId: 'n-flow-states' } },
+      { name: 'search_notes', args: { query: 'constraints creativity' } }
+    ]
+  },
   {
     pattern: /hello|hi|hey/i,
     response:
@@ -156,14 +185,20 @@ Just ask me anything about your notes or what you'd like to create!`
 /**
  * Get a mock response based on user input
  */
-function getMockResponse(userMessage: string): string {
-  for (const { pattern, response } of MOCK_RESPONSES) {
+function getMockResponse(userMessage: string): {
+  response: string;
+  toolCalls?: MockToolCall[];
+} {
+  for (const { pattern, response, toolCalls } of MOCK_RESPONSES) {
     if (pattern.test(userMessage)) {
-      return response;
+      return { response, toolCalls };
     }
   }
   // Default response
-  return "I understand you're asking about that. Let me help you explore this topic further. Would you like me to search your notes for related information, or would you prefer to create a new note to capture your thoughts?";
+  return {
+    response:
+      "I understand you're asking about that. Let me help you explore this topic further. Would you like me to search your notes for related information, or would you prefer to create a new note to capture your thoughts?"
+  };
 }
 
 const BASE_SYSTEM_PROMPT = `You are an AI assistant for Flint, an intelligent note-taking system designed for natural conversation-based knowledge management. Help users capture, organize, and discover knowledge through intuitive conversation. Be proactive, direct, and substantive.
@@ -1286,6 +1321,20 @@ export class ChatService {
     };
     this._messages = [...this._messages, userMessage];
 
+    // Get mock response (may include tool calls)
+    const { response: mockResponse, toolCalls: mockToolCalls } = getMockResponse(text);
+
+    // Convert mock tool calls to proper ToolCall format with completed status
+    const formattedToolCalls: ToolCall[] = mockToolCalls
+      ? mockToolCalls.map((tc, index) => ({
+          id: `mock-tool-${index}`,
+          name: tc.name,
+          args: tc.args,
+          status: 'completed' as const,
+          result: { success: true }
+        }))
+      : [];
+
     // Create assistant message placeholder
     const assistantMessageId = await addMessageToConversation(this._conversationId, {
       role: 'assistant',
@@ -1297,7 +1346,7 @@ export class ChatService {
       id: assistantMessageId,
       role: 'assistant',
       content: '',
-      toolCalls: [],
+      toolCalls: formattedToolCalls,
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- fixed timestamp, not reactive
       createdAt: new Date(),
       toolActivity: { isActive: true }
@@ -1306,12 +1355,9 @@ export class ChatService {
 
     this._status = 'streaming';
 
-    // Get mock response and simulate streaming
-    const mockResponse = getMockResponse(text);
-
-    // Simulate typing delay - stream character by character
-    const charsPerChunk = 3;
-    const delayPerChunk = 20; // ms
+    // Simulate typing delay - stream in larger chunks for faster display
+    const charsPerChunk = 20;
+    const delayPerChunk = 10; // ms
 
     for (let i = 0; i < mockResponse.length; i += charsPerChunk) {
       const chunk = mockResponse.slice(i, i + charsPerChunk);
