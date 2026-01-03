@@ -50,9 +50,6 @@ flint-ui/
 - `npm run clean` - Clean build artifacts
 - `npm run test` - Run tests in watch mode
 - `npm run test:run` - Run tests once
-- `npm run docs:dev` - Start VitePress dev server for documentation
-- `npm run docs:build` - Build documentation website
-- `npm run docs:preview` - Preview built documentation
 
 ## System Layout
 
@@ -69,37 +66,10 @@ flint-ui/
 - `src/renderer/` - Svelte UI application
 - `src/server/` - Integrated note server with API, database, and core logic
 
-### Website & Public Documentation
-
-The project includes a public-facing website with documentation:
-
-**Structure:**
+### Website
 
 - `website/` - Static website directory (deployed to Cloudflare Pages)
   - `index.html` - Main landing page
-  - `docs/` - Built documentation (VitePress output, gitignored)
-- `docs-src/` - VitePress documentation source files
-  - `.vitepress/config.ts` - VitePress configuration
-  - `.vitepress/theme/index.ts` - Theme configuration
-  - `*.md` - Documentation pages (Getting Started, Features, Guides, etc.)
-  - `features/` - Feature documentation
-  - `guides/` - User guides
-
-**Key Points:**
-
-- Documentation source is in `docs-src/`, **not** `docs/` (which contains internal project docs)
-- VitePress builds from `docs-src/` to `website/docs/`
-- The `website/docs/` directory is gitignored (build output only)
-- Deployment is automatic via GitHub Actions on push to main
-- Changes to `website/**` or `docs-src/**` trigger deployment
-- Features enabled: local search, table of contents outline, dark mode
-
-**Building Documentation:**
-
-1. Edit markdown files in `docs-src/`
-2. Run `npm run docs:build` to build
-3. Built files appear in `website/docs/`
-4. Push to main to deploy automatically
 
 ## Coding guidlines
 

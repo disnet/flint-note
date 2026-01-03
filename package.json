@@ -39,9 +39,6 @@
     "build:win:canary": "npm run build && electron-builder --win --config electron-builder.canary.yml",
     "build:mac:canary": "npm run build && electron-builder --mac --config electron-builder.canary.yml",
     "build:linux:canary": "npm run build && electron-builder --linux --config electron-builder.canary.yml",
-    "docs:dev": "vitepress dev docs-src",
-    "docs:build": "vitepress build docs-src",
-    "docs:preview": "vitepress preview docs-src",
     "screenshots": "npm run build && npx playwright test --config=screenshots/playwright.config.ts",
     "screenshots:editor": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-editor",
     "screenshots:settings": "npm run build && npx playwright test --config=screenshots/playwright.config.ts capture-settings",
@@ -130,7 +127,6 @@
     "vite": "^6.2.6",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
-    "vitepress": "^1.6.4",
     "vitest": "^4.0.14"
   }
 }
