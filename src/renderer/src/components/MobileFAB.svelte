@@ -253,7 +253,7 @@
     <!-- Action buttons (shown when menu open) -->
     {#if isMenuOpen}
       <div class="secondary-actions">
-        {#each isViewingContent ? contentActions : secondaryActions as action, i}
+        {#each isViewingContent ? contentActions : secondaryActions as action, i (action.label)}
           <button
             class="fab-secondary"
             style:animation-delay="{i * 50}ms"

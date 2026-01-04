@@ -3,6 +3,7 @@
  * Syncs browser URL with app state bidirectionally (web mode only)
  */
 
+import { SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 import { isWeb } from './platform.svelte';
 import {
   getActiveItem,
@@ -103,7 +104,7 @@ function buildUrl(): string {
   // Conversations don't have URL routes
 
   // Build query params
-  const params = new URLSearchParams();
+  const params = new SvelteURLSearchParams();
 
   // Sidebar state - only serialize if closed (open is default)
   if (!sidebarState.leftSidebar.visible) {
@@ -202,7 +203,7 @@ function updateUrl(replace: boolean = false): void {
  * Handle popstate event (back/forward navigation)
  */
 function handlePopState(): void {
-  const route = parseUrl(new URL(window.location.href));
+  const route = parseUrl(new SvelteURL(window.location.href));
   applyRoute(route);
 }
 
@@ -216,7 +217,7 @@ export function initializeRouter(): () => void {
   }
 
   // Handle initial URL
-  const initialRoute = parseUrl(new URL(window.location.href));
+  const initialRoute = parseUrl(new SvelteURL(window.location.href));
 
   // If URL has a specific route, apply it (overrides storage)
   // If URL is root with no params, keep storage-restored state

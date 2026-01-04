@@ -4,7 +4,18 @@ import eslintPluginSvelte from 'eslint-plugin-svelte';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules', '**/dist', '**/out', '**/build']
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out',
+      '**/build',
+      'web-app',
+      'website',
+      'playwright-report',
+      'test-results',
+      'screenshots/output',
+      '.wrangler'
+    ]
   },
   tseslint.configs.recommended,
   eslintPluginSvelte.configs['flat/recommended'],
