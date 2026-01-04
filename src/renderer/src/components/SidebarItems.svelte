@@ -1102,6 +1102,8 @@
       {/if}
     {/each}
   </div>
+  <!-- Drag zone for window dragging in empty space -->
+  <div class="drag-zone"></div>
 </div>
 
 <!-- Context menu -->
@@ -1273,6 +1275,13 @@
     flex-direction: column;
     flex: 1;
     padding-bottom: 0.5rem;
+    min-height: 0;
+  }
+
+  .drag-zone {
+    flex: 1;
+    min-height: 1rem;
+    -webkit-app-region: drag;
   }
 
   .section-label {

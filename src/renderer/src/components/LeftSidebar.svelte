@@ -692,6 +692,7 @@
     min-width: 0;
     min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
+    -webkit-app-region: drag;
   }
 
   /* Sidebar Header */
@@ -1152,6 +1153,7 @@
     flex-direction: column;
     min-width: 0;
     scrollbar-gutter: stable;
+    -webkit-app-region: no-drag;
   }
 
   .workspace-content {

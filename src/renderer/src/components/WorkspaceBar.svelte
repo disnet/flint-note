@@ -700,6 +700,7 @@
     flex-shrink: 0;
     position: relative;
     transition: box-shadow 0.2s ease;
+    -webkit-app-region: drag;
   }
 
   /* macOS vibrancy - transparent to inherit sidebar's frosted effect */
@@ -730,6 +731,7 @@
     justify-content: space-between;
     gap: 0.5rem;
     width: 100%;
+    -webkit-app-region: no-drag;
   }
 
   .workspace-icons {
