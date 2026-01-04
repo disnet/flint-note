@@ -513,161 +513,90 @@
           </div>
         {/if}
       {:else}
-        <!-- No legacy vaults - show create new vault form -->
-        <div class="vault-explanation">
-          <h2>Get Started with Your First Vault</h2>
-          <p>
-            A <strong>vault</strong> is a collection of notes stored locally in your browser.
-            Think of it as your personal knowledge workspace where all your notes, ideas, and
-            thoughts are organized and interconnected.
-          </p>
-
-          <div class="features-list">
-            <div class="feature">
-              <span class="feature-icon">🔗</span>
-              <div class="feature-text">
-                <strong>Smart Linking:</strong> Connect your thoughts with automatic wikilinks
-              </div>
-            </div>
-            <div class="feature">
-              <span class="feature-icon">🔍</span>
-              <div class="feature-text">
-                <strong>Powerful Search:</strong> Find anything across all your notes instantly
-              </div>
-            </div>
-            <div class="feature">
-              <span class="feature-icon">💾</span>
-              <div class="feature-text">
-                <strong>Local First:</strong> Your notes are stored locally and work offline
-              </div>
-            </div>
-            <div class="feature">
-              <span class="feature-icon">📝</span>
-              <div class="feature-text">
-                <strong>Flexible Types:</strong> Organize notes with custom types and structures
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Vault creation form -->
-        <div class="vault-form">
-          <label for="vault-name" class="form-label">Vault Name</label>
-          <input
-            id="vault-name"
-            type="text"
-            class="vault-name-input"
-            bind:value={vaultName}
-            onkeydown={handleKeyDown}
-            placeholder="Enter vault name..."
-            maxlength="50"
-            disabled={isCreating}
-          />
-
-          <div class="sync-directory-section">
-            <span class="form-label-secondary">Sync to folder (optional)</span>
-            {#if vaultSyncDirectory}
-              <div class="sync-directory-selected">
-                <span class="sync-path" title={vaultSyncDirectory}
-                  >{vaultSyncDirectory}</span
-                >
-                <button
-                  class="sync-clear-btn"
-                  onclick={() => (vaultSyncDirectory = null)}
-                  title="Remove sync folder"
-                  disabled={isCreating}
-                >
-                  ✕
-                </button>
-              </div>
-            {:else}
-              <button
-                class="secondary-action-small"
-                onclick={handleSelectSyncDirectory}
+        <!-- No legacy vaults - clean start -->
+        <div class="quick-start">
+          <div class="quick-start-form">
+            <div class="form-field">
+              <label for="vault-name" class="form-label">Vault Name</label>
+              <input
+                id="vault-name"
+                type="text"
+                class="vault-name-input"
+                bind:value={vaultName}
+                onkeydown={handleKeyDown}
+                placeholder="My Notes"
+                maxlength="50"
                 disabled={isCreating}
-              >
-                Choose Folder...
-              </button>
-            {/if}
-          </div>
-
-          <!-- Template selection -->
-          <div class="template-section">
-            <span class="form-label">Choose a template</span>
-            <div class="template-options">
-              {#each VAULT_TEMPLATES as template (template.id)}
-                <button
-                  class="template-card"
-                  class:selected={selectedTemplateId === template.id}
-                  onclick={() => (selectedTemplateId = template.id)}
-                  disabled={isCreating}
-                  type="button"
-                >
-                  <span class="template-icon">{template.icon}</span>
-                  <span class="template-name">{template.name}</span>
-                  <span class="template-desc">{template.description}</span>
-                </button>
-              {/each}
+              />
             </div>
-          </div>
 
-          <!-- Onboarding options -->
-          <div class="onboarding-section">
-            <span class="form-label">Include starter content (optional)</span>
-            <div class="onboarding-options">
-              {#each ONBOARDING_OPTIONS as option (option.id)}
-                <label class="onboarding-option" class:disabled={isCreating}>
-                  <input
-                    type="checkbox"
-                    checked={selectedOnboardingIds.includes(option.id)}
-                    onchange={() => toggleOnboarding(option.id)}
+            <div class="form-field">
+              <span class="form-label">Template</span>
+              <div class="template-options">
+                {#each VAULT_TEMPLATES as template (template.id)}
+                  <button
+                    class="template-card"
+                    class:selected={selectedTemplateId === template.id}
+                    onclick={() => (selectedTemplateId = template.id)}
                     disabled={isCreating}
-                  />
-                  <span class="option-icon">{option.icon}</span>
-                  <div class="option-text">
-                    <span class="option-name">{option.name}</span>
-                    <span class="option-desc">{option.description}</span>
-                  </div>
-                </label>
-              {/each}
+                    type="button"
+                  >
+                    <span class="template-icon">{template.icon}</span>
+                    <span class="template-name">{template.name}</span>
+                  </button>
+                {/each}
+              </div>
             </div>
-          </div>
 
-          {#if createError}
-            <div class="error-message">{createError}</div>
-          {/if}
+            <div class="form-field">
+              <span class="form-label">Starter Content</span>
+              <div class="onboarding-options-compact">
+                {#each ONBOARDING_OPTIONS as option (option.id)}
+                  <label class="onboarding-chip" class:disabled={isCreating}>
+                    <input
+                      type="checkbox"
+                      checked={selectedOnboardingIds.includes(option.id)}
+                      onchange={() => toggleOnboarding(option.id)}
+                      disabled={isCreating}
+                    />
+                    <span class="chip-icon">{option.icon}</span>
+                    <span class="chip-name">{option.name}</span>
+                  </label>
+                {/each}
+              </div>
+            </div>
 
-          <button
-            class="primary-action"
-            onclick={handleCreateVault}
-            disabled={isCreating || !vaultName.trim()}
-          >
-            {#if isCreating}
-              <span class="button-icon">⏳</span>
-              Creating...
-            {:else}
-              <span class="button-icon">📁</span>
-              Create Vault
+            {#if createError}
+              <div class="error-message">{createError}</div>
             {/if}
-          </button>
-        </div>
 
-        {#if canBrowseFiles}
-          <div class="divider">
-            <span>or</span>
+            <button
+              class="primary-action"
+              onclick={handleCreateVault}
+              disabled={isCreating || !vaultName.trim()}
+            >
+              {#if isCreating}
+                Creating...
+              {:else}
+                Create Vault
+              {/if}
+            </button>
           </div>
 
-          <div class="action-buttons">
+          {#if canBrowseFiles}
+            <div class="divider">
+              <span>or</span>
+            </div>
+
             <button
               class="secondary-action"
               onclick={handleBrowseForVault}
               disabled={isCreating}
             >
-              <span class="button-icon">📂</span>
-              Open Vault from Directory
+              Open Existing Vault
             </button>
-          </div>
-        {/if}
+          {/if}
+        </div>
       {/if}
     </div>
   </div>
@@ -876,56 +805,100 @@
     cursor: not-allowed;
   }
 
-  /* New vault form */
-  .vault-explanation {
+  /* Quick start section */
+  .quick-start {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .quick-start-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
     background: var(--bg-primary);
     border-radius: 1rem;
-    padding: 2rem;
-    margin-bottom: 2rem;
+    padding: 1.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--border-light);
   }
 
-  .vault-explanation h2 {
-    font-size: 1.5rem;
-    color: var(--text-primary);
-    margin: 0 0 1rem 0;
-    text-align: center;
-  }
-
-  .vault-explanation > p {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-  }
-
-  .features-list {
+  .form-field {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
-  .feature {
+  .quick-start .primary-action {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .quick-start .secondary-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quick-start .template-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .quick-start .template-card {
+    padding: 0.75rem 0.5rem;
+    min-width: 0;
+  }
+
+  .onboarding-options-compact {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
-  .feature-icon {
-    font-size: 1.25rem;
+  .onboarding-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+  }
+
+  .onboarding-chip:hover:not(.disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .onboarding-chip.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .onboarding-chip input[type='checkbox'] {
+    width: 0.875rem;
+    height: 0.875rem;
+    accent-color: var(--accent-primary);
     flex-shrink: 0;
-    margin-top: 0.125rem;
+    margin: 0;
   }
 
-  .feature-text {
-    color: var(--text-secondary);
-    line-height: 1.5;
+  .chip-icon {
+    font-size: 1rem;
   }
 
-  .feature-text strong {
+  .chip-name {
     color: var(--text-primary);
+    font-weight: 500;
   }
 
+  /* Vault form (for legacy vault flow) */
   .vault-form {
     background: var(--bg-primary);
     border-radius: 1rem;
@@ -1318,19 +1291,8 @@
       font-size: 2rem;
     }
 
-    .vault-section,
-    .vault-explanation {
+    .vault-section {
       padding: 1.5rem;
-    }
-
-    .features-list {
-      gap: 0.75rem;
-    }
-
-    .feature {
-      flex-direction: column;
-      gap: 0.25rem;
-      text-align: center;
     }
 
     .primary-action {
@@ -1348,6 +1310,27 @@
 
     .template-card {
       min-width: 100%;
+    }
+
+    .quick-start-form {
+      padding: 1.25rem;
+    }
+
+    .quick-start .template-options {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .quick-start .template-card {
+      min-width: 0;
+      padding: 0.625rem 0.25rem;
+    }
+
+    .quick-start .template-icon {
+      font-size: 1.25rem;
+    }
+
+    .quick-start .template-name {
+      font-size: 0.75rem;
     }
   }
 </style>
