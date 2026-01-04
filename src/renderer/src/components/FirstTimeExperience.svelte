@@ -308,7 +308,6 @@
       <div class="logo-section">
         <h1>Welcome to Flint</h1>
       </div>
-      <p class="subtitle">Your intelligent note-taking companion</p>
     </div>
 
     <!-- Migration in progress overlay -->
@@ -530,6 +529,37 @@
               />
             </div>
 
+            {#if canBrowseFiles}
+              <div class="form-field">
+                <span class="form-label"
+                  >Sync Folder <span class="optional-label">(optional)</span></span
+                >
+                {#if vaultSyncDirectory}
+                  <div class="sync-directory-selected">
+                    <span class="sync-path" title={vaultSyncDirectory}
+                      >{vaultSyncDirectory}</span
+                    >
+                    <button
+                      class="sync-clear-btn"
+                      onclick={() => (vaultSyncDirectory = null)}
+                      title="Remove sync folder"
+                      disabled={isCreating}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                {:else}
+                  <button
+                    class="sync-select-btn"
+                    onclick={handleSelectSyncDirectory}
+                    disabled={isCreating}
+                  >
+                    Choose Folder...
+                  </button>
+                {/if}
+              </div>
+            {/if}
+
             <div class="form-field">
               <span class="form-label">Template</span>
               <div class="template-options">
@@ -657,12 +687,6 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 0 0 0.5rem 0;
-  }
-
-  .subtitle {
-    font-size: 1.1rem;
-    color: var(--text-secondary);
-    margin: 0;
   }
 
   .main-content {
@@ -896,6 +920,34 @@
   .chip-name {
     color: var(--text-primary);
     font-weight: 500;
+  }
+
+  .optional-label {
+    font-weight: 400;
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+  }
+
+  .sync-select-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+  }
+
+  .sync-select-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .sync-select-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   /* Vault form (for legacy vault flow) */
