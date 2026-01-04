@@ -7,7 +7,7 @@
 Flint is a note-taking app that helps you capture ideas, connect them together, and make them part of how you think.
 
 <div align="center">
-  <a href="https://flintnote.com@#download">Download</a> | <a href="https://flintnote.com/docs">Documentation</a> | <a href="https://discord.gg/GbpYCfzE3y">Community</a>
+  <a href="https://flintnote.com@#download">Download</a> | <a href="https://discord.gg/GbpYCfzE3y">Community</a>
 </div>
 
 ![Flint Screenshot](./website/main-light.png)
@@ -108,7 +108,7 @@ Flint is licensed under the [GNU General Public License v3.0](LICENSE).
 
 - **GitHub** - [github.com/disnet/flint-note](https://github.com/disnet/flint-note)
 - **Website** - [flintnote.com](https://flintnote.com)
-- **Documentation** - [flintnote.com/docs](https://flintnote.com/docs)
+- **Web App** - [app.flintnote.com](https://app.flintnote.com)
 - **Discord** - [Join the community](https://discord.gg/GbpYCfzE3y)
 - **Issues** - Report bugs and request features on [GitHub Issues](https://github.com/disnet/flint-note/issues)
 - **Discussions** - Ask questions and share ideas on [GitHub Discussions](https://github.com/disnet/flint-note/discussions)
