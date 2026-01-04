@@ -2205,11 +2205,11 @@ export function setActiveItem(item: ActiveItem): void {
     addItemToWorkspace({ type: 'note', id: item.id });
   }
 
-  // Sync URL in web mode
+  // Sync URL in web mode (use replaceState to avoid browser history buildup)
   if (isWeb()) {
     getRouter().then((router) => {
       if (router && !router.isNavigatingFromUrl()) {
-        router.syncUrlFromState(false); // pushState for navigation
+        router.syncUrlFromState(true); // replaceState - don't add history entries
       }
     });
   }
@@ -2243,11 +2243,11 @@ export function setActiveSystemView(view: SystemView): void {
   activeSystemView = view;
   persistViewState();
 
-  // Sync URL in web mode
+  // Sync URL in web mode (use replaceState to avoid browser history buildup)
   if (isWeb()) {
     getRouter().then((router) => {
       if (router && !router.isNavigatingFromUrl()) {
-        router.syncUrlFromState(false); // pushState for navigation
+        router.syncUrlFromState(true); // replaceState - don't add history entries
       }
     });
   }

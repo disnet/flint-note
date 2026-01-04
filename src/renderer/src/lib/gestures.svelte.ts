@@ -35,6 +35,8 @@ export interface SwipeOptions {
   edge?: 'left' | 'right' | 'top' | 'bottom';
   /** Maximum distance for progress calculation (default: 300) */
   maxDistance?: number;
+  /** Prevent default on touchstart when in edge zone (blocks Safari back gesture) */
+  preventDefaultOnEdge?: boolean;
 }
 
 const DEFAULT_OPTIONS: Required<SwipeOptions> = {
@@ -43,7 +45,8 @@ const DEFAULT_OPTIONS: Required<SwipeOptions> = {
   direction: 'horizontal',
   edgeThreshold: 0,
   edge: 'left',
-  maxDistance: 300
+  maxDistance: 300,
+  preventDefaultOnEdge: false
 };
 
 /**
@@ -90,6 +93,11 @@ export function createSwipeHandler(
       }
 
       if (!inEdge) return;
+
+      // Prevent Safari's back/forward navigation gesture when in edge zone
+      if (opts.preventDefaultOnEdge) {
+        e.preventDefault();
+      }
     }
 
     state = {
@@ -185,8 +193,12 @@ export function createSwipeHandler(
     }
   }
 
-  // Add event listeners with passive: false for touchmove to allow preventDefault
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
+  // Add event listeners
+  // passive: false for touchstart when preventDefaultOnEdge (to block Safari back gesture)
+  // passive: false for touchmove to allow preventDefault during swipe
+  element.addEventListener('touchstart', handleTouchStart, {
+    passive: !opts.preventDefaultOnEdge
+  });
   element.addEventListener('touchmove', handleTouchMove, { passive: false });
   element.addEventListener('touchend', handleTouchEnd, { passive: true });
   element.addEventListener('touchcancel', handleTouchCancel, { passive: true });
@@ -214,7 +226,7 @@ export function edgeSwipe(
     onSwipeEnd?: (completed: boolean) => void;
     onSwipeCancel?: () => void;
   }
-) {
+): { destroy: () => void; update: (newParams: typeof params) => void } {
   const edge = params.edge ?? 'left';
   const edgeThreshold = params.edgeThreshold ?? 20;
 
@@ -241,7 +253,8 @@ export function edgeSwipe(
       edgeThreshold,
       edge,
       threshold: 50,
-      maxDistance: 300
+      maxDistance: 300,
+      preventDefaultOnEdge: true
     }
   );
 
@@ -249,7 +262,7 @@ export function edgeSwipe(
     destroy() {
       cleanup();
     },
-    update(_newParams: typeof params) {
+    update(_newParams: typeof params): void {
       // For simplicity, we don't support dynamic updates
       // If needed, destroy and recreate
       console.warn('edgeSwipe action does not support dynamic updates');

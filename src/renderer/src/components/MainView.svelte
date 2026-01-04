@@ -1100,7 +1100,8 @@
         direction: 'horizontal',
         edgeThreshold: 20,
         edge: 'left',
-        threshold: 50
+        threshold: 50,
+        preventDefaultOnEdge: true
       }
     );
 

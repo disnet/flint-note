@@ -64,7 +64,8 @@
         edgeThreshold: 20,
         edge: 'left',
         threshold: 50,
-        maxDistance: 300
+        maxDistance: 300,
+        preventDefaultOnEdge: true
       }
     );
 
