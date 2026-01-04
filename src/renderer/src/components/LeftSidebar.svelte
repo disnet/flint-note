@@ -56,6 +56,8 @@
     onCreateVault: () => void;
     onToggleSidebar: () => void;
     onViewAllResults: () => void;
+    isMobile?: boolean;
+    mobileDrawerOpen?: boolean;
   }
 
   let {
@@ -80,7 +82,9 @@
     onVaultSelect,
     onCreateVault,
     onToggleSidebar,
-    onViewAllResults
+    onViewAllResults,
+    isMobile = false,
+    mobileDrawerOpen = false
   }: Props = $props();
 
   // Width state - track local width during resize
@@ -218,11 +222,14 @@
   class="left-sidebar"
   class:visible={sidebarState.leftSidebar.visible}
   class:resizing={localWidth !== null}
+  class:mobile={isMobile}
+  class:mobile-open={mobileDrawerOpen}
   style="--sidebar-width: {currentWidth}px"
 >
   <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
   <div class="sidebar-inner">
     <!-- Header row with traffic light space, vault switcher, and sidebar toggle -->
+    {#if !isMobile}
     <div class="sidebar-header">
       <div class="header-row">
         {#if !isWeb()}
@@ -344,28 +351,31 @@
             </div>
           {/if}
         </div>
-        <div class="header-spacer"></div>
-        <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
-          <button
-            class="sidebar-toggle"
-            onclick={onToggleSidebar}
-            aria-label="Toggle sidebar"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+        {#if !isMobile}
+          <div class="header-spacer"></div>
+          <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
+            <button
+              class="sidebar-toggle"
+              onclick={onToggleSidebar}
+              aria-label="Toggle sidebar"
             >
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-            </svg>
-          </button>
-        </Tooltip>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+              </svg>
+            </button>
+          </Tooltip>
+        {/if}
       </div>
-      <!-- Search bar -->
+      <!-- Search bar (desktop only - mobile has it in scrollable content) -->
+      {#if !isMobile}
       <div class="search-container">
         <div
           class="search-input-wrapper"
@@ -423,9 +433,71 @@
           </div>
         {/if}
       </div>
+      {/if}
     </div>
+    {/if}
 
     <div class="sidebar-content" bind:this={contentElement} onscroll={updateShadow}>
+      <!-- Mobile search bar (scrolls with content) -->
+      {#if isMobile}
+        <div class="mobile-search-container">
+          <div
+            class="search-input-wrapper"
+            class:active={searchInputFocused &&
+              (searchQuery.trim() || searchResults.length > 0)}
+          >
+            <svg
+              class="search-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input
+              id="search-input-mobile"
+              type="text"
+              class="search-input"
+              placeholder="Search notes..."
+              value={searchQuery}
+              oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
+              onfocus={onSearchFocus}
+              onblur={onSearchBlur}
+              onkeydown={onSearchKeyDown}
+            />
+          </div>
+          {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
+            <div class="search-dropdown mobile-search-dropdown">
+              {#if searchResults.length > 0}
+                {#if isShowingRecent}
+                  <div class="search-dropdown-header">Recent</div>
+                {/if}
+                <SearchResults
+                  results={searchResults}
+                  onSelect={onSearchResultSelect}
+                  maxResults={8}
+                  selectedIndex={selectedSearchIndex}
+                />
+                {#if searchResults.length > 8 && !isShowingRecent}
+                  <button class="view-all-btn" onclick={onViewAllResults}>
+                    View all {searchResults.length} results
+                  </button>
+                {/if}
+              {:else if searchQuery.trim()}
+                <div class="no-results-dropdown">
+                  No matching notes found for "{searchQuery}"
+                </div>
+              {:else}
+                <div class="no-results-dropdown">No recent notes</div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
       <SystemViews {onSystemViewSelect} {activeSystemView} />
       {#key activeWorkspace?.id}
         <div
@@ -758,6 +830,33 @@
     padding-left: 0.75rem;
   }
 
+  /* Mobile search container - inside scrollable content */
+  .mobile-search-container {
+    position: relative;
+    padding: 0.5rem;
+  }
+
+  .mobile-search-container .search-input-wrapper.active {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .mobile-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0.75rem;
+    right: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-primary);
+    border-top: none;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
   .search-input-wrapper {
     display: flex;
     align-items: center;
@@ -910,5 +1009,44 @@
     .sidebar-content {
       scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     }
+  }
+
+  /* Mobile drawer styles - sidebar is full-screen underneath the main content */
+  .left-sidebar.mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    z-index: 1; /* Below main content */
+    transform: none;
+    border-right: none;
+    /* Extend into safe areas with internal padding */
+    padding-top: var(--safe-area-top, 0px);
+    padding-bottom: var(--safe-area-bottom, 0px);
+    padding-left: var(--safe-area-left, 0px);
+    padding-right: var(--safe-area-right, 0px);
+  }
+
+  /* Override visibility controls on mobile - always visible */
+  .left-sidebar.mobile:not(.visible) {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+  }
+
+  .left-sidebar.mobile:not(.visible) .sidebar-inner {
+    opacity: 1;
+  }
+
+  /* Hide resize handle on mobile */
+  .left-sidebar.mobile :global(.resize-handle) {
+    display: none;
+  }
+
+  /* Adjust header for mobile - no traffic light space needed */
+  .left-sidebar.mobile .traffic-light-space {
+    display: none;
   }
 </style>

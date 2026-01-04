@@ -7,6 +7,7 @@ interface SidebarState {
     visible: boolean;
     width: number;
     activeSection: 'system' | 'pinned' | 'tabs';
+    mobileDrawerOpen: boolean;
   };
   rightSidebar: {
     visible: boolean;
@@ -21,7 +22,8 @@ const defaultState: SidebarState = {
   leftSidebar: {
     visible: true,
     width: 300,
-    activeSection: 'system'
+    activeSection: 'system',
+    mobileDrawerOpen: false
   },
   rightSidebar: {
     visible: false,
@@ -207,6 +209,23 @@ class SidebarStateStore {
       this.state.rightSidebar.activePanel = panel;
     }
     await this.saveToStorage();
+  }
+
+  // Mobile drawer methods (don't persist - always starts closed)
+  openMobileDrawer(): void {
+    this.state.leftSidebar.mobileDrawerOpen = true;
+  }
+
+  closeMobileDrawer(): void {
+    this.state.leftSidebar.mobileDrawerOpen = false;
+  }
+
+  toggleMobileDrawer(): void {
+    this.state.leftSidebar.mobileDrawerOpen = !this.state.leftSidebar.mobileDrawerOpen;
+  }
+
+  get mobileDrawerOpen(): boolean {
+    return this.state.leftSidebar.mobileDrawerOpen;
   }
 }
 

@@ -37,6 +37,7 @@
     type SidebarItemRef
   } from '../lib/automerge';
   import { resolveWikilinks } from './WikilinkText.svelte';
+  import { deviceState } from '../stores/deviceState.svelte';
 
   interface Props {
     onItemSelect: (item: SidebarItem) => void;
@@ -106,6 +107,9 @@
   // The index in unified list where the separator is
   const separatorIndex = $derived(pinnedItems.length);
 
+  // Mobile detection
+  const isMobile = $derived(deviceState.useMobileLayout);
+
   // Drag state
   let draggedIndex = $state<number | null>(null);
   let draggedItemId = $state<string | null>(null);
@@ -115,6 +119,13 @@
   let dragStartY = $state(0);
   let itemHeight = $state(0);
   let isAnimating = $state(false);
+
+  // Touch drag state (for mobile long-press drag)
+  let touchDragActive = $state(false);
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartY = $state(0);
+  let touchCurrentY = $state(0);
+  const LONG_PRESS_DURATION = 300; // ms to trigger drag mode
 
   const ANIMATION_DURATION = 200;
 
@@ -547,6 +558,13 @@
     dropTargetIndex = null;
     dragOffsetY = 0;
 
+    // Clear touch drag state
+    touchDragActive = false;
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
     // Remove document-level drag listener
     document.removeEventListener('drag', handleDocumentDrag);
 
@@ -598,6 +616,112 @@
 
   function isDragging(index: number): boolean {
     return draggedIndex === index;
+  }
+
+  // Prevent context menu globally while touch drag is possible
+  function preventContextMenu(e: Event): void {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
+  // Touch drag handlers for mobile (long-press to drag)
+  function handleTouchStart(e: TouchEvent, index: number, item: SidebarItem): void {
+    if (!isMobile) return;
+
+    const touch = e.touches[0];
+    touchStartY = touch.clientY;
+    touchCurrentY = touch.clientY;
+
+    // Add document-level touch listeners with passive: false to allow preventDefault
+    document.addEventListener('touchmove', handleDocumentTouchMove, { passive: false });
+    document.addEventListener('touchend', handleDocumentTouchEnd);
+    document.addEventListener('touchcancel', handleDocumentTouchCancel);
+
+    // Prevent context menu during touch (for Chrome)
+    document.addEventListener('contextmenu', preventContextMenu, { capture: true });
+
+    // Store element ref for getting height later
+    const targetEl = (e.target as HTMLElement).closest('[data-sidebar-item]') as HTMLElement;
+
+    // Start long-press timer
+    longPressTimer = setTimeout(() => {
+      // Activate drag mode
+      touchDragActive = true;
+      draggedIndex = index;
+      draggedItemId = item.id;
+      draggedItemType = item.type;
+      dropTargetIndex = index;
+      dragOffsetY = 0;
+      dragStartY = touchStartY;
+
+      if (targetEl) {
+        itemHeight = targetEl.offsetHeight;
+      }
+
+      // Haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleDocumentTouchMove(e: TouchEvent): void {
+    const touch = e.touches[0];
+    touchCurrentY = touch.clientY;
+
+    // If we moved too much before long-press triggered, cancel it (user is scrolling)
+    if (!touchDragActive && longPressTimer) {
+      const moveDistance = Math.abs(touchCurrentY - touchStartY);
+      if (moveDistance > 10) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        cleanupTouchListeners();
+      }
+      return;
+    }
+
+    // If drag is active, update position and prevent scrolling
+    if (touchDragActive && draggedIndex !== null) {
+      e.preventDefault();
+      dragOffsetY = touchCurrentY - dragStartY;
+      updateDropTarget();
+    }
+  }
+
+  function handleDocumentTouchEnd(): void {
+    // Clear long-press timer if it hasn't fired
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    // If drag was active, finish it
+    if (touchDragActive) {
+      finishDrag();
+    }
+
+    cleanupTouchListeners();
+  }
+
+  function handleDocumentTouchCancel(): void {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    if (touchDragActive) {
+      resetDragState();
+    }
+
+    cleanupTouchListeners();
+  }
+
+  function cleanupTouchListeners(): void {
+    document.removeEventListener('touchmove', handleDocumentTouchMove);
+    document.removeEventListener('touchend', handleDocumentTouchEnd);
+    document.removeEventListener('touchcancel', handleDocumentTouchCancel);
+    document.removeEventListener('contextmenu', preventContextMenu, { capture: true });
   }
 
   // Check if we're dragging across the separator
@@ -891,6 +1015,7 @@
           class="sidebar-item"
           class:active={isItemActive(listItem.item)}
           class:dragging={isDragging(index)}
+          class:touch-dragging={touchDragActive && isDragging(index)}
           class:pinned={listItem.section === 'pinned'}
           class:archived={listItem.item.metadata?.archived}
           style:transform={getItemTransform(index)}
@@ -899,9 +1024,10 @@
           role="button"
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleItemClick(listItem.item)}
-          draggable="true"
+          draggable={!isMobile}
           ondragstart={(e) => handleDragStart(e, index, listItem.item)}
           ondragend={handleDragEnd}
+          ontouchstart={(e) => handleTouchStart(e, index, listItem.item)}
           data-sidebar-item
           data-item-id={listItem.item.id}
           data-item-type={listItem.item.type}
@@ -1278,10 +1404,28 @@
     position: relative;
     z-index: 1;
     /* Transform transitions are controlled programmatically for FLIP animations */
+    /* Prevent native long-press menu on mobile */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .sidebar-item:hover {
-    background: var(--bg-hover);
+  /* Only show hover on devices with hover capability (not touch) */
+  @media (hover: hover) {
+    .sidebar-item:hover {
+      background: var(--bg-hover);
+    }
+  }
+
+  /* Prevent :active flash on touch devices */
+  @media (hover: none) {
+    .sidebar-item:active {
+      background: transparent;
+    }
+    .sidebar-item.active:active {
+      background: var(--accent-light);
+    }
   }
 
   /* Disable hover effects during drag operations */
@@ -1305,6 +1449,12 @@
     transition:
       opacity 0.15s,
       box-shadow 0.15s;
+  }
+
+  .sidebar-item.touch-dragging {
+    transform-origin: center;
+    scale: 1.02;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   }
 
   .item-content {
@@ -1368,6 +1518,14 @@
   .sidebar-item:hover .close-item,
   .sidebar-item:hover .more-button {
     display: flex;
+  }
+
+  /* Always show buttons on touch devices */
+  @media (hover: none) {
+    .close-item,
+    .more-button {
+      display: flex;
+    }
   }
 
   .close-item:hover,

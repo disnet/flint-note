@@ -74,6 +74,7 @@
   import DeckViewer from './DeckViewer.svelte';
   import DailyView from './DailyView.svelte';
   import FABMenu from './FABMenu.svelte';
+  import MobileFAB from './MobileFAB.svelte';
   import ChatPanelWeb from './ChatPanelWeb.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
@@ -91,7 +92,9 @@
   import { initializeState } from '../lib/automerge';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
+  import { deviceState } from '../stores/deviceState.svelte';
   import { isElectron, isWeb } from '../lib/platform.svelte';
+  import { createSwipeHandler } from '../lib/gestures.svelte';
 
   // Derived state
   const allNotes = $derived(getAllNotes());
@@ -103,6 +106,9 @@
 
   // Build note types record for search
   const noteTypesRecord = $derived(Object.fromEntries(noteTypes.map((t) => [t.id, t])));
+
+  // Mobile layout detection
+  const isMobileLayout = $derived(deviceState.useMobileLayout);
 
   // Check if active note is an EPUB, PDF, Webpage, or Deck using source format
   const activeNoteSourceFormat = $derived(
@@ -659,6 +665,9 @@
   // File import state
   let isImporting = $state(false);
 
+  // Mobile drawer
+  let mainViewRef = $state<HTMLElement | null>(null);
+
   // Workspace actions
   function openNewWorkspaceModal(): void {
     editingWorkspaceId = null;
@@ -1074,6 +1083,45 @@
     }
   });
 
+  // Mobile edge swipe to open drawer (only when drawer is closed)
+  $effect(() => {
+    if (!isMobileLayout || !mainViewRef || sidebarState.mobileDrawerOpen) return;
+
+    const cleanup = createSwipeHandler(
+      mainViewRef,
+      {
+        onSwipeEnd: (direction) => {
+          if (direction === 'right') {
+            sidebarState.openMobileDrawer();
+          }
+        }
+      },
+      {
+        direction: 'horizontal',
+        edgeThreshold: 20,
+        edge: 'left',
+        threshold: 50
+      }
+    );
+
+    return cleanup;
+  });
+
+  // Update theme-color meta tags based on drawer state (for mobile safe areas)
+  $effect(() => {
+    if (!isMobileLayout) return;
+
+    // When drawer is open, use sidebar color (--bg-secondary), otherwise use main view color (--bg-primary)
+    const lightColor = sidebarState.mobileDrawerOpen ? '#fafafa' : '#ffffff';
+    const darkColor = sidebarState.mobileDrawerOpen ? '#2d2d2d' : '#1a1a1a';
+
+    const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
+    const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
+
+    if (lightMeta) lightMeta.setAttribute('content', lightColor);
+    if (darkMeta) darkMeta.setAttribute('content', darkColor);
+  });
+
   // Keyboard shortcuts
   const isMac = navigator.platform.startsWith('Mac');
   const webMode = isWeb();
@@ -1208,48 +1256,94 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="main-view">
+{#snippet sidebarComponent()}
+  <LeftSidebar
+    {activeSystemView}
+    {searchQuery}
+    {searchResults}
+    {searchInputFocused}
+    {selectedSearchIndex}
+    {isShowingRecent}
+    {vaults}
+    activeVault={activeVault ?? null}
+    isMobile={isMobileLayout}
+    mobileDrawerOpen={sidebarState.mobileDrawerOpen}
+    onItemSelect={(item) => {
+      handleItemSelect(item);
+      // Close drawer on mobile when selecting an item
+      if (isMobileLayout) {
+        sidebarState.closeMobileDrawer();
+      }
+    }}
+    onSystemViewSelect={(view) => {
+      handleSystemViewSelect(view);
+      // Close drawer on mobile when selecting a view
+      if (isMobileLayout) {
+        sidebarState.closeMobileDrawer();
+      }
+    }}
+    onCreateNote={handleCreateNote}
+    onCreateDeck={handleCreateDeck}
+    onCaptureWebpage={() => {
+      showArchiveWebpageModal = true;
+    }}
+    onSearchChange={(query) => {
+      searchQuery = query;
+      selectedSearchIndex = 0;
+    }}
+    onSearchFocus={handleSearchFocus}
+    onSearchBlur={handleSearchBlur}
+    onSearchKeyDown={handleSearchKeyDown}
+    onSearchResultSelect={handleSearchResultSelect}
+    onVaultSelect={handleVaultSelect}
+    onCreateVault={handleCreateVault}
+    onToggleSidebar={toggleLeftSidebar}
+    onViewAllResults={() => {
+      setActiveSystemView('search');
+      setActiveItem(null);
+    }}
+  />
+{/snippet}
+
+<div class="main-view" class:mobile-layout={isMobileLayout} bind:this={mainViewRef}>
+  <!-- Mobile: Sidebar outside app-layout so it doesn't slide with transform -->
+  {#if isMobileLayout}
+    {@render sidebarComponent()}
+  {/if}
+
   <!-- Main Layout -->
-  <div class="app-layout">
-    <!-- Left Sidebar -->
-    <LeftSidebar
-      {activeSystemView}
-      {searchQuery}
-      {searchResults}
-      {searchInputFocused}
-      {selectedSearchIndex}
-      {isShowingRecent}
-      {vaults}
-      activeVault={activeVault ?? null}
-      onItemSelect={handleItemSelect}
-      onSystemViewSelect={handleSystemViewSelect}
-      onCreateNote={handleCreateNote}
-      onCreateDeck={handleCreateDeck}
-      onCaptureWebpage={() => {
-        showArchiveWebpageModal = true;
-      }}
-      onSearchChange={(query) => {
-        searchQuery = query;
-        selectedSearchIndex = 0;
-      }}
-      onSearchFocus={handleSearchFocus}
-      onSearchBlur={handleSearchBlur}
-      onSearchKeyDown={handleSearchKeyDown}
-      onSearchResultSelect={handleSearchResultSelect}
-      onVaultSelect={handleVaultSelect}
-      onCreateVault={handleCreateVault}
-      onToggleSidebar={toggleLeftSidebar}
-      onViewAllResults={() => {
-        setActiveSystemView('search');
-        setActiveItem(null);
-      }}
-    />
+  <div class="app-layout" class:mobile-drawer-open={isMobileLayout && sidebarState.mobileDrawerOpen}>
+    <!-- Desktop: Sidebar inside app-layout -->
+    {#if !isMobileLayout}
+      {@render sidebarComponent()}
+    {/if}
 
     <!-- Main Content -->
     <div class="main-content">
       <!-- Safe zone for window dragging and controls -->
       <div class="safe-zone">
-        {#if !sidebarState.leftSidebar.visible}
+        <!-- Mobile menu button -->
+        {#if isMobileLayout}
+          <button
+            class="mobile-menu-button"
+            onclick={() => sidebarState.toggleMobileDrawer()}
+            aria-label="Open menu"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+        {/if}
+        {#if !isMobileLayout && !sidebarState.leftSidebar.visible}
           <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
             <button
               class="floating-sidebar-toggle"
@@ -1590,13 +1684,22 @@
 {/if}
 
 <!-- FAB Menu and Panels -->
-<FABMenu
-  chatOpen={chatPanelOpen}
-  shelfOpen={shelfPanelOpen}
-  onToggleChat={() => sidebarState.togglePanel('chat')}
-  onToggleShelf={() => sidebarState.togglePanel('shelf')}
-  autoHide={isActiveNoteEpub || isActiveNotePdf}
-/>
+{#if !isMobileLayout}
+  <FABMenu
+    chatOpen={chatPanelOpen}
+    shelfOpen={shelfPanelOpen}
+    onToggleChat={() => sidebarState.togglePanel('chat')}
+    onToggleShelf={() => sidebarState.togglePanel('shelf')}
+    autoHide={isActiveNoteEpub || isActiveNotePdf}
+  />
+{:else}
+  <MobileFAB
+    onNewNote={handleCreateNote}
+    onToggleDrawer={() => sidebarState.toggleMobileDrawer()}
+    hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
+  />
+{/if}
+
 
 <!-- Floating panels (only when not expanded) -->
 {#if !rightSidebarExpanded}
@@ -2505,5 +2608,59 @@
 
   .dismiss-button:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* Mobile layout adjustments */
+  .main-view.mobile-layout {
+    position: relative;
+  }
+
+  .main-view.mobile-layout .app-layout {
+    position: relative;
+    z-index: 10;
+    background: var(--bg-primary);
+    transition: transform var(--mobile-drawer-transition);
+    box-shadow: -4px 0 16px transparent;
+    /* Extend into safe areas */
+    padding-top: var(--safe-area-top, 0px);
+    padding-bottom: var(--safe-area-bottom, 0px);
+    padding-left: var(--safe-area-left, 0px);
+    padding-right: var(--safe-area-right, 0px);
+  }
+
+  /* When drawer is open, slide main content completely off-screen */
+  .main-view.mobile-layout .app-layout.mobile-drawer-open {
+    transform: translateX(100%);
+  }
+
+  .main-view.mobile-layout .safe-zone {
+    padding-left: 0;
+  }
+
+  .main-view.mobile-layout .floating-sidebar-toggle {
+    display: none;
+  }
+
+
+  /* Mobile menu button */
+  .mobile-menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    -webkit-app-region: no-drag;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+
+  .mobile-menu-button:active {
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 </style>
