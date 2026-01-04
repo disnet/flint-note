@@ -229,4 +229,11 @@
     min-width: 1.25rem;
     text-align: center;
   }
+
+  /* Mobile: override global 44px touch target */
+  @media (max-width: 767px) {
+    .nav-item {
+      min-height: auto;
+    }
+  }
 </style>

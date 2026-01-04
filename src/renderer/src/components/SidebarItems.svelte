@@ -1610,4 +1610,15 @@
     font-size: 14px;
     line-height: 1;
   }
+
+  /* Mobile: override global 44px touch target for sidebar items */
+  @media (max-width: 767px) {
+    .sidebar-item,
+    .new-note-btn,
+    .clear-all,
+    .close-item,
+    .more-button {
+      min-height: auto;
+    }
+  }
 </style>
