@@ -109,10 +109,11 @@
   .screenshot-content {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: auto;
   }
 
   :global([data-screenshot-mode]) .screenshot-content {
+    overflow: hidden;
     border-radius: 12px;
   }
 
