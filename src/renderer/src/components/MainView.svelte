@@ -75,6 +75,7 @@
   import DailyView from './DailyView.svelte';
   import FABMenu from './FABMenu.svelte';
   import MobileFAB from './MobileFAB.svelte';
+  import KeyboardControlPanel from './KeyboardControlPanel.svelte';
   import ChatPanelWeb from './ChatPanelWeb.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
@@ -1709,6 +1710,7 @@
     onOpenShelf={() => sidebarState.openPanel('shelf')}
     hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
   />
+  <KeyboardControlPanel hidden={chatPanelOpen || shelfPanelOpen} />
 {/if}
 
 <!-- Floating panels (only when not expanded) -->

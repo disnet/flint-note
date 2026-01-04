@@ -38,6 +38,7 @@
     createPositionTracker,
     hasSavedScrollPosition
   } from '../lib/editorPosition.svelte';
+  import { editorFocusState } from '../stores/editorFocusState.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -294,7 +295,19 @@
       parent: editorContainer
     });
 
+    // Add focus/blur handlers for mobile keyboard control panel
+    editorView.contentDOM.addEventListener('focus', handleEditorFocus);
+    editorView.contentDOM.addEventListener('blur', handleEditorBlur);
+
     measureAndUpdateMarkerWidths();
+  }
+
+  function handleEditorFocus(): void {
+    editorFocusState.setFocused(true, editorView);
+  }
+
+  function handleEditorBlur(): void {
+    editorFocusState.setFocused(false, null);
   }
 
   function measureAndUpdateMarkerWidths(): void {
@@ -314,6 +327,10 @@
       positionTracker?.cleanup();
       positionTracker = null;
       if (editorView) {
+        // Remove focus/blur handlers before destroying
+        editorView.contentDOM.removeEventListener('focus', handleEditorFocus);
+        editorView.contentDOM.removeEventListener('blur', handleEditorBlur);
+        editorFocusState.setFocused(false, null);
         editorView.destroy();
         editorView = null;
       }
@@ -356,6 +373,10 @@
         // Destroy existing editor if any
         // Note: position was already saved in the content loading effect
         if (editorView) {
+          // Remove focus/blur handlers before destroying
+          editorView.contentDOM.removeEventListener('focus', handleEditorFocus);
+          editorView.contentDOM.removeEventListener('blur', handleEditorBlur);
+          editorFocusState.setFocused(false, null);
           editorView.destroy();
           editorView = null;
         }
