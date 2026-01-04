@@ -512,6 +512,19 @@
     background: var(--bg-tertiary);
   }
 
+  /* Mobile: override global touch target min-height for compact chips */
+  @media (max-width: 767px) {
+    .expand-btn {
+      min-height: auto;
+      height: 1.375rem;
+    }
+
+    .chip {
+      /* Ensure consistent chip height on mobile */
+      min-height: auto;
+    }
+  }
+
   /* Global overrides for shared input components in chip context */
   :global(.chip .chip-input) {
     border: none;
@@ -559,5 +572,16 @@
 
   :global(.chip .chip-date:focus) {
     background: var(--bg-primary);
+  }
+
+  /* Mobile: ensure all chip inputs remain compact */
+  @media (max-width: 767px) {
+    :global(.chip .chip-input),
+    :global(.chip .chip-select),
+    :global(.chip .chip-date) {
+      min-height: auto;
+      height: auto;
+      padding: 0.125rem 0.5rem;
+    }
   }
 </style>
