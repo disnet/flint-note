@@ -1095,4 +1095,9 @@
   .left-sidebar.mobile .traffic-light-space {
     display: none;
   }
+
+  /* On macOS Electron mobile, add top padding for traffic lights */
+  :global([data-platform='macos']) .left-sidebar.mobile .mobile-search-container {
+    padding-top: 38px; /* Match safe-zone height for traffic light alignment */
+  }
 </style>

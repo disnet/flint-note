@@ -2652,7 +2652,7 @@
 
   /* On macOS Electron mobile, add space for traffic lights */
   :global([data-platform='macos']) .main-view.mobile-layout .safe-zone {
-    padding-left: 70px;
+    padding-left: 80px;
   }
 
   .main-view.mobile-layout .safe-zone-button,

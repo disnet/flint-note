@@ -107,8 +107,8 @@
   // The index in unified list where the separator is
   const separatorIndex = $derived(pinnedItems.length);
 
-  // Mobile detection
-  const isMobile = $derived(deviceState.useMobileLayout);
+  // Touch device detection for drag behavior
+  const isTouchDevice = $derived(deviceState.isTouchDevice);
 
   // Drag state
   let draggedIndex = $state<number | null>(null);
@@ -627,7 +627,7 @@
 
   // Touch drag handlers for mobile (long-press to drag)
   function handleTouchStart(e: TouchEvent, index: number, item: SidebarItem): void {
-    if (!isMobile) return;
+    if (!isTouchDevice) return;
 
     const touch = e.touches[0];
     touchStartY = touch.clientY;
@@ -1026,7 +1026,7 @@
           role="button"
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleItemClick(listItem.item)}
-          draggable={!isMobile}
+          draggable={!isTouchDevice}
           ondragstart={(e) => handleDragStart(e, index, listItem.item)}
           ondragend={handleDragEnd}
           ontouchstart={(e) => handleTouchStart(e, index, listItem.item)}
