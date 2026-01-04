@@ -1343,7 +1343,8 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <polyline points="15 18 9 12 15 6"></polyline>
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
             </svg>
           </button>
         {/if}
@@ -2639,6 +2640,11 @@
 
   .main-view.mobile-layout .safe-zone {
     padding-left: 0;
+  }
+
+  /* On macOS Electron mobile, add space for traffic lights */
+  :global([data-platform='macos']) .main-view.mobile-layout .safe-zone {
+    padding-left: 70px;
   }
 
   .main-view.mobile-layout .safe-zone-button,

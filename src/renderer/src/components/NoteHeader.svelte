@@ -126,6 +126,13 @@
     z-index: 1;
   }
 
+  /* On mobile, adjust icon position */
+  @media (max-width: 767px) {
+    .title-area :global(.note-type-dropdown.compact) {
+      top: 0;
+    }
+  }
+
   .title-area :global(.note-type-dropdown.compact .type-button) {
     padding: 0.1em 0.25rem;
   }
