@@ -28,6 +28,7 @@ export interface AutomergeImportProgress {
     | 'creating-vault'
     | 'loading-document'
     | 'connecting-sync'
+    | 'syncing-files'
     | 'complete'
     | 'error';
   message: string;
@@ -174,7 +175,28 @@ export async function importAutomergeVault(
       };
     }
 
-    // Phase 6: Complete
+    // Phase 6: Import files from filesystem to OPFS
+    // Since this vault has a baseDirectory, sync existing files
+    importProgress = {
+      phase: 'syncing-files',
+      message: 'Importing files...'
+    };
+
+    try {
+      const { performReverseFileSync, setupFileSyncListener } =
+        await import('./file-sync.svelte');
+
+      // Import files from filesystem to OPFS
+      await performReverseFileSync();
+
+      // Set up listener for future file changes
+      setupFileSyncListener();
+    } catch (error) {
+      console.error('[automerge-import] File sync failed:', error);
+      // Non-fatal - vault imported successfully, files can be synced later
+    }
+
+    // Phase 7: Complete
     importProgress = {
       phase: 'complete',
       message: 'Import complete!'
