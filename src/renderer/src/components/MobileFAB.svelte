@@ -3,15 +3,20 @@
    * Mobile Floating Action Button
    *
    * Context-sensitive FAB that changes its primary action based on the current view.
-   * Tapping shows a popup menu with the primary action and secondary actions.
+   * When viewing a note, tapping expands to show options: Agent chat, Shelf, New note.
+   * In other views, tapping performs the primary action directly.
    */
-  import { getActiveSystemView } from '../lib/automerge';
+  import { getActiveSystemView, getActiveItem } from '../lib/automerge';
 
   interface Props {
     /** Callback to create a new note */
     onNewNote: () => void;
     /** Callback to toggle the drawer (hamburger action) */
     onToggleDrawer: () => void;
+    /** Callback to open chat panel */
+    onOpenChat: () => void;
+    /** Callback to open shelf panel */
+    onOpenShelf: () => void;
     /** Callback to go to next review card */
     onNextReviewCard?: () => void;
     /** Callback to process inbox item */
@@ -23,6 +28,8 @@
   let {
     onNewNote,
     onToggleDrawer,
+    onOpenChat,
+    onOpenShelf,
     onNextReviewCard,
     onProcessInbox,
     hidden = false
@@ -32,9 +39,27 @@
 
   // Get current context for determining FAB action
   const systemView = $derived(getActiveSystemView());
+  const activeItem = $derived(getActiveItem());
+
+  // Check if we're viewing a note or conversation (content view)
+  const isViewingContent = $derived(
+    !systemView &&
+      activeItem &&
+      (activeItem.type === 'note' || activeItem.type === 'conversation')
+  );
+
+  type IconType =
+    | 'plus'
+    | 'arrow-right'
+    | 'check'
+    | 'menu'
+    | 'eye'
+    | 'pin'
+    | 'chat'
+    | 'shelf';
 
   interface FABAction {
-    icon: 'plus' | 'arrow-right' | 'check' | 'menu' | 'eye' | 'pin';
+    icon: IconType;
     label: string;
     action: () => void;
   }
@@ -68,6 +93,15 @@
       };
     }
 
+    // When viewing content, show chat icon (expands to options on tap)
+    if (isViewingContent) {
+      return {
+        icon: 'chat',
+        label: 'Actions',
+        action: () => {} // Handled by handlePrimaryClick
+      };
+    }
+
     // Default action: New Note
     return {
       icon: 'plus',
@@ -76,7 +110,28 @@
     };
   });
 
-  // Secondary actions shown in expanded menu
+  // Actions shown when viewing content (note/conversation)
+  const contentActions = $derived.by((): FABAction[] => {
+    return [
+      {
+        icon: 'chat',
+        label: 'Agent Chat',
+        action: onOpenChat
+      },
+      {
+        icon: 'shelf',
+        label: 'Shelf',
+        action: onOpenShelf
+      },
+      {
+        icon: 'plus',
+        label: 'New Note',
+        action: onNewNote
+      }
+    ];
+  });
+
+  // Secondary actions shown in expanded menu (for non-content views)
   const secondaryActions = $derived.by((): FABAction[] => {
     const actions: FABAction[] = [];
 
@@ -104,12 +159,22 @@
   function handlePrimaryClick(): void {
     if (isMenuOpen) {
       isMenuOpen = false;
+      return;
     }
+
+    // When viewing content, expand to show options
+    if (isViewingContent) {
+      isMenuOpen = true;
+      return;
+    }
+
+    // Otherwise, perform the primary action directly
     primaryAction.action();
   }
 
   function handleLongPress(): void {
-    if (secondaryActions.length > 0) {
+    // Long press always opens menu if there are actions
+    if (isViewingContent || secondaryActions.length > 0) {
       isMenuOpen = true;
     }
   }
@@ -153,7 +218,7 @@
   }
 
   // Icon rendering helper
-  function getIconPath(icon: FABAction['icon']): string {
+  function getIconPath(icon: IconType): string {
     switch (icon) {
       case 'plus':
         return 'M12 5v14M5 12h14';
@@ -167,6 +232,10 @@
         return 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z';
       case 'pin':
         return 'M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48';
+      case 'chat':
+        return 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z';
+      case 'shelf':
+        return 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2zM3 10h18M3 15h18';
       default:
         return '';
     }
@@ -181,10 +250,10 @@
   {/if}
 
   <div class="mobile-fab-container" class:menu-open={isMenuOpen}>
-    <!-- Secondary action buttons (shown when menu open) -->
+    <!-- Action buttons (shown when menu open) -->
     {#if isMenuOpen}
       <div class="secondary-actions">
-        {#each secondaryActions as action, i}
+        {#each isViewingContent ? contentActions : secondaryActions as action, i}
           <button
             class="fab-secondary"
             style:animation-delay="{i * 50}ms"

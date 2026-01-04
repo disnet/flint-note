@@ -117,4 +117,16 @@
     background: var(--bg-hover);
     color: var(--text-primary);
   }
+
+  /* Mobile responsive */
+  @media (max-width: 767px) {
+    .chat-panel-web {
+      left: 12px;
+      right: 12px;
+      bottom: calc(12px + var(--safe-area-bottom, 0px));
+      width: auto;
+      height: calc(100vh - 100px);
+      max-height: 500px;
+    }
+  }
 </style>

@@ -1705,6 +1705,8 @@
   <MobileFAB
     onNewNote={handleCreateNote}
     onToggleDrawer={() => sidebarState.toggleMobileDrawer()}
+    onOpenChat={() => sidebarState.openPanel('chat')}
+    onOpenShelf={() => sidebarState.openPanel('shelf')}
     hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
   />
 {/if}

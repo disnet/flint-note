@@ -349,4 +349,14 @@
     display: flex;
     flex-direction: column;
   }
+
+  /* Mobile responsive */
+  @media (max-width: 767px) {
+    .shelf-panel:not(.expanded) {
+      left: 12px;
+      right: 12px;
+      bottom: calc(12px + var(--safe-area-bottom, 0px));
+      width: auto;
+    }
+  }
 </style>
