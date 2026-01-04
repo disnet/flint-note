@@ -1926,7 +1926,8 @@
 
 <style>
   .main-view {
-    height: 100vh;
+    height: 100vh; /* fallback for older browsers */
+    height: 100dvh; /* dynamic viewport height - adjusts with keyboard on iOS */
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);

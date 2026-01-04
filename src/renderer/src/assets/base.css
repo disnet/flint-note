@@ -359,6 +359,15 @@ button {
     padding-right: var(--safe-area-right);
   }
 
+  /* Prevent iOS Safari from scrolling the body when keyboard opens */
+  html[data-platform='web'],
+  html[data-platform='web'] body {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+
   /* Ensure touch targets are large enough */
   button,
   [role='button'],
