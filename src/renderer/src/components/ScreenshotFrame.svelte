@@ -56,6 +56,11 @@
     overflow: hidden;
   }
 
+  /* macOS vibrancy - transparent to allow native blur effect */
+  :global([data-vibrancy='true']) .screenshot-window {
+    background: transparent !important;
+  }
+
   :global([data-screenshot-mode]) .screenshot-window {
     position: absolute;
     top: 40px;

@@ -104,6 +104,10 @@ const api = {
   getSystemFonts: (): Promise<string[]> =>
     electronAPI.ipcRenderer.invoke('get-system-fonts'),
 
+  // Vibrancy control (macOS only)
+  refreshVibrancy: (): Promise<void> =>
+    electronAPI.ipcRenderer.invoke('refresh-vibrancy'),
+
   // Archive webpage for Automerge (returns HTML content for OPFS storage)
   archiveWebpage: (params: {
     url: string;

@@ -331,6 +331,12 @@ body {
     background-color 0.2s ease;
 }
 
+/* macOS vibrancy - transparent html/body to allow native blur effect */
+html[data-vibrancy='true'],
+html[data-vibrancy='true'] body {
+  background: transparent !important;
+}
+
 input,
 button,
 textarea {

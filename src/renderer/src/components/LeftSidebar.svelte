@@ -100,17 +100,20 @@
   // Get active workspace reactively
   const activeWorkspace = $derived(getActiveWorkspace());
 
-  // Update slide direction when workspace changes
+  // Update slide direction and reset shadow when workspace changes
   $effect.pre(() => {
     const currentId = activeWorkspace?.id ?? null;
 
     if (previousWorkspaceId && currentId && previousWorkspaceId !== currentId) {
       // Simple slide direction - positive when moving forward
       slideDirection = 1;
+      // Reset shadow until new content transition completes (onintroend will recalculate)
+      showShadow = false;
     }
 
     previousWorkspaceId = currentId;
   });
+
 
   // Shadow state for workspace bar
   let showShadow = $state(false);
@@ -622,6 +625,7 @@
           class="workspace-content"
           in:fly={{ x: slideDirection * 50, duration: 150, delay: 75 }}
           out:fly={{ x: slideDirection * -50, duration: 75 }}
+          onintroend={updateShadow}
         >
           <SidebarItems {onItemSelect} />
         </div>
@@ -656,6 +660,21 @@
     width: 0;
     min-width: 0;
     border-right: 1px solid transparent;
+  }
+
+  /* macOS vibrancy - semi-transparent sidebar to show native blur effect with tint */
+  :global([data-vibrancy='true']) .left-sidebar {
+    background: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  :global([data-vibrancy='true'][data-theme='dark']) .left-sidebar {
+    background: rgba(30, 30, 30, 0.8) !important;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global([data-vibrancy='true']:not([data-theme='light'])) .left-sidebar {
+      background: rgba(30, 30, 30, 0.8) !important;
+    }
   }
 
   .left-sidebar .sidebar-inner {

@@ -104,6 +104,9 @@ declare global {
       // Font operations
       getSystemFonts: () => Promise<string[]>;
 
+      // Vibrancy control (macOS only)
+      refreshVibrancy: () => Promise<void>;
+
       // Webpage archiving (returns HTML content for OPFS storage)
       archiveWebpage: (params: { url: string }) => Promise<{
         html: string;

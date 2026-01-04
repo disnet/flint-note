@@ -1945,6 +1945,11 @@
     overflow: hidden; /* Prevent any scroll propagation */
   }
 
+  /* macOS vibrancy - transparent main-view to allow native blur effect on sidebar */
+  :global([data-vibrancy='true']) .main-view {
+    background: transparent !important;
+  }
+
   /* App Layout */
   .app-layout {
     display: flex;
@@ -2053,6 +2058,7 @@
     min-width: 0;
     min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
+    background: var(--bg-primary); /* Solid background for vibrancy mode */
   }
 
   /* Right Sidebar */

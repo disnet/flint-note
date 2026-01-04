@@ -170,6 +170,11 @@
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
+
+    // Refresh vibrancy on macOS when theme changes
+    if (isElectron() && navigator.platform.includes('Mac')) {
+      window.api?.refreshVibrancy?.();
+    }
   });
 
   // Font application
@@ -226,6 +231,14 @@
           ? 'windows'
           : 'linux';
     document.documentElement.setAttribute('data-platform', platform);
+  });
+
+  // macOS vibrancy detection - set attribute for CSS targeting
+  $effect(() => {
+    const isMacElectron = isElectron() && navigator.platform.includes('Mac');
+    if (isMacElectron) {
+      document.documentElement.setAttribute('data-vibrancy', 'true');
+    }
   });
 </script>
 

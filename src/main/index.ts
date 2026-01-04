@@ -311,7 +311,17 @@ async function createWindow(
     show: false,
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
-    backgroundColor: getThemeBackgroundColor(), // Dynamic theme background to prevent flash
+    // macOS vibrancy - native frosted glass effect for sidebar
+    ...(process.platform === 'darwin'
+      ? {
+          vibrancy: 'under-window',
+          visualEffectState: 'active',
+          transparent: true,
+          backgroundColor: '#00000000' // Transparent to allow vibrancy to show
+        }
+      : {
+          backgroundColor: getThemeBackgroundColor() // Solid background for Windows/Linux
+        }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -707,6 +717,18 @@ app.whenReady().then(async () => {
       logger.error('Failed to get system fonts', { error });
       return [];
     }
+  });
+
+  // Vibrancy control (macOS only)
+  ipcMain.handle('refresh-vibrancy', async () => {
+    if (process.platform !== 'darwin') return;
+
+    const allWindows = BrowserWindow.getAllWindows();
+    allWindows.forEach((window) => {
+      // Toggle vibrancy off and on to force refresh
+      window.setVibrancy(null);
+      window.setVibrancy('under-window');
+    });
   });
 
   // Shell operations
@@ -1147,6 +1169,12 @@ app.whenReady().then(async () => {
 
   // Listen for system theme changes and update window background
   nativeTheme.on('updated', () => {
+    // On macOS with vibrancy, don't set background color - vibrancy handles appearance
+    if (process.platform === 'darwin') {
+      logger.info('Theme changed on macOS, vibrancy handles appearance automatically');
+      return;
+    }
+
     const newBackgroundColor = getThemeBackgroundColor();
     const allWindows = BrowserWindow.getAllWindows();
     allWindows.forEach((window) => {

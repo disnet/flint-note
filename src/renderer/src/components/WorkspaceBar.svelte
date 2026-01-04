@@ -702,6 +702,11 @@
     transition: box-shadow 0.2s ease;
   }
 
+  /* macOS vibrancy - transparent to inherit sidebar's frosted effect */
+  :global([data-vibrancy='true']) .workspace-bar {
+    background: transparent !important;
+  }
+
   /* Match main note view background on mobile */
   @media (max-width: 767px) {
     .workspace-bar {
