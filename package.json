@@ -1,6 +1,6 @@
 {
   "name": "flint",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "A note-taking app that helps you capture ideas, connect them together, and make them part of how you think",
   "main": "./out/main/index.js",
   "author": "Tim Disney",
