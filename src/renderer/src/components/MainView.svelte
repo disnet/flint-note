@@ -2640,6 +2640,19 @@
     padding-left: 0;
   }
 
+  .main-view.mobile-layout .safe-zone-button,
+  .main-view.mobile-layout .more-menu-button {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    padding: 0.5rem;
+  }
+
+  .main-view.mobile-layout .safe-zone-button svg,
+  .main-view.mobile-layout .more-menu-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
   .main-view.mobile-layout .floating-sidebar-toggle {
     display: none;
   }
@@ -2664,5 +2677,10 @@
   .mobile-menu-button:active {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  .mobile-menu-button svg {
+    width: 25px;
+    height: 25px;
   }
 </style>
