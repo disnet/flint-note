@@ -202,6 +202,7 @@ On mobile, the sidebar is a full-screen drawer that slides in from the left:
 - Selecting an item auto-closes drawer
 
 **Key files**:
+
 - `src/renderer/src/stores/sidebarState.svelte.ts` - `mobileDrawerOpen` state
 - `src/renderer/src/lib/gestures.svelte.ts` - Touch swipe utilities
 - `src/renderer/src/components/MainView.svelte` - Mobile layout integration
@@ -229,17 +230,23 @@ For notch/dynamic island support:
 ```css
 /* Only show hover on devices with hover capability */
 @media (hover: hover) {
-  .item:hover { background: var(--bg-hover); }
+  .item:hover {
+    background: var(--bg-hover);
+  }
 }
 
 /* Prevent :active flash on touch */
 @media (hover: none) {
-  .item:active { background: transparent; }
+  .item:active {
+    background: transparent;
+  }
 }
 
 /* Always show controls on touch devices */
 @media (hover: none) {
-  .action-button { display: flex; }
+  .action-button {
+    display: flex;
+  }
 }
 ```
 

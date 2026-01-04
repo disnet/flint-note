@@ -642,7 +642,9 @@
     document.addEventListener('contextmenu', preventContextMenu, { capture: true });
 
     // Store element ref for getting height later
-    const targetEl = (e.target as HTMLElement).closest('[data-sidebar-item]') as HTMLElement;
+    const targetEl = (e.target as HTMLElement).closest(
+      '[data-sidebar-item]'
+    ) as HTMLElement;
 
     // Start long-press timer
     longPressTimer = setTimeout(() => {

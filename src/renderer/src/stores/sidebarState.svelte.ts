@@ -1,6 +1,28 @@
-import { isElectron } from '../lib/platform.svelte';
+import { isElectron, isWeb } from '../lib/platform.svelte';
 
 const SIDEBAR_STORAGE_KEY = 'flint-sidebar-state';
+
+// Lazy import for router to avoid circular dependencies
+type RouterModule = typeof import('../lib/router.svelte');
+let routerModule: RouterModule | null = null;
+async function getRouter(): Promise<RouterModule | null> {
+  if (!routerModule && isWeb()) {
+    routerModule = await import('../lib/router.svelte');
+  }
+  return routerModule;
+}
+
+/**
+ * Sync URL with current state (for web mode)
+ * Uses replaceState since sidebar changes are UI state, not navigation
+ */
+async function syncUrlIfWeb(): Promise<void> {
+  if (!isWeb()) return;
+  const router = await getRouter();
+  if (router && !router.isNavigatingFromUrl()) {
+    router.syncUrlFromState(true); // replaceState for UI changes
+  }
+}
 
 interface SidebarState {
   leftSidebar: {
@@ -138,6 +160,7 @@ class SidebarStateStore {
     await this.ensureInitialized();
     this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
     await this.saveToStorage();
+    await syncUrlIfWeb();
   }
 
   async toggleRightSidebar(): Promise<void> {
@@ -187,12 +210,14 @@ class SidebarStateStore {
     this.state.rightSidebar.panelOpen = true;
     this.state.rightSidebar.activePanel = panel;
     await this.saveToStorage();
+    await syncUrlIfWeb();
   }
 
   async closePanel(): Promise<void> {
     await this.ensureInitialized();
     this.state.rightSidebar.panelOpen = false;
     await this.saveToStorage();
+    await syncUrlIfWeb();
   }
 
   async togglePanel(panel: 'chat' | 'shelf'): Promise<void> {
@@ -209,6 +234,7 @@ class SidebarStateStore {
       this.state.rightSidebar.activePanel = panel;
     }
     await this.saveToStorage();
+    await syncUrlIfWeb();
   }
 
   // Mobile drawer methods (don't persist - always starts closed)

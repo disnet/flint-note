@@ -1312,7 +1312,10 @@
   {/if}
 
   <!-- Main Layout -->
-  <div class="app-layout" class:mobile-drawer-open={isMobileLayout && sidebarState.mobileDrawerOpen}>
+  <div
+    class="app-layout"
+    class:mobile-drawer-open={isMobileLayout && sidebarState.mobileDrawerOpen}
+  >
     <!-- Desktop: Sidebar inside app-layout -->
     {#if !isMobileLayout}
       {@render sidebarComponent()}
@@ -1699,7 +1702,6 @@
     hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
   />
 {/if}
-
 
 <!-- Floating panels (only when not expanded) -->
 {#if !rightSidebarExpanded}
@@ -2640,7 +2642,6 @@
   .main-view.mobile-layout .floating-sidebar-toggle {
     display: none;
   }
-
 
   /* Mobile menu button */
   .mobile-menu-button {

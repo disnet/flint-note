@@ -89,6 +89,17 @@ import {
 } from './content-docs.svelte';
 import { searchIndex } from './search-index.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
+import { isWeb } from '../platform.svelte';
+
+// Lazy import for router to avoid circular dependencies
+type RouterModule = typeof import('../router.svelte');
+let routerModule: RouterModule | null = null;
+async function getRouter(): Promise<RouterModule | null> {
+  if (!routerModule && isWeb()) {
+    routerModule = await import('../router.svelte');
+  }
+  return routerModule;
+}
 
 // --- Private reactive state ---
 
@@ -2193,6 +2204,15 @@ export function setActiveItem(item: ActiveItem): void {
     markNoteOpened(item.id);
     addItemToWorkspace({ type: 'note', id: item.id });
   }
+
+  // Sync URL in web mode
+  if (isWeb()) {
+    getRouter().then((router) => {
+      if (router && !router.isNavigatingFromUrl()) {
+        router.syncUrlFromState(false); // pushState for navigation
+      }
+    });
+  }
 }
 
 /**
@@ -2222,6 +2242,15 @@ export function getActiveSystemView(): SystemView {
 export function setActiveSystemView(view: SystemView): void {
   activeSystemView = view;
   persistViewState();
+
+  // Sync URL in web mode
+  if (isWeb()) {
+    getRouter().then((router) => {
+      if (router && !router.isNavigatingFromUrl()) {
+        router.syncUrlFromState(false); // pushState for navigation
+      }
+    });
+  }
 }
 
 /**

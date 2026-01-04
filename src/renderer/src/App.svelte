@@ -16,7 +16,8 @@
     importMarkdownDirectory
   } from './lib/automerge';
   import { settingsStore } from './stores/settingsStore.svelte';
-  import { isElectron } from './lib/platform.svelte';
+  import { isElectron, isWeb } from './lib/platform.svelte';
+  import { initializeRouter } from './lib/router.svelte';
 
   // Startup command type (matches main process)
   interface StartupCommand {
@@ -96,6 +97,7 @@
   // Initialize automerge state
   onMount(() => {
     let unsubscribeStartupCommand: (() => void) | undefined;
+    let cleanupRouter: (() => void) | undefined;
 
     async function init(): Promise<void> {
       try {
@@ -132,6 +134,11 @@
             }
           });
         }
+
+        // Initialize URL router for web mode (after state is ready)
+        if (isWeb()) {
+          cleanupRouter = initializeRouter();
+        }
       } catch (err) {
         console.error('Failed to initialize automerge:', err);
         initError = err instanceof Error ? err.message : 'Failed to initialize';
@@ -143,6 +150,7 @@
     // Cleanup on unmount
     return () => {
       unsubscribeStartupCommand?.();
+      cleanupRouter?.();
     };
   });
 

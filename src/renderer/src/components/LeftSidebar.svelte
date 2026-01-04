@@ -230,112 +230,24 @@
   <div class="sidebar-inner">
     <!-- Header row with traffic light space, vault switcher, and sidebar toggle -->
     {#if !isMobile}
-    <div class="sidebar-header">
-      <div class="header-row">
-        {#if !isWeb()}
-          <div class="traffic-light-space"></div>
-        {/if}
-        <div class="hamburger-menu-container">
-          <HamburgerMenu />
-        </div>
-        <div class="vault-switcher">
-          <button
-            class="vault-button"
-            class:open={isVaultDropdownOpen}
-            onclick={toggleVaultDropdown}
-            bind:this={vaultButtonElement}
-          >
-            <span class="vault-display">
-              <svg
-                class="vault-icon"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
-                />
-              </svg>
-              <span class="vault-name">{activeVault?.name || 'Select vault'}</span>
-            </span>
-            <svg
-              class="dropdown-arrow"
-              class:rotated={isVaultDropdownOpen}
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+      <div class="sidebar-header">
+        <div class="header-row">
+          {#if !isWeb()}
+            <div class="traffic-light-space"></div>
+          {/if}
+          <div class="hamburger-menu-container">
+            <HamburgerMenu />
+          </div>
+          <div class="vault-switcher">
+            <button
+              class="vault-button"
+              class:open={isVaultDropdownOpen}
+              onclick={toggleVaultDropdown}
+              bind:this={vaultButtonElement}
             >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          {#if isVaultDropdownOpen}
-            <div
-              class="vault-dropdown"
-              style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px;"
-            >
-              {#each vaults as vault (vault.id)}
-                <div class="vault-item-container" class:legacy={isLegacyVault(vault)}>
-                  <button
-                    class="vault-item"
-                    class:active={activeVault?.id === vault.id}
-                    class:legacy={isLegacyVault(vault)}
-                    onclick={() => handleVaultSelect(vault.id)}
-                  >
-                    <svg
-                      class="vault-item-icon"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
-                      />
-                    </svg>
-                    <span class="vault-item-name">{vault.name}</span>
-                    {#if isLegacyVault(vault)}
-                      <span class="legacy-badge" title="Click to import this vault"
-                        >Import</span
-                      >
-                    {/if}
-                  </button>
-                  {#if !isLegacyVault(vault)}
-                    <button
-                      class="archive-btn"
-                      onclick={(e) => handleArchiveVault(vault, e)}
-                      title="Archive vault"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <rect width="20" height="5" x="2" y="3" rx="1" />
-                        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                        <path d="m9.5 11 5 0" />
-                      </svg>
-                    </button>
-                  {/if}
-                </div>
-              {/each}
-
-              <div class="vault-dropdown-separator"></div>
-
-              <button class="vault-item new-vault-item" onclick={handleCreateVault}>
+              <span class="vault-display">
                 <svg
-                  class="vault-item-icon"
+                  class="vault-icon"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
@@ -343,98 +255,186 @@
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path d="M12 5v14" />
-                  <path d="m5 12 14 0" />
+                  <path
+                    d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                  />
                 </svg>
-                <span class="vault-item-name">New Vault</span>
-              </button>
-            </div>
-          {/if}
-        </div>
-        {#if !isMobile}
-          <div class="header-spacer"></div>
-          <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
-            <button
-              class="sidebar-toggle"
-              onclick={onToggleSidebar}
-              aria-label="Toggle sidebar"
-            >
+                <span class="vault-name">{activeVault?.name || 'Select vault'}</span>
+              </span>
               <svg
-                width="16"
-                height="16"
+                class="dropdown-arrow"
+                class:rotated={isVaultDropdownOpen}
+                width="10"
+                height="10"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
               >
-                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
-          </Tooltip>
-        {/if}
-      </div>
-      <!-- Search bar (desktop only - mobile has it in scrollable content) -->
-      {#if !isMobile}
-      <div class="search-container">
-        <div
-          class="search-input-wrapper"
-          class:active={searchInputFocused &&
-            (searchQuery.trim() || searchResults.length > 0)}
-        >
-          <svg
-            class="search-icon"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          <input
-            id="search-input"
-            type="text"
-            class="search-input"
-            placeholder="Search notes... (⌘K)"
-            value={searchQuery}
-            oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
-            onfocus={onSearchFocus}
-            onblur={onSearchBlur}
-            onkeydown={onSearchKeyDown}
-          />
-        </div>
-        {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
-          <div class="search-dropdown">
-            {#if searchResults.length > 0}
-              {#if isShowingRecent}
-                <div class="search-dropdown-header">Recent</div>
-              {/if}
-              <SearchResults
-                results={searchResults}
-                onSelect={onSearchResultSelect}
-                maxResults={8}
-                selectedIndex={selectedSearchIndex}
-              />
-              {#if searchResults.length > 8 && !isShowingRecent}
-                <button class="view-all-btn" onclick={onViewAllResults}>
-                  View all {searchResults.length} results (Enter)
+
+            {#if isVaultDropdownOpen}
+              <div
+                class="vault-dropdown"
+                style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px;"
+              >
+                {#each vaults as vault (vault.id)}
+                  <div class="vault-item-container" class:legacy={isLegacyVault(vault)}>
+                    <button
+                      class="vault-item"
+                      class:active={activeVault?.id === vault.id}
+                      class:legacy={isLegacyVault(vault)}
+                      onclick={() => handleVaultSelect(vault.id)}
+                    >
+                      <svg
+                        class="vault-item-icon"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                        />
+                      </svg>
+                      <span class="vault-item-name">{vault.name}</span>
+                      {#if isLegacyVault(vault)}
+                        <span class="legacy-badge" title="Click to import this vault"
+                          >Import</span
+                        >
+                      {/if}
+                    </button>
+                    {#if !isLegacyVault(vault)}
+                      <button
+                        class="archive-btn"
+                        onclick={(e) => handleArchiveVault(vault, e)}
+                        title="Archive vault"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <rect width="20" height="5" x="2" y="3" rx="1" />
+                          <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                          <path d="m9.5 11 5 0" />
+                        </svg>
+                      </button>
+                    {/if}
+                  </div>
+                {/each}
+
+                <div class="vault-dropdown-separator"></div>
+
+                <button class="vault-item new-vault-item" onclick={handleCreateVault}>
+                  <svg
+                    class="vault-item-icon"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M12 5v14" />
+                    <path d="m5 12 14 0" />
+                  </svg>
+                  <span class="vault-item-name">New Vault</span>
                 </button>
-              {/if}
-            {:else if searchQuery.trim()}
-              <div class="no-results-dropdown">
-                No matching notes found for "{searchQuery}"
               </div>
-            {:else}
-              <div class="no-results-dropdown">No recent notes</div>
+            {/if}
+          </div>
+          {#if !isMobile}
+            <div class="header-spacer"></div>
+            <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
+              <button
+                class="sidebar-toggle"
+                onclick={onToggleSidebar}
+                aria-label="Toggle sidebar"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+              </button>
+            </Tooltip>
+          {/if}
+        </div>
+        <!-- Search bar (desktop only - mobile has it in scrollable content) -->
+        {#if !isMobile}
+          <div class="search-container">
+            <div
+              class="search-input-wrapper"
+              class:active={searchInputFocused &&
+                (searchQuery.trim() || searchResults.length > 0)}
+            >
+              <svg
+                class="search-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+              <input
+                id="search-input"
+                type="text"
+                class="search-input"
+                placeholder="Search notes... (⌘K)"
+                value={searchQuery}
+                oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
+                onfocus={onSearchFocus}
+                onblur={onSearchBlur}
+                onkeydown={onSearchKeyDown}
+              />
+            </div>
+            {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
+              <div class="search-dropdown">
+                {#if searchResults.length > 0}
+                  {#if isShowingRecent}
+                    <div class="search-dropdown-header">Recent</div>
+                  {/if}
+                  <SearchResults
+                    results={searchResults}
+                    onSelect={onSearchResultSelect}
+                    maxResults={8}
+                    selectedIndex={selectedSearchIndex}
+                  />
+                  {#if searchResults.length > 8 && !isShowingRecent}
+                    <button class="view-all-btn" onclick={onViewAllResults}>
+                      View all {searchResults.length} results (Enter)
+                    </button>
+                  {/if}
+                {:else if searchQuery.trim()}
+                  <div class="no-results-dropdown">
+                    No matching notes found for "{searchQuery}"
+                  </div>
+                {:else}
+                  <div class="no-results-dropdown">No recent notes</div>
+                {/if}
+              </div>
             {/if}
           </div>
         {/if}
       </div>
-      {/if}
-    </div>
     {/if}
 
     <div class="sidebar-content" bind:this={contentElement} onscroll={updateShadow}>
