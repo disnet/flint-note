@@ -121,6 +121,10 @@
       const { scrollTop, scrollHeight, clientHeight } = contentElement;
       showShadow = scrollTop + clientHeight < scrollHeight - 1;
     }
+    // Update mobile search dropdown position on scroll
+    if (isMobile && searchInputFocused) {
+      updateMobileSearchDropdownPosition();
+    }
   }
 
   // Watch for content size changes and update shadow
@@ -195,6 +199,36 @@
   function handleCreateVault(): void {
     onCreateVault();
     closeVaultDropdown();
+  }
+
+  // Mobile search dropdown positioning
+  let mobileSearchWrapperRef = $state<HTMLDivElement | null>(null);
+  let mobileSearchDropdownPosition = $state<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  function updateMobileSearchDropdownPosition(): void {
+    if (mobileSearchWrapperRef && isMobile) {
+      const rect = mobileSearchWrapperRef.getBoundingClientRect();
+      mobileSearchDropdownPosition = {
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width
+      };
+    }
+  }
+
+  // Handle search focus with dropdown position update
+  function handleSearchFocusWithPosition(): void {
+    onSearchFocus();
+    if (isMobile) {
+      // Small delay to ensure layout is stable
+      requestAnimationFrame(() => {
+        updateMobileSearchDropdownPosition();
+      });
+    }
   }
 
   // Close dropdown when clicking outside
@@ -445,6 +479,7 @@
             class="search-input-wrapper"
             class:active={searchInputFocused &&
               (searchQuery.trim() || searchResults.length > 0)}
+            bind:this={mobileSearchWrapperRef}
           >
             <svg
               class="search-icon"
@@ -465,13 +500,18 @@
               placeholder="Search notes..."
               value={searchQuery}
               oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
-              onfocus={onSearchFocus}
+              onfocus={handleSearchFocusWithPosition}
               onblur={onSearchBlur}
               onkeydown={onSearchKeyDown}
             />
           </div>
-          {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
-            <div class="search-dropdown mobile-search-dropdown">
+          {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0) && mobileSearchDropdownPosition}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="search-dropdown mobile-search-dropdown"
+              style="position: fixed; top: {mobileSearchDropdownPosition.top}px; left: {mobileSearchDropdownPosition.left}px; width: {mobileSearchDropdownPosition.width}px;"
+              onpointerdown={(e) => e.preventDefault()}
+            >
               {#if searchResults.length > 0}
                 {#if isShowingRecent}
                   <div class="search-dropdown-header">Recent</div>
@@ -842,17 +882,14 @@
   }
 
   .mobile-search-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0.75rem;
-    right: 0.75rem;
+    /* Position is set inline via JavaScript for fixed positioning */
     background: var(--bg-primary);
     border: 1px solid var(--accent-primary);
     border-top: none;
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 100;
+    z-index: 1000; /* High z-index to appear above other elements */
     max-height: 300px;
     overflow-y: auto;
   }
@@ -894,6 +931,13 @@
 
   .search-input::placeholder {
     color: var(--text-muted);
+  }
+
+  /* Prevent Safari auto-zoom on input focus */
+  @media (max-width: 767px) {
+    .search-input {
+      font-size: 16px;
+    }
   }
 
   .search-dropdown {
@@ -1022,6 +1066,8 @@
     z-index: 1; /* Below main content */
     transform: none;
     border-right: none;
+    /* Match main note view background on mobile */
+    background: var(--bg-primary);
     /* Extend into safe areas with internal padding */
     padding-top: var(--safe-area-top, 0px);
     padding-bottom: var(--safe-area-bottom, 0px);

@@ -375,6 +375,10 @@
 
   function handleSearchResultSelect(note: NoteMetadata): void {
     handleNoteSelect(note);
+    // Close drawer on mobile when selecting a search result
+    if (isMobileLayout) {
+      sidebarState.closeMobileDrawer();
+    }
   }
 
   function handleSearchFocus(): void {
@@ -2639,12 +2643,18 @@
   }
 
   .main-view.mobile-layout .safe-zone {
-    padding-left: 0;
+    padding-left: 1.25rem;
   }
 
   /* On macOS Electron mobile, add space for traffic lights */
   :global([data-platform='macos']) .main-view.mobile-layout .safe-zone {
     padding-left: 70px;
+  }
+
+  .main-view.mobile-layout .safe-zone-button,
+  .main-view.mobile-layout .more-menu-button,
+  .main-view.mobile-layout .mobile-menu-button {
+    color: var(--text-muted);
   }
 
   .main-view.mobile-layout .safe-zone-button,
@@ -2669,7 +2679,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--touch-target-min);
     height: var(--touch-target-min);
     border: none;
     background: none;

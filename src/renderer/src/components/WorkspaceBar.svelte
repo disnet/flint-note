@@ -702,6 +702,13 @@
     transition: box-shadow 0.2s ease;
   }
 
+  /* Match main note view background on mobile */
+  @media (max-width: 767px) {
+    .workspace-bar {
+      background: var(--bg-primary);
+    }
+  }
+
   .workspace-bar.shadow {
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
   }
