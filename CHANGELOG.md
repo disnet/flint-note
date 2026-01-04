@@ -1,5 +1,12 @@
 # Changelog - Release
 
+## [0.14.4]
+
+### Added
+
+- Added ability to rename vaults
+- Added subtle sidebar transparency effects on macos
+
 ## [0.14.3]
 
 ### Changed
