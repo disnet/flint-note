@@ -675,15 +675,24 @@
 
 <style>
   .first-time-container {
-    height: 100vh;
+    /* Use dvh for mobile Safari floating address bar support, with vh fallback */
+    min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
     padding: 2rem;
+    /* Add safe area padding for iOS notch/home indicator */
+    padding-top: calc(2rem + var(--safe-area-top, 0px));
+    padding-bottom: calc(2rem + var(--safe-area-bottom, 0px));
+    padding-left: calc(2rem + var(--safe-area-left, 0px));
+    padding-right: calc(2rem + var(--safe-area-right, 0px));
     box-sizing: border-box;
     overflow-y: auto;
+    /* Ensure smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
   }
 
   .welcome-content {
@@ -1298,6 +1307,11 @@
   @media (max-width: 640px) {
     .first-time-container {
       padding: 1rem;
+      /* Safe area padding on mobile - smaller base padding */
+      padding-top: calc(1rem + var(--safe-area-top, 0px));
+      padding-bottom: calc(1rem + var(--safe-area-bottom, 0px));
+      padding-left: calc(1rem + var(--safe-area-left, 0px));
+      padding-right: calc(1rem + var(--safe-area-right, 0px));
     }
 
     .header h1 {
