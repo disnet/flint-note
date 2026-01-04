@@ -55,7 +55,7 @@ flint-ui/
 
 ### Documentation
 
-- `docs/DESIGN.md` - UI design documentation
+- `docs/FLINT-OVERVIEW.md` - Design philosophy and core concepts
 - `docs/ARCHITECTURE.md` - Electron system architecture documentation
 - `docs/FLINT-NOTE-API.md` - Server API documentation
 
@@ -178,3 +178,73 @@ Test files have relaxed ESLint rules allowing:
 - when planning migrations or breaking changes don't use progressive rollout strategy since we don't have that capability yet
 - we we need to deal with breaking changes to the DB schema we have version aware migration code in the migration-manager
 - do not try to run the app (e.g. npm run dev). ask the user to run it if you need to check something
+
+## Web App & Mobile Guidelines
+
+The app runs both as an Electron desktop app and as a web app (PWA). The web version has additional mobile/touch considerations:
+
+### Platform Detection
+
+- `src/renderer/src/lib/platform.svelte.ts` - `isWeb()` detects web vs Electron
+- `src/renderer/src/stores/deviceState.svelte.ts` - Reactive viewport detection:
+  - `isMobile`: < 768px
+  - `isTablet`: 768px - 1024px
+  - `isDesktop`: > 1024px
+  - `useMobileLayout`: Combines mobile detection for UI decisions
+
+### Mobile Drawer Pattern
+
+On mobile, the sidebar is a full-screen drawer that slides in from the left:
+
+- Sidebar renders outside `app-layout` on mobile (avoids CSS transform issues with `position: fixed`)
+- Main content slides right to reveal sidebar underneath
+- Edge swipe from left opens drawer (when closed)
+- Selecting an item auto-closes drawer
+
+**Key files**:
+- `src/renderer/src/stores/sidebarState.svelte.ts` - `mobileDrawerOpen` state
+- `src/renderer/src/lib/gestures.svelte.ts` - Touch swipe utilities
+- `src/renderer/src/components/MainView.svelte` - Mobile layout integration
+
+### Touch Interaction Guidelines
+
+- **Long-press to drag**: On mobile, drag-to-reorder requires 300ms long-press (allows normal scrolling)
+- **Prevent native menus**: Use `-webkit-touch-callout: none` and document-level `contextmenu` prevention
+- **No tap highlight**: Use `-webkit-tap-highlight-color: transparent`
+- **Hover states**: Wrap in `@media (hover: hover)` to avoid sticky hover on touch
+- **Active states**: Prevent flash with `@media (hover: none) { .item:active { background: transparent } }`
+- **Always-visible controls**: Show action buttons (like "...") always on touch devices
+
+### Safe Area Handling
+
+For notch/dynamic island support:
+
+- Viewport: `<meta name="viewport" content="..., viewport-fit=cover">`
+- CSS variables: `--safe-area-top`, `--safe-area-bottom`, etc. (defined in base.css)
+- Apply padding to full-screen elements: `padding-top: var(--safe-area-top, 0px)`
+- Dynamic theme-color: Update `<meta name="theme-color">` based on visible content
+
+### Mobile-Specific CSS Patterns
+
+```css
+/* Only show hover on devices with hover capability */
+@media (hover: hover) {
+  .item:hover { background: var(--bg-hover); }
+}
+
+/* Prevent :active flash on touch */
+@media (hover: none) {
+  .item:active { background: transparent; }
+}
+
+/* Always show controls on touch devices */
+@media (hover: none) {
+  .action-button { display: flex; }
+}
+```
+
+### Key Mobile Components
+
+- `src/renderer/src/components/MobileFAB.svelte` - Context-sensitive floating action button
+- `src/renderer/src/components/MobileDrawer.svelte` - Drawer wrapper component
+- `src/renderer/src/stores/deviceState.svelte.ts` - Device/viewport detection
