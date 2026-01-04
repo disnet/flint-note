@@ -1,5 +1,15 @@
 # Changelog - Release
 
+## [0.14.3]
+
+### Changed
+
+- Cleaned up the design of the first-time experience screen
+
+### Fixed
+
+- Improved importing of files (epub, pdf, etc.) from existing automerge vaults
+
 ## [0.14.0]
 
 ### Changed
