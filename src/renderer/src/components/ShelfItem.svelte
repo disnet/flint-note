@@ -285,7 +285,7 @@
   }
 
   .emoji-icon {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1;
   }
 
@@ -297,7 +297,7 @@
     border: none;
     background: none;
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 500;
     text-align: left;
     cursor: pointer;
@@ -370,7 +370,7 @@
   }
 
   .empty-content {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
     font-style: italic;
     padding: 8px 10px;
@@ -387,7 +387,7 @@
   }
 
   .message-preview {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     line-height: 1.4;
     color: var(--text-secondary);
   }

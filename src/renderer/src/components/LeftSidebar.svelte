@@ -114,7 +114,6 @@
     previousWorkspaceId = currentId;
   });
 
-
   // Shadow state for workspace bar
   let showShadow = $state(false);
   let contentElement = $state<HTMLElement | null>(null);
