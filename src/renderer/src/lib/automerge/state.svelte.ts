@@ -1164,10 +1164,14 @@ export async function createNote(params: {
   }
 
   // Stabilize title-based wikilinks globally if note has a title
+  // Use setTimeout to defer execution outside of Svelte's reactive context
   if (params.title?.trim()) {
-    stabilizeWikilinksGlobally(id, params.title).catch((err) => {
-      console.error('[Wikilinks] Failed to stabilize links:', err);
-    });
+    const titleToStabilize = params.title;
+    setTimeout(() => {
+      stabilizeWikilinksGlobally(id, titleToStabilize).catch((err) => {
+        console.error('[Wikilinks] Failed to stabilize links:', err);
+      });
+    }, 0);
   }
 
   return id;
@@ -1203,6 +1207,17 @@ export function updateNote(
       searchIndex.indexNote(noteMetadata).catch((err) => {
         console.error('[Search] Failed to re-index note:', err);
       });
+    }
+
+    // Stabilize title-based wikilinks globally when title changes
+    // Use setTimeout to defer execution outside of Svelte's reactive context
+    if (updates.title.trim()) {
+      const titleToStabilize = updates.title;
+      setTimeout(() => {
+        stabilizeWikilinksGlobally(id, titleToStabilize).catch((err) => {
+          console.error('[Wikilinks] Failed to stabilize links:', err);
+        });
+      }, 0);
     }
   }
 }

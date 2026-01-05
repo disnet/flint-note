@@ -192,8 +192,6 @@
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
-      from?: number;
-      to?: number;
     }
   ): Promise<void> {
     const targetType = options?.targetType || 'note';
@@ -223,16 +221,10 @@
       // Note handling
       if (shouldCreate) {
         // Create a new note with the given title
+        // Note: createNote() triggers global wikilink stabilization which will
+        // update this link (and any others matching the title) to use the new ID.
+        // The automerge-codemirror sync will update the editor automatically.
         const newId = await createNote({ title });
-
-        // Stabilize the clicked wikilink to use the new note's ID
-        if (editorView && options?.from !== undefined && options?.to !== undefined) {
-          const newText = `[[${newId}]]`;
-          editorView.dispatch({
-            changes: { from: options.from, to: options.to, insert: newText }
-          });
-        }
-
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
         onNavigate?.(newId);
