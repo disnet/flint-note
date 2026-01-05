@@ -192,6 +192,8 @@
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
+      from?: number;
+      to?: number;
     }
   ): Promise<void> {
     const targetType = options?.targetType || 'note';
@@ -222,6 +224,15 @@
       if (shouldCreate) {
         // Create a new note with the given title
         const newId = await createNote({ title });
+
+        // Stabilize the clicked wikilink to use the new note's ID
+        if (editorView && options?.from !== undefined && options?.to !== undefined) {
+          const newText = `[[${newId}]]`;
+          editorView.dispatch({
+            changes: { from: options.from, to: options.to, insert: newText }
+          });
+        }
+
         addNoteToWorkspace(newId);
         setActiveNoteId(newId);
         onNavigate?.(newId);

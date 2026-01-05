@@ -88,6 +88,7 @@ import {
   clearContentCache
 } from './content-docs.svelte';
 import { searchIndex } from './search-index.svelte';
+import { stabilizeWikilinksGlobally } from './wikilink-stabilization.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
 import { isWeb } from '../platform.svelte';
 
@@ -1159,6 +1160,13 @@ export async function createNote(params: {
   if (noteMetadata) {
     searchIndex.indexNote(noteMetadata, params.content || '').catch((err) => {
       console.error('[Search] Failed to index new note:', err);
+    });
+  }
+
+  // Stabilize title-based wikilinks globally if note has a title
+  if (params.title?.trim()) {
+    stabilizeWikilinksGlobally(id, params.title).catch((err) => {
+      console.error('[Wikilinks] Failed to stabilize links:', err);
     });
   }
 

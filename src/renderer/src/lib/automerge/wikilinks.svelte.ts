@@ -70,6 +70,8 @@ export interface WikilinkClickHandler {
     options?: {
       shouldCreate?: boolean;
       targetType?: WikilinkTargetType;
+      from?: number;
+      to?: number;
     }
   ): void;
 }
@@ -560,7 +562,9 @@ class WikilinkWidget extends WidgetType {
           } else {
             this.clickHandler(this.identifier, this.displayTitle, {
               shouldCreate: true,
-              targetType: 'note'
+              targetType: 'note',
+              from: this.from,
+              to: this.to
             });
           }
         }

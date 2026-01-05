@@ -442,6 +442,12 @@ export type {
   SelectedWikilink
 } from './wikilinks.svelte';
 
+// Wikilink stabilization (convert title-based links to ID-based)
+export {
+  stabilizeWikilinksInContent,
+  stabilizeWikilinksGlobally
+} from './wikilink-stabilization.svelte';
+
 // Enhanced search
 export {
   searchNotesEnhanced,
