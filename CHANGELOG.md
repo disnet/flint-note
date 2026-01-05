@@ -1,5 +1,17 @@
 # Changelog - Release
 
+## [0.14.5]
+
+### Changed
+
+- increased shelf font size
+- more parts of the window are draggable
+
+### Fixed
+
+- stabalize links to uncreated notes
+- fixed vault import issues
+
 ## [0.14.4]
 
 ### Added
