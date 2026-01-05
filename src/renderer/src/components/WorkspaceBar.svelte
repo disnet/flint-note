@@ -815,6 +815,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 0.25rem;
     z-index: 100;
+    -webkit-app-region: no-drag;
   }
 
   .add-menu-item {
@@ -879,6 +880,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 1rem;
     z-index: 100;
+    -webkit-app-region: no-drag;
   }
 
   .workspace-popover h4 {
@@ -976,6 +978,7 @@
     box-shadow: 0 4px 12px var(--shadow-medium, rgba(0, 0, 0, 0.15));
     padding: 0.25rem;
     min-width: 120px;
+    -webkit-app-region: no-drag;
   }
 
   .context-menu-item {

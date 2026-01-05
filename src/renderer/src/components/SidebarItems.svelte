@@ -1555,6 +1555,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     min-width: 160px;
     padding: 0.25rem;
+    -webkit-app-region: no-drag;
   }
 
   .context-menu-item {
