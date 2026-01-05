@@ -63,6 +63,12 @@
     getMigrationProgress,
     resetMigrationState
   } from '../lib/automerge/legacy-migration.svelte';
+  import {
+    importAutomergeVault,
+    getAutomergeImportProgress,
+    resetAutomergeImportState,
+    type AutomergeVaultInfo
+  } from '../lib/automerge/automerge-import.svelte';
   import LeftSidebar from './LeftSidebar.svelte';
   import NoteEditor from './NoteEditor.svelte';
   import SearchView from './SearchView.svelte';
@@ -140,6 +146,11 @@
   let migratingVault = $state<Vault | null>(null);
   let migrationError = $state<string | null>(null);
   const migrationProgress = $derived(getMigrationProgress());
+
+  // Automerge vault import state
+  let isImportingAutomergeVault = $state(false);
+  let importingVaultName = $state<string | null>(null);
+  const automergeImportProgress = $derived(getAutomergeImportProgress());
   let searchInputFocused = $state(false);
   let selectedSearchIndex = $state(0);
   let pendingChatMessage = $state<string | null>(null);
@@ -596,6 +607,7 @@
 
   /**
    * Browse for a vault directory to import (Electron only)
+   * Checks for automerge vaults first, then legacy vaults
    */
   async function handleBrowseForVault(): Promise<void> {
     if (!isElectron()) return;
@@ -606,7 +618,18 @@
       // Close the create vault modal
       showCreateVaultModal = false;
 
-      // Detect if it's a valid legacy vault
+      // First, check for automerge vault (already synced vault with .automerge directory)
+      const automergeVault = await window.api?.automergeImport.detectAutomergeVault({
+        dirPath: selectedPath
+      });
+
+      if (automergeVault?.isValid) {
+        // Import the automerge vault
+        await handleImportAutomergeVault(automergeVault);
+        return;
+      }
+
+      // Check for legacy vault (SQLite-based)
       const detectedVault = await window.api?.legacyMigration.detectLegacyVaultAtPath({
         vaultPath: selectedPath,
         existingVaults: vaults.map((v) => ({ baseDirectory: v.baseDirectory }))
@@ -649,11 +672,47 @@
           resetMigrationState();
         }
       } else {
-        migrationError = 'No valid vault found at the selected location';
+        // Show appropriate error based on what was found
+        if (automergeVault && !automergeVault.isValid) {
+          migrationError = automergeVault.error || 'Invalid Flint vault';
+        } else {
+          migrationError = 'No valid vault found at the selected location';
+        }
       }
     } catch (error) {
       migrationError = error instanceof Error ? error.message : String(error);
       console.error('Browse error:', error);
+    }
+  }
+
+  /**
+   * Import an automerge vault from a directory with .automerge
+   */
+  async function handleImportAutomergeVault(
+    vaultInfo: AutomergeVaultInfo
+  ): Promise<void> {
+    isImportingAutomergeVault = true;
+    importingVaultName = vaultInfo.name;
+    migrationError = null;
+
+    try {
+      const result = await importAutomergeVault(vaultInfo.path, vaultInfo.name);
+
+      if (result.success && result.vault) {
+        // Successfully imported - switch to the new vault
+        setActiveItem(null);
+      } else {
+        // Handle import failure
+        migrationError = result.error ?? 'Import failed for unknown reason';
+        console.error('Automerge import failed:', result.error);
+      }
+    } catch (error) {
+      migrationError = error instanceof Error ? error.message : String(error);
+      console.error('Automerge import error:', error);
+    } finally {
+      isImportingAutomergeVault = false;
+      importingVaultName = null;
+      resetAutomergeImportState();
     }
   }
 
@@ -1828,6 +1887,40 @@
         <p class="migration-phase">{migrationProgress.phase}</p>
       {:else}
         <p class="migration-message">Starting migration...</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar indeterminate"></div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<!-- Automerge Vault Import Progress Overlay -->
+{#if isImportingAutomergeVault && importingVaultName}
+  <div class="migration-overlay">
+    <div class="migration-modal">
+      <div class="migration-icon">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+          />
+        </svg>
+      </div>
+      <h3>Importing "{importingVaultName}"</h3>
+      {#if automergeImportProgress}
+        <p class="migration-message">{automergeImportProgress.message}</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar indeterminate"></div>
+        </div>
+      {:else}
+        <p class="migration-message">Starting import...</p>
         <div class="progress-bar-container">
           <div class="progress-bar indeterminate"></div>
         </div>

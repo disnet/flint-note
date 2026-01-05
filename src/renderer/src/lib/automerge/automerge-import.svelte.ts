@@ -118,6 +118,41 @@ export async function importAutomergeVault(
     const existingVaults = getVaults();
     const existingVault = existingVaults.find((v) => v.docUrl === vaultInfo.docUrl);
     if (existingVault) {
+      // If the existing vault is archived, unarchive it instead of failing
+      if (existingVault.archived) {
+        importProgress = {
+          phase: 'creating-vault',
+          message: 'Restoring archived vault...'
+        };
+
+        // Unarchive the vault
+        const updatedVaults = existingVaults.map((v) =>
+          v.id === existingVault.id ? { ...v, archived: false } : v
+        );
+        saveVaults(updatedVaults);
+
+        // Update state
+        addVaultToState({ ...existingVault, archived: false });
+
+        // Switch to the restored vault
+        importProgress = {
+          phase: 'loading-document',
+          message: 'Loading vault document...'
+        };
+
+        await switchVault(existingVault.id);
+
+        importProgress = {
+          phase: 'complete',
+          message: 'Vault restored!'
+        };
+
+        return {
+          success: true,
+          vault: { ...existingVault, archived: false }
+        };
+      }
+
       return {
         success: false,
         error: `This vault is already imported as "${existingVault.name}"`
