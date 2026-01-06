@@ -249,7 +249,7 @@
   /* Override CodeMirror styling for shelf context */
   .editor-container :global(.cm-editor) {
     min-height: auto !important;
-    font-size: 0.9rem !important;
+    font-size: calc(var(--font-editor-size) * 0.9) !important;
     background: transparent !important;
   }
 
