@@ -1,5 +1,12 @@
 # Changelog - Release
 
+## [0.14.6]
+
+### Changed
+
+- Scroll to daily entry
+- Shelf font size adjusts with user settings
+
 ## [0.14.5]
 
 ### Changed
