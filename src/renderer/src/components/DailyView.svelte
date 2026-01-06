@@ -37,6 +37,9 @@
   // References to day sections for keyboard shortcuts
   let daySectionRefs = $state<Record<number, DaySection>>({});
 
+  // Track if we've scrolled to today on mount
+  let hasScrolledToTodayOnMount = $state(false);
+
   function handleNavigateToWeek(startDate: string): void {
     currentWeekStart = startDate;
   }
@@ -105,6 +108,17 @@
 
     document.addEventListener('daily-view-focus-today', handleFocusToday);
     return () => document.removeEventListener('daily-view-focus-today', handleFocusToday);
+  });
+
+  // Scroll to today when the view first loads
+  $effect(() => {
+    if (!hasScrolledToTodayOnMount && weekData && weekData.days.length > 0) {
+      // Small delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        focusToday();
+      }, 50);
+      hasScrolledToTodayOnMount = true;
+    }
   });
 
   // Keyboard shortcuts for daily view
