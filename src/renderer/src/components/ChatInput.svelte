@@ -91,16 +91,24 @@
     }
   });
 
-  // Dark mode scrollbar theme
+  // Dark mode scrollbar theme - uses CSS vars for consistency with global scrollbar styles
   const darkEditorTheme = EditorView.theme({
     '.cm-scroller': {
-      scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'var(--scrollbar-thumb) transparent'
+    },
+    '.cm-scroller::-webkit-scrollbar': {
+      width: '8px'
+    },
+    '.cm-scroller::-webkit-scrollbar-track': {
+      background: 'transparent'
     },
     '.cm-scroller::-webkit-scrollbar-thumb': {
-      background: 'rgba(255, 255, 255, 0.2)'
+      background: 'var(--scrollbar-thumb)',
+      borderRadius: '4px'
     },
     '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-      background: 'rgba(255, 255, 255, 0.3)'
+      background: 'var(--scrollbar-thumb-hover)'
     }
   });
 

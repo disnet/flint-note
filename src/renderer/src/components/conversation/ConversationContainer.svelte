@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { scrollable } from '../../lib/scrollable.svelte';
 
   /**
    * ConversationContainer - Reusable container for conversation-style UIs
@@ -103,7 +104,12 @@
   {/if}
 
   <!-- Scrollable content section -->
-  <div class="conversation-content" bind:this={contentContainer} onscroll={handleScroll}>
+  <div
+    class="conversation-content scrollable"
+    bind:this={contentContainer}
+    onscroll={handleScroll}
+    use:scrollable
+  >
     {@render content()}
   </div>
 
@@ -131,32 +137,11 @@
 
   .conversation-content {
     flex: 1; /* Grow to fill available space */
-    overflow-y: auto;
-    overflow-x: hidden;
     min-height: 0; /* !!! CRITICAL !!! Allows flex item to scroll properly */
     max-height: 100%; /* Force height constraint */
   }
 
   .conversation-controls {
     flex-shrink: 0; /* Never shrink controls */
-  }
-
-  /* Scrollbar styling */
-  .conversation-content::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .conversation-content::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .conversation-content::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-
-  .conversation-content::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
   }
 </style>

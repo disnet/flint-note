@@ -22,6 +22,7 @@
     type SidebarItem
   } from '../lib/automerge';
   import { isWeb } from '../lib/platform.svelte';
+  import { scrollable } from '../lib/scrollable.svelte';
 
   interface Props {
     activeSystemView:
@@ -551,7 +552,12 @@
       </div>
     {/if}
 
-    <div class="sidebar-content" bind:this={contentElement} onscroll={updateShadow}>
+    <div
+      class="sidebar-content scrollable"
+      bind:this={contentElement}
+      onscroll={updateShadow}
+      use:scrollable
+    >
       <!-- Mobile search bar (scrolls with content) -->
       {#if isMobile}
         <div class="mobile-search-container">
@@ -1147,12 +1153,9 @@
 
   .sidebar-content {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    scrollbar-gutter: stable;
     -webkit-app-region: no-drag;
   }
 
@@ -1160,55 +1163,6 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-  }
-
-  /* Custom scrollbar styling */
-  .sidebar-content::-webkit-scrollbar {
-    width: 12px;
-  }
-
-  .sidebar-content::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 6px;
-  }
-
-  .sidebar-content::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 6px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    transition: all 0.2s ease;
-  }
-
-  .sidebar-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-    background-clip: padding-box;
-  }
-
-  .sidebar-content::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .sidebar-content::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .sidebar-content::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
-
-  /* Firefox scrollbar styling */
-  .sidebar-content {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .sidebar-content {
-      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-    }
   }
 
   /* Mobile drawer styles - sidebar is full-screen underneath the main content */

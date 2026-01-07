@@ -552,6 +552,27 @@
     word-break: break-word;
     max-height: 120px;
     overflow-y: auto;
+    /* Use thin scrollbar for code blocks */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .detail-code::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .detail-code::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .detail-code::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  .detail-code::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
   }
 
   .copy-btn {
@@ -572,24 +593,5 @@
     background: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--border-medium, var(--border-light));
-  }
-
-  /* Scrollbar styling */
-  .detail-code::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .detail-code::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .detail-code::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.2));
-    border-radius: 3px;
-  }
-
-  .detail-code::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.3));
   }
 </style>

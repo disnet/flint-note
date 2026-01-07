@@ -102,6 +102,7 @@
   import { deviceState } from '../stores/deviceState.svelte';
   import { isElectron, isWeb } from '../lib/platform.svelte';
   import { createSwipeHandler } from '../lib/gestures.svelte';
+  import { scrollable } from '../lib/scrollable.svelte';
 
   // Derived state
   const allNotes = $derived(getAllNotes());
@@ -1506,8 +1507,9 @@
       </div>
 
       <div
-        class="scroll-container"
+        class="scroll-container scrollable"
         class:no-scroll={isActiveNoteEpub || isActiveNotePdf || isActiveNoteDeck}
+        use:scrollable
       >
         <div
           class="content-wrapper"
@@ -2188,8 +2190,6 @@
   /* Scroll container - full width, handles scrolling */
   .scroll-container {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
     min-height: 0; /* Important for flex child with overflow */
   }
 

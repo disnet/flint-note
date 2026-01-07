@@ -1,5 +1,6 @@
 <script lang="ts">
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import { scrollable } from '../lib/scrollable.svelte';
 
   interface Props {
     isOpen: boolean;
@@ -56,7 +57,7 @@
           </svg>
         </button>
       </div>
-      <div class="drawer-content">
+      <div class="drawer-content scrollable" use:scrollable>
         <MarkdownRenderer text={noteContent} />
       </div>
     </div>
@@ -141,27 +142,8 @@
 
   .drawer-content {
     flex: 1;
-    overflow-y: auto;
     padding: 2rem;
     color: var(--text-primary);
     line-height: 1.6;
-  }
-
-  /* Scrollbar styling */
-  .drawer-content::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .drawer-content::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-  }
-
-  .drawer-content::-webkit-scrollbar-thumb {
-    background: var(--border-light);
-    border-radius: 4px;
-  }
-
-  .drawer-content::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
   }
 </style>

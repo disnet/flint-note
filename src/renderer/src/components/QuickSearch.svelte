@@ -4,6 +4,7 @@
    * and the sidebar is closed
    */
   import SearchResults from './SearchResults.svelte';
+  import { scrollable } from '../lib/scrollable.svelte';
   import type {
     NoteMetadata,
     SearchResult,
@@ -121,7 +122,7 @@
       </div>
 
       {#if searchQuery.trim() || searchResults.length > 0}
-        <div class="search-results-container">
+        <div class="search-results-container scrollable" use:scrollable>
           {#if searchResults.length > 0}
             {#if isShowingRecent}
               <div class="results-header">Recent</div>
@@ -305,31 +306,5 @@
     border-radius: 0.25rem;
     font-family: inherit;
     font-size: 0.6875rem;
-  }
-
-  /* Custom scrollbar for results */
-  .search-results-container::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .search-results-container::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .search-results-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-  }
-
-  .search-results-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-  }
-
-  :global([data-theme='dark']) .search-results-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  :global([data-theme='dark']) .search-results-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
   }
 </style>
