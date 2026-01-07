@@ -44,7 +44,7 @@
   });
 
   function handleBlur(): void {
-    const trimmed = editValue.trim();
+    const trimmed = String(editValue).trim();
     if (trimmed === '') {
       onChange(null);
     } else {
