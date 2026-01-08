@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view';
  */
 export const wikilinkTheme = EditorView.theme({
   '.wikilink': {
-    display: 'inline' // Inline box for cursor positioning, content still wraps
+    display: 'contents' // No box - children flow inline with surrounding text
   },
 
   '.wikilink-segment': {
@@ -33,6 +33,12 @@ export const wikilinkTheme = EditorView.theme({
     textDecorationThickness: '1px',
     textUnderlineOffset: '2px',
     wordBreak: 'break-word' // Allow very long words to break
+  },
+
+  '.wikilink-cursor-anchor': {
+    display: 'inline',
+    width: '0',
+    overflow: 'hidden'
   },
 
   // Existing links

@@ -658,6 +658,12 @@ class WikilinkWidget extends WidgetType {
     // Space + text content
     textSpan.appendChild(document.createTextNode(' ' + (displayText || 'Untitled')));
 
+    // Trailing anchor inside text span for cursor positioning when widget wraps
+    const cursorAnchor = document.createElement('span');
+    cursorAnchor.className = 'wikilink-cursor-anchor';
+    cursorAnchor.textContent = '\u200B'; // Zero-width space
+    textSpan.appendChild(cursorAnchor);
+
     attachSegmentHandlers(textSpan);
     container.appendChild(textSpan);
 
@@ -680,6 +686,32 @@ class WikilinkWidget extends WidgetType {
 
   ignoreEvent(): boolean {
     return true;
+  }
+
+  // Override to provide cursor coordinates since container uses display:contents
+  coordsAt(dom: HTMLElement, pos: number, side: number): { top: number; bottom: number; left: number; right: number } | null {
+    const textSpan = dom.querySelector('.wikilink-text');
+    if (!textSpan) return null;
+
+    const rects = textSpan.getClientRects();
+    if (rects.length === 0) return null;
+
+    const firstRect = rects[0];
+    const lastRect = rects[rects.length - 1];
+    const widgetLength = this.to - this.from;
+
+    // pos near end with side >= 0 means cursor after widget
+    // pos near start with side <= 0 means cursor before widget
+    const atEnd = pos >= widgetLength - 1 || (pos > widgetLength / 2 && side >= 0);
+    const atStart = pos === 0 && side <= 0;
+
+    if (atEnd && !atStart) {
+      // Cursor after widget - use last line's right edge
+      return { top: lastRect.top, bottom: lastRect.bottom, left: lastRect.right, right: lastRect.right };
+    } else {
+      // Cursor before widget - use first line's left edge
+      return { top: firstRect.top, bottom: firstRect.bottom, left: firstRect.left, right: firstRect.left };
+    }
   }
 }
 
