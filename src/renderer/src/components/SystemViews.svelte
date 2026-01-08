@@ -220,14 +220,9 @@
 
   .badge {
     margin-left: auto;
-    padding: 0.125rem 0.5rem;
     font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--accent-primary);
-    color: var(--bg-primary);
-    border-radius: 10px;
-    min-width: 1.25rem;
-    text-align: center;
+    font-weight: 500;
+    color: var(--text-muted);
   }
 
   /* Mobile: override global 44px touch target */
