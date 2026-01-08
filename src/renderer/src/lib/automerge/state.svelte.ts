@@ -2246,6 +2246,12 @@ export function getActiveItem(): ActiveItem {
  */
 export function setActiveItem(item: ActiveItem): void {
   activeItem = item;
+
+  // Clear system view when selecting an item (so MainView shows the item, not the system view)
+  if (item !== null) {
+    activeSystemView = null;
+  }
+
   persistViewState();
 
   // Update lastOpened for notes and add to workspace
