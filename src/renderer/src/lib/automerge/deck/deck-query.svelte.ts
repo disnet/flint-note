@@ -265,8 +265,16 @@ export function getAvailableFields(
     { name: 'archived', label: 'Archived', type: 'boolean', isSystem: true }
   ];
 
+  // Merge custom fields from notes with schema-defined fields from note types
+  // This ensures properties defined in note type schemas appear even if no notes have them set
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation
+  const allFieldNames = new Set(customFields);
+  for (const fieldName of fieldSchemaMap.keys()) {
+    allFieldNames.add(fieldName);
+  }
+
   // Add custom fields with props.* prefix
-  for (const fieldName of Array.from(customFields).sort()) {
+  for (const fieldName of Array.from(allFieldNames).sort()) {
     const schema = fieldSchemaMap.get(fieldName);
     fields.push({
       name: `props.${fieldName}`,
