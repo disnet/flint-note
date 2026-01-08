@@ -689,7 +689,11 @@ class WikilinkWidget extends WidgetType {
   }
 
   // Override to provide cursor coordinates since container uses display:contents
-  coordsAt(dom: HTMLElement, pos: number, side: number): { top: number; bottom: number; left: number; right: number } | null {
+  coordsAt(
+    dom: HTMLElement,
+    pos: number,
+    side: number
+  ): { top: number; bottom: number; left: number; right: number } | null {
     const textSpan = dom.querySelector('.wikilink-text');
     if (!textSpan) return null;
 
@@ -707,10 +711,20 @@ class WikilinkWidget extends WidgetType {
 
     if (atEnd && !atStart) {
       // Cursor after widget - use last line's right edge
-      return { top: lastRect.top, bottom: lastRect.bottom, left: lastRect.right, right: lastRect.right };
+      return {
+        top: lastRect.top,
+        bottom: lastRect.bottom,
+        left: lastRect.right,
+        right: lastRect.right
+      };
     } else {
       // Cursor before widget - use first line's left edge
-      return { top: firstRect.top, bottom: firstRect.bottom, left: firstRect.left, right: firstRect.left };
+      return {
+        top: firstRect.top,
+        bottom: firstRect.bottom,
+        left: firstRect.left,
+        right: firstRect.left
+      };
     }
   }
 }
