@@ -1,7 +1,7 @@
 <script lang="ts">
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  import { getNote } from '../lib/automerge/state.svelte';
+  import { getNote, getNoteType } from '../lib/automerge/state.svelte';
 
   interface Props {
     text: string;
@@ -14,6 +14,7 @@
     id: string;
     noteId: string;
     displayText: string;
+    icon: string;
   }
 
   /**
@@ -109,10 +110,19 @@
         continue;
       }
 
+      // Get the note type icon
+      let icon = '📝';
+      const note = getNote(noteId);
+      if (note) {
+        const noteType = getNoteType(note.type);
+        icon = noteType?.icon || '📝';
+      }
+
       const placeholder: NoteLinkPlaceholder = {
         id: `NOTELINK${noteLinks.length}PLACEHOLDER`,
         noteId,
-        displayText
+        displayText,
+        icon
       };
 
       noteLinks.push(placeholder);
@@ -126,8 +136,10 @@
     let result = html;
 
     noteLinks.forEach((noteLink) => {
-      const buttonHtml = `<button class="note-link" data-note-id="${noteLink.noteId}" title="Click to open note">${noteLink.displayText}</button>`;
-      result = result.replaceAll(noteLink.id, buttonHtml);
+      // Use spans (not buttons) for proper inline text flow - buttons have special box model behavior
+      // Structure matches editor: wrapper with display:contents, inner span for text
+      const linkHtml = `<span class="note-link-wrapper"><span class="note-link" data-note-id="${noteLink.noteId}" role="button" tabindex="0" title="Click to open note"><span class="note-link-icon">${noteLink.icon}</span><span class="note-link-text">${noteLink.displayText}</span></span></span>`;
+      result = result.replaceAll(noteLink.id, linkHtml);
     });
 
     return result;
@@ -186,7 +198,7 @@
         'div',
         'img'
       ],
-      ALLOWED_ATTR: ['class', 'data-note-id', 'title'],
+      ALLOWED_ATTR: ['class', 'data-note-id', 'title', 'role', 'tabindex'],
       ALLOW_DATA_ATTR: true,
       KEEP_CONTENT: true
     });
@@ -196,8 +208,12 @@
 
   function handleClick(event: Event): void {
     const target = event.target as HTMLElement;
-    if (target.classList.contains('note-link')) {
-      const noteId = target.getAttribute('data-note-id');
+    // Check if clicked element is the note-link button or a child (like the icon)
+    const noteLink = target.classList.contains('note-link')
+      ? target
+      : target.closest('.note-link');
+    if (noteLink) {
+      const noteId = noteLink.getAttribute('data-note-id');
       if (noteId) {
         const mouseEvent = event as MouseEvent;
         onNoteClick?.(noteId, mouseEvent.shiftKey);
@@ -324,25 +340,43 @@
     color: var(--text-secondary);
   }
 
-  .markdown-content :global(.note-link) {
-    background: rgba(0, 0, 0, 0.03);
-    color: #1a1a1a;
-    border: none;
-    border-radius: 0.25rem;
-    padding: 0 0.175rem;
-    margin: 0 0.125rem;
-    cursor: pointer;
-    font-size: inherit;
-    font-family: inherit;
-    text-decoration: underline;
-    display: inline-flex;
-    align-items: center;
-    text-align: left;
-    transition: all 0.2s ease;
-    font-weight: 600;
+  /* Wrapper uses display:contents so children flow inline with surrounding text */
+  .markdown-content :global(.note-link-wrapper) {
+    display: contents;
   }
 
-  .markdown-content :global(.note-link:hover) {
+  .markdown-content :global(.note-link) {
+    display: contents;
+  }
+
+  /* Icon uses inline-block to break out of text-decoration (no underline on icon) */
+  .markdown-content :global(.note-link-icon) {
+    display: inline-block;
+    font-size: 0.9em;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  /* Text span handles the actual styling and wrapping */
+  .markdown-content :global(.note-link-text) {
+    background: rgba(0, 0, 0, 0.03);
+    color: #1a1a1a;
+    border-radius: 0.25rem;
+    padding: 0.1em 0.2em;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    display: inline;
+    transition: all 0.15s ease;
+    font-weight: 600;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    word-break: break-word;
+  }
+
+  .markdown-content :global(.note-link:hover .note-link-text) {
     background: rgba(0, 0, 0, 0.06);
     color: #0066cc;
   }
@@ -361,12 +395,12 @@
       border-left-color: rgba(255, 255, 255, 0.2);
     }
 
-    .markdown-content :global(.note-link) {
+    .markdown-content :global(.note-link-text) {
       background: rgba(255, 255, 255, 0.06);
       color: #ffffff;
     }
 
-    .markdown-content :global(.note-link:hover) {
+    .markdown-content :global(.note-link:hover .note-link-text) {
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
     }
