@@ -649,14 +649,31 @@ class WikilinkWidget extends WidgetType {
     const textSpan = document.createElement('span');
     textSpan.className = 'wikilink-segment wikilink-text';
 
-    // Icon inside text span (inline-block prevents underline inheritance)
+    // Split display text into first word and rest
+    const text = displayText || 'Untitled';
+    const spaceIndex = text.indexOf(' ');
+    const firstWord = spaceIndex > 0 ? text.substring(0, spaceIndex) : text;
+    const restOfText = spaceIndex > 0 ? text.substring(spaceIndex) : '';
+
+    // Wrap icon + first word in nowrap span to keep them together
+    const firstWordSpan = document.createElement('span');
+    firstWordSpan.className = 'wikilink-first-word';
+    firstWordSpan.style.whiteSpace = 'nowrap';
+
+    // Icon span (inline-block prevents underline inheritance)
     const iconSpan = document.createElement('span');
     iconSpan.className = 'wikilink-icon';
     iconSpan.textContent = this.icon;
-    textSpan.appendChild(iconSpan);
+    firstWordSpan.appendChild(iconSpan);
 
-    // Space + text content
-    textSpan.appendChild(document.createTextNode(' ' + (displayText || 'Untitled')));
+    // Non-breaking space + first word
+    firstWordSpan.appendChild(document.createTextNode('\u00A0' + firstWord));
+    textSpan.appendChild(firstWordSpan);
+
+    // Rest of text (can wrap normally)
+    if (restOfText) {
+      textSpan.appendChild(document.createTextNode(restOfText));
+    }
 
     // Trailing anchor inside text span for cursor positioning when widget wraps
     const cursorAnchor = document.createElement('span');

@@ -28,6 +28,10 @@ export const wikilinkTheme = EditorView.theme({
     textDecoration: 'none'
   },
 
+  '.wikilink-first-word': {
+    display: 'inline' // Inherit underline from parent, nowrap set inline
+  },
+
   '.wikilink-text': {
     textDecoration: 'underline',
     textDecorationThickness: '1px',
