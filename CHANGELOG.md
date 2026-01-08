@@ -1,5 +1,12 @@
 # Changelog - Release
 
+## [0.14.8]
+
+### Fixed
+
+- Fixed prop filtering in decks
+- Cleaned up wikilink underline styling
+
 ## [0.14.7]
 
 ### Changed
