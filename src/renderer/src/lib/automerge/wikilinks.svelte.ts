@@ -661,13 +661,14 @@ class WikilinkWidget extends WidgetType {
     firstWordSpan.style.whiteSpace = 'nowrap';
 
     // Icon span (inline-block prevents underline inheritance)
+    // Include the non-breaking space inside the icon span to prevent it from being underlined
     const iconSpan = document.createElement('span');
     iconSpan.className = 'wikilink-icon';
-    iconSpan.textContent = this.icon;
+    iconSpan.textContent = this.icon + '\u00A0';
     firstWordSpan.appendChild(iconSpan);
 
-    // Non-breaking space + first word
-    firstWordSpan.appendChild(document.createTextNode('\u00A0' + firstWord));
+    // First word (will be underlined as part of wikilink-text)
+    firstWordSpan.appendChild(document.createTextNode(firstWord));
     textSpan.appendChild(firstWordSpan);
 
     // Rest of text (can wrap normally)
