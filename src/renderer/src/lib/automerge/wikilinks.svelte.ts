@@ -579,29 +579,29 @@ class WikilinkWidget extends WidgetType {
     // Track hover state across segments
     let isHovering = false;
 
-    // Calculate combined bounding rect from all segments
+    // Calculate bounding rect using getClientRects for proper multi-line support
     const getWikilinkBoundingRect = (): DOMRect => {
-      const segments = container.querySelectorAll('.wikilink-segment');
-      if (segments.length === 0) {
+      const textSpan = container.querySelector('.wikilink-text');
+      if (!textSpan) {
         return container.getBoundingClientRect();
       }
 
-      let minLeft = Infinity;
-      let minTop = Infinity;
-      let maxRight = -Infinity;
-      let maxBottom = -Infinity;
+      const rects = textSpan.getClientRects();
+      if (rects.length === 0) {
+        return textSpan.getBoundingClientRect();
+      }
 
-      segments.forEach((segment) => {
-        const rect = segment.getBoundingClientRect();
-        minLeft = Math.min(minLeft, rect.left);
-        minTop = Math.min(minTop, rect.top);
-        maxRight = Math.max(maxRight, rect.right);
-        maxBottom = Math.max(maxBottom, rect.bottom);
-      });
+      const firstRect = rects[0];
+      const lastRect = rects[rects.length - 1];
 
-      const firstRect = segments[0].getBoundingClientRect();
-
-      return new DOMRect(firstRect.left, minTop, maxRight - minLeft, maxBottom - minTop);
+      // Use last line's left for popover x position when wrapped
+      // Use first line's top, last line's bottom for vertical positioning
+      return new DOMRect(
+        lastRect.left,
+        firstRect.top,
+        lastRect.width,
+        lastRect.bottom - firstRect.top
+      );
     };
 
     const handleMouseEnter = (): void => {

@@ -875,8 +875,9 @@
       if (selected && !editPopoverVisible) {
         // Only show cursor-based popup if hover popup isn't active
         if (!actionPopoverIsFromHover) {
-          const coords = editorView.coordsAtPos(selected.from);
-          if (coords) {
+          const startCoords = editorView.coordsAtPos(selected.from);
+          const endCoords = editorView.coordsAtPos(selected.to, 1); // side=1 for after position
+          if (startCoords) {
             actionPopoverWikilinkData = {
               identifier: selected.identifier,
               title: selected.title,
@@ -886,15 +887,34 @@
               conversationId: selected.conversationId
             };
 
+            // Try to get actual line rects from the DOM for proper wrapped positioning
+            let left = startCoords.left;
+            let bottom = startCoords.bottom;
+
+            // Find the wikilink DOM element to get accurate line rects
+            const domAtPos = editorView.domAtPos(selected.from);
+            const wikilinkText = domAtPos.node.parentElement?.closest('.wikilink')?.querySelector('.wikilink-text');
+            if (wikilinkText) {
+              const rects = wikilinkText.getClientRects();
+              if (rects.length > 0) {
+                const lastRect = rects[rects.length - 1];
+                left = lastRect.left;
+                bottom = lastRect.bottom;
+              }
+            } else if (endCoords) {
+              // Fallback to endCoords
+              bottom = Math.max(startCoords.bottom, endCoords.bottom);
+            }
+
             linkRect = {
-              left: coords.left,
-              top: coords.top,
-              bottom: coords.bottom,
-              height: coords.bottom - coords.top
+              left: left,
+              top: startCoords.top,
+              bottom: bottom,
+              height: bottom - startCoords.top
             };
 
             const position = calculatePopoverPosition(
-              linkRect.left,
+              left,
               linkRect.top,
               linkRect.bottom,
               200,
