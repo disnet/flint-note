@@ -9,11 +9,12 @@ import type { DecorationSet } from '@codemirror/view';
 import {
   StateField,
   StateEffect,
-  Range,
   RangeSet,
+  RangeValue,
   EditorState,
   Prec,
-  type Extension
+  type Extension,
+  type Range
 } from '@codemirror/state';
 import {
   autocompletion,
@@ -449,7 +450,17 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 }
 
 /**
- * Widget for rendering clickable wikilinks
+ * RangeValue for atomic cursor movement over wikilinks
+ */
+class AtomicRangeValue extends RangeValue {
+  eq(other: RangeValue): boolean {
+    return other instanceof AtomicRangeValue;
+  }
+}
+const atomicValue = new AtomicRangeValue();
+
+/**
+ * Widget for rendering clickable wikilinks with inline text flow
  */
 class WikilinkWidget extends WidgetType {
   constructor(
@@ -471,7 +482,7 @@ class WikilinkWidget extends WidgetType {
   }
 
   toDOM(_view: EditorView): HTMLElement {
-    const span = document.createElement('span');
+    const container = document.createElement('span');
 
     // Check if target is archived
     let isArchived = false;
@@ -498,18 +509,9 @@ class WikilinkWidget extends WidgetType {
     }
     // Add target type class for potential future styling differentiation
     classes.push(`wikilink-${this.targetType}`);
-    span.className = classes.join(' ');
+    container.className = classes.join(' ');
 
-    // Add icon
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'wikilink-icon';
-    iconSpan.textContent = this.icon;
-    span.appendChild(iconSpan);
-
-    // Add title - resolve display text from target if using ID-only syntax
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'wikilink-text';
-
+    // Resolve display text from target if using ID-only syntax
     let displayText = this.displayTitle;
     if (this.exists && this.identifier === this.displayTitle) {
       if (this.targetType === 'note' && this.noteId) {
@@ -529,11 +531,9 @@ class WikilinkWidget extends WidgetType {
         }
       }
     }
-    titleSpan.textContent = displayText;
-    span.appendChild(titleSpan);
 
     // Click handler - different behavior for conversations and types
-    span.addEventListener('click', (e) => {
+    const handleClick = (e: MouseEvent): void => {
       e.preventDefault();
       e.stopPropagation();
       if (this.clickHandler) {
@@ -569,39 +569,99 @@ class WikilinkWidget extends WidgetType {
           }
         }
       }
-    });
+    };
 
     // Prevent editor from handling mousedown
-    span.addEventListener('mousedown', (e) => {
+    const handleMouseDown = (e: MouseEvent): void => {
       e.stopPropagation();
-    });
+    };
 
-    // Hover handlers
-    if (this.hoverHandler) {
-      span.addEventListener('mouseenter', () => {
-        const rect = span.getBoundingClientRect();
-        this.hoverHandler!({
-          identifier: this.identifier,
-          displayText: this.displayTitle,
-          from: this.from,
-          to: this.to,
-          x: rect.left,
-          y: rect.bottom,
-          yTop: rect.top,
-          exists: this.exists,
-          noteId: this.noteId,
-          targetType: this.targetType,
-          conversationId: this.conversationId,
-          typeId: this.typeId
-        });
+    // Track hover state across segments
+    let isHovering = false;
+
+    // Calculate combined bounding rect from all segments
+    const getWikilinkBoundingRect = (): DOMRect => {
+      const segments = container.querySelectorAll('.wikilink-segment');
+      if (segments.length === 0) {
+        return container.getBoundingClientRect();
+      }
+
+      let minLeft = Infinity;
+      let minTop = Infinity;
+      let maxRight = -Infinity;
+      let maxBottom = -Infinity;
+
+      segments.forEach((segment) => {
+        const rect = segment.getBoundingClientRect();
+        minLeft = Math.min(minLeft, rect.left);
+        minTop = Math.min(minTop, rect.top);
+        maxRight = Math.max(maxRight, rect.right);
+        maxBottom = Math.max(maxBottom, rect.bottom);
       });
 
-      span.addEventListener('mouseleave', () => {
-        this.hoverHandler!(null);
-      });
-    }
+      const firstRect = segments[0].getBoundingClientRect();
 
-    return span;
+      return new DOMRect(firstRect.left, minTop, maxRight - minLeft, maxBottom - minTop);
+    };
+
+    const handleMouseEnter = (): void => {
+      if (isHovering || !this.hoverHandler) return;
+      isHovering = true;
+
+      const rect = getWikilinkBoundingRect();
+      this.hoverHandler({
+        identifier: this.identifier,
+        displayText: this.displayTitle,
+        from: this.from,
+        to: this.to,
+        x: rect.left,
+        y: rect.bottom,
+        yTop: rect.top,
+        exists: this.exists,
+        noteId: this.noteId,
+        targetType: this.targetType,
+        conversationId: this.conversationId,
+        typeId: this.typeId
+      });
+    };
+
+    const handleMouseLeave = (e: MouseEvent): void => {
+      if (!this.hoverHandler) return;
+      // Check if we're moving to another segment within this wikilink
+      const relatedTarget = e.relatedTarget as Element | null;
+      if (relatedTarget && container.contains(relatedTarget)) {
+        return; // Still within wikilink
+      }
+
+      isHovering = false;
+      this.hoverHandler(null);
+    };
+
+    // Helper to attach all event handlers to a segment
+    const attachSegmentHandlers = (segment: HTMLElement): void => {
+      segment.addEventListener('click', handleClick);
+      segment.addEventListener('mousedown', handleMouseDown);
+      segment.addEventListener('mouseenter', handleMouseEnter);
+      segment.addEventListener('mouseleave', handleMouseLeave);
+    };
+
+    // Single span with icon inside - shares background, wraps naturally
+    const textSpan = document.createElement('span');
+    textSpan.className = 'wikilink-segment wikilink-text';
+
+    // Icon inside text span (inline-block prevents underline inheritance)
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'wikilink-icon';
+    iconSpan.textContent = this.icon;
+    textSpan.appendChild(iconSpan);
+
+    // Space + text content
+    textSpan.appendChild(document.createTextNode(' ' + (displayText || 'Untitled')));
+
+    attachSegmentHandlers(textSpan);
+    container.appendChild(textSpan);
+
+    return container;
   }
 
   eq(other: WikilinkWidget): boolean {
@@ -924,18 +984,14 @@ export function automergeWikilinksExtension(
         return RangeSet.empty;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ranges: Range<any>[] = [];
+      const ranges: ReturnType<typeof atomicValue.range>[] = [];
 
       try {
         decorations.between(0, view.state.doc.length, (from, to, value) => {
           if (value.spec.widget instanceof WikilinkWidget) {
-            ranges.push({ from, to, value: true });
+            ranges.push(atomicValue.range(from, to));
           }
         });
-
-        // Sort ranges by position before creating RangeSet
-        ranges.sort((a, b) => a.from - b.from);
 
         return ranges.length > 0 ? RangeSet.of(ranges) : RangeSet.empty;
       } catch (e) {
