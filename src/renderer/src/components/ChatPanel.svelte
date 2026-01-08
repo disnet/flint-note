@@ -913,6 +913,11 @@
     flex-shrink: 0;
   }
 
+  /* Make header draggable in expanded (sidebar) mode for Electron window */
+  .chat-panel.expanded .chat-header {
+    -webkit-app-region: drag;
+  }
+
   .header-title {
     margin: 0;
     font-size: 0.95rem;
@@ -941,6 +946,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-app-region: no-drag;
   }
 
   .header-btn:hover {

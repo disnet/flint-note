@@ -135,6 +135,7 @@
 <style>
   .mode-switcher-container {
     position: relative;
+    -webkit-app-region: no-drag;
   }
 
   .mode-switcher-btn {
