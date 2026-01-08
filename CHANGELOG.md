@@ -1,5 +1,18 @@
 # Changelog - Release
 
+## [0.14.7]
+
+### Changed
+
+- Improved consistency of scrollbars
+- Removed cursor popover
+
+### Fixed
+
+- Fixed opening links when in system views
+- Fixed wikilinks now wrap and flow correctly
+- Fixed trim issue on number properties
+
 ## [0.14.6]
 
 ### Changed
