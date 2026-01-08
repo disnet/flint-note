@@ -3,6 +3,8 @@
  * Uses content-addressing (SHA-256 hash) for deduplication.
  */
 
+import { addEpubHash, removeEpubHash } from './opfs-manifest.svelte';
+
 // Extend FileSystemDirectoryHandle to include the entries() method
 // which is part of the File System Access API but may not be in TypeScript's default types
 declare global {
@@ -69,6 +71,9 @@ export async function store(data: ArrayBuffer): Promise<string> {
     await writable.close();
   }
 
+  // Update manifest
+  addEpubHash(hash);
+
   return hash;
 }
 
@@ -115,6 +120,8 @@ export async function remove(hash: string): Promise<boolean> {
   try {
     const epubsDir = await getEpubsDirectory();
     await epubsDir.removeEntry(`${hash}.epub`);
+    // Update manifest
+    removeEpubHash(hash);
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
@@ -179,6 +186,9 @@ export async function clearAll(): Promise<number> {
 
   for (const name of entries) {
     await epubsDir.removeEntry(name);
+    // Update manifest - extract hash from filename
+    const hash = name.slice(0, -5);
+    removeEpubHash(hash);
     count++;
   }
 

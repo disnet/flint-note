@@ -3,6 +3,8 @@
  * Uses content-addressing (SHA-256 hash) for deduplication.
  */
 
+import { addPdfHash, removePdfHash } from './opfs-manifest.svelte';
+
 /**
  * Storage statistics
  */
@@ -61,6 +63,9 @@ export async function store(data: ArrayBuffer): Promise<string> {
     await writable.close();
   }
 
+  // Update manifest
+  addPdfHash(hash);
+
   return hash;
 }
 
@@ -107,6 +112,8 @@ export async function remove(hash: string): Promise<boolean> {
   try {
     const pdfsDir = await getPdfsDirectory();
     await pdfsDir.removeEntry(`${hash}.pdf`);
+    // Update manifest
+    removePdfHash(hash);
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
@@ -171,6 +178,9 @@ export async function clearAll(): Promise<number> {
 
   for (const name of entries) {
     await pdfsDir.removeEntry(name);
+    // Update manifest - extract hash from filename
+    const hash = name.slice(0, -4);
+    removePdfHash(hash);
     count++;
   }
 

@@ -30,6 +30,7 @@ import { ChatServer } from './chat-server';
 import { SecureStorageService } from './secure-storage-service';
 import { SettingsStorageService, type WindowState } from './settings-storage-service';
 import { logger } from './logger';
+import { perf } from './perf';
 import { AutoUpdaterService } from './auto-updater-service';
 import { setupApplicationMenu } from './menu';
 import {
@@ -514,6 +515,8 @@ async function createWindow(
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  perf.start('Main Process Startup');
+
   // Start tracing as early as possible after app is ready
   if (enableStartupTracing) {
     await contentTracing.startRecording({
@@ -532,6 +535,7 @@ app.whenReady().then(async () => {
   }
 
   logger.info('Application ready, initializing main process');
+  perf.mark('App ready');
 
   // Set app user model id for windows (varies by build type: dev, canary, production)
   electronApp.setAppUserModelId(getAppUserModelId());
@@ -586,9 +590,11 @@ app.whenReady().then(async () => {
   });
 
   // Initialize Secure Storage service
+  perf.start('Initialize Services');
   const secureStorageService = new SecureStorageService();
 
   // Initialize Chat Server for AI SDK useChat integration
+  perf.start('Chat Server Init');
   chatServerInstance = new ChatServer(secureStorageService);
   let chatServerPort = 0;
   try {
@@ -598,10 +604,17 @@ app.whenReady().then(async () => {
     logger.error('Failed to initialize Chat Server', { error });
     logger.warn('AI chat via useChat will not be available');
   }
+  perf.end('Chat Server Init');
 
   // Initialize Settings Storage service
+  perf.start('Settings Storage Init');
   const settingsStorageService = new SettingsStorageService();
   await settingsStorageService.initialize();
+  perf.end('Settings Storage Init');
+  perf.end('Initialize Services');
+
+  // Register IPC handlers
+  perf.start('Register IPC Handlers');
 
   // Secure storage handlers
   ipcMain.handle('secure-storage-available', async () => {
@@ -1150,8 +1163,16 @@ app.whenReady().then(async () => {
     }
   );
 
+  perf.end('Register IPC Handlers');
+
+  perf.start('Create Window');
   await createWindow(settingsStorageService, startupCommand);
+  perf.end('Create Window');
+
   logger.info('Main window created and IPC handlers registered');
+
+  perf.end('Main Process Startup');
+  perf.summary();
 
   // Set main window for auto-updater
   const mainWindow = BrowserWindow.getAllWindows()[0];

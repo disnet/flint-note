@@ -12,6 +12,14 @@ import { importPdfFromData } from './pdf-import.svelte';
 import { importEpubFromData } from './epub-import.svelte';
 import { importWebpageFromFilesystem } from './webpage-import.svelte';
 import type { EpubNoteProps, PdfNoteProps, WebpageNoteProps } from './types';
+import {
+  hasManifest,
+  rebuildManifest,
+  getPdfHashes,
+  getEpubHashes,
+  getWebpageHashes,
+  getImageKeys
+} from './opfs-manifest.svelte';
 
 export type FileType = 'pdf' | 'epub' | 'webpage' | 'image';
 
@@ -340,94 +348,183 @@ export async function performInitialFileSync(): Promise<void> {
 /**
  * Perform reverse sync - import files from filesystem to OPFS.
  * Called when file sync is first enabled to import existing files.
+ *
+ * Optimizations:
+ * - Pre-fetches all existing OPFS hashes in parallel to avoid individual existence checks
+ * - Runs all file type syncs in parallel
+ * - Uses concurrent imports within each type (limited to avoid overwhelming the system)
  */
 export async function performReverseFileSync(): Promise<void> {
   if (!isFileSyncAvailable() || !getIsFileSyncEnabled()) {
     return;
   }
 
-  console.log('[FileSync] Performing reverse file sync (filesystem -> OPFS)');
+  const totalStart = performance.now();
+  console.log('[FileSync] Starting reverse file sync (filesystem -> OPFS)');
 
   const syncAPI = window.api?.automergeSync;
-  if (!syncAPI) return;
+  if (!syncAPI) {
+    return;
+  }
 
   try {
-    // Import PDFs from filesystem
-    const pdfFiles = await syncAPI.listFilesInFilesystem({ fileType: 'pdf' });
-    for (const file of pdfFiles) {
-      const existsInOpfs = await pdfOpfsStorage.exists(file.hash);
-      if (!existsInOpfs) {
-        const fileData = await syncAPI.readFileFromFilesystem({
-          fileType: 'pdf',
-          hash: file.hash
-        });
-        if (fileData) {
-          await importPdfFromData(fileData.data, `imported-${file.hash}.pdf`);
-        }
-      }
-    }
-    console.log(`[FileSync] Checked ${pdfFiles.length} PDFs from filesystem`);
+    // Get existing OPFS hashes from manifest (fast) or rebuild if needed (slow, but only once)
+    const hashStart = performance.now();
 
-    // Import EPUBs from filesystem
-    const epubFiles = await syncAPI.listFilesInFilesystem({ fileType: 'epub' });
-    for (const file of epubFiles) {
-      const existsInOpfs = await opfsStorage.exists(file.hash);
-      if (!existsInOpfs) {
-        const fileData = await syncAPI.readFileFromFilesystem({
-          fileType: 'epub',
-          hash: file.hash
-        });
-        if (fileData) {
-          await importEpubFromData(fileData.data, `imported-${file.hash}.epub`);
+    // Check if manifest needs to be built (first run or localStorage cleared)
+    if (!hasManifest()) {
+      console.log('[FileSync] No manifest found, rebuilding from OPFS...');
+      await rebuildManifest(
+        () => pdfOpfsStorage.listHashes(),
+        () => opfsStorage.listHashes(),
+        () => webpageOpfsStorage.listHashes(),
+        async () => {
+          const images = await imageOpfsStorage.listImages();
+          return images.map((img) => `${img.shortHash}.${img.extension}`);
         }
-      }
+      );
     }
-    console.log(`[FileSync] Checked ${epubFiles.length} EPUBs from filesystem`);
 
-    // Import webpages from filesystem
-    const webpageFiles = await syncAPI.listFilesInFilesystem({ fileType: 'webpage' });
-    for (const file of webpageFiles) {
-      const existsInOpfs = await webpageOpfsStorage.exists(file.hash);
-      if (!existsInOpfs) {
-        const fileData = await syncAPI.readFileFromFilesystem({
-          fileType: 'webpage',
-          hash: file.hash
+    // Get hashes from manifest (instant - just localStorage read)
+    const pdfHashSet = new Set(getPdfHashes());
+    const epubHashSet = new Set(getEpubHashes());
+    const webpageHashSet = new Set(getWebpageHashes());
+    const imageKeySet = new Set(getImageKeys());
+    const hashTime = performance.now() - hashStart;
+
+    // Helper to run imports with limited concurrency
+    const runWithConcurrency = async <T, R>(
+      items: T[],
+      fn: (item: T) => Promise<R>,
+      concurrency: number = 3
+    ): Promise<R[]> => {
+      const results: R[] = [];
+      for (let i = 0; i < items.length; i += concurrency) {
+        const batch = items.slice(i, i + concurrency);
+        const batchResults = await Promise.all(batch.map(fn));
+        results.push(...batchResults);
+      }
+      return results;
+    };
+
+    // Sync all file types in parallel (using simple timing since perf logger is stack-based)
+    const syncStart = performance.now();
+    const [pdfResult, epubResult, webpageResult, imageResult] = await Promise.all([
+      // Sync PDFs
+      (async () => {
+        const start = performance.now();
+        const pdfFiles = await syncAPI.listFilesInFilesystem({ fileType: 'pdf' });
+        const toImport = pdfFiles.filter((f) => !pdfHashSet.has(f.hash));
+        let imported = 0;
+
+        await runWithConcurrency(toImport, async (file) => {
+          const fileData = await syncAPI.readFileFromFilesystem({
+            fileType: 'pdf',
+            hash: file.hash
+          });
+          if (fileData) {
+            await importPdfFromData(fileData.data, `imported-${file.hash}.pdf`);
+            imported++;
+          }
         });
-        if (fileData) {
-          const decoder = new TextDecoder();
-          const htmlContent = decoder.decode(fileData.data);
-          await importWebpageFromFilesystem(file.hash, htmlContent, fileData.metadata);
-        }
-      }
-    }
-    console.log(`[FileSync] Checked ${webpageFiles.length} webpages from filesystem`);
 
-    // Import images from filesystem
-    const imageFiles = await syncAPI.listFilesInFilesystem({ fileType: 'image' });
-    for (const file of imageFiles) {
-      if (!file.extension) continue;
-      const existsInOpfs = await imageOpfsStorage.exists(file.hash, file.extension);
-      if (!existsInOpfs) {
-        const fileData = await syncAPI.readFileFromFilesystem({
-          fileType: 'image',
-          hash: file.hash,
-          extension: file.extension
+        return { total: pdfFiles.length, imported, time: performance.now() - start };
+      })(),
+
+      // Sync EPUBs
+      (async () => {
+        const start = performance.now();
+        const epubFiles = await syncAPI.listFilesInFilesystem({ fileType: 'epub' });
+        const toImport = epubFiles.filter((f) => !epubHashSet.has(f.hash));
+        let imported = 0;
+
+        await runWithConcurrency(toImport, async (file) => {
+          const fileData = await syncAPI.readFileFromFilesystem({
+            fileType: 'epub',
+            hash: file.hash
+          });
+          if (fileData) {
+            await importEpubFromData(fileData.data, `imported-${file.hash}.epub`);
+            imported++;
+          }
         });
-        if (fileData) {
-          const arrayBuffer = fileData.data.buffer.slice(
-            fileData.data.byteOffset,
-            fileData.data.byteOffset + fileData.data.byteLength
-          ) as ArrayBuffer;
-          await imageOpfsStorage.storeWithFilename(
-            arrayBuffer,
-            `${file.hash}.${file.extension}`
-          );
-        }
-      }
-    }
-    console.log(`[FileSync] Checked ${imageFiles.length} images from filesystem`);
 
-    console.log('[FileSync] Reverse file sync complete');
+        return { total: epubFiles.length, imported, time: performance.now() - start };
+      })(),
+
+      // Sync Webpages
+      (async () => {
+        const start = performance.now();
+        const webpageFiles = await syncAPI.listFilesInFilesystem({ fileType: 'webpage' });
+        const toImport = webpageFiles.filter((f) => !webpageHashSet.has(f.hash));
+        let imported = 0;
+
+        await runWithConcurrency(toImport, async (file) => {
+          const fileData = await syncAPI.readFileFromFilesystem({
+            fileType: 'webpage',
+            hash: file.hash
+          });
+          if (fileData) {
+            const decoder = new TextDecoder();
+            const htmlContent = decoder.decode(fileData.data);
+            await importWebpageFromFilesystem(file.hash, htmlContent, fileData.metadata);
+            imported++;
+          }
+        });
+
+        return { total: webpageFiles.length, imported, time: performance.now() - start };
+      })(),
+
+      // Sync Images
+      (async () => {
+        const start = performance.now();
+        const imageFiles = await syncAPI.listFilesInFilesystem({ fileType: 'image' });
+        const toImport = imageFiles.filter((f) => {
+          if (!f.extension) return false;
+          const key = `${f.hash}.${f.extension}`;
+          return !imageKeySet.has(key);
+        });
+        let imported = 0;
+
+        await runWithConcurrency(toImport, async (file) => {
+          if (!file.extension) return;
+          const fileData = await syncAPI.readFileFromFilesystem({
+            fileType: 'image',
+            hash: file.hash,
+            extension: file.extension
+          });
+          if (fileData) {
+            const arrayBuffer = fileData.data.buffer.slice(
+              fileData.data.byteOffset,
+              fileData.data.byteOffset + fileData.data.byteLength
+            ) as ArrayBuffer;
+            await imageOpfsStorage.storeWithFilename(
+              arrayBuffer,
+              `${file.hash}.${file.extension}`
+            );
+            imported++;
+          }
+        });
+
+        return { total: imageFiles.length, imported, time: performance.now() - start };
+      })()
+    ]);
+    const syncTime = performance.now() - syncStart;
+
+    // Log timing details
+    const formatTime = (ms: number): string =>
+      ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`;
+
+    const totalTime = performance.now() - totalStart;
+
+    console.log(
+      `[FileSync] Complete in ${formatTime(totalTime)} ` +
+        `(hash lookup: ${formatTime(hashTime)}, sync: ${formatTime(syncTime)}): ` +
+        `PDFs ${pdfResult.imported}/${pdfResult.total} (${formatTime(pdfResult.time)}), ` +
+        `EPUBs ${epubResult.imported}/${epubResult.total} (${formatTime(epubResult.time)}), ` +
+        `Webpages ${webpageResult.imported}/${webpageResult.total} (${formatTime(webpageResult.time)}), ` +
+        `Images ${imageResult.imported}/${imageResult.total} (${formatTime(imageResult.time)})`
+    );
   } catch (error) {
     console.error('[FileSync] Reverse file sync failed:', error);
   }

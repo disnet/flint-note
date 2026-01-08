@@ -4,6 +4,8 @@
  * Images are stored with short 8-char hash filenames for readability.
  */
 
+import { addImageKey, removeImageKey } from './opfs-manifest.svelte';
+
 /**
  * Storage statistics
  */
@@ -144,6 +146,9 @@ export async function store(
     await writable.close();
   }
 
+  // Update manifest
+  addImageKey(`${shortHash}.${normalizedExt}`);
+
   return { shortHash, extension: normalizedExt, fullHash };
 }
 
@@ -179,6 +184,9 @@ export async function storeWithFilename(
   } finally {
     await writable.close();
   }
+
+  // Update manifest
+  addImageKey(`${shortHash}.${extension}`);
 
   return { shortHash, extension, fullHash };
 }
@@ -229,7 +237,8 @@ export async function exists(shortHash: string, extension: string): Promise<bool
 export async function remove(shortHash: string, extension: string): Promise<boolean> {
   try {
     const imagesDir = await getImagesDirectory();
-    const filename = buildFilename(shortHash, normalizeExtension(extension));
+    const normalizedExt = normalizeExtension(extension);
+    const filename = buildFilename(shortHash, normalizedExt);
 
     // Also revoke any cached blob URL
     const cacheKey = `${shortHash}.${extension}`;
@@ -240,6 +249,8 @@ export async function remove(shortHash: string, extension: string): Promise<bool
     }
 
     await imagesDir.removeEntry(filename);
+    // Update manifest
+    removeImageKey(`${shortHash}.${normalizedExt}`);
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') {
@@ -377,6 +388,8 @@ export async function clearAll(): Promise<number> {
 
   for (const name of entries) {
     await imagesDir.removeEntry(name);
+    // Update manifest - name is in format "shortHash.extension"
+    removeImageKey(name);
     count++;
   }
 

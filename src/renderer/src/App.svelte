@@ -18,6 +18,7 @@
   import { settingsStore } from './stores/settingsStore.svelte';
   import { isElectron, isWeb } from './lib/platform.svelte';
   import { initializeRouter } from './lib/router.svelte';
+  import { perf } from './utils/perf.svelte';
 
   // Startup command type (matches main process)
   interface StartupCommand {
@@ -100,8 +101,10 @@
     let cleanupRouter: (() => void) | undefined;
 
     async function init(): Promise<void> {
+      perf.start('Renderer Startup');
       try {
         await initializeState();
+
         // Check if we have vaults after initialization
         const vaults = getNonArchivedVaults();
         hasVaults = vaults.length > 0;
@@ -109,6 +112,7 @@
         // If no vaults, check for legacy vaults in old app's config.yml (Electron only)
         if (!hasVaults && isElectron()) {
           try {
+            perf.start('Check legacy vaults');
             // Read legacy vault paths from old app's config.yml
             const legacyVaultConfigs =
               await window.api?.legacyMigration.readLegacyVaultPaths();
@@ -117,6 +121,7 @@
               // Store detected legacy vaults to pass to FirstTimeExperience
               detectedLegacyVaults = legacyVaultConfigs;
             }
+            perf.end('Check legacy vaults');
           } catch (err) {
             console.warn('Failed to read legacy vault paths:', err);
           }
@@ -139,9 +144,13 @@
         if (isWeb()) {
           cleanupRouter = initializeRouter();
         }
+
+        perf.end('Renderer Startup');
+        perf.summary();
       } catch (err) {
         console.error('Failed to initialize automerge:', err);
         initError = err instanceof Error ? err.message : 'Failed to initialize';
+        perf.end('Renderer Startup');
       }
     }
 

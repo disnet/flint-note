@@ -91,6 +91,7 @@ import { searchIndex } from './search-index.svelte';
 import { stabilizeWikilinksGlobally } from './wikilink-stabilization.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
 import { isWeb } from '../platform.svelte';
+import { perf } from '../../utils/perf.svelte';
 
 // Lazy import for router to avoid circular dependencies
 type RouterModule = typeof import('../router.svelte');
@@ -178,18 +179,24 @@ export function getSourceFormat(note: NoteMetadata): SourceFormat {
  */
 export async function initializeState(vaultId?: string): Promise<void> {
   isLoading = true;
+  perf.start('initializeState');
 
   try {
+    perf.start('Create Automerge Repo');
     const repo = createRepo();
+    perf.end('Create Automerge Repo');
 
     // Initialize vaults
+    perf.start('Initialize Vaults');
     const { vaults: loadedVaults, activeVault } = await initializeVaults(repo);
     vaults = loadedVaults;
+    perf.end('Initialize Vaults');
 
     // If no active vault, we're in first-time experience mode
     if (!activeVault) {
       activeVaultId = null;
       isInitialized = true;
+      perf.end('initializeState');
       return;
     }
 
@@ -201,10 +208,13 @@ export async function initializeState(vaultId?: string): Promise<void> {
     activeVaultId = targetVault.id;
 
     // Load the document
+    perf.start('Load Automerge Document');
     let handle;
     try {
       handle = await findDocument(repo, targetVault.docUrl);
+      perf.end('Load Automerge Document');
     } catch (error) {
+      perf.end('Load Automerge Document');
       // Document is unavailable - this typically happens when IndexedDB was cleared
       // but localStorage still has vault data. Clear the orphaned vault data and
       // go to first-time experience mode.
@@ -218,6 +228,7 @@ export async function initializeState(vaultId?: string): Promise<void> {
       vaults = [];
       activeVaultId = null;
       isInitialized = true;
+      perf.end('initializeState');
       return;
     }
 
@@ -230,6 +241,7 @@ export async function initializeState(vaultId?: string): Promise<void> {
     }
 
     // Ensure default note type exists (migration for existing vaults)
+    perf.start('Run Migrations');
     ensureDefaultNoteType();
 
     // Migrate notes with special types to have explicit sourceFormat
@@ -237,6 +249,7 @@ export async function initializeState(vaultId?: string): Promise<void> {
 
     // Run schema versioned migrations
     runSchemaMigrations();
+    perf.end('Run Migrations');
 
     // Migrate deck notes from YAML content to structured props (async, runs in background)
     migrateDeckConfigsToProps().catch((err) => {
@@ -253,7 +266,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
 
     // Connect file sync if vault has baseDirectory
     if (targetVault.baseDirectory) {
+      perf.start('Connect Vault Sync');
       await connectVaultSync(repo, targetVault);
+      perf.end('Connect Vault Sync');
 
       // Set up file sync listener and perform reverse sync for files on filesystem
       // Using dynamic import to avoid circular dependency with file-sync.svelte.ts
@@ -261,11 +276,13 @@ export async function initializeState(vaultId?: string): Promise<void> {
         const { setupFileSyncListener, performReverseFileSync } =
           await import('./file-sync.svelte');
 
-        // Import files from filesystem to OPFS (handles existing imported vaults)
-        await performReverseFileSync();
-
         // Set up listener for future file changes
         setupFileSyncListener();
+
+        // Import files from filesystem to OPFS in background (non-blocking)
+        performReverseFileSync().catch((error) => {
+          console.error('[FileSync] Reverse file sync failed:', error);
+        });
       } catch (error) {
         console.error('[FileSync] Failed to set up file sync:', error);
       }
@@ -275,6 +292,7 @@ export async function initializeState(vaultId?: string): Promise<void> {
     initializeSearchIndex();
 
     isInitialized = true;
+    perf.end('initializeState');
   } finally {
     isLoading = false;
   }

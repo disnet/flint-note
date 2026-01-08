@@ -12,6 +12,7 @@ import { IPCNetworkAdapterMain } from './IPCNetworkAdapterMain';
 import { setupMarkdownSync } from './markdown-sync';
 import { setupFileSync } from './file-sync';
 import { logger } from '../logger';
+import { perf } from '../perf';
 
 interface VaultRepoEntry {
   repo: Repo;
@@ -48,12 +49,15 @@ export function initializeVaultRepo(
   vaultName: string,
   webContents: WebContents
 ): { success: boolean } {
+  perf.start(`Init Vault Repo: ${vaultName}`);
+
   // Clean up existing repo for this vault if any
   if (vaultRepos.has(vaultId)) {
     disposeVaultRepo(vaultId);
   }
 
   // Ensure the automerge storage directory exists
+  perf.start('Setup storage directory');
   const storageDir = path.join(baseDirectory, '.automerge');
   if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
@@ -81,8 +85,10 @@ export function initializeVaultRepo(
   };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   logger.info(`[VaultManager] Wrote vault manifest to ${manifestPath}`);
+  perf.end('Setup storage directory');
 
   // Create storage adapter for this vault
+  perf.start('Create Automerge repo');
   const storage = new NodeFSStorageAdapter(storageDir);
 
   // Create network adapter to communicate with renderer
@@ -108,9 +114,12 @@ export function initializeVaultRepo(
   // Find the document by URL to start syncing
   // The renderer will have created it, we just need to sync
   repo.find(docUrl as AutomergeUrl);
+  perf.end('Create Automerge repo');
 
   // Set up binary file sync (PDFs, EPUBs, web archives, images)
+  perf.start('Setup file sync');
   const unsubscribeFileSync = setupFileSync(vaultId, baseDirectory, webContents);
+  perf.end('Setup file sync');
 
   // Defer markdown sync until peer connects (ensures network bridge is ready)
   // This fixes timing issues during legacy vault import where markdown sync
@@ -187,6 +196,7 @@ export function initializeVaultRepo(
 
   logger.info(`[VaultManager] Initialized vault sync: ${vaultId} -> ${storageDir}`);
 
+  perf.end(`Init Vault Repo: ${vaultName}`);
   return { success: true };
 }
 
