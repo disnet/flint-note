@@ -25,7 +25,7 @@ export function scrollable(
   let scrollTimer: ReturnType<typeof setTimeout> | null = null;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function handleScroll() {
+  function handleScroll(): void {
     node.classList.add('is-scrolling');
 
     if (scrollTimer) {
@@ -38,7 +38,7 @@ export function scrollable(
     }, scrollTimeout);
   }
 
-  function handleResize() {
+  function handleResize(): void {
     node.classList.add('is-resizing');
 
     if (resizeTimer) {
@@ -91,7 +91,7 @@ export function scrollable(
 export function useScrollable(
   getNode: () => HTMLElement | null | undefined,
   options: ScrollableOptions = {}
-) {
+): void {
   onMount(() => {
     const node = getNode();
     if (!node) return;
