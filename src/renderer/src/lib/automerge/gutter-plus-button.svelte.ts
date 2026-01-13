@@ -72,18 +72,26 @@ const isTypingField = StateField.define<boolean>({
 class PlusButtonMarker extends GutterMarker {
   constructor(
     private onClick: (e: MouseEvent, element: HTMLElement) => void,
-    private lineFrom: number
+    private lineFrom: number,
+    private headingLevel: number = 0 // 0 = not a heading, 1-6 = heading level
   ) {
     super();
   }
 
   eq(other: GutterMarker): boolean {
-    return other instanceof PlusButtonMarker && other.lineFrom === this.lineFrom;
+    return (
+      other instanceof PlusButtonMarker &&
+      other.lineFrom === this.lineFrom &&
+      other.headingLevel === this.headingLevel
+    );
   }
 
   toDOM(): HTMLElement {
     const button = document.createElement('button');
     button.className = 'gutter-plus-button visible';
+    if (this.headingLevel > 0) {
+      button.classList.add(`heading-${this.headingLevel}`);
+    }
     button.type = 'button';
     button.title = 'Insert block';
     button.setAttribute('aria-label', 'Insert block');
@@ -145,8 +153,10 @@ const gutterPlusTheme = EditorView.theme({
   '& .cm-scroller .cm-activeLineGutter': {
     background: 'transparent'
   },
-  '& .cm-gutterElement': {
-    paddingTop: '2px'
+  '& .cm-gutter-plus .cm-gutterElement': {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center'
   },
   '.cm-gutter-plus': {
     width: '24px',
@@ -160,7 +170,8 @@ const gutterPlusTheme = EditorView.theme({
     justifyContent: 'center',
     width: '20px',
     height: '20px',
-    margin: '2px',
+    margin: '0',
+    marginTop: '4px', // Center on first line of normal text (line-height 1.6)
     padding: '0',
     border: 'none',
     borderRadius: '4px',
@@ -169,6 +180,26 @@ const gutterPlusTheme = EditorView.theme({
     cursor: 'pointer',
     opacity: '0',
     transition: 'opacity 0.15s ease, background-color 0.15s ease'
+  },
+  // Heading-specific vertical offsets to center on larger first lines
+  // Only applied when live preview is active (cursor not on line)
+  '.gutter-plus-button.heading-1': {
+    marginTop: '9px' // h1: 1.75em font, 1.3 line-height
+  },
+  '.gutter-plus-button.heading-2': {
+    marginTop: '7px' // h2: 1.5em font, 1.3 line-height
+  },
+  '.gutter-plus-button.heading-3': {
+    marginTop: '4px' // h3: 1.25em font, 1.3 line-height
+  },
+  '.gutter-plus-button.heading-4': {
+    marginTop: '3px' // h4: 1.1em font, 1.3 line-height
+  },
+  '.gutter-plus-button.heading-5': {
+    marginTop: '2px' // h5: 1em font, 1.3 line-height
+  },
+  '.gutter-plus-button.heading-6': {
+    marginTop: '1px' // h6: 0.9em font, 1.3 line-height
   },
   '.gutter-plus-button.visible': {
     opacity: '1'
@@ -272,14 +303,35 @@ export function gutterPlusButtonExtension(onShowMenu: GutterMenuHandler): Extens
 
         // Only show on hovered line
         if (thisLineNum === hoveredLineNum) {
-          return new PlusButtonMarker((_e, element) => {
-            const rect = element.getBoundingClientRect();
-            onShowMenu({
-              x: rect.right + 4,
-              y: rect.top,
-              linePos: line.from
-            });
-          }, line.from);
+          // Detect if line is a heading
+          const lineText = view.state.doc.lineAt(line.from).text;
+          let headingLevel = 0;
+          const headingMatch = lineText.match(/^(#{1,6})\s/);
+          if (headingMatch) {
+            headingLevel = headingMatch[1].length;
+          }
+
+          // Check if cursor is on this line - if so, live preview is disabled
+          // and heading styles don't apply (raw markdown is shown)
+          const cursorOnLine = view.state.selection.ranges.some(
+            (range) => range.head >= line.from && range.head <= line.to
+          );
+          if (cursorOnLine) {
+            headingLevel = 0; // Use normal text offset when cursor is on line
+          }
+
+          return new PlusButtonMarker(
+            (_e, element) => {
+              const rect = element.getBoundingClientRect();
+              onShowMenu({
+                x: rect.right + 4,
+                y: rect.top,
+                linePos: line.from
+              });
+            },
+            line.from,
+            headingLevel
+          );
         }
 
         return null;
@@ -290,8 +342,13 @@ export function gutterPlusButtonExtension(onShowMenu: GutterMenuHandler): Extens
         const isTyping = update.state.field(isTypingField);
         const prevIsTyping = update.startState.field(isTypingField);
 
-        // Rebuild if hover line changed or typing state changed
-        if (newHoveredLine !== prevHoveredLine || isTyping !== prevIsTyping) {
+        // Rebuild if hover line changed, typing state changed, or selection changed
+        // (selection change affects whether live preview is active on heading lines)
+        if (
+          newHoveredLine !== prevHoveredLine ||
+          isTyping !== prevIsTyping ||
+          update.selectionSet
+        ) {
           prevHoveredLine = newHoveredLine;
           return true;
         }
