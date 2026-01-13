@@ -20,7 +20,8 @@ import {
   autocompletion,
   CompletionContext,
   moveCompletionSelection,
-  completionStatus
+  completionStatus,
+  type CompletionSource
 } from '@codemirror/autocomplete';
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
@@ -945,7 +946,8 @@ ${noteTypeRules}
 export function automergeWikilinksExtension(
   onWikilinkClick: WikilinkClickHandler,
   onWikilinkHover?: WikilinkHoverHandler,
-  onWikilinkEditDisplayText?: WikilinkEditDisplayTextHandler
+  onWikilinkEditDisplayText?: WikilinkEditDisplayTextHandler,
+  additionalCompletionSources?: CompletionSource[]
 ): Extension {
   // Initialize completion icon styles
   updateCompletionIconStyles();
@@ -1036,7 +1038,7 @@ export function automergeWikilinksExtension(
     selectedWikilinkField,
     wikilinkField,
     autocompletion({
-      override: [wikilinkCompletion],
+      override: [wikilinkCompletion, ...(additionalCompletionSources || [])],
       activateOnTyping: true,
       closeOnBlur: true
     }),

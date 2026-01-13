@@ -268,7 +268,8 @@ class SearchIndex {
           }
         }
 
-        const totalChanges = notesToAdd.length + notesToUpdate.length + notesToRemove.length;
+        const totalChanges =
+          notesToAdd.length + notesToUpdate.length + notesToRemove.length;
 
         if (totalChanges === 0) {
           const duration = performance.now() - startTime;
@@ -294,7 +295,8 @@ class SearchIndex {
           const batch = notesToIndex.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map((note) => this.indexNote(note)));
 
-          this._indexProgress.current = notesToRemove.length + Math.min(i + BATCH_SIZE, notesToIndex.length);
+          this._indexProgress.current =
+            notesToRemove.length + Math.min(i + BATCH_SIZE, notesToIndex.length);
           onProgress?.(this._indexProgress.current, totalChanges);
 
           // Yield to main thread

@@ -386,10 +386,13 @@ export async function performReverseFileSync(): Promise<void> {
     }
 
     // Get hashes from manifest (instant - just localStorage read)
+    // These are local lookup tables, not reactive state
+    /* eslint-disable svelte/prefer-svelte-reactivity */
     const pdfHashSet = new Set(getPdfHashes());
     const epubHashSet = new Set(getEpubHashes());
     const webpageHashSet = new Set(getWebpageHashes());
     const imageKeySet = new Set(getImageKeys());
+    /* eslint-enable svelte/prefer-svelte-reactivity */
     const hashTime = performance.now() - hashStart;
 
     // Helper to run imports with limited concurrency

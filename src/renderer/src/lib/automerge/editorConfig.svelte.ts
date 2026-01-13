@@ -26,6 +26,24 @@ import {
 } from './wikilinks.svelte';
 import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
+import {
+  selectionToolbarExtension,
+  applyFormat,
+  type SelectionToolbarData,
+  type SelectionToolbarHandler,
+  type FormatType
+} from './selection-toolbar.svelte';
+import {
+  slashMenuExtension,
+  type SlashCommand,
+  type SlashMenuData,
+  type SlashMenuHandler
+} from './slash-commands.svelte';
+import {
+  gutterPlusButtonExtension,
+  type GutterMenuData,
+  type GutterMenuHandler
+} from './gutter-plus-button.svelte';
 import { automergeSyncPlugin } from '@automerge/automerge-codemirror';
 import type { DocHandle } from '@automerge/automerge-repo';
 import type { NotesDocument } from './types';
@@ -49,7 +67,19 @@ export interface EditorConfigOptions {
   };
   /** Handler for document changes (called on every update) */
   onDocChange?: (update: ViewUpdate) => void;
+  /** Handler for showing/hiding the selection toolbar */
+  onShowSelectionToolbar?: SelectionToolbarHandler;
+  /** Handler for showing the slash command menu */
+  onShowSlashMenu?: SlashMenuHandler;
+  /** Handler for showing the gutter menu */
+  onShowGutterMenu?: GutterMenuHandler;
 }
+
+// Re-export types and utilities for consumers
+export type { SelectionToolbarData, SelectionToolbarHandler, FormatType };
+export type { SlashMenuData, SlashMenuHandler, SlashCommand };
+export type { GutterMenuData, GutterMenuHandler };
+export { applyFormat };
 
 export class EditorConfig {
   isDarkMode = $state(false);
@@ -161,6 +191,10 @@ export class EditorConfig {
             )
           ]
         : []),
+      // Slash menu extension
+      ...(this.options.onShowSlashMenu
+        ? [slashMenuExtension(this.options.onShowSlashMenu)]
+        : []),
       // Deck extension for flint-deck code blocks
       ...(this.options.onDeckNoteOpen
         ? [
@@ -175,6 +209,14 @@ export class EditorConfig {
         : []),
       // Image extension for inline OPFS images
       imageExtension(),
+      // Selection toolbar extension
+      ...(this.options.onShowSelectionToolbar
+        ? [selectionToolbarExtension(this.options.onShowSelectionToolbar)]
+        : []),
+      // Gutter plus button extension
+      ...(this.options.onShowGutterMenu
+        ? [gutterPlusButtonExtension(this.options.onShowGutterMenu)]
+        : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true)
     ];

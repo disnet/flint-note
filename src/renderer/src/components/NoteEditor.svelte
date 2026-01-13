@@ -24,13 +24,20 @@
     getNoteContentHandle,
     setActiveSystemView,
     setSelectedNoteTypeId,
-    type BacklinkResult
+    applyFormat,
+    type BacklinkResult,
+    type SelectionToolbarData,
+    type FormatType,
+    type GutterMenuData,
+    type SlashMenuData
   } from '../lib/automerge';
   import type { WikilinkTargetType, SelectedWikilink } from '../lib/automerge';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import NoteHeader from './NoteHeader.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
+  import SelectionToolbar from './SelectionToolbar.svelte';
+  import InsertMenu from './InsertMenu.svelte';
   import EditorChips from './EditorChips.svelte';
   import BacklinksPanel from './BacklinksPanel.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
@@ -98,6 +105,25 @@
     left: number;
   } | null>(null);
 
+  // Selection toolbar state
+  let selectionToolbarVisible = $state(false);
+  let selectionToolbarX = $state(0);
+  let selectionToolbarRect = $state<{
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  } | null>(null);
+
+  // Insert menu state (used by both gutter button and slash commands)
+  let insertMenuVisible = $state(false);
+  let insertMenuX = $state(0);
+  let insertMenuY = $state(0);
+  let insertMenuMode = $state<
+    | { type: 'gutter'; linePos: number }
+    | { type: 'slash'; slashFrom: number; slashTo: number }
+  >({ type: 'gutter', linePos: 0 });
+
   // Hover timeouts
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -120,6 +146,67 @@
   // Position tracking for scroll/cursor persistence
   let positionTracker: ReturnType<typeof createPositionTracker> | null = null;
 
+  // Selection toolbar handler
+  function handleShowSelectionToolbar(data: SelectionToolbarData | null): void {
+    if (data) {
+      selectionToolbarX = data.x;
+      selectionToolbarRect = data.selectionRect;
+      selectionToolbarVisible = true;
+    } else {
+      selectionToolbarVisible = false;
+    }
+  }
+
+  // Handle formatting from selection toolbar
+  function handleSelectionFormat(format: FormatType): void {
+    if (!editorView) return;
+    applyFormat(editorView, format);
+    // Keep focus on editor
+    editorView.focus();
+  }
+
+  // Close selection toolbar
+  function handleSelectionToolbarClose(): void {
+    selectionToolbarVisible = false;
+  }
+
+  // Gutter menu handler
+  function handleShowGutterMenu(data: GutterMenuData | null): void {
+    if (data) {
+      insertMenuX = data.x;
+      insertMenuY = data.y;
+      insertMenuMode = { type: 'gutter', linePos: data.linePos };
+      insertMenuVisible = true;
+      // Hide selection toolbar if visible
+      selectionToolbarVisible = false;
+    } else {
+      insertMenuVisible = false;
+    }
+  }
+
+  // Slash menu handler
+  function handleShowSlashMenu(data: SlashMenuData | null): void {
+    if (data) {
+      insertMenuX = data.x;
+      insertMenuY = data.y;
+      insertMenuMode = {
+        type: 'slash',
+        slashFrom: data.slashFrom,
+        slashTo: data.slashTo
+      };
+      insertMenuVisible = true;
+      // Hide selection toolbar if visible
+      selectionToolbarVisible = false;
+    } else {
+      insertMenuVisible = false;
+    }
+  }
+
+  // Close insert menu
+  function handleInsertMenuClose(): void {
+    insertMenuVisible = false;
+  }
+
   // Create editor config factory function for note-specific configuration
   function createEditorConfig(
     handle: DocHandle<NoteContentDocument> | null
@@ -129,6 +216,9 @@
       onWikilinkHover: handleWikilinkHover,
       onWikilinkEditDisplayText: handleWikilinkEditDisplayText,
       onCursorChange: () => positionTracker?.savePosition(),
+      onShowSelectionToolbar: handleShowSelectionToolbar,
+      onShowSlashMenu: handleShowSlashMenu,
+      onShowGutterMenu: handleShowGutterMenu,
       placeholder: 'Start writing...',
       // Deck widget support - navigate to notes when clicked in embedded decks
       onDeckNoteOpen: (deckNoteId) => {
@@ -1020,6 +1110,25 @@
     onEdit={handleActionPopoverEdit}
   />
 </div>
+
+<!-- Selection Toolbar -->
+<SelectionToolbar
+  bind:visible={selectionToolbarVisible}
+  x={selectionToolbarX}
+  selectionRect={selectionToolbarRect}
+  onFormat={handleSelectionFormat}
+  onClose={handleSelectionToolbarClose}
+/>
+
+<!-- Insert Menu (for slash commands and gutter button) -->
+<InsertMenu
+  bind:visible={insertMenuVisible}
+  x={insertMenuX}
+  y={insertMenuY}
+  {editorView}
+  mode={insertMenuMode}
+  onClose={handleInsertMenuClose}
+/>
 
 <style>
   .note-editor {

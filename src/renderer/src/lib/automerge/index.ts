@@ -426,8 +426,18 @@ export {
 } from './utils';
 
 // Editor support
-export { EditorConfig } from './editorConfig.svelte';
-export type { EditorConfigOptions } from './editorConfig.svelte';
+export { EditorConfig, applyFormat } from './editorConfig.svelte';
+export type {
+  EditorConfigOptions,
+  SelectionToolbarData,
+  SelectionToolbarHandler,
+  FormatType,
+  SlashMenuData,
+  SlashMenuHandler,
+  SlashCommand,
+  GutterMenuData,
+  GutterMenuHandler
+} from './editorConfig.svelte';
 export {
   automergeWikilinksExtension,
   forceWikilinkRefresh,
