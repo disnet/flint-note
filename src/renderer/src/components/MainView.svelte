@@ -93,6 +93,7 @@
   import QuickSearch from './QuickSearch.svelte';
   import NoteActionsMenu from './NoteActionsMenu.svelte';
   import UpdateWidget from './UpdateWidget.svelte';
+  import SyncStatusBadge from './SyncStatusBadge.svelte';
   import Tooltip from './Tooltip.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import WindowControls from './WindowControls.svelte';
@@ -1436,6 +1437,7 @@
         {/if}
         <UpdateWidget />
         <div class="safe-zone-actions">
+          <SyncStatusBadge />
           {#if activeItem}
             <!-- Pin button -->
             <Tooltip text={isPinned ? 'Unpin' : 'Pin'} position="bottom">
