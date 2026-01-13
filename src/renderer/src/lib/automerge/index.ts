@@ -452,6 +452,22 @@ export type {
   SelectedWikilink
 } from './wikilinks.svelte';
 
+// Markdown links support
+export {
+  markdownLinksExtension,
+  forceMarkdownLinkRefresh,
+  getSelectedMarkdownLink,
+  parseMarkdownLinks
+} from './markdown-links.svelte';
+export type {
+  MarkdownLinkMatch,
+  MarkdownLinkClickHandler,
+  MarkdownLinkHoverHandler,
+  MarkdownLinkEditHandler,
+  MarkdownLinkHoverData,
+  SelectedMarkdownLink
+} from './markdown-links.svelte';
+
 // Wikilink stabilization (convert title-based links to ID-based)
 export {
   stabilizeWikilinksInContent,

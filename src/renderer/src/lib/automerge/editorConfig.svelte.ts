@@ -24,6 +24,12 @@ import {
   type WikilinkHoverHandler,
   type WikilinkEditDisplayTextHandler
 } from './wikilinks.svelte';
+import {
+  markdownLinksExtension,
+  type MarkdownLinkClickHandler,
+  type MarkdownLinkHoverHandler,
+  type MarkdownLinkEditHandler
+} from './markdown-links.svelte';
 import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
 import { richPasteExtension } from './rich-paste-extension.svelte';
@@ -54,6 +60,12 @@ export interface EditorConfigOptions {
   onWikilinkHover?: WikilinkHoverHandler;
   /** Handler for editing wikilink display text (Alt-Enter) */
   onWikilinkEditDisplayText?: WikilinkEditDisplayTextHandler;
+  /** Handler for clicking markdown links - opens external URL */
+  onMarkdownLinkClick?: MarkdownLinkClickHandler;
+  /** Handler for hovering over markdown links */
+  onMarkdownLinkHover?: MarkdownLinkHoverHandler;
+  /** Handler for editing markdown links (Alt-Enter) */
+  onMarkdownLinkEdit?: MarkdownLinkEditHandler;
   /** @deprecated Use automergeSync instead for CRDT text editing */
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
@@ -189,6 +201,16 @@ export class EditorConfig {
               this.options.onWikilinkClick,
               this.options.onWikilinkHover,
               this.options.onWikilinkEditDisplayText
+            )
+          ]
+        : []),
+      // Markdown links extension
+      ...(this.options.onMarkdownLinkClick
+        ? [
+            markdownLinksExtension(
+              this.options.onMarkdownLinkClick,
+              this.options.onMarkdownLinkHover,
+              this.options.onMarkdownLinkEdit
             )
           ]
         : []),
