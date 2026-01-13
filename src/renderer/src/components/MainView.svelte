@@ -1211,15 +1211,10 @@
       event.preventDefault();
       handleCreateNote();
     }
-    // Cmd/Ctrl + K: Focus search or open quick search
-    if (modifierPressed && event.key === 'k') {
+    // Cmd/Ctrl + K: Focus search or open quick search (but not Cmd+Shift+K which is for links)
+    if (modifierPressed && event.key === 'k' && !event.shiftKey) {
       event.preventDefault();
       handleFocusSearch();
-    }
-    // Cmd/Ctrl + B: Toggle sidebar
-    if (modifierPressed && event.key === 'b') {
-      event.preventDefault();
-      toggleLeftSidebar();
     }
   }
 

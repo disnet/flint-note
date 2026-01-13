@@ -34,6 +34,10 @@ import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
 import { richPasteExtension } from './rich-paste-extension.svelte';
 import {
+  keyboardShortcutsExtension,
+  type LinkCreatedHandler
+} from './keyboard-shortcuts-extension.svelte';
+import {
   selectionToolbarExtension,
   applyFormat,
   type SelectionToolbarData,
@@ -66,6 +70,8 @@ export interface EditorConfigOptions {
   onMarkdownLinkHover?: MarkdownLinkHoverHandler;
   /** Handler for editing markdown links (Alt-Enter) */
   onMarkdownLinkEdit?: MarkdownLinkEditHandler;
+  /** Handler called when a link is created via Cmd+Shift+K (to open edit popover) */
+  onLinkCreated?: LinkCreatedHandler;
   /** @deprecated Use automergeSync instead for CRDT text editing */
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
@@ -90,6 +96,7 @@ export interface EditorConfigOptions {
 
 // Re-export types and utilities for consumers
 export type { SelectionToolbarData, SelectionToolbarHandler, FormatType };
+export type { LinkCreatedHandler };
 export type { SlashMenuData, SlashMenuHandler, SlashCommand };
 export type { GutterMenuData, GutterMenuHandler };
 export { applyFormat };
@@ -232,6 +239,8 @@ export class EditorConfig {
         : []),
       // Image extension for inline OPFS images
       imageExtension(),
+      // Keyboard shortcuts for formatting (before rich paste so URL paste takes precedence)
+      ...keyboardShortcutsExtension(this.options.onLinkCreated),
       // Rich paste extension for HTML to markdown conversion
       richPasteExtension(),
       // Selection toolbar extension

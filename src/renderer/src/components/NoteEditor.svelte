@@ -246,6 +246,7 @@
       onMarkdownLinkClick: handleMarkdownLinkClick,
       onMarkdownLinkHover: handleMarkdownLinkHover,
       onMarkdownLinkEdit: handleMarkdownLinkEdit,
+      onLinkCreated: handleMarkdownLinkEdit,
       onCursorChange: () => positionTracker?.savePosition(),
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
