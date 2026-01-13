@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Action popover for wikilinks in the Automerge editor.
-   * Shows actions: Open note, Edit display text
+   * Action popover for wikilinks and markdown links in the Automerge editor.
+   * Shows actions: Open note/link, Edit display text/link
    */
   interface Props {
     visible: boolean;
@@ -10,9 +10,18 @@
     linkRect: { top: number; bottom: number; left: number; height: number } | null;
     onOpen: () => void;
     onEdit: () => void;
+    editLabel?: string;
   }
 
-  let { visible = $bindable(false), x, y, linkRect, onOpen, onEdit }: Props = $props();
+  let {
+    visible = $bindable(false),
+    x,
+    y,
+    linkRect,
+    onOpen,
+    onEdit,
+    editLabel = 'Edit Display Text'
+  }: Props = $props();
 
   let popoverElement: HTMLDivElement | undefined = $state();
 
@@ -94,7 +103,7 @@
         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
         <path d="m15 5 4 4"></path>
       </svg>
-      <span>Edit Display Text</span>
+      <span>{editLabel}</span>
       <kbd>{altKey}↵</kbd>
     </button>
   </div>

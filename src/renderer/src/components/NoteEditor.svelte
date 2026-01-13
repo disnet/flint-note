@@ -32,10 +32,16 @@
     type SlashMenuData
   } from '../lib/automerge';
   import type { WikilinkTargetType, SelectedWikilink } from '../lib/automerge';
+  import type {
+    SelectedMarkdownLink,
+    MarkdownLinkHoverData
+  } from '../lib/automerge/markdown-links.svelte';
+  import { isElectron } from '../lib/platform.svelte';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import NoteHeader from './NoteHeader.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
+  import MarkdownLinkEditPopover from './MarkdownLinkEditPopover.svelte';
   import SelectionToolbar from './SelectionToolbar.svelte';
   import InsertMenu from './InsertMenu.svelte';
   import EditorChips from './EditorChips.svelte';
@@ -74,7 +80,7 @@
   // Track current note ID for detecting note switches
   let currentNoteId = $state(note.id);
 
-  // Edit popover state
+  // Wikilink edit popover state
   let editPopoverVisible = $state(false);
   let editPopoverX = $state(0);
   let editPopoverY = $state(0);
@@ -85,11 +91,27 @@
   let editPopoverRef: WikilinkEditPopover | undefined = $state();
   let savedSelection: { anchor: number; head: number } | null = null;
 
+  // Markdown link edit popover state
+  let mdLinkEditPopoverVisible = $state(false);
+  let mdLinkEditPopoverX = $state(0);
+  let mdLinkEditPopoverY = $state(0);
+  let mdLinkEditPopoverDisplayText = $state('');
+  let mdLinkEditPopoverUrl = $state('');
+  let mdLinkEditPopoverFrom = $state(0);
+  let mdLinkEditPopoverTo = $state(0);
+  let mdLinkRect = $state<{
+    top: number;
+    bottom: number;
+    height: number;
+    left: number;
+  } | null>(null);
+
   // Action popover state
   let actionPopoverVisible = $state(false);
   let actionPopoverX = $state(0);
   let actionPopoverY = $state(0);
   let actionPopoverIsFromHover = $state(false);
+  let actionPopoverLinkType = $state<'wikilink' | 'markdown'>('wikilink');
   let actionPopoverWikilinkData = $state<{
     identifier: string;
     title: string;
@@ -97,6 +119,12 @@
     noteId?: string;
     targetType: WikilinkTargetType;
     conversationId?: string;
+  } | null>(null);
+  let actionPopoverMarkdownLinkData = $state<{
+    displayText: string;
+    url: string;
+    from: number;
+    to: number;
   } | null>(null);
   let linkRect = $state<{
     top: number;
@@ -215,6 +243,9 @@
       onWikilinkClick: handleWikilinkClick,
       onWikilinkHover: handleWikilinkHover,
       onWikilinkEditDisplayText: handleWikilinkEditDisplayText,
+      onMarkdownLinkClick: handleMarkdownLinkClick,
+      onMarkdownLinkHover: handleMarkdownLinkHover,
+      onMarkdownLinkEdit: handleMarkdownLinkEdit,
       onCursorChange: () => positionTracker?.savePosition(),
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
@@ -324,6 +355,203 @@
         onNavigate?.(targetId);
       }
     }
+  }
+
+  // Markdown link click handler - opens external URL
+  function handleMarkdownLinkClick(url: string): void {
+    if (isElectron()) {
+      window.api?.openExternal({ url });
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  // Markdown link hover handler - shows action popover
+  function handleMarkdownLinkHover(data: MarkdownLinkHoverData | null): void {
+    // Clear any pending leave timeout
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+
+    if (data) {
+      // Don't show action popover if edit popover is visible
+      if (mdLinkEditPopoverVisible) {
+        return;
+      }
+
+      // If already visible from hover for markdown links, update immediately
+      if (
+        actionPopoverVisible &&
+        actionPopoverIsFromHover &&
+        actionPopoverLinkType === 'markdown'
+      ) {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+
+        actionPopoverMarkdownLinkData = {
+          displayText: data.displayText,
+          url: data.url,
+          from: data.from,
+          to: data.to
+        };
+
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          200,
+          60
+        );
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
+        return;
+      }
+
+      // Clear pending hover timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
+      // Delay before showing action popover
+      hoverTimeout = setTimeout(() => {
+        if (mdLinkEditPopoverVisible) {
+          return;
+        }
+
+        actionPopoverLinkType = 'markdown';
+        actionPopoverWikilinkData = null;
+        actionPopoverMarkdownLinkData = {
+          displayText: data.displayText,
+          url: data.url,
+          from: data.from,
+          to: data.to
+        };
+
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          200,
+          60
+        );
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
+
+        actionPopoverVisible = true;
+        actionPopoverIsFromHover = true;
+        hoverTimeout = null;
+      }, 300);
+    } else {
+      // Mouse left the markdown link
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+
+      // Start leave timeout only if popover is from hover
+      if (actionPopoverIsFromHover) {
+        leaveTimeout = setTimeout(() => {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+          leaveTimeout = null;
+        }, 200);
+      }
+    }
+  }
+
+  // Markdown link edit handler (Alt+Enter)
+  function handleMarkdownLinkEdit(link: SelectedMarkdownLink): void {
+    if (!editorView) return;
+
+    // Save current selection
+    const selection = editorView.state.selection.main;
+    savedSelection = { anchor: selection.anchor, head: selection.head };
+
+    // Hide wikilink popovers if visible
+    actionPopoverVisible = false;
+    editPopoverVisible = false;
+
+    // Set edit popover data
+    mdLinkEditPopoverDisplayText = link.displayText;
+    mdLinkEditPopoverUrl = link.url;
+    mdLinkEditPopoverFrom = link.from;
+    mdLinkEditPopoverTo = link.to;
+
+    // Position edit popover
+    const coords = editorView.coordsAtPos(link.from);
+    if (coords) {
+      mdLinkRect = {
+        left: coords.left,
+        top: coords.top,
+        bottom: coords.bottom,
+        height: coords.bottom - coords.top
+      };
+      const position = calculatePopoverPosition(
+        coords.left,
+        coords.top,
+        coords.bottom,
+        450,
+        120
+      );
+      mdLinkEditPopoverX = position.x;
+      mdLinkEditPopoverY = position.y;
+    }
+
+    mdLinkEditPopoverVisible = true;
+  }
+
+  // Markdown link edit popover save handler
+  function handleMdLinkEditPopoverSave(newDisplayText: string, newUrl: string): void {
+    if (!editorView) return;
+
+    // Create new markdown link text
+    const newText = `[${newDisplayText}](${newUrl})`;
+
+    // Calculate length difference
+    const oldLength = mdLinkEditPopoverTo - mdLinkEditPopoverFrom;
+    const newLength = newText.length;
+    const lengthDiff = newLength - oldLength;
+
+    // Replace old link
+    editorView.dispatch({
+      changes: {
+        from: mdLinkEditPopoverFrom,
+        to: mdLinkEditPopoverTo,
+        insert: newText
+      }
+    });
+
+    // Update position for continued editing
+    mdLinkEditPopoverTo = mdLinkEditPopoverTo + lengthDiff;
+    mdLinkEditPopoverDisplayText = newDisplayText;
+    mdLinkEditPopoverUrl = newUrl;
+  }
+
+  function handleMdLinkEditPopoverCommit(): void {
+    mdLinkEditPopoverVisible = false;
+    restoreFocusAndSelection();
+  }
+
+  function handleMdLinkEditPopoverCancel(): void {
+    mdLinkEditPopoverVisible = false;
+    restoreFocusAndSelection();
   }
 
   // Backlinks state (loaded async)
@@ -558,8 +786,12 @@
         return;
       }
 
-      // If already visible from hover, update immediately
-      if (actionPopoverVisible && actionPopoverIsFromHover) {
+      // If already visible from hover for wikilinks, update immediately
+      if (
+        actionPopoverVisible &&
+        actionPopoverIsFromHover &&
+        actionPopoverLinkType === 'wikilink'
+      ) {
         if (hoverTimeout) {
           clearTimeout(hoverTimeout);
           hoverTimeout = null;
@@ -611,6 +843,8 @@
           return;
         }
 
+        actionPopoverLinkType = 'wikilink';
+        actionPopoverMarkdownLinkData = null;
         actionPopoverWikilinkData = {
           identifier: data.identifier,
           title: data.displayText,
@@ -710,29 +944,37 @@
 
   // Action popover handlers
   function handleActionPopoverOpen(): void {
-    if (!actionPopoverWikilinkData) return;
-
-    const data = actionPopoverWikilinkData;
-
-    if (data.targetType === 'conversation') {
-      // Conversations: only navigate if exists, never create
-      if (data.exists && data.conversationId) {
-        handleWikilinkClick(data.conversationId, data.title, {
-          targetType: 'conversation'
-        });
+    if (actionPopoverLinkType === 'markdown') {
+      // Markdown link: open URL externally
+      if (actionPopoverMarkdownLinkData) {
+        handleMarkdownLinkClick(actionPopoverMarkdownLinkData.url);
       }
-      // For broken conversation links: do nothing
     } else {
-      // Notes: existing behavior
-      if (data.exists && data.noteId) {
-        handleWikilinkClick(data.noteId, data.title, {
-          targetType: 'note'
-        });
+      // Wikilink: navigate to note/conversation
+      if (!actionPopoverWikilinkData) return;
+
+      const data = actionPopoverWikilinkData;
+
+      if (data.targetType === 'conversation') {
+        // Conversations: only navigate if exists, never create
+        if (data.exists && data.conversationId) {
+          handleWikilinkClick(data.conversationId, data.title, {
+            targetType: 'conversation'
+          });
+        }
+        // For broken conversation links: do nothing
       } else {
-        handleWikilinkClick(data.identifier, data.title, {
-          shouldCreate: true,
-          targetType: 'note'
-        });
+        // Notes: existing behavior
+        if (data.exists && data.noteId) {
+          handleWikilinkClick(data.noteId, data.title, {
+            targetType: 'note'
+          });
+        } else {
+          handleWikilinkClick(data.identifier, data.title, {
+            shouldCreate: true,
+            targetType: 'note'
+          });
+        }
       }
     }
 
@@ -741,7 +983,7 @@
   }
 
   function handleActionPopoverEdit(): void {
-    if (!editorView || !actionPopoverWikilinkData || !linkRect) return;
+    if (!editorView || !linkRect) return;
 
     // Save current selection
     const selection = editorView.state.selection.main;
@@ -750,53 +992,82 @@
     // Hide action popover
     actionPopoverVisible = false;
 
-    // Set edit popover data
-    editPopoverIdentifier = actionPopoverWikilinkData.identifier;
+    if (actionPopoverLinkType === 'markdown') {
+      // Markdown link: show the markdown link edit popover
+      if (!actionPopoverMarkdownLinkData) return;
 
-    // For ID-only links, show the target's title
-    if (actionPopoverWikilinkData.identifier === actionPopoverWikilinkData.title) {
-      if (actionPopoverWikilinkData.targetType === 'conversation') {
-        // Look up conversation title
-        if (
-          actionPopoverWikilinkData.conversationId &&
-          actionPopoverWikilinkData.exists
-        ) {
-          const conv = getConversationEntry(actionPopoverWikilinkData.conversationId);
-          editPopoverDisplayText = conv?.title || actionPopoverWikilinkData.title;
+      mdLinkEditPopoverDisplayText = actionPopoverMarkdownLinkData.displayText;
+      mdLinkEditPopoverUrl = actionPopoverMarkdownLinkData.url;
+      mdLinkEditPopoverFrom = actionPopoverMarkdownLinkData.from;
+      mdLinkEditPopoverTo = actionPopoverMarkdownLinkData.to;
+      mdLinkRect = linkRect;
+
+      // Position edit popover
+      const position = calculatePopoverPosition(
+        linkRect.left,
+        linkRect.top,
+        linkRect.bottom,
+        450,
+        120
+      );
+      mdLinkEditPopoverX = position.x;
+      mdLinkEditPopoverY = position.y;
+
+      mdLinkEditPopoverVisible = true;
+    } else {
+      // Wikilink: show the wikilink edit popover
+      if (!actionPopoverWikilinkData) return;
+
+      // Set edit popover data
+      editPopoverIdentifier = actionPopoverWikilinkData.identifier;
+
+      // For ID-only links, show the target's title
+      if (actionPopoverWikilinkData.identifier === actionPopoverWikilinkData.title) {
+        if (actionPopoverWikilinkData.targetType === 'conversation') {
+          // Look up conversation title
+          if (
+            actionPopoverWikilinkData.conversationId &&
+            actionPopoverWikilinkData.exists
+          ) {
+            const conv = getConversationEntry(actionPopoverWikilinkData.conversationId);
+            editPopoverDisplayText = conv?.title || actionPopoverWikilinkData.title;
+          } else {
+            editPopoverDisplayText = actionPopoverWikilinkData.title;
+          }
+        } else if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
+          // Look up note title
+          const notes = getAllNotes();
+          const linkedNote = notes.find(
+            (n) => n.id === actionPopoverWikilinkData!.noteId
+          );
+          editPopoverDisplayText = linkedNote?.title || actionPopoverWikilinkData.title;
         } else {
           editPopoverDisplayText = actionPopoverWikilinkData.title;
         }
-      } else if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
-        // Look up note title
-        const notes = getAllNotes();
-        const linkedNote = notes.find((n) => n.id === actionPopoverWikilinkData!.noteId);
-        editPopoverDisplayText = linkedNote?.title || actionPopoverWikilinkData.title;
       } else {
         editPopoverDisplayText = actionPopoverWikilinkData.title;
       }
-    } else {
-      editPopoverDisplayText = actionPopoverWikilinkData.title;
+
+      // Get wikilink position
+      const selected = getSelectedWikilink(editorView);
+      if (selected) {
+        editPopoverFrom = selected.from;
+        editPopoverTo = selected.to;
+      }
+
+      // Position edit popover
+      const position = calculatePopoverPosition(
+        linkRect.left,
+        linkRect.top,
+        linkRect.bottom,
+        400,
+        100
+      );
+      editPopoverX = position.x;
+      editPopoverY = position.y;
+
+      editPopoverVisible = true;
     }
-
-    // Get wikilink position
-    const selected = getSelectedWikilink(editorView);
-    if (selected) {
-      editPopoverFrom = selected.from;
-      editPopoverTo = selected.to;
-    }
-
-    // Position edit popover
-    const position = calculatePopoverPosition(
-      linkRect.left,
-      linkRect.top,
-      linkRect.bottom,
-      400,
-      100
-    );
-    editPopoverX = position.x;
-    editPopoverY = position.y;
-
-    editPopoverVisible = true;
   }
 
   // Handler for Alt-Enter keyboard shortcut to edit wikilink display text
@@ -1095,6 +1366,21 @@
   />
 </div>
 
+<!-- Markdown Link Edit Popover -->
+<div role="tooltip">
+  <MarkdownLinkEditPopover
+    bind:visible={mdLinkEditPopoverVisible}
+    x={mdLinkEditPopoverX}
+    y={mdLinkEditPopoverY}
+    displayText={mdLinkEditPopoverDisplayText}
+    url={mdLinkEditPopoverUrl}
+    linkRect={mdLinkRect}
+    onSave={handleMdLinkEditPopoverSave}
+    onCancel={handleMdLinkEditPopoverCancel}
+    onCommit={handleMdLinkEditPopoverCommit}
+  />
+</div>
+
 <!-- Wikilink Action Popover -->
 <div
   role="tooltip"
@@ -1108,6 +1394,7 @@
     {linkRect}
     onOpen={handleActionPopoverOpen}
     onEdit={handleActionPopoverEdit}
+    editLabel={actionPopoverLinkType === 'markdown' ? 'Edit Link' : 'Edit Display Text'}
   />
 </div>
 
