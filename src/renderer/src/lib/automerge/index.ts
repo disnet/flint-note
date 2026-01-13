@@ -427,11 +427,13 @@ export {
 
 // Editor support
 export { EditorConfig, applyFormat } from './editorConfig.svelte';
+export { keyboardShortcutsExtension } from './keyboard-shortcuts-extension.svelte';
 export type {
   EditorConfigOptions,
   SelectionToolbarData,
   SelectionToolbarHandler,
   FormatType,
+  LinkCreatedHandler,
   SlashMenuData,
   SlashMenuHandler,
   SlashCommand,
