@@ -26,6 +26,7 @@ import {
 } from './wikilinks.svelte';
 import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
+import { richPasteExtension } from './rich-paste-extension.svelte';
 import {
   selectionToolbarExtension,
   applyFormat,
@@ -209,6 +210,8 @@ export class EditorConfig {
         : []),
       // Image extension for inline OPFS images
       imageExtension(),
+      // Rich paste extension for HTML to markdown conversion
+      richPasteExtension(),
       // Selection toolbar extension
       ...(this.options.onShowSelectionToolbar
         ? [selectionToolbarExtension(this.options.onShowSelectionToolbar)]
