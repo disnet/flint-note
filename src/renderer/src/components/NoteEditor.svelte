@@ -1221,7 +1221,7 @@
   .editor-container {
     flex: 1;
     min-height: 300px;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .preview-container {
