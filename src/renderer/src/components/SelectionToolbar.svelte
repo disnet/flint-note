@@ -5,6 +5,7 @@
    */
   import type { FormatType } from '../lib/automerge/selection-toolbar.svelte';
   import { useTouchInteractions } from '../stores/deviceState.svelte';
+  import Tooltip from './Tooltip.svelte';
 
   interface Props {
     visible: boolean;
@@ -36,6 +37,7 @@
   }> = [
     { format: 'bold', icon: 'B', label: 'Bold', shortcut: `${cmdKey}B` },
     { format: 'italic', icon: 'I', label: 'Italic', shortcut: `${cmdKey}I` },
+    { format: 'strikethrough', icon: 'S', label: 'Strikethrough' },
     { format: 'code', icon: '<>', label: 'Code' },
     { format: 'link', icon: '🔗', label: 'Link' },
     { format: 'wikilink', icon: '[[', label: 'Wiki Link' }
@@ -52,7 +54,7 @@
   }
 
   // Calculate final position avoiding viewport edges
-  const toolbarWidth = 200;
+  const toolbarWidth = 240;
   const toolbarHeight = 40;
   const padding = 8;
   const gap = 8;
@@ -95,46 +97,54 @@
     aria-label="Text formatting"
   >
     {#each buttons as button (button.format)}
-      <button
-        type="button"
-        class="toolbar-button"
-        class:icon-only={button.format === 'link'}
-        title={button.shortcut ? `${button.label} (${button.shortcut})` : button.label}
-        onclick={() => handleFormatClick(button.format)}
-        onmousedown={handleMouseDown}
+      <Tooltip
+        text={button.shortcut ? `${button.label} (${button.shortcut})` : button.label}
+        position="bottom"
       >
-        {#if button.format === 'bold'}
-          <span class="icon bold">B</span>
-        {:else if button.format === 'italic'}
-          <span class="icon italic">I</span>
-        {:else if button.format === 'code'}
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="16 18 22 12 16 6"></polyline>
-            <polyline points="8 6 2 12 8 18"></polyline>
-          </svg>
-        {:else if button.format === 'link'}
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-        {:else if button.format === 'wikilink'}
-          <span class="icon wikilink">[[</span>
-        {/if}
-      </button>
+        <button
+          type="button"
+          class="toolbar-button"
+          class:icon-only={button.format === 'link'}
+          onclick={() => handleFormatClick(button.format)}
+          onmousedown={handleMouseDown}
+        >
+          {#if button.format === 'bold'}
+            <span class="icon bold">B</span>
+          {:else if button.format === 'italic'}
+            <span class="icon italic">I</span>
+          {:else if button.format === 'strikethrough'}
+            <span class="icon strikethrough">S</span>
+          {:else if button.format === 'code'}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+          {:else if button.format === 'link'}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+              ></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+              ></path>
+            </svg>
+          {:else if button.format === 'wikilink'}
+            <span class="icon wikilink">[[</span>
+          {/if}
+        </button>
+      </Tooltip>
     {/each}
   </div>
 {/if}
@@ -206,6 +216,10 @@
 
   .icon.italic {
     font-style: italic;
+  }
+
+  .icon.strikethrough {
+    text-decoration: line-through;
   }
 
   .icon.wikilink {

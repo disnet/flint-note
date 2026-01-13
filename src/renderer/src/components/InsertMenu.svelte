@@ -4,9 +4,11 @@
    * Used by both slash commands and gutter plus button.
    */
   import { EditorView } from 'codemirror';
+  import { startCompletion } from '@codemirror/autocomplete';
   import {
     defaultSlashCommands,
     applySlashCommand,
+    getBlockPrefixLength,
     type SlashCommand
   } from '../lib/automerge/slash-commands.svelte';
   import { useTouchInteractions } from '../stores/deviceState.svelte';
@@ -91,8 +93,17 @@
       const line = editorView.state.doc.lineAt(mode.linePos);
       const insertPos = line.from;
 
+      // If this is a block prefix command, check for and replace existing block prefix
+      let replaceEnd = insertPos;
+      if (command.isBlockPrefix) {
+        const existingPrefixLength = getBlockPrefixLength(line.text);
+        if (existingPrefixLength > 0) {
+          replaceEnd = insertPos + existingPrefixLength;
+        }
+      }
+
       editorView.dispatch({
-        changes: { from: insertPos, to: insertPos, insert: command.insert }
+        changes: { from: insertPos, to: replaceEnd, insert: command.insert }
       });
 
       // Position cursor if specified
@@ -107,6 +118,16 @@
     }
 
     onClose();
+
+    // Trigger autocomplete if requested
+    if (command.triggerAutocomplete && editorView) {
+      // Use setTimeout to ensure the menu is closed and editor is focused first
+      setTimeout(() => {
+        if (editorView) {
+          startCompletion(editorView);
+        }
+      }, 0);
+    }
   }
 
   function handleMouseDown(e: MouseEvent): void {
@@ -115,6 +136,20 @@
   }
 
   function handleKeyDown(e: KeyboardEvent): void {
+    // Handle Cmd/Ctrl+N and Cmd/Ctrl+P for navigation
+    if (e.metaKey || e.ctrlKey) {
+      if (e.key === 'n') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, flatCommands.length - 1);
+        return;
+      }
+      if (e.key === 'p') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        return;
+      }
+    }
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -134,6 +169,20 @@
         e.preventDefault();
         onClose();
         editorView?.focus();
+        break;
+      case 'Backspace':
+        // When search is empty, dismiss the menu and delete the "/" in slash mode
+        if (searchQuery === '') {
+          e.preventDefault();
+          if (mode.type === 'slash' && editorView) {
+            // Delete the "/" that triggered the menu
+            editorView.dispatch({
+              changes: { from: mode.slashFrom, to: mode.slashTo, insert: '' }
+            });
+          }
+          onClose();
+          editorView?.focus();
+        }
         break;
     }
   }

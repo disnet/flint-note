@@ -20,6 +20,10 @@ export interface SlashCommand {
   icon?: string;
   /** Cursor position offset after insertion (from end of inserted text) */
   cursorOffset?: number;
+  /** If true, this command should replace existing block prefixes (e.g., converting bullet to numbered list) */
+  isBlockPrefix?: boolean;
+  /** If true, trigger autocomplete after insertion */
+  triggerAutocomplete?: boolean;
 }
 
 /**
@@ -32,42 +36,48 @@ export const defaultSlashCommands: SlashCommand[] = [
     insert: '# ',
     section: 'Block',
     icon: 'H1',
-    description: 'Large heading'
+    description: 'Large heading',
+    isBlockPrefix: true
   },
   {
     label: 'Heading 2',
     insert: '## ',
     section: 'Block',
     icon: 'H2',
-    description: 'Medium heading'
+    description: 'Medium heading',
+    isBlockPrefix: true
   },
   {
     label: 'Heading 3',
     insert: '### ',
     section: 'Block',
     icon: 'H3',
-    description: 'Small heading'
+    description: 'Small heading',
+    isBlockPrefix: true
   },
   {
     label: 'Bullet List',
     insert: '- ',
     section: 'Block',
     icon: '•',
-    description: 'Unordered list'
+    description: 'Unordered list',
+    isBlockPrefix: true
   },
   {
     label: 'Numbered List',
     insert: '1. ',
     section: 'Block',
     icon: '1.',
-    description: 'Ordered list'
+    description: 'Ordered list',
+    isBlockPrefix: true
   },
   {
     label: 'Todo',
     insert: '- [ ] ',
     section: 'Block',
     icon: '☐',
-    description: 'Checkbox item'
+    description: 'Checkbox item',
+    isBlockPrefix: true
   },
   {
     label: 'Code Block',
@@ -82,7 +92,8 @@ export const defaultSlashCommands: SlashCommand[] = [
     insert: '> ',
     section: 'Block',
     icon: '"',
-    description: 'Block quote'
+    description: 'Block quote',
+    isBlockPrefix: true
   },
   {
     label: 'Divider',
@@ -95,11 +106,11 @@ export const defaultSlashCommands: SlashCommand[] = [
   // Links
   {
     label: 'Wikilink',
-    insert: '[[]]',
+    insert: '[[',
     section: 'Link',
     icon: '[[',
     description: 'Link to another note',
-    cursorOffset: -2
+    triggerAutocomplete: true
   },
   {
     label: 'Link',
@@ -133,14 +144,6 @@ export const defaultSlashCommands: SlashCommand[] = [
     section: 'Special',
     icon: '💡',
     description: 'Highlighted callout'
-  },
-  {
-    label: 'Deck',
-    insert: '```flint-deck\nn-\n```',
-    section: 'Special',
-    icon: '🃏',
-    description: 'Embed flashcard deck',
-    cursorOffset: -5
   }
 ];
 
@@ -229,6 +232,23 @@ function createSlashMenuPlugin(onShowMenu: SlashMenuHandler): Extension {
       }
     }
   );
+}
+
+/**
+ * Regex pattern to detect block type prefixes at the start of a line.
+ * Matches: headings (# to ######), bullets (- * +), numbered lists (1. 2. etc.),
+ * todos (- [ ] or - [x]), and quotes (>).
+ * Captures the full prefix including trailing space.
+ */
+const BLOCK_PREFIX_PATTERN = /^(#{1,6}\s+|[-*+]\s+\[[x ]\]\s+|[-*+]\s+|\d+\.\s+|>\s+)/;
+
+/**
+ * Detects if a line starts with a block type prefix and returns its length.
+ * Returns 0 if no block prefix is found.
+ */
+export function getBlockPrefixLength(lineText: string): number {
+  const match = lineText.match(BLOCK_PREFIX_PATTERN);
+  return match ? match[1].length : 0;
 }
 
 /**

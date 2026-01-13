@@ -326,4 +326,26 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     background: var(--bg-primary);
   }
+
+  /* Autocomplete item text colors */
+  :global(.cm-tooltip-autocomplete .cm-completionLabel) {
+    color: var(--text-primary);
+  }
+
+  :global(.cm-tooltip-autocomplete .cm-completionDetail) {
+    color: var(--text-muted);
+  }
+
+  :global(.cm-tooltip-autocomplete .cm-completionMatchedText) {
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  :global(.cm-tooltip-autocomplete [aria-selected='true']) {
+    background: var(--accent-light);
+  }
+
+  :global(.cm-tooltip-autocomplete [aria-selected='true'] .cm-completionLabel) {
+    color: var(--text-primary);
+  }
 </style>

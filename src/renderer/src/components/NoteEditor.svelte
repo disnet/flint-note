@@ -251,7 +251,7 @@
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
       onShowGutterMenu: handleShowGutterMenu,
-      placeholder: 'Start writing...',
+      placeholder: 'Start writing. Type "/" for commands, "[[" for note links...',
       // Deck widget support - navigate to notes when clicked in embedded decks
       onDeckNoteOpen: (deckNoteId) => {
         if (onNavigate) {

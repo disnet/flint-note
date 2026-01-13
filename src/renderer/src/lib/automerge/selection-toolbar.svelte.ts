@@ -117,7 +117,13 @@ export function selectionToolbarExtension(
  * Formatting utilities for the selection toolbar
  */
 
-export type FormatType = 'bold' | 'italic' | 'code' | 'link' | 'wikilink';
+export type FormatType =
+  | 'bold'
+  | 'italic'
+  | 'strikethrough'
+  | 'code'
+  | 'link'
+  | 'wikilink';
 
 /**
  * Wraps the current selection with the given markers
@@ -145,6 +151,9 @@ export function applyFormat(view: EditorView, format: FormatType): void {
       break;
     case 'italic':
       wrapSelection(view, '*', '*');
+      break;
+    case 'strikethrough':
+      wrapSelection(view, '~~', '~~');
       break;
     case 'code':
       wrapSelection(view, '`', '`');
