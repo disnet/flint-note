@@ -14,10 +14,11 @@ import {
   indentWithTab
 } from '@codemirror/commands';
 import { searchKeymap } from '@codemirror/search';
-import { markdown } from '@codemirror/lang-markdown';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { githubLight } from '@fsegurai/codemirror-theme-github-light';
 import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
 import { markdownListStyling, listStylingTheme } from '../markdownListStyling';
+import { livePreviewExtension } from './live-preview-extension.svelte';
 import {
   automergeWikilinksExtension,
   type WikilinkClickHandler,
@@ -194,13 +195,16 @@ export class EditorConfig {
       indentOnInput(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
-      markdown(),
+      // Use GFM (GitHub Flavored Markdown) for strikethrough, tables, task lists, etc.
+      markdown({ base: markdownLanguage }),
       EditorView.lineWrapping,
       this.isDarkMode ? githubDark : githubLight,
       this.getBaseTheme(),
       this.getDefaultTheme(),
       markdownListStyling,
       listStylingTheme,
+      // Live preview extension (hides markdown markers when cursor is away)
+      livePreviewExtension(),
       // Wikilinks extension
       ...(this.options.onWikilinkClick
         ? [
