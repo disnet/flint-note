@@ -22,13 +22,14 @@ export const markdownLinkTheme = EditorView.theme({
 
   '.markdown-link-icon-wrapper': {
     display: 'inline',
-    textDecoration: 'none' // No underline for space and icon
+    textDecoration: 'none', // No underline for space and icon
+    marginLeft: '0.25em' // Explicit spacing from text
   },
 
   '.markdown-link-icon': {
-    display: 'inline-block',
-    fontSize: '0.9em',
-    lineHeight: '1',
+    display: 'inline',
+    fontSize: '0.85em',
+    verticalAlign: 'baseline',
     textDecoration: 'none'
   },
 

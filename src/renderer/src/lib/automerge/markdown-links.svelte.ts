@@ -292,9 +292,6 @@ class MarkdownLinkWidget extends WidgetType {
     iconWrapper.className = 'markdown-link-icon-wrapper';
     iconWrapper.style.whiteSpace = 'nowrap';
 
-    // Non-breaking space before icon
-    iconWrapper.appendChild(document.createTextNode('\u00A0'));
-
     // Icon span
     const iconSpan = document.createElement('span');
     iconSpan.className = 'markdown-link-icon';
