@@ -81,9 +81,25 @@ class PlusButtonMarker extends GutterMarker {
  * CSS theme for the gutter plus button
  */
 const gutterPlusTheme = EditorView.theme({
+  // Make the overall gutters container transparent and borderless
+  // Use longer selector chain for higher specificity to override theme styles
+  '& .cm-scroller .cm-gutters': {
+    background: 'transparent',
+    backgroundColor: 'transparent',
+    color: 'inherit',
+    border: 'none',
+    borderRight: 'none',
+    padding: '0'
+  },
+  // Also ensure the active line gutter has no background
+  '& .cm-scroller .cm-activeLineGutter': {
+    background: 'transparent'
+  },
   '.cm-gutter-plus': {
     width: '24px',
-    flexShrink: '0'
+    flexShrink: '0',
+    background: 'transparent',
+    marginLeft: '-24px'
   },
   '.gutter-plus-button': {
     display: 'flex',

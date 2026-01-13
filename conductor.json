@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "setup": "npm install",
+    "run": "npm run dev"
+  },
+  "runScriptMode": "nonconcurrent"
+}
