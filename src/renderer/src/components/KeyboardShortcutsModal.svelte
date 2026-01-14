@@ -75,7 +75,8 @@
       title: 'Note Actions',
       shortcuts: [
         { keys: `${cmdKey}⇧P`, description: 'Pin/unpin note' },
-        { keys: `${cmdKey}⇧M`, description: 'Change note type' }
+        { keys: `${cmdKey}⇧M`, description: 'Change note type' },
+        { keys: `${cmdKey}⇧S`, description: 'Add to shelf' }
       ]
     },
     {
@@ -130,7 +131,8 @@
       title: 'Note Actions',
       shortcuts: [
         { keys: 'Ctrl⇧P', description: 'Pin/unpin note' },
-        { keys: 'Ctrl⇧M', description: 'Change note type' }
+        { keys: 'Ctrl⇧M', description: 'Change note type' },
+        { keys: 'Ctrl⇧S', description: 'Add to shelf' }
       ]
     },
     {

@@ -133,6 +133,7 @@
               maxResults={8}
               selectedIndex={selectedSearchIndex}
               isLoading={isSearchingContent}
+              showKeyboardHints={true}
             />
             {#if searchResults.length > 8 && !isShowingRecent}
               <button class="view-all-btn" onclick={handleViewAll}>
@@ -150,7 +151,9 @@
           <p>Type to search your notes</p>
           <div class="keyboard-hints">
             <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-            <span class="hint"><kbd>Enter</kbd> Select</span>
+            <span class="hint"><kbd>Enter</kbd> Open</span>
+            <span class="hint"><kbd>{modifierKey}</kbd><kbd>Enter</kbd> Add to Shelf</span
+            >
             <span class="hint"><kbd>Esc</kbd> Close</span>
           </div>
         </div>
@@ -182,6 +185,9 @@
     max-width: 560px;
     overflow: hidden;
     animation: slideDown 0.15s ease-out;
+    display: flex;
+    flex-direction: column;
+    max-height: 70vh;
   }
 
   @keyframes slideDown {
@@ -201,6 +207,7 @@
     gap: 0.75rem;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
   }
 
   .search-icon {
@@ -234,7 +241,8 @@
   }
 
   .search-results-container {
-    max-height: 400px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
   }
 

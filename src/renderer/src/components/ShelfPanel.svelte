@@ -46,7 +46,6 @@
 
   function handleNavigate(item: ShelfItem): void {
     onNavigate?.(item.type, item.id);
-    onClose();
   }
 
   function handleClearAll(): void {

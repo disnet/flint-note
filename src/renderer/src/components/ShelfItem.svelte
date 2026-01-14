@@ -5,7 +5,12 @@
    * Displays a note or conversation on the shelf with expand/collapse functionality.
    * Notes use a full CodeMirror editor for editing.
    */
-  import { getNote, getConversationEntry, getNoteType } from '../lib/automerge';
+  import {
+    getNote,
+    getConversationEntry,
+    getNoteType,
+    automergeShelfStore
+  } from '../lib/automerge';
   import ShelfEditor from './ShelfEditor.svelte';
 
   interface Props {
@@ -24,6 +29,30 @@
   }
 
   let { itemType, itemId, isExpanded, onToggle, onRemove, onNavigate }: Props = $props();
+
+  // Reference to the shelf editor for focusing
+  let shelfEditorRef: ShelfEditor | null = $state(null);
+  // Reference to the item element for scrolling
+  let itemElement: HTMLElement | null = $state(null);
+
+  // Scroll and focus when this item is the pending focus target
+  $effect(() => {
+    if (
+      isExpanded &&
+      itemType === 'note' &&
+      automergeShelfStore.pendingFocusId === itemId
+    ) {
+      // Scroll item into view first
+      if (itemElement) {
+        itemElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      // Then focus editor after scroll and mount complete
+      setTimeout(() => {
+        shelfEditorRef?.focus();
+        automergeShelfStore.setPendingFocus(null);
+      }, 150);
+    }
+  });
 
   // Get item data based on type
   const note = $derived(itemType === 'note' ? getNote(itemId) : undefined);
@@ -82,7 +111,7 @@
 </script>
 
 {#if exists}
-  <div class="shelf-item" class:archived={isArchived}>
+  <div class="shelf-item" class:archived={isArchived} bind:this={itemElement}>
     <!-- Header row -->
     <div class="item-header">
       <button
@@ -160,7 +189,7 @@
       <div class="item-content">
         {#if itemType === 'note'}
           <!-- Note content editor with CRDT sync -->
-          <ShelfEditor noteId={itemId} />
+          <ShelfEditor bind:this={shelfEditorRef} noteId={itemId} />
         {:else if itemType === 'conversation'}
           <!-- Conversation messages preview -->
           {#if recentMessages.length > 0}

@@ -532,6 +532,7 @@
                     onSelect={onSearchResultSelect}
                     maxResults={8}
                     selectedIndex={selectedSearchIndex}
+                    showKeyboardHints={true}
                   />
                   {#if searchResults.length > 8 && !isShowingRecent}
                     <button class="view-all-btn" onclick={onViewAllResults}>
@@ -607,6 +608,7 @@
                   onSelect={onSearchResultSelect}
                   maxResults={8}
                   selectedIndex={selectedSearchIndex}
+                  showKeyboardHints={true}
                 />
                 {#if searchResults.length > 8 && !isShowingRecent}
                   <button class="view-all-btn" onclick={onViewAllResults}>

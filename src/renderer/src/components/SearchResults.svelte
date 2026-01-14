@@ -19,6 +19,7 @@
     maxResults?: number;
     selectedIndex?: number;
     isLoading?: boolean;
+    showKeyboardHints?: boolean;
   }
 
   let {
@@ -26,8 +27,14 @@
     onSelect,
     maxResults = 10,
     selectedIndex = -1,
-    isLoading = false
+    isLoading = false,
+    showKeyboardHints = false
   }: Props = $props();
+
+  // Detect platform for shortcut display
+  const isMac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
+  const modifierKey = isMac ? '⌘' : 'Ctrl';
 
   // Track element refs for scrolling
   let itemElements = new SvelteMap<number, HTMLElement>();
@@ -153,6 +160,12 @@
             2
               ? 'es'
               : ''}
+          </div>
+        {/if}
+        {#if showKeyboardHints && index === selectedIndex}
+          <div class="keyboard-hints">
+            <span class="hint"><kbd>↵</kbd> open</span>
+            <span class="hint"><kbd>{modifierKey}↵</kbd> add to shelf</span>
           </div>
         {/if}
       </div>
@@ -322,5 +335,28 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 0.875rem;
+  }
+
+  .keyboard-hints {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.375rem;
+  }
+
+  .hint {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+
+  .hint kbd {
+    padding: 0.0625rem 0.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.1875rem;
+    font-family: inherit;
+    font-size: 0.625rem;
   }
 </style>

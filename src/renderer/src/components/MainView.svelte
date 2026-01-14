@@ -438,6 +438,22 @@
       selectedSearchIndex = (selectedSearchIndex - 1 + maxIndex) % maxIndex;
     }
 
+    // Cmd/Ctrl+Enter: Add selected result to shelf
+    if (
+      event.key === 'Enter' &&
+      (event.metaKey || event.ctrlKey) &&
+      searchResults.length > 0 &&
+      selectedSearchIndex < maxIndex
+    ) {
+      event.preventDefault();
+      const note = searchResults[selectedSearchIndex].note;
+      automergeShelfStore.addItem('note', note.id);
+      automergeShelfStore.setExpanded('note', note.id, true);
+      automergeShelfStore.setPendingFocus(note.id);
+      openShelfPanel();
+      return;
+    }
+
     // Enter selects the highlighted result, or opens search view if no selection
     if (event.key === 'Enter' && searchResults.length > 0) {
       event.preventDefault();
@@ -1270,6 +1286,11 @@
       event.preventDefault();
       keyboardShortcutsOpen = true;
     }
+    // Cmd/Ctrl + Shift + S: Add to shelf
+    if (modifierPressed && event.shiftKey && event.key === 'S') {
+      event.preventDefault();
+      handleAddToShelf();
+    }
   }
 
   function handleWebKeyDown(event: KeyboardEvent): void {
@@ -1353,6 +1374,12 @@
     if (key === 'm') {
       event.preventDefault();
       handleMenuAction('change-type');
+      return;
+    }
+    // Ctrl+Shift+S: Add to shelf
+    if (key === 's') {
+      event.preventDefault();
+      handleAddToShelf();
       return;
     }
     // Ctrl+Shift+/: Show keyboard shortcuts
@@ -1704,7 +1731,6 @@
                 setActiveItem({ type, id });
                 addItemToWorkspace({ type, id });
                 setActiveSystemView(null);
-                sidebarState.closePanel();
               }}
               onSwitchToChat={() => sidebarState.openPanel('chat')}
             />
@@ -1856,7 +1882,6 @@
       setActiveItem({ type, id });
       addItemToWorkspace({ type, id });
       setActiveSystemView(null);
-      sidebarState.closePanel();
     }}
     onSwitchToChat={() => sidebarState.openPanel('chat')}
   />
