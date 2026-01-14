@@ -31,6 +31,7 @@ import {
   type MarkdownLinkHoverHandler,
   type MarkdownLinkEditHandler
 } from './markdown-links.svelte';
+import { plainUrlExtension } from './plain-url-extension.svelte';
 import { deckExtension } from './deck';
 import { imageExtension } from './image-extension.svelte';
 import { richPasteExtension } from './rich-paste-extension.svelte';
@@ -224,6 +225,10 @@ export class EditorConfig {
               this.options.onMarkdownLinkEdit
             )
           ]
+        : []),
+      // Plain URL extension (uses same click handler as markdown links)
+      ...(this.options.onMarkdownLinkClick
+        ? [plainUrlExtension(this.options.onMarkdownLinkClick)]
         : []),
       // Slash menu extension
       ...(this.options.onShowSlashMenu
