@@ -1,5 +1,11 @@
 # Changelog - Release
 
+## [0.15.2]
+
+### Fixed
+
+- Fixed shelf rendering issue for markdown notes
+
 ## [0.15.1]
 
 ### Added
