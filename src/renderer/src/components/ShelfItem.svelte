@@ -247,6 +247,10 @@
     gap: 6px;
     padding: 10px 12px;
     min-height: 40px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    z-index: 1;
   }
 
   .disclosure-btn {
