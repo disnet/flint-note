@@ -1,5 +1,22 @@
 # Changelog - Release
 
+## [0.15.1]
+
+### Added
+
+- **Sidebar file preview**: Basic support for showing epub, pdf, and other file types in the sidebar
+- **Add to shelf from search**: Ability to add items to the shelf directly from search results
+- **Bare link support**: Clicking on plain URLs (without markdown formatting) now opens them
+
+### Changed
+
+- Shelf title controls are now sticky when scrolling
+- Improved shelf editors (full editing pairity with main editor)
+
+### Fixed
+
+- Fixed sidebar resize handle not responding to drag in header and workspace bar areas
+
 ## [0.15.0]
 
 ### Added
