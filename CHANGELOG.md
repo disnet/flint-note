@@ -1,5 +1,23 @@
 # Changelog - Release
 
+## [0.15.0]
+
+### Added
+
+- **Keyboard shortcut menu**: View all available keyboard shortcuts from the Help menu
+- **Live markdown preview**: Markdown syntax (bold, italic, etc.) now shows live preview while typing
+- **Rich paste**: Pasting HTML content automatically converts it to markdown
+- **Styled markdown links**: Links now display with visual styling and support click-to-open and inline editing
+- **Sync status badge**: Shows sync status in the main view header
+- **Slash commands**: Type `/` in the editor to access formatting commands
+- **Selection tools**: Formatting toolbar appears when selecting text
+- **Text formatting shortcuts**: Keyboard shortcuts for bold, italic, and link creation
+
+### Changed
+
+- Improved startup performance by caching work
+- Improved badge count styling
+
 ## [0.14.8]
 
 ### Fixed
