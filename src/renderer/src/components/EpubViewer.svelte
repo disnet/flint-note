@@ -1046,4 +1046,48 @@ ${highlightLines.join('\n\n')}
     background: var(--accent-light);
     color: var(--accent-primary);
   }
+
+  /* Responsive control bar - use container query */
+  .controls-trigger {
+    container-type: inline-size;
+  }
+
+  /* At narrow widths, simplify progress and hide text values */
+  @container (max-width: 500px) {
+    .progress-bar {
+      display: none;
+    }
+
+    .text-size-value {
+      display: none;
+    }
+
+    .bottom-controls {
+      gap: 0.25rem;
+      padding: 0.375rem 0.75rem;
+    }
+  }
+
+  /* At very narrow widths, hide secondary controls */
+  @container (max-width: 350px) {
+    .theme-container {
+      display: none;
+    }
+
+    .control-button {
+      min-width: 32px;
+      height: 32px;
+    }
+  }
+
+  /* At extremely narrow widths, minimal controls */
+  @container (max-width: 280px) {
+    .text-size-container {
+      display: none;
+    }
+
+    .progress-indicator {
+      display: none;
+    }
+  }
 </style>

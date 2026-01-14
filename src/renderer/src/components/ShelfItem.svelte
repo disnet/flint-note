@@ -9,9 +9,14 @@
     getNote,
     getConversationEntry,
     getNoteType,
-    automergeShelfStore
+    automergeShelfStore,
+    getSourceFormat
   } from '../lib/automerge';
   import ShelfEditor from './ShelfEditor.svelte';
+  import PdfViewer from './PdfViewer.svelte';
+  import EpubViewer from './EpubViewer.svelte';
+  import WebpageViewer from './WebpageViewer.svelte';
+  import DeckViewer from './DeckViewer.svelte';
 
   interface Props {
     /** Type of item (note or conversation) */
@@ -46,9 +51,11 @@
       if (itemElement) {
         itemElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
-      // Then focus editor after scroll and mount complete
+      // Then focus editor after scroll and mount complete (only for markdown)
       setTimeout(() => {
-        shelfEditorRef?.focus();
+        if (isMarkdown) {
+          shelfEditorRef?.focus();
+        }
         automergeShelfStore.setPendingFocus(null);
       }, 150);
     }
@@ -60,6 +67,8 @@
     itemType === 'conversation' ? getConversationEntry(itemId) : undefined
   );
   const noteType = $derived(note ? getNoteType(note.type) : undefined);
+  const sourceFormat = $derived(note ? getSourceFormat(note) : 'markdown');
+  const isMarkdown = $derived(sourceFormat === 'markdown');
 
   // Compute display properties
   const title = $derived.by(() => {
@@ -187,9 +196,22 @@
     <!-- Expanded content -->
     {#if isExpanded}
       <div class="item-content">
-        {#if itemType === 'note'}
-          <!-- Note content editor with CRDT sync -->
-          <ShelfEditor bind:this={shelfEditorRef} noteId={itemId} />
+        {#if itemType === 'note' && note}
+          <!-- Note content viewer based on source format -->
+          <div class="viewer-container">
+            {#if sourceFormat === 'pdf'}
+              <PdfViewer {note} />
+            {:else if sourceFormat === 'epub'}
+              <EpubViewer {note} />
+            {:else if sourceFormat === 'webpage'}
+              <WebpageViewer {note} />
+            {:else if sourceFormat === 'deck'}
+              <DeckViewer {note} onNoteOpen={() => onNavigate()} />
+            {:else}
+              <!-- Default: markdown editor -->
+              <ShelfEditor bind:this={shelfEditorRef} noteId={itemId} />
+            {/if}
+          </div>
         {:else if itemType === 'conversation'}
           <!-- Conversation messages preview -->
           {#if recentMessages.length > 0}
@@ -254,6 +276,14 @@
 <style>
   .shelf-item {
     border-bottom: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Expanded items fill available space */
+  .shelf-item:has(.item-content) {
+    flex: 1;
   }
 
   .shelf-item:last-child {
@@ -389,6 +419,10 @@
   .item-content {
     padding: 0 12px 12px 24px; /* Extra left padding for gutter plus button */
     animation: slideDown 0.15s ease;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   @keyframes slideDown {
@@ -441,5 +475,22 @@
 
   .message-text {
     word-break: break-word;
+  }
+
+  /* Viewer container for non-markdown notes */
+  .viewer-container {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--bg-secondary);
+  }
+
+  .viewer-container :global(.pdf-viewer),
+  .viewer-container :global(.epub-viewer),
+  .viewer-container :global(.webpage-viewer),
+  .viewer-container :global(.deck-viewer) {
+    height: 100%;
+    border-radius: inherit;
   }
 </style>

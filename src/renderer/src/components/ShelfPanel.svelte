@@ -312,6 +312,8 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Empty state */
@@ -353,6 +355,8 @@
   .shelf-items {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
   }
 
   /* Mobile responsive */
