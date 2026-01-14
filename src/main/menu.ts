@@ -168,7 +168,6 @@ export function createApplicationMenu(): Menu {
         { type: 'separator' },
         {
           label: 'Switch Vault',
-          accelerator: 'CmdOrCtrl+Shift+O',
           click: (): void => {
             sendToRenderer('menu-action', 'switch-vault');
           }
@@ -210,7 +209,7 @@ export function createApplicationMenu(): Menu {
         { type: 'separator' },
         {
           label: 'Find',
-          accelerator: 'CmdOrCtrl+K',
+          accelerator: 'CmdOrCtrl+O',
           click: (): void => {
             sendToRenderer('menu-action', 'find');
           }
@@ -482,6 +481,14 @@ export function createApplicationMenu(): Menu {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Keyboard Shortcuts',
+          accelerator: 'CmdOrCtrl+Shift+/',
+          click: (): void => {
+            sendToRenderer('menu-action', 'show-keyboard-shortcuts');
+          }
+        },
+        { type: 'separator' },
         {
           label: "What's New",
           click: (): void => {

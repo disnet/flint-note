@@ -72,6 +72,14 @@ declare global {
         success: boolean;
         error?: string;
       }>;
+      showNoteInFolder: (params: {
+        baseDirectory: string;
+        noteTitle: string;
+        noteTypeName: string;
+      }) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
 
       // Secure storage operations
       secureStorageAvailable: () => Promise<boolean>;

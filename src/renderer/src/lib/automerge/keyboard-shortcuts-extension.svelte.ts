@@ -4,7 +4,7 @@
  * Provides formatting shortcuts and selection-aware behaviors:
  * - Cmd+B: Toggle bold
  * - Cmd+I: Toggle italic
- * - Cmd+Shift+K: Insert link and open edit popover
+ * - Cmd+K: Insert link and open edit popover
  * - [ with selection: Wrap as wikilink
  * - Paste URL with selection: Convert to markdown link
  */
@@ -329,7 +329,7 @@ function createFormattingKeymap(onLinkCreated?: LinkCreatedHandler): Extension {
         run: (view) => toggleFormat(view, '*', '*')
       },
       {
-        key: 'Mod-Shift-k',
+        key: 'Mod-k',
         run: (view) => insertLink(view, onLinkCreated)
       }
     ])
@@ -410,11 +410,11 @@ function createUrlPasteHandler(): Extension {
  * Includes:
  * - Cmd/Ctrl+B for toggling bold
  * - Cmd/Ctrl+I for toggling italic
- * - Cmd/Ctrl+Shift+K for inserting markdown links with edit popover
+ * - Cmd/Ctrl+K for inserting markdown links with edit popover
  * - Typing `[` with selection wraps as wikilink
  * - Pasting URL with selection creates markdown link
  *
- * @param onLinkCreated - Optional callback when a link is created via Cmd+Shift+K
+ * @param onLinkCreated - Optional callback when a link is created via Cmd+K
  *
  * Note: The URL paste handler should be registered before richPasteExtension
  * so it takes precedence for plain URL pastes with selection.

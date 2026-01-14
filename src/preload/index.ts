@@ -67,6 +67,8 @@ const api = {
   showItemInFolder: (params: { path: string }) =>
     electronAPI.ipcRenderer.invoke('show-item-in-folder', params),
   showLogsInFolder: () => electronAPI.ipcRenderer.invoke('show-logs-in-folder'),
+  showNoteInFolder: (params: { baseDirectory: string; noteTitle: string; noteTypeName: string }) =>
+    electronAPI.ipcRenderer.invoke('show-note-in-folder', params),
 
   // Secure storage operations
   secureStorageAvailable: () =>

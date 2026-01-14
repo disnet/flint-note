@@ -85,6 +85,7 @@
   import ChatPanelWeb from './ChatPanelWeb.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
+  import KeyboardShortcutsModal from './KeyboardShortcutsModal.svelte';
   import ReviewViewWeb from './ReviewViewWeb.svelte';
   import InboxView from './InboxView.svelte';
   import RoutinesView from './RoutinesView.svelte';
@@ -169,6 +170,7 @@
       sidebarState.rightSidebar.activePanel === 'shelf'
   );
   let quickSearchOpen = $state(false);
+  let keyboardShortcutsOpen = $state(false);
   let moreMenuOpen = $state(false);
   let moreMenuPosition = $state({ x: 0, y: 0 });
   let isPreviewMode = $state(false);
@@ -892,11 +894,22 @@
         handleCreateVault();
         break;
       case 'switch-vault': {
-        // Open the vault dropdown in sidebar - toggle it by focusing
-        const vaultButton = document.querySelector(
-          '[data-vault-dropdown]'
-        ) as HTMLElement | null;
-        vaultButton?.click();
+        // Ensure sidebar is visible first
+        if (!sidebarState.leftSidebar.visible) {
+          sidebarState.toggleLeftSidebar();
+          // Wait for sidebar to render before clicking vault button
+          setTimeout(() => {
+            const vaultButton = document.querySelector(
+              '[data-vault-dropdown]'
+            ) as HTMLElement | null;
+            vaultButton?.click();
+          }, 100);
+        } else {
+          const vaultButton = document.querySelector(
+            '[data-vault-dropdown]'
+          ) as HTMLElement | null;
+          vaultButton?.click();
+        }
         break;
       }
       case 'show-in-finder':
@@ -1041,6 +1054,9 @@
         break;
 
       // Help actions
+      case 'show-keyboard-shortcuts':
+        keyboardShortcutsOpen = true;
+        break;
       case 'show-changelog':
         showChangelogModal = true;
         break;
@@ -1211,10 +1227,15 @@
       event.preventDefault();
       handleCreateNote();
     }
-    // Cmd/Ctrl + K: Focus search or open quick search (but not Cmd+Shift+K which is for links)
-    if (modifierPressed && event.key === 'k' && !event.shiftKey) {
+    // Cmd/Ctrl + O: Focus search or open quick search
+    if (modifierPressed && event.key === 'o') {
       event.preventDefault();
       handleFocusSearch();
+    }
+    // Cmd/Ctrl + Shift + / (i.e., Cmd+?): Show keyboard shortcuts
+    if (modifierPressed && event.shiftKey && (event.key === '?' || event.key === '/')) {
+      event.preventDefault();
+      keyboardShortcutsOpen = true;
     }
   }
 
@@ -1299,6 +1320,12 @@
     if (key === 'm') {
       event.preventDefault();
       handleMenuAction('change-type');
+      return;
+    }
+    // Ctrl+Shift+/: Show keyboard shortcuts
+    if (key === '?' || key === '/') {
+      event.preventDefault();
+      keyboardShortcutsOpen = true;
       return;
     }
   }
@@ -1852,6 +1879,12 @@
 <ChangelogModal
   isOpen={showChangelogModal}
   onClose={() => (showChangelogModal = false)}
+/>
+
+<!-- Keyboard Shortcuts Modal -->
+<KeyboardShortcutsModal
+  isOpen={keyboardShortcutsOpen}
+  onClose={() => (keyboardShortcutsOpen = false)}
 />
 
 <!-- Legacy Vault Migration Progress Overlay -->

@@ -39,7 +39,7 @@
     { format: 'italic', icon: 'I', label: 'Italic', shortcut: `${cmdKey}I` },
     { format: 'strikethrough', icon: 'S', label: 'Strikethrough' },
     { format: 'code', icon: '<>', label: 'Code' },
-    { format: 'link', icon: '🔗', label: 'Link' },
+    { format: 'link', icon: '🔗', label: 'Link', shortcut: `${cmdKey}K` },
     { format: 'wikilink', icon: '[[', label: 'Wiki Link' }
   ];
 

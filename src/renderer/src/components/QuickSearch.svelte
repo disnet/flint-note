@@ -118,7 +118,7 @@
           oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
           onkeydown={handleKeyDown}
         />
-        <div class="shortcut-hint">{modifierKey}K</div>
+        <div class="shortcut-hint">{modifierKey}O</div>
       </div>
 
       {#if searchQuery.trim() || searchResults.length > 0}

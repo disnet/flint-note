@@ -315,6 +315,7 @@
               class:open={isVaultDropdownOpen}
               onclick={toggleVaultDropdown}
               bind:this={vaultButtonElement}
+              data-vault-dropdown
             >
               <span class="vault-display">
                 <svg
@@ -513,7 +514,7 @@
                 id="search-input"
                 type="text"
                 class="search-input"
-                placeholder="Search notes... (⌘K)"
+                placeholder="Search notes... (⌘O)"
                 value={searchQuery}
                 oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
                 onfocus={onSearchFocus}
