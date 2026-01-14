@@ -95,6 +95,7 @@
     user-select: none;
     z-index: 100;
     background-color: transparent;
+    -webkit-app-region: no-drag;
   }
 
   .resize-handle.left {
