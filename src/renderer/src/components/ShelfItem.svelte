@@ -198,20 +198,26 @@
       <div class="item-content">
         {#if itemType === 'note' && note}
           <!-- Note content viewer based on source format -->
-          <div class="viewer-container">
-            {#if sourceFormat === 'pdf'}
+          {#if sourceFormat === 'pdf'}
+            <div class="viewer-container">
               <PdfViewer {note} />
-            {:else if sourceFormat === 'epub'}
+            </div>
+          {:else if sourceFormat === 'epub'}
+            <div class="viewer-container">
               <EpubViewer {note} />
-            {:else if sourceFormat === 'webpage'}
+            </div>
+          {:else if sourceFormat === 'webpage'}
+            <div class="viewer-container">
               <WebpageViewer {note} />
-            {:else if sourceFormat === 'deck'}
+            </div>
+          {:else if sourceFormat === 'deck'}
+            <div class="viewer-container">
               <DeckViewer {note} onNoteOpen={() => onNavigate()} />
-            {:else}
-              <!-- Default: markdown editor -->
-              <ShelfEditor bind:this={shelfEditorRef} noteId={itemId} />
-            {/if}
-          </div>
+            </div>
+          {:else}
+            <!-- Default: markdown editor (no wrapper - needs its own styling) -->
+            <ShelfEditor bind:this={shelfEditorRef} noteId={itemId} />
+          {/if}
         {:else if itemType === 'conversation'}
           <!-- Conversation messages preview -->
           {#if recentMessages.length > 0}
@@ -276,14 +282,6 @@
 <style>
   .shelf-item {
     border-bottom: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  /* Expanded items fill available space */
-  .shelf-item:has(.item-content) {
-    flex: 1;
   }
 
   .shelf-item:last-child {
@@ -419,10 +417,6 @@
   .item-content {
     padding: 0 12px 12px 24px; /* Extra left padding for gutter plus button */
     animation: slideDown 0.15s ease;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
   }
 
   @keyframes slideDown {
@@ -477,10 +471,11 @@
     word-break: break-word;
   }
 
-  /* Viewer container for non-markdown notes */
+  /* Viewer container for non-markdown notes - use fixed height to avoid flex issues */
   .viewer-container {
-    flex: 1;
-    min-height: 0;
+    height: calc(100vh - 200px);
+    max-height: 600px;
+    min-height: 300px;
     overflow: hidden;
     border-radius: 6px;
     background: var(--bg-secondary);
