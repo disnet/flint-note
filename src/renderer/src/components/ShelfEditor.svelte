@@ -49,7 +49,7 @@
   let { noteId }: Props = $props();
 
   let editorContainer: HTMLElement | null = $state(null);
-  let editorView: EditorView | null = null;
+  let editorView: EditorView | null = $state(null);
 
   // Track current noteId for reactivity
   let currentNoteId = $state(noteId);
