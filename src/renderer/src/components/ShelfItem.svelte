@@ -387,7 +387,7 @@
 
   /* Content area */
   .item-content {
-    padding: 0 12px 12px 12px;
+    padding: 0 12px 12px 24px; /* Extra left padding for gutter plus button */
     animation: slideDown 0.15s ease;
   }
 

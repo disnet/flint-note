@@ -9,7 +9,7 @@
     y: number;
     linkRect: { top: number; bottom: number; left: number; height: number } | null;
     onOpen: () => void;
-    onEdit: () => void;
+    onEdit?: () => void;
     editLabel?: string;
   }
 
@@ -36,7 +36,7 @@
   }
 
   function handleEditClick(): void {
-    onEdit();
+    onEdit?.();
   }
 
   function handleMouseDown(e: MouseEvent): void {
@@ -86,26 +86,28 @@
       <span>Open</span>
       <kbd>{cmdKey}↵</kbd>
     </button>
-    <button
-      type="button"
-      class="action-item"
-      onclick={handleEditClick}
-      onmousedown={handleMouseDown}
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+    {#if editLabel}
+      <button
+        type="button"
+        class="action-item"
+        onclick={handleEditClick}
+        onmousedown={handleMouseDown}
       >
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-        <path d="m15 5 4 4"></path>
-      </svg>
-      <span>{editLabel}</span>
-      <kbd>{altKey}↵</kbd>
-    </button>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+          <path d="m15 5 4 4"></path>
+        </svg>
+        <span>{editLabel}</span>
+        <kbd>{altKey}↵</kbd>
+      </button>
+    {/if}
   </div>
 {/if}
 

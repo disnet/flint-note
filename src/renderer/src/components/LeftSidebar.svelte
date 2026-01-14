@@ -468,7 +468,7 @@
           </div>
           {#if !isMobile}
             <div class="header-spacer"></div>
-            <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
+            <Tooltip text="Toggle sidebar" position="bottom">
               <button
                 class="sidebar-toggle"
                 onclick={onToggleSidebar}
