@@ -297,7 +297,6 @@
   class:mobile-open={mobileDrawerOpen}
   style="--sidebar-width: {currentWidth}px"
 >
-  <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
   <div class="sidebar-inner">
     <!-- Header row with traffic light space, vault switcher, and sidebar toggle -->
     {#if !isMobile}
@@ -639,6 +638,7 @@
     </div>
     <WorkspaceBar {onCreateNote} {onCreateDeck} {onCaptureWebpage} {showShadow} />
   </div>
+  <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
 </div>
 
 <style>
