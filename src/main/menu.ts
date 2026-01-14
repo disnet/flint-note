@@ -24,6 +24,9 @@ let hasActivePdf = false;
 // Track whether multiple workspaces exist (for delete menu item)
 let hasMultipleWorkspaces = false;
 
+// Track whether file sync is enabled for the active vault
+let hasFileSyncEnabled = false;
+
 // Track workspace list for dynamic menu items
 interface WorkspaceMenuItem {
   id: string;
@@ -176,6 +179,7 @@ export function createApplicationMenu(): Menu {
         {
           label: 'Show in Finder',
           accelerator: 'CmdOrCtrl+Shift+R',
+          enabled: hasFileSyncEnabled,
           click: (): void => {
             sendToRenderer('menu-action', 'show-in-finder');
           }
@@ -266,7 +270,7 @@ export function createApplicationMenu(): Menu {
         { type: 'separator' },
         {
           label: 'Toggle Sidebar',
-          accelerator: 'CmdOrCtrl+B',
+          accelerator: 'CmdOrCtrl+\\',
           click: (): void => {
             sendToRenderer('menu-action', 'toggle-sidebar');
           }
@@ -366,6 +370,23 @@ export function createApplicationMenu(): Menu {
           enabled: hasMultipleWorkspaces,
           click: (): void => {
             sendToRenderer('menu-action', 'delete-workspace');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Previous Workspace',
+          accelerator: 'Alt+CmdOrCtrl+Left',
+          enabled: hasMultipleWorkspaces,
+          click: (): void => {
+            sendToRenderer('menu-action', 'previous-workspace');
+          }
+        },
+        {
+          label: 'Next Workspace',
+          accelerator: 'Alt+CmdOrCtrl+Right',
+          enabled: hasMultipleWorkspaces,
+          click: (): void => {
+            sendToRenderer('menu-action', 'next-workspace');
           }
         },
         ...(workspaceList.length > 0
@@ -568,6 +589,16 @@ export function setupApplicationMenu(): void {
   ipcMain.on('menu-set-active-pdf', (_event, isActive: boolean) => {
     if (hasActivePdf !== isActive) {
       hasActivePdf = isActive;
+      // Rebuild menu with updated state
+      const updatedMenu = createApplicationMenu();
+      Menu.setApplicationMenu(updatedMenu);
+    }
+  });
+
+  // Listen for file sync enabled state changes from renderer
+  ipcMain.on('menu-set-file-sync-enabled', (_event, isEnabled: boolean) => {
+    if (hasFileSyncEnabled !== isEnabled) {
+      hasFileSyncEnabled = isEnabled;
       // Rebuild menu with updated state
       const updatedMenu = createApplicationMenu();
       Menu.setApplicationMenu(updatedMenu);

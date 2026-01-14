@@ -828,9 +828,12 @@
     const noteType = getNoteType(activeNote.type);
     const typeName = noteType?.name ?? 'Note';
 
-    // Construct the note file path: <vault>/notes/<TypeName>/<note-title>.md
-    const notePath = `${vault.baseDirectory}/notes/${typeName}/${activeNote.title}.md`;
-    await window.api?.showItemInFolder({ path: notePath });
+    // Use the main process API which applies proper filename sanitization
+    await window.api?.showNoteInFolder({
+      baseDirectory: vault.baseDirectory,
+      noteTitle: activeNote.title,
+      noteTypeName: typeName
+    });
   }
 
   // Focus title handler
@@ -964,6 +967,26 @@
           setActiveWorkspace(args[0]);
         }
         break;
+      case 'previous-workspace': {
+        const workspaces = getWorkspaces();
+        const currentWorkspace = getActiveWorkspace();
+        if (workspaces.length > 1 && currentWorkspace) {
+          const currentIndex = workspaces.findIndex((w) => w.id === currentWorkspace.id);
+          const prevIndex = currentIndex <= 0 ? workspaces.length - 1 : currentIndex - 1;
+          setActiveWorkspace(workspaces[prevIndex].id);
+        }
+        break;
+      }
+      case 'next-workspace': {
+        const workspaces = getWorkspaces();
+        const currentWorkspace = getActiveWorkspace();
+        if (workspaces.length > 1 && currentWorkspace) {
+          const currentIndex = workspaces.findIndex((w) => w.id === currentWorkspace.id);
+          const nextIndex = currentIndex >= workspaces.length - 1 ? 0 : currentIndex + 1;
+          setActiveWorkspace(workspaces[nextIndex].id);
+        }
+        break;
+      }
 
       // Note actions
       case 'toggle-pin':
@@ -1148,6 +1171,14 @@
     window.api?.setMenuActivePdf(isActiveNotePdf);
   });
 
+  // Update menu state when file sync is enabled/disabled (Electron only)
+  $effect(() => {
+    if (!isElectron()) return;
+    const vault = getActiveVault();
+    const hasFileSync = Boolean(vault?.baseDirectory);
+    window.api?.setMenuFileSyncEnabled(hasFileSync);
+  });
+
   // Update menu state when workspaces change (Electron only)
   $effect(() => {
     if (!isElectron()) return;
@@ -1155,11 +1186,13 @@
     const workspace = getActiveWorkspace();
     if (workspace) {
       window.api?.setMenuWorkspaces({
-        workspaces: workspaces.map((w) => ({
-          id: w.id,
-          name: w.name,
-          icon: w.icon
-        })),
+        workspaces: workspaces
+          .filter((w) => w != null)
+          .map((w) => ({
+            id: w.id,
+            name: w.name,
+            icon: w.icon
+          })),
         activeWorkspaceId: workspace.id
       });
     }

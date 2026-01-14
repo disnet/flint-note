@@ -67,8 +67,11 @@ const api = {
   showItemInFolder: (params: { path: string }) =>
     electronAPI.ipcRenderer.invoke('show-item-in-folder', params),
   showLogsInFolder: () => electronAPI.ipcRenderer.invoke('show-logs-in-folder'),
-  showNoteInFolder: (params: { baseDirectory: string; noteTitle: string; noteTypeName: string }) =>
-    electronAPI.ipcRenderer.invoke('show-note-in-folder', params),
+  showNoteInFolder: (params: {
+    baseDirectory: string;
+    noteTitle: string;
+    noteTypeName: string;
+  }) => electronAPI.ipcRenderer.invoke('show-note-in-folder', params),
 
   // Secure storage operations
   secureStorageAvailable: () =>
@@ -164,6 +167,11 @@ const api = {
   // Update menu state for active pdf (enables reader navigation shortcuts)
   setMenuActivePdf: (isActive: boolean): void => {
     electronAPI.ipcRenderer.send('menu-set-active-pdf', isActive);
+  },
+
+  // Update menu state for file sync (enables Show in Finder)
+  setMenuFileSyncEnabled: (isEnabled: boolean): void => {
+    electronAPI.ipcRenderer.send('menu-set-file-sync-enabled', isEnabled);
   },
 
   // Update menu state for workspaces (enables/disables delete, shows workspace list)

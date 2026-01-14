@@ -56,6 +56,7 @@ import {
 } from './migration';
 import { scanMarkdownDirectory, getMarkdownImportData } from './markdown-import';
 import { detectAutomergeVault } from './automerge-import';
+import { toSafeFilename } from './automerge-sync/utils';
 import fontList from 'font-list';
 
 // Handle unhandled promise rejections from automerge-repo when documents are unavailable.
@@ -757,6 +758,34 @@ app.whenReady().then(async () => {
       };
     }
   });
+
+  ipcMain.handle(
+    'show-note-in-folder',
+    async (
+      _event,
+      params: { baseDirectory: string; noteTitle: string; noteTypeName: string }
+    ) => {
+      try {
+        // Use the same sanitization as file sync
+        const safeTypeName = toSafeFilename(params.noteTypeName);
+        const safeTitle = toSafeFilename(params.noteTitle);
+        const notePath = join(
+          params.baseDirectory,
+          'notes',
+          safeTypeName,
+          `${safeTitle}.md`
+        );
+        shell.showItemInFolder(notePath);
+        return { success: true };
+      } catch (error) {
+        logger.error('Failed to show note in folder', { error, params });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
 
   ipcMain.handle('show-logs-in-folder', async () => {
     try {

@@ -56,7 +56,7 @@
       title: 'Search & View',
       shortcuts: [
         { keys: `${cmdKey}O`, description: 'Quick search' },
-        { keys: `${cmdKey}B`, description: 'Toggle sidebar' },
+        { keys: `${cmdKey}\\`, description: 'Toggle sidebar' },
         { keys: `${cmdKey}E`, description: 'Focus title' },
         { keys: `${cmdKey}⇧E`, description: 'Toggle preview/edit' },
         { keys: `${cmdKey}⇧A`, description: 'Toggle agent panel' },
@@ -89,7 +89,9 @@
     {
       title: 'Workspaces',
       shortcuts: [
-        { keys: isMac ? 'Ctrl+1-9' : `${optKey}1-9`, description: 'Switch workspace' }
+        { keys: isMac ? 'Ctrl+1-9' : `${optKey}1-9`, description: 'Switch workspace' },
+        { keys: `${optKey}${cmdKey}←`, description: 'Previous workspace' },
+        { keys: `${optKey}${cmdKey}→`, description: 'Next workspace' }
       ]
     }
   ];

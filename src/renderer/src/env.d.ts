@@ -143,6 +143,7 @@ declare global {
       setMenuActiveNote: (isActive: boolean) => void;
       setMenuActiveEpub: (isActive: boolean) => void;
       setMenuActivePdf: (isActive: boolean) => void;
+      setMenuFileSyncEnabled: (isEnabled: boolean) => void;
       setMenuWorkspaces: (data: {
         workspaces: Array<{ id: string; name: string; icon: string }>;
         activeWorkspaceId: string;
