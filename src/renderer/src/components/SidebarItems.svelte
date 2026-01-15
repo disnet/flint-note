@@ -881,10 +881,14 @@
     return false;
   });
 
-  // Check if the context menu item is on the shelf (only notes and conversations can be on shelf)
+  // Check if the context menu item is on the shelf
   const contextMenuItemOnShelf = $derived.by(() => {
     if (!contextMenuItemId || !contextMenuItemType) return false;
-    if (contextMenuItemType !== 'note' && contextMenuItemType !== 'conversation')
+    if (
+      contextMenuItemType !== 'note' &&
+      contextMenuItemType !== 'conversation' &&
+      contextMenuItemType !== 'saved-search'
+    )
       return false;
     return isItemOnShelf(contextMenuItemType, contextMenuItemId);
   });
@@ -898,8 +902,13 @@
 
   function handleToggleShelf(): void {
     if (!contextMenuItemId || !contextMenuItemType) return;
-    // Only notes and conversations can be on shelf
-    if (contextMenuItemType !== 'note' && contextMenuItemType !== 'conversation') return;
+    // Only notes, conversations, and saved searches can be on shelf
+    if (
+      contextMenuItemType !== 'note' &&
+      contextMenuItemType !== 'conversation' &&
+      contextMenuItemType !== 'saved-search'
+    )
+      return;
     if (contextMenuItemOnShelf) {
       removeShelfItem(contextMenuItemType, contextMenuItemId);
     } else {
@@ -1124,6 +1133,16 @@
 
 <!-- Context menu -->
 {#if contextMenuOpen}
+  <!-- Backdrop to catch clicks outside menu -->
+  <div
+    class="context-menu-backdrop"
+    onclick={closeContextMenu}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      closeContextMenu();
+    }}
+    role="presentation"
+  ></div>
   <div
     bind:this={contextMenuElement}
     class="context-menu"
@@ -1153,8 +1172,8 @@
       >
     </button>
 
-    <!-- Shelf toggle (only for notes and conversations) -->
-    {#if contextMenuItemType === 'note' || contextMenuItemType === 'conversation'}
+    <!-- Shelf toggle (for notes, conversations, and saved searches) -->
+    {#if contextMenuItemType === 'note' || contextMenuItemType === 'conversation' || contextMenuItemType === 'saved-search'}
       <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
         <svg
           width="14"
@@ -1570,6 +1589,13 @@
   }
 
   /* Context menu styles */
+  .context-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    -webkit-app-region: no-drag;
+  }
+
   .context-menu {
     position: fixed;
     z-index: 1000;

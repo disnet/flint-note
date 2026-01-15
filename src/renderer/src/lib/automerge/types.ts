@@ -599,7 +599,7 @@ export interface SavedSearch {
  * Shelf item stored in Automerge document
  */
 export interface ShelfItemData {
-  type: 'note' | 'conversation';
+  type: 'note' | 'conversation' | 'saved-search';
   id: string;
   isExpanded: boolean;
 }

@@ -9,18 +9,23 @@
     getNote,
     getConversationEntry,
     getNoteType,
+    getNoteTypes,
+    getNotes,
     automergeShelfStore,
-    getSourceFormat
+    getSourceFormat,
+    getSavedSearch,
+    setActiveItem
   } from '../lib/automerge';
   import ShelfEditor from './ShelfEditor.svelte';
   import PdfViewer from './PdfViewer.svelte';
   import EpubViewer from './EpubViewer.svelte';
   import WebpageViewer from './WebpageViewer.svelte';
   import DeckViewer from './DeckViewer.svelte';
+  import ExpandedSearchView from './ExpandedSearchView.svelte';
 
   interface Props {
-    /** Type of item (note or conversation) */
-    itemType: 'note' | 'conversation';
+    /** Type of item (note, conversation, or saved-search) */
+    itemType: 'note' | 'conversation' | 'saved-search';
     /** ID of the item */
     itemId: string;
     /** Whether content is expanded */
@@ -66,9 +71,16 @@
   const conversationEntry = $derived(
     itemType === 'conversation' ? getConversationEntry(itemId) : undefined
   );
+  const savedSearch = $derived(
+    itemType === 'saved-search' ? getSavedSearch(itemId) : undefined
+  );
   const noteType = $derived(note ? getNoteType(note.type) : undefined);
   const sourceFormat = $derived(note ? getSourceFormat(note) : 'markdown');
   const isMarkdown = $derived(sourceFormat === 'markdown');
+
+  // For saved searches: get all notes and note types
+  const allNotes = $derived(itemType === 'saved-search' ? getNotes() : []);
+  const allNoteTypes = $derived(itemType === 'saved-search' ? getNoteTypes() : {});
 
   // Compute display properties
   const title = $derived.by(() => {
@@ -78,6 +90,9 @@
     if (itemType === 'conversation' && conversationEntry) {
       return conversationEntry.title || 'Untitled Conversation';
     }
+    if (itemType === 'saved-search' && savedSearch) {
+      return savedSearch.title || savedSearch.query || 'Untitled Search';
+    }
     return 'Unknown';
   });
 
@@ -85,13 +100,14 @@
     if (itemType === 'note' && noteType) {
       return noteType.icon || '📝';
     }
-    return null; // Conversations use SVG icon
+    return null; // Conversations and saved searches use SVG icon
   });
 
   const isArchived = $derived.by(() => {
     if (itemType === 'note' && note) return note.archived;
     if (itemType === 'conversation' && conversationEntry)
       return conversationEntry.archived;
+    if (itemType === 'saved-search' && savedSearch) return savedSearch.archived;
     return false;
   });
 
@@ -105,7 +121,8 @@
   // Check if item exists (not deleted)
   const exists = $derived(
     (itemType === 'note' && note !== undefined) ||
-      (itemType === 'conversation' && conversationEntry !== undefined)
+      (itemType === 'conversation' && conversationEntry !== undefined) ||
+      (itemType === 'saved-search' && savedSearch !== undefined)
   );
 
   function handleTitleClick(event: MouseEvent): void {
@@ -160,6 +177,21 @@
             <path
               d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
             ></path>
+          </svg>
+        {:else if itemType === 'saved-search'}
+          <!-- Search icon -->
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
           </svg>
         {:else}
           <!-- Note emoji icon -->
@@ -234,6 +266,20 @@
           {:else}
             <div class="empty-content">No messages</div>
           {/if}
+        {:else if itemType === 'saved-search' && savedSearch}
+          <!-- Saved search results -->
+          <div class="search-viewer-container">
+            <ExpandedSearchView
+              searchQuery={savedSearch.query}
+              {allNotes}
+              noteTypes={allNoteTypes}
+              onClose={() => {}}
+              onSelect={(selectedNote) => {
+                setActiveItem({ type: 'note', id: selectedNote.id });
+              }}
+              savedSearchId={itemId}
+            />
+          </div>
         {/if}
       </div>
     {/if}
@@ -469,6 +515,29 @@
 
   .message-text {
     word-break: break-word;
+  }
+
+  /* Saved search viewer */
+  .search-viewer-container {
+    height: calc(100vh - 200px);
+    max-height: 600px;
+    min-height: 300px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+  }
+
+  .search-viewer-container :global(.expanded-search-view) {
+    height: 100%;
+  }
+
+  .search-viewer-container :global(.search-header) {
+    padding: 0.75rem;
+  }
+
+  .search-viewer-container :global(.results-container) {
+    padding: 0;
   }
 
   /* Viewer container for non-markdown notes - use fixed height to avoid flex issues */
