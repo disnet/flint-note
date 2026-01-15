@@ -1,5 +1,13 @@
 # Changelog - Release
 
+## [0.15.3]
+
+### Added
+
+**Expanded search & Save Searches**
+
+When searching use `Cmd+Shift+Enter` to see search results across all notes. Save search results to refer back to them later.
+
 ## [0.15.2]
 
 ### Fixed
