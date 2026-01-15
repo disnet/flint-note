@@ -123,6 +123,14 @@ export function generateConversationId(): string {
 }
 
 /**
+ * Generate a saved search ID
+ * Format: "search-xxxxxxxx"
+ */
+export function generateSavedSearchId(): string {
+  return generateId('search');
+}
+
+/**
  * Generate a message ID
  * Format: "msg-xxxxxxxx"
  */

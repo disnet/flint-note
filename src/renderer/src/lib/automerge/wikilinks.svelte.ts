@@ -32,7 +32,8 @@ import {
   getNoteTypes,
   getNoteType,
   getConversationEntry,
-  getConversations
+  getConversations,
+  getSavedSearch
 } from './state.svelte';
 
 import { wikilinkTheme } from '../wikilink-theme';
@@ -41,13 +42,16 @@ import { wikilinkTheme } from '../wikilink-theme';
 const COMPLETION_ICON_STYLE_ID = 'wikilink-completion-icons';
 
 // Type to distinguish link targets
-export type WikilinkTargetType = 'note' | 'conversation' | 'type';
+export type WikilinkTargetType = 'note' | 'conversation' | 'type' | 'saved-search';
 
 // Regex to match conversation IDs: conv-xxxxxxxx (8 hex chars)
 const CONVERSATION_ID_REGEX = /^conv-[a-f0-9]{8}$/i;
 
 // Regex to match note type IDs: type-xxxxxxxx (8 hex chars) or protected types like type-default, type-daily
 const NOTE_TYPE_ID_REGEX = /^type-[a-z0-9]+$/i;
+
+// Regex to match saved search IDs: search-xxxxxxxx (8 hex chars)
+const SAVED_SEARCH_ID_REGEX = /^search-[a-f0-9]{8}$/i;
 
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
 const WIKILINK_REGEX = /\[\[([^[\]]+)\]\]/g;
@@ -63,6 +67,7 @@ export interface WikilinkMatch {
   targetType: WikilinkTargetType;
   conversationId?: string;
   typeId?: string;
+  savedSearchId?: string;
 }
 
 export interface WikilinkClickHandler {
@@ -93,6 +98,7 @@ export interface WikilinkHoverHandler {
       targetType: WikilinkTargetType;
       conversationId?: string;
       typeId?: string;
+      savedSearchId?: string;
     } | null
   ): void;
 }
@@ -196,6 +202,10 @@ function isNoteTypeId(identifier: string): boolean {
   return NOTE_TYPE_ID_REGEX.test(identifier.trim());
 }
 
+function isSavedSearchId(identifier: string): boolean {
+  return SAVED_SEARCH_ID_REGEX.test(identifier.trim());
+}
+
 /**
  * Find a conversation by identifier (conversation ID only - no title matching)
  * Unlike notes, conversations can only be linked by ID
@@ -241,6 +251,7 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
     let noteId: string | undefined;
     let conversationId: string | undefined;
     let typeId: string | undefined;
+    let savedSearchId: string | undefined;
 
     if (isConversationId(identifier)) {
       // This is a conversation link
@@ -254,6 +265,12 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
       const noteType = getNoteType(identifier);
       exists = !!noteType && !noteType.archived;
       typeId = noteType?.id;
+    } else if (isSavedSearchId(identifier)) {
+      // This is a saved search link
+      targetType = 'saved-search';
+      const savedSearch = getSavedSearch(identifier);
+      exists = !!savedSearch && !savedSearch.archived;
+      savedSearchId = savedSearch?.id;
     } else {
       // This is a note link
       targetType = 'note';
@@ -272,7 +289,8 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
       noteId,
       targetType,
       conversationId,
-      typeId
+      typeId,
+      savedSearchId
     });
   }
 
@@ -477,7 +495,8 @@ class WikilinkWidget extends WidgetType {
     private icon: string,
     private targetType: WikilinkTargetType,
     private conversationId: string | undefined,
-    private typeId: string | undefined
+    private typeId: string | undefined,
+    private savedSearchId: string | undefined
   ) {
     super();
   }
@@ -497,6 +516,9 @@ class WikilinkWidget extends WidgetType {
     } else if (this.targetType === 'type' && this.typeId) {
       const noteType = getNoteType(this.typeId);
       isArchived = noteType?.archived ?? false;
+    } else if (this.targetType === 'saved-search' && this.savedSearchId) {
+      const savedSearch = getSavedSearch(this.savedSearchId);
+      isArchived = savedSearch?.archived ?? false;
     }
 
     // Build class name - use wikilink- prefix for theme compatibility
@@ -530,10 +552,15 @@ class WikilinkWidget extends WidgetType {
         if (noteType) {
           displayText = noteType.name;
         }
+      } else if (this.targetType === 'saved-search' && this.savedSearchId) {
+        const savedSearch = getSavedSearch(this.savedSearchId);
+        if (savedSearch) {
+          displayText = savedSearch.title;
+        }
       }
     }
 
-    // Click handler - different behavior for conversations and types
+    // Click handler - different behavior for conversations, types, and saved searches
     const handleClick = (e: MouseEvent): void => {
       e.preventDefault();
       e.stopPropagation();
@@ -554,6 +581,14 @@ class WikilinkWidget extends WidgetType {
             });
           }
           // For broken type links: do nothing (no creation)
+        } else if (this.targetType === 'saved-search') {
+          // Saved searches: only navigate if exists, never create
+          if (this.exists && this.savedSearchId) {
+            this.clickHandler(this.savedSearchId, this.displayTitle, {
+              targetType: 'saved-search'
+            });
+          }
+          // For broken saved search links: do nothing (no creation)
         } else {
           // Notes: existing behavior
           if (this.exists && this.noteId) {
@@ -622,7 +657,8 @@ class WikilinkWidget extends WidgetType {
         noteId: this.noteId,
         targetType: this.targetType,
         conversationId: this.conversationId,
-        typeId: this.typeId
+        typeId: this.typeId,
+        savedSearchId: this.savedSearchId
       });
     };
 
@@ -699,7 +735,8 @@ class WikilinkWidget extends WidgetType {
       this.icon === other.icon &&
       this.targetType === other.targetType &&
       this.conversationId === other.conversationId &&
-      this.typeId === other.typeId
+      this.typeId === other.typeId &&
+      this.savedSearchId === other.savedSearchId
     );
   }
 
@@ -805,6 +842,8 @@ function createWikilinkDecorations(
       icon = '💬';
     } else if (wikilink.targetType === 'type') {
       icon = '🏷️';
+    } else if (wikilink.targetType === 'saved-search') {
+      icon = '🔍';
     } else if (wikilink.exists && wikilink.noteId) {
       // Get icon from note type for notes
       const note = notes.find((n) => n.id === wikilink.noteId);
@@ -832,7 +871,8 @@ function createWikilinkDecorations(
       icon,
       wikilink.targetType,
       wikilink.conversationId,
-      wikilink.typeId
+      wikilink.typeId,
+      wikilink.savedSearchId
     );
 
     decorations.push(

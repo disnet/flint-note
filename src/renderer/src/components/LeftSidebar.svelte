@@ -28,6 +28,7 @@
     activeSystemView:
       | 'settings'
       | 'search'
+      | 'expanded-search'
       | 'types'
       | 'daily'
       | 'review'
@@ -87,6 +88,11 @@
     isMobile = false,
     mobileDrawerOpen = false
   }: Props = $props();
+
+  // Detect platform for shortcut display
+  const isMacPlatform =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
+  const modifierKey = isMacPlatform ? '⌘' : 'Ctrl';
 
   // Width state - track local width during resize
   let localWidth = $state<number | null>(null);
@@ -513,13 +519,16 @@
                 id="search-input"
                 type="text"
                 class="search-input"
-                placeholder="Search notes... (⌘O)"
+                placeholder="Search notes... ({modifierKey}O)"
                 value={searchQuery}
                 oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
                 onfocus={onSearchFocus}
                 onblur={onSearchBlur}
                 onkeydown={onSearchKeyDown}
               />
+              {#if searchQuery.trim()}
+                <span class="shortcut-hint">{modifierKey}⇧↵ show all</span>
+              {/if}
             </div>
             {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
               <div class="search-dropdown">
@@ -591,6 +600,9 @@
               onblur={onSearchBlur}
               onkeydown={onSearchKeyDown}
             />
+            {#if searchQuery.trim()}
+              <span class="shortcut-hint">{modifierKey}⇧↵ show all</span>
+            {/if}
           </div>
           {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0) && mobileSearchDropdownPosition}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1095,6 +1107,13 @@
 
   .search-input::placeholder {
     color: var(--text-muted);
+  }
+
+  .shortcut-hint {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    white-space: nowrap;
   }
 
   /* Prevent Safari auto-zoom on input focus */

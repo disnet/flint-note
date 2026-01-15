@@ -43,7 +43,8 @@ import type {
   SourceFormat,
   ReviewData,
   ReviewHistoryEntry,
-  ReviewStatus
+  ReviewStatus,
+  SavedSearch
 } from './types';
 import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 import {
@@ -62,6 +63,7 @@ import {
   generateRoutineMaterialId,
   generatePropertyId,
   generateVaultId,
+  generateSavedSearchId,
   nowISO,
   clone,
   cloneIfObject
@@ -740,6 +742,11 @@ function restoreLastViewState(): void {
     } else if (lastActiveItem.type === 'conversation') {
       const entry = doc.conversationIndex?.[lastActiveItem.id];
       if (entry && !entry.archived) {
+        activeItem = lastActiveItem;
+      }
+    } else if (lastActiveItem.type === 'saved-search') {
+      const savedSearch = doc.savedSearches?.[lastActiveItem.id];
+      if (savedSearch && !savedSearch.archived) {
         activeItem = lastActiveItem;
       }
     }
@@ -1532,6 +1539,19 @@ function refToSidebarItem(
       updated: entry.updated,
       metadata: {
         messageCount: entry.messageCount
+      }
+    };
+  } else if (ref.type === 'saved-search') {
+    const savedSearch = currentDoc.savedSearches?.[ref.id];
+    if (!savedSearch || savedSearch.archived) return null;
+    return {
+      id: savedSearch.id,
+      type: 'saved-search',
+      title: savedSearch.title,
+      icon: '🔍',
+      updated: savedSearch.updated,
+      metadata: {
+        archived: savedSearch.archived
       }
     };
   }
@@ -2416,7 +2436,7 @@ export async function navigateToNote(
   title: string,
   options?: {
     shouldCreate?: boolean;
-    targetType?: 'note' | 'conversation' | 'type';
+    targetType?: 'note' | 'conversation' | 'type' | 'saved-search';
   }
 ): Promise<string> {
   const targetType = options?.targetType || 'note';
@@ -2431,6 +2451,11 @@ export async function navigateToNote(
     // Navigate to note type definition screen
     setSelectedNoteTypeId(targetId);
     setActiveSystemView('types');
+    return targetId;
+  } else if (targetType === 'saved-search') {
+    // Navigate to saved search (never create via wikilink)
+    setActiveItem({ type: 'saved-search', id: targetId });
+    addItemToWorkspace({ type: 'saved-search', id: targetId });
     return targetId;
   } else {
     // Note handling
@@ -3208,6 +3233,172 @@ export function bumpItemToRecent(ref: SidebarItemRef): void {
     // Add to end
     ws.recentItemIds.push(ref);
   });
+}
+
+// --- Saved Search getters (reactive) ---
+
+/**
+ * Get all saved searches (non-archived), sorted by updated time (newest first)
+ */
+export function getSavedSearches(): SavedSearch[] {
+  const searches = currentDoc.savedSearches ?? {};
+  return Object.values(searches)
+    .filter((s) => !s.archived)
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+}
+
+/**
+ * Get a saved search by ID
+ */
+export function getSavedSearch(id: string): SavedSearch | undefined {
+  return currentDoc.savedSearches?.[id];
+}
+
+// --- Saved Search mutations ---
+
+/**
+ * Create a new saved search
+ * @returns The ID of the created search
+ */
+export function createSavedSearch(params: {
+  query: string;
+  title?: string;
+  addToRecent?: boolean;
+}): string {
+  if (!docHandle) throw new Error('Not initialized');
+
+  const id = generateSavedSearchId();
+  const now = nowISO();
+  const addToRecent = params.addToRecent ?? true;
+
+  // Default title is the query (truncated if too long)
+  const title =
+    params.title ||
+    (params.query.length > 50 ? params.query.slice(0, 47) + '...' : params.query);
+
+  docHandle.change((doc) => {
+    if (!doc.savedSearches) {
+      doc.savedSearches = {};
+    }
+
+    const savedSearch: SavedSearch = {
+      id,
+      title,
+      query: params.query,
+      created: now,
+      updated: now
+    };
+
+    doc.savedSearches[id] = savedSearch;
+
+    // Add to active workspace's recent items
+    if (addToRecent) {
+      const workspace = doc.workspaces[doc.activeWorkspaceId];
+      if (workspace) {
+        if (!workspace.recentItemIds) {
+          workspace.recentItemIds = [];
+        }
+        workspace.recentItemIds.push({ type: 'saved-search', id });
+      }
+    }
+  });
+
+  return id;
+}
+
+/**
+ * Update a saved search
+ */
+export function updateSavedSearch(
+  id: string,
+  updates: Partial<Pick<SavedSearch, 'title' | 'query'>>
+): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const savedSearch = doc.savedSearches?.[id];
+    if (!savedSearch) return;
+
+    if (updates.title !== undefined) {
+      savedSearch.title = updates.title;
+    }
+    if (updates.query !== undefined) {
+      savedSearch.query = updates.query;
+    }
+    savedSearch.updated = nowISO();
+  });
+}
+
+/**
+ * Archive a saved search (soft delete)
+ */
+export function archiveSavedSearch(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    const savedSearch = doc.savedSearches?.[id];
+    if (!savedSearch) return;
+
+    savedSearch.archived = true;
+    savedSearch.updated = nowISO();
+
+    // Remove from all workspace pinned/recent lists
+    const workspaces = Object.values(doc.workspaces) as Workspace[];
+    for (const workspace of workspaces) {
+      if (workspace.pinnedItemIds) {
+        const idx = workspace.pinnedItemIds.findIndex(
+          (r) => r.type === 'saved-search' && r.id === id
+        );
+        if (idx !== -1) workspace.pinnedItemIds.splice(idx, 1);
+      }
+      if (workspace.recentItemIds) {
+        const idx = workspace.recentItemIds.findIndex(
+          (r) => r.type === 'saved-search' && r.id === id
+        );
+        if (idx !== -1) workspace.recentItemIds.splice(idx, 1);
+      }
+    }
+  });
+
+  // Clear active item if it was this search
+  if (activeItem?.type === 'saved-search' && activeItem.id === id) {
+    setActiveItem(null);
+  }
+}
+
+/**
+ * Permanently delete a saved search
+ */
+export function deleteSavedSearch(id: string): void {
+  if (!docHandle) throw new Error('Not initialized');
+
+  docHandle.change((doc) => {
+    if (doc.savedSearches) {
+      delete doc.savedSearches[id];
+    }
+
+    // Remove from all workspace pinned/recent lists
+    const workspaces = Object.values(doc.workspaces) as Workspace[];
+    for (const workspace of workspaces) {
+      if (workspace.pinnedItemIds) {
+        const idx = workspace.pinnedItemIds.findIndex(
+          (r) => r.type === 'saved-search' && r.id === id
+        );
+        if (idx !== -1) workspace.pinnedItemIds.splice(idx, 1);
+      }
+      if (workspace.recentItemIds) {
+        const idx = workspace.recentItemIds.findIndex(
+          (r) => r.type === 'saved-search' && r.id === id
+        );
+        if (idx !== -1) workspace.recentItemIds.splice(idx, 1);
+      }
+    }
+  });
+
+  // Clear active item if it was this search
+  if (activeItem?.type === 'saved-search' && activeItem.id === id) {
+    setActiveItem(null);
+  }
 }
 
 // --- File Sync Functions ---

@@ -51,6 +51,7 @@
     isLegacyVault,
     finalizeLegacyVaultMigration,
     selectSyncDirectory,
+    getSavedSearch,
     type NoteMetadata,
     type SearchResult,
     type EnhancedSearchResult,
@@ -72,6 +73,7 @@
   import LeftSidebar from './LeftSidebar.svelte';
   import NoteEditor from './NoteEditor.svelte';
   import SearchView from './SearchView.svelte';
+  import ExpandedSearchView from './ExpandedSearchView.svelte';
   import NoteTypesView from './NoteTypesView.svelte';
   import SettingsView from './SettingsView.svelte';
   import EpubViewer from './EpubViewer.svelte';
@@ -111,6 +113,9 @@
   const noteTypes = $derived(getNoteTypes());
   const activeItem = $derived(getActiveItem());
   const activeNote = $derived(getActiveNote());
+  const activeSavedSearch = $derived(
+    activeItem?.type === 'saved-search' ? getSavedSearch(activeItem.id) : undefined
+  );
   const vaults = $derived(getNonArchivedVaults());
   const activeVault = $derived(getActiveVault());
 
@@ -213,15 +218,20 @@
 
   // Add current active item to shelf
   function handleAddToShelf(): void {
-    if (activeItem) {
+    if (
+      activeItem &&
+      (activeItem.type === 'note' || activeItem.type === 'conversation')
+    ) {
       automergeShelfStore.addItem(activeItem.type, activeItem.id);
       openShelfPanel();
     }
   }
 
-  // Check if current item is on shelf
+  // Check if current item is on shelf (only notes and conversations can be on shelf)
   const isOnShelf = $derived(
-    activeItem ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id) : false
+    activeItem && (activeItem.type === 'note' || activeItem.type === 'conversation')
+      ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id)
+      : false
   );
 
   // Check if current item is pinned
@@ -438,10 +448,24 @@
       selectedSearchIndex = (selectedSearchIndex - 1 + maxIndex) % maxIndex;
     }
 
+    // Cmd/Ctrl+Shift+Enter: Open expanded search results view
+    if (
+      event.key === 'Enter' &&
+      (event.metaKey || event.ctrlKey) &&
+      event.shiftKey &&
+      searchQuery.trim()
+    ) {
+      event.preventDefault();
+      setActiveSystemView('expanded-search');
+      setActiveItem(null);
+      return;
+    }
+
     // Cmd/Ctrl+Enter: Add selected result to shelf
     if (
       event.key === 'Enter' &&
       (event.metaKey || event.ctrlKey) &&
+      !event.shiftKey &&
       searchResults.length > 0 &&
       selectedSearchIndex < maxIndex
     ) {
@@ -1615,6 +1639,14 @@
               onClose={() => setActiveSystemView(null)}
               onSelect={handleSearchResultSelect}
             />
+          {:else if activeSystemView === 'expanded-search'}
+            <ExpandedSearchView
+              {searchQuery}
+              {allNotes}
+              noteTypes={noteTypesRecord}
+              onClose={() => setActiveSystemView(null)}
+              onSelect={handleSearchResultSelect}
+            />
           {:else if activeSystemView === 'types'}
             <!-- Note Types View -->
             <NoteTypesView
@@ -1642,6 +1674,16 @@
                   sidebarState.openPanel('chat');
                 }
               }}
+            />
+          {:else if activeSavedSearch}
+            <!-- Saved Search View -->
+            <ExpandedSearchView
+              searchQuery={activeSavedSearch.query}
+              {allNotes}
+              noteTypes={noteTypesRecord}
+              onClose={() => setActiveItem(null)}
+              onSelect={handleSearchResultSelect}
+              savedSearchId={activeSavedSearch.id}
             />
           {:else if activeNote}
             {#if isActiveNoteEpub}

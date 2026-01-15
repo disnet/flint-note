@@ -10,7 +10,7 @@
  * Types of items that can appear in the sidebar
  * Extensible for future types: 'epub' | 'pdf' | 'bookmark'
  */
-export type SidebarItemType = 'note' | 'conversation';
+export type SidebarItemType = 'note' | 'conversation' | 'saved-search';
 
 /**
  * Reference to a sidebar item stored in workspace arrays
@@ -43,6 +43,7 @@ export interface SidebarItem {
 export type ActiveItem =
   | { type: 'note'; id: string }
   | { type: 'conversation'; id: string }
+  | { type: 'saved-search'; id: string }
   | null;
 
 /**
@@ -51,6 +52,7 @@ export type ActiveItem =
 export type SystemView =
   | 'settings'
   | 'search'
+  | 'expanded-search'
   | 'types'
   | 'daily'
   | 'review'
@@ -567,6 +569,30 @@ export interface NotesDocument {
   processedNoteIds?: Record<string, string>;
   /** Mapping of noteId -> Automerge URL for content documents */
   contentUrls?: Record<string, string>;
+  /** Saved searches keyed by ID */
+  savedSearches?: Record<string, SavedSearch>;
+}
+
+// ============================================================================
+// Saved Search Types
+// ============================================================================
+
+/**
+ * A saved search that can be displayed in the sidebar and linked to via wikilinks
+ */
+export interface SavedSearch {
+  /** Unique ID with format "search-xxxxxxxx" */
+  id: string;
+  /** User-defined title for the search */
+  title: string;
+  /** The search query text */
+  query: string;
+  /** ISO timestamp when created */
+  created: string;
+  /** ISO timestamp when last updated */
+  updated: string;
+  /** Soft delete flag */
+  archived?: boolean;
 }
 
 /**
