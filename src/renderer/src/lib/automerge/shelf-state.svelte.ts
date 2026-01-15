@@ -50,35 +50,39 @@ class ShelfStore {
   /**
    * Check if an item is on the shelf
    */
-  isOnShelf(type: 'note' | 'conversation', id: string): boolean {
+  isOnShelf(type: 'note' | 'conversation' | 'saved-search', id: string): boolean {
     return isItemOnShelf(type, id);
   }
 
   /**
    * Add an item to the shelf
    */
-  addItem(type: 'note' | 'conversation', id: string): void {
+  addItem(type: 'note' | 'conversation' | 'saved-search', id: string): void {
     addShelfItem(type, id);
   }
 
   /**
    * Remove an item from the shelf
    */
-  removeItem(type: 'note' | 'conversation', id: string): void {
+  removeItem(type: 'note' | 'conversation' | 'saved-search', id: string): void {
     removeShelfItem(type, id);
   }
 
   /**
    * Toggle the expanded state of an item
    */
-  toggleExpanded(type: 'note' | 'conversation', id: string): void {
+  toggleExpanded(type: 'note' | 'conversation' | 'saved-search', id: string): void {
     toggleShelfItemExpanded(type, id);
   }
 
   /**
    * Set the expanded state of an item
    */
-  setExpanded(type: 'note' | 'conversation', id: string, expanded: boolean): void {
+  setExpanded(
+    type: 'note' | 'conversation' | 'saved-search',
+    id: string,
+    expanded: boolean
+  ): void {
     setShelfItemExpanded(type, id, expanded);
   }
 

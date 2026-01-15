@@ -19,7 +19,7 @@
     /** Toggle expand/collapse callback */
     onToggleExpand?: () => void;
     /** Navigate to item callback */
-    onNavigate?: (type: 'note' | 'conversation', id: string) => void;
+    onNavigate?: (type: 'note' | 'conversation' | 'saved-search', id: string) => void;
     /** Switch to chat panel callback (only used in expanded mode) */
     onSwitchToChat?: () => void;
   }

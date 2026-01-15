@@ -3527,7 +3527,10 @@ export function getShelfItems(): ShelfItemData[] {
 /**
  * Check if an item is on the shelf
  */
-export function isItemOnShelf(type: 'note' | 'conversation', id: string): boolean {
+export function isItemOnShelf(
+  type: 'note' | 'conversation' | 'saved-search',
+  id: string
+): boolean {
   const items = currentDoc.shelfItems ?? [];
   return items.some((item) => item.type === type && item.id === id);
 }
@@ -3535,7 +3538,10 @@ export function isItemOnShelf(type: 'note' | 'conversation', id: string): boolea
 /**
  * Add an item to the shelf
  */
-export function addShelfItem(type: 'note' | 'conversation', id: string): void {
+export function addShelfItem(
+  type: 'note' | 'conversation' | 'saved-search',
+  id: string
+): void {
   if (!docHandle) throw new Error('Not initialized');
 
   // Don't add if already on shelf
@@ -3552,7 +3558,10 @@ export function addShelfItem(type: 'note' | 'conversation', id: string): void {
 /**
  * Remove an item from the shelf
  */
-export function removeShelfItem(type: 'note' | 'conversation', id: string): void {
+export function removeShelfItem(
+  type: 'note' | 'conversation' | 'saved-search',
+  id: string
+): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
@@ -3569,7 +3578,10 @@ export function removeShelfItem(type: 'note' | 'conversation', id: string): void
 /**
  * Toggle the expanded state of a shelf item
  */
-export function toggleShelfItemExpanded(type: 'note' | 'conversation', id: string): void {
+export function toggleShelfItemExpanded(
+  type: 'note' | 'conversation' | 'saved-search',
+  id: string
+): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
@@ -3585,7 +3597,7 @@ export function toggleShelfItemExpanded(type: 'note' | 'conversation', id: strin
  * Set the expanded state of a shelf item
  */
 export function setShelfItemExpanded(
-  type: 'note' | 'conversation',
+  type: 'note' | 'conversation' | 'saved-search',
   id: string,
   expanded: boolean
 ): void {

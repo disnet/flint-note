@@ -220,16 +220,21 @@
   function handleAddToShelf(): void {
     if (
       activeItem &&
-      (activeItem.type === 'note' || activeItem.type === 'conversation')
+      (activeItem.type === 'note' ||
+        activeItem.type === 'conversation' ||
+        activeItem.type === 'saved-search')
     ) {
       automergeShelfStore.addItem(activeItem.type, activeItem.id);
       openShelfPanel();
     }
   }
 
-  // Check if current item is on shelf (only notes and conversations can be on shelf)
+  // Check if current item is on shelf
   const isOnShelf = $derived(
-    activeItem && (activeItem.type === 'note' || activeItem.type === 'conversation')
+    activeItem &&
+      (activeItem.type === 'note' ||
+        activeItem.type === 'conversation' ||
+        activeItem.type === 'saved-search')
       ? automergeShelfStore.isOnShelf(activeItem.type, activeItem.id)
       : false
   );

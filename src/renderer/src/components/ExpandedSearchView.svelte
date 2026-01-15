@@ -166,16 +166,6 @@
     }
   }
 
-  function expandAll(): void {
-    for (const result of expandedResults) {
-      expandedNotes.add(result.note.id);
-    }
-  }
-
-  function collapseAll(): void {
-    expandedNotes.clear();
-  }
-
   function handleNoteClick(note: NoteMetadata): void {
     onSelect(note);
   }
@@ -240,10 +230,11 @@
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
           </svg>
+          <span>Saved</span>
         </span>
       {:else}
         <button
-          class="control-btn save-btn"
+          class="save-btn"
           onclick={handleSaveSearch}
           title="Save search"
           aria-label="Save search"
@@ -261,61 +252,9 @@
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
           </svg>
+          <span>Save Search</span>
         </button>
       {/if}
-      <button
-        class="control-btn"
-        onclick={expandAll}
-        title="Expand all"
-        aria-label="Expand all"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="7 13 12 18 17 13"></polyline>
-          <polyline points="7 6 12 11 17 6"></polyline>
-        </svg>
-      </button>
-      <button
-        class="control-btn"
-        onclick={collapseAll}
-        title="Collapse all"
-        aria-label="Collapse all"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="17 11 12 6 7 11"></polyline>
-          <polyline points="17 18 12 13 7 18"></polyline>
-        </svg>
-      </button>
-      <button class="close-btn" onclick={onClose} title="Close" aria-label="Close search">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
     </div>
   </div>
 
@@ -423,8 +362,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
+    padding: 1rem;
     flex-shrink: 0;
   }
 
@@ -487,72 +425,39 @@
     gap: 4px;
   }
 
-  .control-btn {
-    width: 28px;
-    height: 28px;
-    padding: 0;
+  .save-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 6px 12px;
     border: none;
     background: none;
     color: var(--text-muted);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     border-radius: 4px;
+    font-size: 0.875rem;
     transition:
       color 0.15s ease,
       background 0.15s ease;
-  }
-
-  .control-btn:hover {
-    color: var(--text-secondary);
-    background: var(--bg-hover);
-  }
-
-  .control-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .control-btn:disabled:hover {
-    color: var(--text-muted);
-    background: none;
   }
 
   .save-btn:hover:not(:disabled) {
     color: var(--accent-primary);
+    background: var(--bg-hover);
+  }
+
+  .save-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .saved-indicator {
-    width: 28px;
-    height: 28px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+    padding: 6px 0 6px 12px;
     color: var(--accent-primary);
-  }
-
-  .close-btn {
-    width: 28px;
-    height: 28px;
-    margin-left: 8px;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition:
-      color 0.15s ease,
-      background 0.15s ease;
-  }
-
-  .close-btn:hover {
-    color: var(--text-secondary);
-    background: var(--bg-hover);
+    font-size: 0.875rem;
   }
 
   /* Results container */
