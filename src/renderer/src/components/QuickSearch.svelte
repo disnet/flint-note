@@ -68,6 +68,16 @@
     if (event.key === 'Enter' && searchResults.length > 0) {
       onClose();
     }
+
+    // Close modal when opening expanded search view (Cmd+Shift+Enter)
+    if (
+      event.key === 'Enter' &&
+      (event.metaKey || event.ctrlKey) &&
+      event.shiftKey &&
+      searchQuery.trim()
+    ) {
+      onClose();
+    }
   }
 
   function handleOverlayClick(event: MouseEvent): void {
@@ -118,7 +128,11 @@
           oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
           onkeydown={handleKeyDown}
         />
-        <div class="shortcut-hint">{modifierKey}O</div>
+        {#if searchQuery.trim()}
+          <div class="shortcut-hint">{modifierKey}⇧↵ show all</div>
+        {:else}
+          <div class="shortcut-hint">{modifierKey}O</div>
+        {/if}
       </div>
 
       {#if searchQuery.trim() || searchResults.length > 0}
@@ -153,6 +167,9 @@
             <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
             <span class="hint"><kbd>Enter</kbd> Open</span>
             <span class="hint"><kbd>{modifierKey}</kbd><kbd>Enter</kbd> Add to Shelf</span
+            >
+            <span class="hint"
+              ><kbd>{modifierKey}</kbd><kbd>Shift</kbd><kbd>Enter</kbd> Expanded View</span
             >
             <span class="hint"><kbd>Esc</kbd> Close</span>
           </div>

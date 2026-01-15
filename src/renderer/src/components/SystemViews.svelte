@@ -14,6 +14,7 @@
     activeSystemView:
       | 'settings'
       | 'search'
+      | 'expanded-search'
       | 'types'
       | 'daily'
       | 'review'

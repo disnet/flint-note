@@ -73,7 +73,9 @@ export type {
   NoteFilter,
   NoteFilterInput,
   // Source format type
-  SourceFormat
+  SourceFormat,
+  // Saved search type
+  SavedSearch
 } from './types';
 
 // State management
@@ -228,6 +230,16 @@ export {
   unarchiveConversation,
   deleteConversation,
   bumpItemToRecent,
+
+  // Saved search getters
+  getSavedSearches,
+  getSavedSearch,
+
+  // Saved search mutations
+  createSavedSearch,
+  updateSavedSearch,
+  archiveSavedSearch,
+  deleteSavedSearch,
 
   // Shelf items (persisted in Automerge)
   getShelfItems,
@@ -422,6 +434,7 @@ export {
   generateRoutineId,
   generateRoutineCompletionId,
   generateRoutineMaterialId,
+  generateSavedSearchId,
   nowISO
 } from './utils';
 

@@ -16,6 +16,8 @@
     unarchiveNote,
     archiveConversation,
     unarchiveConversation,
+    archiveSavedSearch,
+    getSavedSearch,
     getActiveItem,
     reorderPinnedItems,
     reorderRecentItems,
@@ -34,7 +36,8 @@
     getSourceFormat,
     DAILY_NOTE_TYPE_ID,
     type SidebarItem,
-    type SidebarItemRef
+    type SidebarItemRef,
+    type SidebarItemType
   } from '../lib/automerge';
   import { resolveWikilinks } from './WikilinkText.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
@@ -113,7 +116,7 @@
   // Drag state
   let draggedIndex = $state<number | null>(null);
   let draggedItemId = $state<string | null>(null);
-  let draggedItemType = $state<'note' | 'conversation' | null>(null);
+  let draggedItemType = $state<SidebarItemType | null>(null);
   let dropTargetIndex = $state<number | null>(null);
   let dragOffsetY = $state(0);
   let dragStartY = $state(0);
@@ -140,7 +143,7 @@
   // Context menu state
   let contextMenuOpen = $state(false);
   let contextMenuItemId = $state<string | null>(null);
-  let contextMenuItemType = $state<'note' | 'conversation' | null>(null);
+  let contextMenuItemType = $state<SidebarItemType | null>(null);
   let contextMenuSection = $state<'pinned' | 'recent' | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
   let contextMenuElement: HTMLDivElement | undefined = $state();
@@ -820,6 +823,11 @@
       } else {
         archiveConversation(contextMenuItemId);
       }
+    } else if (contextMenuItemType === 'saved-search') {
+      // Saved searches can only be archived (no unarchive - use delete instead)
+      if (!contextMenuItemArchived) {
+        archiveSavedSearch(contextMenuItemId);
+      }
     }
     closeContextMenu();
   }
@@ -863,15 +871,21 @@
     if (contextMenuItemType === 'note') {
       const note = getNote(contextMenuItemId);
       return note?.archived ?? false;
-    } else {
+    } else if (contextMenuItemType === 'conversation') {
       const entry = getConversationEntry(contextMenuItemId);
       return entry?.archived ?? false;
+    } else if (contextMenuItemType === 'saved-search') {
+      const savedSearch = getSavedSearch(contextMenuItemId);
+      return savedSearch?.archived ?? false;
     }
+    return false;
   });
 
-  // Check if the context menu item is on the shelf
+  // Check if the context menu item is on the shelf (only notes and conversations can be on shelf)
   const contextMenuItemOnShelf = $derived.by(() => {
     if (!contextMenuItemId || !contextMenuItemType) return false;
+    if (contextMenuItemType !== 'note' && contextMenuItemType !== 'conversation')
+      return false;
     return isItemOnShelf(contextMenuItemType, contextMenuItemId);
   });
 
@@ -884,6 +898,8 @@
 
   function handleToggleShelf(): void {
     if (!contextMenuItemId || !contextMenuItemType) return;
+    // Only notes and conversations can be on shelf
+    if (contextMenuItemType !== 'note' && contextMenuItemType !== 'conversation') return;
     if (contextMenuItemOnShelf) {
       removeShelfItem(contextMenuItemType, contextMenuItemId);
     } else {
@@ -1137,22 +1153,24 @@
       >
     </button>
 
-    <!-- Shelf toggle -->
-    <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
-      </svg>
-      <span class="menu-item-label">
-        {contextMenuItemOnShelf ? 'Remove from Shelf' : 'Add to Shelf'}
-      </span>
-    </button>
+    <!-- Shelf toggle (only for notes and conversations) -->
+    {#if contextMenuItemType === 'note' || contextMenuItemType === 'conversation'}
+      <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+        </svg>
+        <span class="menu-item-label">
+          {contextMenuItemOnShelf ? 'Remove from Shelf' : 'Add to Shelf'}
+        </span>
+      </button>
+    {/if}
 
     <!-- Close (only for recent items) -->
     {#if contextMenuSection === 'recent'}
@@ -1172,24 +1190,30 @@
       </button>
     {/if}
 
-    <!-- Archive toggle -->
-    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="21 8 21 21 3 21 3 8"></polyline>
-        <rect x="1" y="3" width="22" height="5"></rect>
-        <line x1="10" y1="12" x2="14" y2="12"></line>
-      </svg>
-      <span class="menu-item-label">
-        {contextMenuItemArchived ? 'Unarchive' : 'Archive'}
-      </span>
-    </button>
+    <!-- Archive toggle (hide for already-archived saved searches) -->
+    {#if !(contextMenuItemType === 'saved-search' && contextMenuItemArchived)}
+      <button class="context-menu-item" onclick={handleArchive} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="21 8 21 21 3 21 3 8"></polyline>
+          <rect x="1" y="3" width="22" height="5"></rect>
+          <line x1="10" y1="12" x2="14" y2="12"></line>
+        </svg>
+        <span class="menu-item-label">
+          {#if contextMenuItemType === 'saved-search'}
+            Delete
+          {:else}
+            {contextMenuItemArchived ? 'Unarchive' : 'Archive'}
+          {/if}
+        </span>
+      </button>
+    {/if}
 
     <!-- Review toggle (only for reviewable notes) -->
     {#if contextMenuNoteReviewable}
