@@ -240,18 +240,17 @@ export function gutterPlusButtonExtension(onShowMenu: GutterMenuHandler): Extens
         // Get the line at the mouse position
         let lineNumber: number | null = null;
 
-        // First try direct position lookup
-        let pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        // Convert screen Y to document-relative height
+        // documentTop is the top of the document content relative to the viewport
+        const docHeight = event.clientY - view.documentTop;
 
-        // If that fails (mouse in gutter/empty space), try using a point inside the content area
-        if (pos === null) {
-          const contentRect = view.contentDOM.getBoundingClientRect();
-          // Use a point just inside the content area at the same Y level
-          pos = view.posAtCoords({ x: contentRect.left + 1, y: event.clientY });
-        }
+        // Use lineBlockAtHeight which correctly handles block widgets (images, decks)
+        // This maps visual height to the line block at that position
+        const lineBlock = view.lineBlockAtHeight(docHeight);
 
-        if (pos !== null) {
-          lineNumber = view.state.doc.lineAt(pos).number;
+        if (lineBlock) {
+          // Get the line number from the line block's document position
+          lineNumber = view.state.doc.lineAt(lineBlock.from).number;
         }
 
         if (lineNumber !== null) {
