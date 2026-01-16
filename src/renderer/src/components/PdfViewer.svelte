@@ -31,6 +31,7 @@
   import PdfOutline from './PdfOutline.svelte';
   import PdfHighlights from './PdfHighlights.svelte';
   import NoteHeader from './NoteHeader.svelte';
+  import MediaChips from './MediaChips.svelte';
   import Tooltip from './Tooltip.svelte';
 
   // Props
@@ -327,47 +328,6 @@ ${highlightLines.join('\n\n')}
     return `${Math.round((currentPage / totalPages) * 100)}%`;
   }
 
-  // Format relative time for chips
-  function formatRelativeTime(dateString: string): string {
-    if (!dateString) return '—';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        if (diffHours === 0) {
-          const diffMins = Math.floor(diffMs / (1000 * 60));
-          if (diffMins <= 1) return 'just now';
-          return `${diffMins}m ago`;
-        }
-        return `${diffHours}h ago`;
-      } else if (diffDays === 1) {
-        return 'yesterday';
-      } else if (diffDays < 7) {
-        return `${diffDays}d ago`;
-      } else if (diffDays < 30) {
-        const weeks = Math.floor(diffDays / 7);
-        return `${weeks}w ago`;
-      } else if (diffDays < 365) {
-        const months = Math.floor(diffDays / 30);
-        return `${months}mo ago`;
-      } else {
-        return date.toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: '2-digit'
-        });
-      }
-    } catch {
-      return dateString;
-    }
-  }
-
   // Save final state on unmount
   function saveState(): void {
     if (readingStateDebounceTimer) {
@@ -429,39 +389,15 @@ ${highlightLines.join('\n\n')}
     <header class="pdf-header">
       <NoteHeader {note} {onTitleChange}>
         {#snippet chips()}
-          <div class="pdf-chips">
-            {#if pdfProps().pdfAuthor}
-              <div class="chip">
-                <span class="chip-label">author</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{pdfProps().pdfAuthor}</span>
-              </div>
-            {/if}
-            <div class="chip">
-              <span class="chip-label">pages</span>
-              <span class="chip-divider"></span>
-              <span class="chip-value">{currentPage} / {totalPages}</span>
-            </div>
-            <div class="chip">
-              <span class="chip-label">progress</span>
-              <span class="chip-divider"></span>
-              <span class="chip-value">{formatProgress()}</span>
-            </div>
-            {#if pdfProps().lastRead}
-              <div class="chip">
-                <span class="chip-label">last read</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{formatRelativeTime(pdfProps().lastRead!)}</span>
-              </div>
-            {/if}
-            {#if highlights.length > 0}
-              <div class="chip">
-                <span class="chip-label">highlights</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{highlights.length}</span>
-              </div>
-            {/if}
-          </div>
+          <MediaChips
+            {note}
+            sourceFormat="pdf"
+            computedValues={{
+              pages: `${currentPage} / ${totalPages}`,
+              progress: formatProgress(),
+              highlights: highlights.length > 0 ? highlights.length : undefined
+            }}
+          />
         {/snippet}
       </NoteHeader>
     </header>
@@ -788,48 +724,6 @@ ${highlightLines.join('\n\n')}
   .pdf-header {
     padding: 0 1.5rem;
     flex-shrink: 0;
-  }
-
-  /* Property chips */
-  .pdf-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    padding-left: 0.25rem;
-    margin-top: 0.25rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: stretch;
-    border: 1px solid var(--border-light);
-    border-radius: 9999px;
-    background: var(--bg-secondary);
-    font-size: 0.7rem;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-
-  .chip-label {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem 0.125rem 0.625rem;
-    color: var(--text-muted);
-    background: var(--bg-tertiary);
-    border-radius: 9999px 0 0 9999px;
-  }
-
-  .chip-divider {
-    width: 1px;
-    background: var(--border-light);
-  }
-
-  .chip-value {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
-    color: var(--text-secondary);
   }
 
   /* Content area */

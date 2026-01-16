@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import WebpageReader from './WebpageReader.svelte';
   import NoteHeader from './NoteHeader.svelte';
+  import MediaChips from './MediaChips.svelte';
   import type { NoteMetadata, WebpageNoteProps } from '../lib/automerge';
   import {
     updateWebpageReadingState,
@@ -167,57 +168,9 @@
     updateNoteContent(note.id, newContent);
   }
 
-  function handleOpenOriginalUrl(): void {
-    const url = webpageProps().webpageUrl;
-    if (url) {
-      window.api?.openExternal({ url });
-    }
-  }
-
   // Format progress
   function formatProgress(value: number): string {
     return `${Math.round(value)}%`;
-  }
-
-  // Format relative time for chips
-  function formatRelativeTime(dateString: string): string {
-    if (!dateString) return '—';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        if (diffHours === 0) {
-          const diffMins = Math.floor(diffMs / (1000 * 60));
-          if (diffMins <= 1) return 'just now';
-          return `${diffMins}m ago`;
-        }
-        return `${diffHours}h ago`;
-      } else if (diffDays === 1) {
-        return 'yesterday';
-      } else if (diffDays < 7) {
-        return `${diffDays}d ago`;
-      } else if (diffDays < 30) {
-        const weeks = Math.floor(diffDays / 7);
-        return `${weeks}w ago`;
-      } else if (diffDays < 365) {
-        const months = Math.floor(diffDays / 30);
-        return `${months}mo ago`;
-      } else {
-        return date.toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: '2-digit'
-        });
-      }
-    } catch {
-      return dateString;
-    }
   }
 
   // Highlight parsing/serialization functions
@@ -323,64 +276,16 @@
     <header class="webpage-header">
       <NoteHeader {note} {onTitleChange}>
         {#snippet chips()}
-          <div class="webpage-chips">
-            {#if webpageProps().webpageSiteName}
-              <div class="chip">
-                <span class="chip-label">site</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{webpageProps().webpageSiteName}</span>
-              </div>
-            {/if}
-            {#if webpageProps().webpageAuthor}
-              <div class="chip">
-                <span class="chip-label">author</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{webpageProps().webpageAuthor}</span>
-              </div>
-            {/if}
-            <div class="chip">
-              <span class="chip-label">progress</span>
-              <span class="chip-divider"></span>
-              <span class="chip-value">{formatProgress(currentProgress)}</span>
-            </div>
-            {#if webpageProps().lastRead}
-              <div class="chip">
-                <span class="chip-label">last read</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value"
-                  >{formatRelativeTime(webpageProps().lastRead!)}</span
-                >
-              </div>
-            {/if}
-            {#if highlights.length > 0}
-              <div class="chip">
-                <span class="chip-label">highlights</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value">{highlights.length}</span>
-              </div>
-            {/if}
-            {#if webpageProps().webpageUrl}
-              <button class="chip chip-link" onclick={handleOpenOriginalUrl}>
-                <span class="chip-label">source</span>
-                <span class="chip-divider"></span>
-                <span class="chip-value link-icon">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-                    ></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                </span>
-              </button>
-            {/if}
-          </div>
+          <MediaChips
+            {note}
+            sourceFormat="webpage"
+            computedValues={{
+              progress: formatProgress(currentProgress),
+              highlights: highlights.length > 0 ? highlights.length : undefined,
+              source: webpageProps().webpageUrl
+            }}
+            onOpenExternal={(url) => window.api?.openExternal({ url })}
+          />
         {/snippet}
       </NoteHeader>
     </header>
@@ -511,66 +416,6 @@
   /* Header */
   .webpage-header {
     flex-shrink: 0;
-  }
-
-  /* Property chips */
-  .webpage-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    padding-left: 0.25rem;
-    margin-top: 0.25rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: stretch;
-    border: 1px solid var(--border-light);
-    border-radius: 9999px;
-    background: var(--bg-secondary);
-    font-size: 0.7rem;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-
-  .chip-link {
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .chip-link:hover {
-    border-color: var(--accent-primary);
-    background: var(--bg-tertiary);
-  }
-
-  .chip-label {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem 0.125rem 0.625rem;
-    color: var(--text-muted);
-    background: var(--bg-tertiary);
-    border-radius: 9999px 0 0 9999px;
-  }
-
-  .chip-divider {
-    width: 1px;
-    background: var(--border-light);
-  }
-
-  .chip-value {
-    display: flex;
-    align-items: center;
-    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
-    color: var(--text-secondary);
-  }
-
-  .link-icon {
-    padding: 0.125rem 0.5rem;
-  }
-
-  .link-icon svg {
-    display: block;
   }
 
   .highlight-popup {

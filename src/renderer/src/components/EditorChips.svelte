@@ -34,9 +34,21 @@
     disabled?: boolean;
     /** Called when a linked note is clicked */
     onNoteClick?: (noteId: string) => void;
+    /** Optional computed values that override note.props for display-only fields */
+    computedValues?: Record<string, unknown>;
+    /** Optional additional property definitions to merge with noteType.properties */
+    additionalProperties?: PropertyDefinition[];
   }
 
-  let { note, noteType, onPropChange, disabled = false, onNoteClick }: Props = $props();
+  let {
+    note,
+    noteType,
+    onPropChange,
+    disabled = false,
+    onNoteClick,
+    computedValues,
+    additionalProperties
+  }: Props = $props();
 
   // Track expanded state
   let expanded = $state(false);
@@ -52,11 +64,17 @@
   // Get property definitions from the note type
   const propertyDefs = $derived(noteType?.properties ?? []);
 
-  // Get all available fields (system fields + custom properties)
+  // Get all available fields (system fields + custom properties + additional properties)
   const allFields = $derived.by(() => {
     const fields: string[] = [...SYSTEM_FIELDS];
     for (const prop of propertyDefs) {
       fields.push(prop.name);
+    }
+    // Add additional properties not already included
+    for (const prop of additionalProperties ?? []) {
+      if (!fields.includes(prop.name)) {
+        fields.push(prop.name);
+      }
     }
     return fields;
   });
@@ -67,9 +85,13 @@
   // Check if expand button should show
   const hasMoreFields = $derived(allFields.length > editorChips.length);
 
-  // Get property definition by name
+  // Get property definition by name (from noteType.properties or additionalProperties)
   function getPropDef(field: string): PropertyDefinition | undefined {
-    return propertyDefs.find((p) => p.name === field);
+    // Check noteType properties first
+    const fromType = propertyDefs.find((p) => p.name === field);
+    if (fromType) return fromType;
+    // Check additional properties (media-specific)
+    return additionalProperties?.find((p) => p.name === field);
   }
 
   // Check if field is a system field (read-only)
@@ -80,14 +102,29 @@
   // Check if field is editable
   function isEditable(field: string): boolean {
     if (disabled) return false;
-    return !isSystemField(field);
+    if (isSystemField(field)) return false;
+    // Computed values are read-only (provided from viewer state, not stored in note.props)
+    if (computedValues?.[field] !== undefined) return false;
+    return true;
   }
+
+  // Media-specific label mappings for cleaner display
+  const MEDIA_FIELD_LABELS: Record<string, string> = {
+    epubAuthor: 'author',
+    pdfAuthor: 'author',
+    webpageAuthor: 'author',
+    webpageSiteName: 'site',
+    lastRead: 'last read'
+  };
 
   // Get field label
   function getFieldLabel(field: string): string {
     // System fields
     if (field === 'created') return 'created';
     if (field === 'updated') return 'updated';
+
+    // Media-specific friendly labels
+    if (MEDIA_FIELD_LABELS[field]) return MEDIA_FIELD_LABELS[field];
 
     // Use property name, cleaning up underscores
     return field.replace(/_/g, ' ');
@@ -97,6 +134,10 @@
   function getRawValue(field: string): unknown {
     if (field === 'created') return note.created;
     if (field === 'updated') return note.updated;
+    // Check computed values first (viewer-derived state like progress, highlights count)
+    if (computedValues?.[field] !== undefined) {
+      return computedValues[field];
+    }
     return note.props?.[field];
   }
 
