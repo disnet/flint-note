@@ -235,6 +235,16 @@ class ImageWidget extends WidgetType {
       img.className = 'cm-inline-image';
       img.draggable = false;
 
+      // Request height remeasurement when image loads
+      // This ensures CodeMirror's block height tracking stays accurate
+      img.onload = () => {
+        try {
+          this.view.requestMeasure();
+        } catch {
+          // View may have been destroyed
+        }
+      };
+
       // Handle load errors
       img.onerror = () => {
         img.style.display = 'none';
@@ -242,6 +252,12 @@ class ImageWidget extends WidgetType {
         errorEl.className = 'cm-image-error-text';
         errorEl.textContent = '[Image failed to load]';
         container.appendChild(errorEl);
+        // Also request remeasurement on error
+        try {
+          this.view.requestMeasure();
+        } catch {
+          // View may have been destroyed
+        }
       };
 
       container.appendChild(img);
@@ -518,7 +534,10 @@ function createImageDomEventHandlers(): Extension {
 const imageStyles = EditorView.baseTheme({
   '.cm-image-widget': {
     display: 'block',
-    margin: '8px 0'
+    // Use padding instead of margin so CodeMirror's height measurement includes
+    // the spacing. Margins are not included in offsetHeight/getBoundingClientRect,
+    // which causes block height tracking and gutter positioning to be off.
+    padding: '8px 0'
   },
   '.cm-inline-image': {
     maxWidth: '100%',
