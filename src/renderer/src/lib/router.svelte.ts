@@ -34,7 +34,7 @@ const SYSTEM_VIEW_ROUTES: Record<string, SystemView> = {
   settings: 'settings',
   types: 'types',
   routines: 'routines',
-  search: 'search'
+  search: 'expanded-search'
 };
 
 // Flags to prevent circular updates

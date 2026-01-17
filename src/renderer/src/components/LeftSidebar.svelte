@@ -27,7 +27,6 @@
   interface Props {
     activeSystemView:
       | 'settings'
-      | 'search'
       | 'expanded-search'
       | 'types'
       | 'daily'
@@ -527,7 +526,12 @@
                 onkeydown={onSearchKeyDown}
               />
               {#if searchQuery.trim()}
-                <span class="shortcut-hint">{modifierKey}⇧↵ show all</span>
+                <button
+                  class="shortcut-hint shortcut-hint-btn"
+                  onclick={onViewAllResults}
+                >
+                  {modifierKey}⇧↵ show all
+                </button>
               {/if}
             </div>
             {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0)}
@@ -601,7 +605,9 @@
               onkeydown={onSearchKeyDown}
             />
             {#if searchQuery.trim()}
-              <span class="shortcut-hint">{modifierKey}⇧↵ show all</span>
+              <button class="shortcut-hint shortcut-hint-btn" onclick={onViewAllResults}>
+                {modifierKey}⇧↵ show all
+              </button>
             {/if}
           </div>
           {#if searchInputFocused && (searchQuery.trim() || searchResults.length > 0) && mobileSearchDropdownPosition}
@@ -1111,9 +1117,25 @@
 
   .shortcut-hint {
     flex-shrink: 0;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
     font-size: 0.6875rem;
     color: var(--text-muted);
+    font-weight: 500;
     white-space: nowrap;
+  }
+
+  .shortcut-hint-btn {
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.15s ease;
+  }
+
+  .shortcut-hint-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
   }
 
   /* Prevent Safari auto-zoom on input focus */
