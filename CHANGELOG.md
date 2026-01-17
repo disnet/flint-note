@@ -1,5 +1,12 @@
 # Changelog - Release
 
+## [0.15.4]
+
+### Fixed
+
+- Fixed gutter plus button positioning issues in notes with embedded images
+- Fixed epub/pdf/webpage notes not showing note-type props
+
 ## [0.15.3]
 
 ### Added
