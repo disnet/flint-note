@@ -44,7 +44,8 @@ export function measureMarkerWidths(editorElement: Element): MarkerWidths {
 
 function measureCodeMirrorLinePadding(editorElement: Element): number {
   // Look for existing .cm-line element to measure its actual padding
-  const cmLine = editorElement.querySelector('.cm-line');
+  // Exclude list-styled lines which have inflated padding from list decorations
+  const cmLine = editorElement.querySelector('.cm-line:not(.cm-list-marker-line)');
 
   if (cmLine) {
     const computedStyle = window.getComputedStyle(cmLine);
