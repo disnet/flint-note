@@ -51,7 +51,6 @@ export type ActiveItem =
  */
 export type SystemView =
   | 'settings'
-  | 'search'
   | 'expanded-search'
   | 'types'
   | 'daily'

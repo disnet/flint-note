@@ -62,6 +62,18 @@
   // The query used for actual searching (debounced)
   let activeQuery = $state(initialQuery);
 
+  // Track the previous initialQuery to detect prop changes
+  let prevInitialQuery = $state(initialQuery);
+
+  // Sync localQuery when the prop changes (e.g., new search from sidebar)
+  $effect(() => {
+    if (initialQuery !== prevInitialQuery) {
+      localQuery = initialQuery;
+      activeQuery = initialQuery;
+      prevInitialQuery = initialQuery;
+    }
+  });
+
   // Debounce search query changes
   $effect(() => {
     const query = localQuery;

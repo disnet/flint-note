@@ -65,16 +65,13 @@
     onKeyDown(event);
 
     // Close modal after Enter selection (parent handler processes the selection)
-    if (event.key === 'Enter' && searchResults.length > 0) {
-      onClose();
-    }
-
-    // Close modal when opening expanded search view (Cmd+Shift+Enter)
+    // But NOT for Cmd/Ctrl+Shift+Enter (view all) or Cmd/Ctrl+Enter (add to shelf)
     if (
       event.key === 'Enter' &&
-      (event.metaKey || event.ctrlKey) &&
-      event.shiftKey &&
-      searchQuery.trim()
+      searchResults.length > 0 &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey
     ) {
       onClose();
     }
@@ -93,7 +90,8 @@
 
   function handleViewAll(): void {
     onViewAllResults();
-    onClose();
+    // Note: don't call onClose() here - onViewAllResults handles closing the modal
+    // while preserving the search query for the expanded view
   }
 </script>
 
@@ -129,7 +127,9 @@
           onkeydown={handleKeyDown}
         />
         {#if searchQuery.trim()}
-          <div class="shortcut-hint">{modifierKey}⇧↵ show all</div>
+          <button class="shortcut-hint shortcut-hint-btn" onclick={handleViewAll}>
+            {modifierKey}⇧↵ show all
+          </button>
         {:else}
           <div class="shortcut-hint">{modifierKey}O</div>
         {/if}
@@ -255,6 +255,17 @@
     color: var(--text-muted);
     font-weight: 500;
     flex-shrink: 0;
+  }
+
+  .shortcut-hint-btn {
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.15s ease;
+  }
+
+  .shortcut-hint-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
   }
 
   .search-results-container {

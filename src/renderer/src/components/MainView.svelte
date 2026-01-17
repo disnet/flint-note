@@ -72,7 +72,6 @@
   } from '../lib/automerge/automerge-import.svelte';
   import LeftSidebar from './LeftSidebar.svelte';
   import NoteEditor from './NoteEditor.svelte';
-  import SearchView from './SearchView.svelte';
   import ExpandedSearchView from './ExpandedSearchView.svelte';
   import NoteTypesView from './NoteTypesView.svelte';
   import SettingsView from './SettingsView.svelte';
@@ -463,6 +462,9 @@
       event.preventDefault();
       setActiveSystemView('expanded-search');
       setActiveItem(null);
+      // Close quick search modal without clearing the query
+      quickSearchOpen = false;
+      searchInputFocused = false;
       return;
     }
 
@@ -489,8 +491,8 @@
       if (selectedSearchIndex < maxIndex) {
         handleSearchResultSelect(searchResults[selectedSearchIndex].note);
       } else if (searchQuery.trim()) {
-        // Only open search view if there's an actual query
-        setActiveSystemView('search');
+        // Only open expanded search view if there's an actual query
+        setActiveSystemView('expanded-search');
         setActiveItem(null);
       }
     }
@@ -1477,7 +1479,7 @@
     onCreateVault={handleCreateVault}
     onToggleSidebar={toggleLeftSidebar}
     onViewAllResults={() => {
-      setActiveSystemView('search');
+      setActiveSystemView('expanded-search');
       setActiveItem(null);
     }}
   />
@@ -1635,14 +1637,6 @@
               onClose={() => setActiveSystemView(null)}
               onShowLegacyMigrationModal={() => (showLegacyMigrationModal = true)}
               onShowChangelog={() => (showChangelogModal = true)}
-            />
-          {:else if activeSystemView === 'search'}
-            <SearchView
-              {searchResults}
-              {searchQuery}
-              {isSearchingContent}
-              onClose={() => setActiveSystemView(null)}
-              onSelect={handleSearchResultSelect}
             />
           {:else if activeSystemView === 'expanded-search'}
             <ExpandedSearchView
@@ -1967,7 +1961,7 @@
   }}
   onKeyDown={handleSearchKeyDown}
   onViewAllResults={() => {
-    setActiveSystemView('search');
+    setActiveSystemView('expanded-search');
     setActiveItem(null);
     quickSearchOpen = false;
   }}
