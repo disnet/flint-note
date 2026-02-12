@@ -134,6 +134,12 @@ const api = {
   openExternal: (params: { url: string }): Promise<void> =>
     electronAPI.ipcRenderer.invoke('open-external', params),
 
+  // OAuth login in a dedicated window (intercepts flint:// callback)
+  oauthLogin: (params: {
+    url: string;
+  }): Promise<{ did: string; error?: string } | null> =>
+    electronAPI.ipcRenderer.invoke('oauth-login', params),
+
   // Menu event listeners
   onMenuNavigate: (callback: (view: string) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, view: string): void =>
@@ -459,6 +465,14 @@ const api = {
     ): void => callback(command);
     electronAPI.ipcRenderer.on('startup-command', handler);
     return () => electronAPI.ipcRenderer.removeListener('startup-command', handler);
+  },
+
+  // Deep link listener (for flint:// protocol URLs)
+  onDeepLink: (callback: (url: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, url: string): void =>
+      callback(url);
+    electronAPI.ipcRenderer.on('deep-link', handler);
+    return () => electronAPI.ipcRenderer.removeListener('deep-link', handler);
   }
 };
 

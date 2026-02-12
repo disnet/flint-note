@@ -72,6 +72,10 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+protocols:
+  - name: Flint
+    schemes:
+      - flint
 publish:
   provider: generic
   url: https://canary.flintnote.com

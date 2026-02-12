@@ -76,6 +76,8 @@ process.on('unhandledRejection', (reason: unknown) => {
 
 // Module-level service references
 let chatServerInstance: ChatServer | null = null;
+let mainWindowRef: BrowserWindow | null = null;
+let pendingDeepLinkUrl: string | null = null;
 
 // --- CLI argument types and parsing ---
 interface StartupCommand {
@@ -144,6 +146,63 @@ function parseCliArgs(): StartupCommand | null {
 const startupCommand = parseCliArgs();
 if (startupCommand) {
   logger.info('Parsed startup command from CLI', { startupCommand });
+}
+
+// Extract deep link URL from launch args (Windows/Linux cold start passes URL as arg)
+const deepLinkFromArgs = process.argv.find((arg) => arg.startsWith('flint://'));
+if (deepLinkFromArgs) {
+  pendingDeepLinkUrl = deepLinkFromArgs;
+  logger.info('Found deep link URL in launch args', { url: deepLinkFromArgs });
+}
+
+// Handle deep link URL delivery to renderer
+function handleDeepLink(url: string): void {
+  if (!url.startsWith('flint://')) {
+    logger.warn('Ignoring non-flint deep link URL', { url });
+    return;
+  }
+
+  logger.info('Handling deep link', { url });
+
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send('deep-link', url);
+    // Focus the window when receiving a deep link
+    if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+    mainWindowRef.focus();
+  } else {
+    pendingDeepLinkUrl = url;
+  }
+}
+
+// Single instance lock — ensure only one instance handles deep links
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    // On Windows/Linux, the deep link URL is passed as an argument to the second instance
+    const deepLinkUrl = argv.find((arg) => arg.startsWith('flint://'));
+    if (deepLinkUrl) {
+      handleDeepLink(deepLinkUrl);
+    }
+
+    // Focus existing window
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+      mainWindowRef.focus();
+    }
+  });
+}
+
+// macOS: Register open-url handler (can fire before app is ready)
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
+});
+
+// Windows/Linux: Register as default protocol client at runtime
+if (process.platform !== 'darwin') {
+  app.setAsDefaultProtocolClient('flint');
 }
 
 function getThemeBackgroundColor(): string {
@@ -331,6 +390,14 @@ async function createWindow(
     }
   });
 
+  // Track main window reference for deep link delivery
+  mainWindowRef = mainWindow;
+  mainWindow.on('closed', () => {
+    if (mainWindowRef === mainWindow) {
+      mainWindowRef = null;
+    }
+  });
+
   // Restore maximized state if it was saved
   if (savedState?.isMaximized) {
     mainWindow.maximize();
@@ -393,6 +460,16 @@ async function createWindow(
       setTimeout(() => {
         mainWindow.webContents.send('startup-command', startupCmd);
         logger.info('Sent startup command to renderer', { startupCmd });
+      }, 500);
+    }
+
+    // Deliver pending deep link URL if one arrived before the window was ready
+    if (pendingDeepLinkUrl) {
+      const url = pendingDeepLinkUrl;
+      pendingDeepLinkUrl = null;
+      setTimeout(() => {
+        mainWindow.webContents.send('deep-link', url);
+        logger.info('Sent pending deep link to renderer', { url });
       }, 500);
     }
 
@@ -904,6 +981,73 @@ app.whenReady().then(async () => {
       throw error;
     }
   });
+
+  // OAuth login: open URL in a BrowserWindow and intercept the flint:// callback.
+  // The session cookie is set by the server on the OAuth callback response;
+  // Electron's session stores it automatically from the redirect response.
+  ipcMain.handle(
+    'oauth-login',
+    async (
+      _event,
+      params: { url: string }
+    ): Promise<{ did: string; error?: string } | null> => {
+      return new Promise((resolve) => {
+        const authWindow = new BrowserWindow({
+          width: 600,
+          height: 700,
+          show: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        });
+
+        let resolved = false;
+
+        function handleFlintUrl(url: string): void {
+          resolved = true;
+          try {
+            const parsed = new URL(url);
+            const did = parsed.searchParams.get('did') || '';
+            const error = parsed.searchParams.get('error');
+            if (error) {
+              resolve({ did, error });
+            } else {
+              resolve(did ? { did } : null);
+            }
+          } catch {
+            resolve(null);
+          }
+          authWindow.close();
+        }
+
+        // Intercept navigation to flint:// URLs
+        authWindow.webContents.on('will-navigate', (event, url) => {
+          if (url.startsWith('flint://')) {
+            event.preventDefault();
+            handleFlintUrl(url);
+          }
+        });
+
+        // Also intercept redirects (some auth servers use 302 redirects)
+        authWindow.webContents.on('will-redirect', (event, url) => {
+          if (url.startsWith('flint://')) {
+            event.preventDefault();
+            handleFlintUrl(url);
+          }
+        });
+
+        // User closed the window without completing auth
+        authWindow.on('closed', () => {
+          if (!resolved) {
+            resolve(null);
+          }
+        });
+
+        authWindow.loadURL(params.url);
+      });
+    }
+  );
 
   // Automerge sync IPC handlers
   ipcMain.handle(

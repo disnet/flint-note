@@ -26,6 +26,7 @@
     VAULT_TEMPLATES,
     ONBOARDING_OPTIONS,
     switchVault,
+    connectRemoteVault,
     searchNotesEnhanced,
     searchNotesAsync,
     searchIndex,
@@ -100,6 +101,7 @@
   import ResizeHandle from './ResizeHandle.svelte';
   import WindowControls from './WindowControls.svelte';
   import { initializeState } from '../lib/automerge';
+  import { fetchRemoteVaults } from '../lib/automerge/cloud-sync.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
@@ -140,6 +142,18 @@
   // selectedNoteTypeId is now managed in centralized state
   const selectedNoteTypeId = $derived(getSelectedNoteTypeId());
   let showCreateVaultModal = $state(false);
+  let showSyncFromCloudModal = $state(false);
+  let syncFromCloudVaults = $state<
+    Array<{
+      vaultId: string;
+      docUrl: string;
+      vaultName: string | null;
+      createdAt: string;
+    }>
+  >([]);
+  let isLoadingSyncVaults = $state(false);
+  let connectingVaultId = $state<string | null>(null);
+  let syncConnectError = $state<string | null>(null);
   let showArchiveWebpageModal = $state(false);
   let showLegacyMigrationModal = $state(false);
   let showChangelogModal = $state(false);
@@ -620,6 +634,46 @@
     newVaultTemplateId = 'empty';
     newVaultOnboardingIds = ['welcome'];
     showCreateVaultModal = true;
+  }
+
+  async function handleSyncFromCloud(): Promise<void> {
+    showSyncFromCloudModal = true;
+    isLoadingSyncVaults = true;
+    syncConnectError = null;
+    syncFromCloudVaults = [];
+
+    try {
+      const remoteVaults = await fetchRemoteVaults();
+      // Filter out vaults already in local storage
+      const localVaultIds = new Set(vaults.map((v) => v.id));
+      syncFromCloudVaults = remoteVaults.filter((rv) => !localVaultIds.has(rv.vaultId));
+    } finally {
+      isLoadingSyncVaults = false;
+    }
+  }
+
+  async function handleConnectSyncVault(rv: {
+    vaultId: string;
+    docUrl: string;
+    vaultName: string | null;
+  }): Promise<void> {
+    connectingVaultId = rv.vaultId;
+    syncConnectError = null;
+
+    try {
+      const vault = await connectRemoteVault(
+        rv.vaultId,
+        rv.docUrl,
+        rv.vaultName || 'Synced Vault'
+      );
+      await switchVault(vault.id);
+      showSyncFromCloudModal = false;
+    } catch (error) {
+      syncConnectError = error instanceof Error ? error.message : String(error);
+      console.error('Failed to connect remote vault:', error);
+    } finally {
+      connectingVaultId = null;
+    }
   }
 
   function toggleNewVaultOnboarding(id: string): void {
@@ -1477,6 +1531,7 @@
     onSearchResultSelect={handleSearchResultSelect}
     onVaultSelect={handleVaultSelect}
     onCreateVault={handleCreateVault}
+    onSyncFromCloud={handleSyncFromCloud}
     onToggleSidebar={toggleLeftSidebar}
     onViewAllResults={() => {
       setActiveSystemView('expanded-search');
@@ -1874,6 +1929,65 @@
       <button class="modal-btn secondary full-width" onclick={handleBrowseForVault}>
         Open Vault from Directory
       </button>
+    </div>
+  </div>
+{/if}
+
+<!-- Sync from Cloud Modal -->
+{#if showSyncFromCloudModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (showSyncFromCloudModal = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showSyncFromCloudModal = false)}
+  >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="modal create-vault-modal" onclick={(e) => e.stopPropagation()}>
+      <h3>Sync from Cloud</h3>
+      <div class="create-vault-scroll">
+        {#if isLoadingSyncVaults}
+          <p class="sync-loading-text">Looking for synced vaults...</p>
+        {:else if syncFromCloudVaults.length === 0}
+          <p class="sync-loading-text">No new vaults found in your cloud account.</p>
+        {:else}
+          <div class="sync-vault-list">
+            {#each syncFromCloudVaults as rv (rv.vaultId)}
+              <button
+                class="sync-vault-item"
+                onclick={() => handleConnectSyncVault(rv)}
+                disabled={connectingVaultId !== null}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                </svg>
+                <span class="sync-vault-name">{rv.vaultName || 'Unnamed Vault'}</span>
+                {#if connectingVaultId === rv.vaultId}
+                  <span class="sync-vault-status">Connecting...</span>
+                {:else}
+                  <span class="sync-vault-action">Connect</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
+        {#if syncConnectError}
+          <div class="error-message">{syncConnectError}</div>
+        {/if}
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick={() => (showSyncFromCloudModal = false)}
+          >Close</button
+        >
+      </div>
     </div>
   </div>
 {/if}
@@ -2930,5 +3044,77 @@
   .mobile-menu-button svg {
     width: 25px;
     height: 25px;
+  }
+
+  /* Sync from Cloud modal */
+  .sync-loading-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 1rem 0;
+  }
+
+  .sync-vault-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sync-vault-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    width: 100%;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .sync-vault-item:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .sync-vault-item:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .sync-vault-item svg {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  .sync-vault-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .sync-vault-action {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+  }
+
+  .sync-vault-status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .error-message {
+    color: var(--error-text, #ef4444);
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--error-bg, rgba(239, 68, 68, 0.1));
+    border-radius: 0.375rem;
+    margin-top: 0.5rem;
   }
 </style>

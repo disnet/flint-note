@@ -133,6 +133,11 @@ declare global {
       // Shell operations
       openExternal: (params: { url: string }) => Promise<void>;
 
+      // OAuth login in a dedicated window (intercepts flint:// callback)
+      oauthLogin: (params: {
+        url: string;
+      }) => Promise<{ did: string; error?: string } | null>;
+
       // Menu event listeners
       onMenuNavigate: (callback: (view: string) => void) => () => void;
       onMenuAction: (
@@ -350,6 +355,9 @@ declare global {
           customVaultName?: string;
         }) => void
       ) => () => void;
+
+      // Deep link listener (for flint:// protocol URLs)
+      onDeepLink: (callback: (url: string) => void) => () => void;
     };
   }
 }

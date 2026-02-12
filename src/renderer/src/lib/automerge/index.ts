@@ -97,6 +97,7 @@ export {
   addVaultToState,
   updateVaultInState,
   createVault,
+  connectRemoteVault,
   switchVault,
 
   // Legacy vault helpers

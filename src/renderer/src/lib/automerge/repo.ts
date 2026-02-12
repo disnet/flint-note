@@ -207,7 +207,17 @@ export function createVault(r: Repo, name: string, baseDirectory?: string): Vaul
  */
 export function updateVault(
   id: string,
-  updates: Partial<Pick<Vault, 'name' | 'archived' | 'baseDirectory'>>
+  updates: Partial<
+    Pick<
+      Vault,
+      | 'name'
+      | 'archived'
+      | 'baseDirectory'
+      | 'cloudSyncEnabled'
+      | 'lastCloudSync'
+      | 'cloudOwnerDid'
+    >
+  >
 ): void {
   const vaults = getVaults();
   const index = vaults.findIndex((v) => v.id === id);
