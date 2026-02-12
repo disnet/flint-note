@@ -7,9 +7,19 @@
     initializeState,
     selectSyncDirectory,
     createVaultWithOptions,
+    connectRemoteVault,
+    switchVault,
     VAULT_TEMPLATES,
     ONBOARDING_OPTIONS
   } from '../lib/automerge';
+  import {
+    isCloudAuthenticated,
+    fetchRemoteVaults,
+    startBlueskyLogin,
+    getLastSyncError,
+    isInviteRequired,
+    redeemInviteCode
+  } from '../lib/automerge/cloud-sync.svelte';
   import {
     migrateLegacyVault,
     getMigrationProgress,
@@ -70,6 +80,111 @@
   let isCreating = $state(false);
   let createError = $state<string | null>(null);
   let showCreateForm = $state(false);
+
+  // Sign-in state
+  let blueskyHandle = $state('');
+  let inviteCodeInput = $state('');
+  let isLoggingIn = $state(false);
+  let isRedeemingInvite = $state(false);
+  const authenticated = $derived(isCloudAuthenticated());
+  const loginError = $derived(getLastSyncError());
+  const needsInvite = $derived(isInviteRequired());
+
+  async function handleLogin(): Promise<void> {
+    if (!blueskyHandle.trim() || isLoggingIn) return;
+    isLoggingIn = true;
+    try {
+      await startBlueskyLogin(blueskyHandle.trim());
+      // On Electron, login completes in-place. Fetch vaults if allowed.
+      // On web, the page navigates away and comes back via OAuth callback.
+      if (isCloudAuthenticated() && !isInviteRequired()) {
+        loadRemoteVaults();
+      }
+    } finally {
+      isLoggingIn = false;
+    }
+  }
+
+  async function handleRedeemInvite(): Promise<void> {
+    if (!inviteCodeInput.trim() || isRedeemingInvite) return;
+    isRedeemingInvite = true;
+    try {
+      const success = await redeemInviteCode(inviteCodeInput.trim());
+      if (success) {
+        loadRemoteVaults();
+      }
+    } finally {
+      isRedeemingInvite = false;
+    }
+  }
+
+  function handleInviteKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      handleRedeemInvite();
+    }
+  }
+
+  function handleLoginKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleLogin();
+    }
+  }
+
+  // Remote vault discovery state
+  let remoteVaults = $state<
+    Array<{
+      vaultId: string;
+      docUrl: string;
+      vaultName: string | null;
+      createdAt: string;
+    }>
+  >([]);
+  let isLoadingRemoteVaults = $state(false);
+  let connectingVaultId = $state<string | null>(null);
+  let connectError = $state<string | null>(null);
+
+  async function loadRemoteVaults(): Promise<void> {
+    if (isLoadingRemoteVaults) return;
+    isLoadingRemoteVaults = true;
+    try {
+      remoteVaults = await fetchRemoteVaults();
+    } finally {
+      isLoadingRemoteVaults = false;
+    }
+  }
+
+  // Fetch on mount if already authenticated and allowed
+  if (isCloudAuthenticated() && !isInviteRequired()) {
+    loadRemoteVaults();
+  }
+
+  /**
+   * Connect to a remote vault from the sync server
+   */
+  async function handleConnectRemoteVault(rv: {
+    vaultId: string;
+    docUrl: string;
+    vaultName: string | null;
+  }): Promise<void> {
+    connectingVaultId = rv.vaultId;
+    connectError = null;
+
+    try {
+      const vault = await connectRemoteVault(
+        rv.vaultId,
+        rv.docUrl,
+        rv.vaultName || 'Synced Vault'
+      );
+      await switchVault(vault.id);
+      onVaultCreated();
+    } catch (error) {
+      connectError = error instanceof Error ? error.message : String(error);
+      console.error('Failed to connect remote vault:', error);
+    } finally {
+      connectingVaultId = null;
+    }
+  }
 
   // Template and onboarding selection
   let selectedTemplateId = $state('empty');
@@ -513,6 +628,116 @@
         {/if}
       {:else}
         <!-- No legacy vaults - clean start -->
+
+        <!-- Sign in section (when not already authenticated) -->
+        {#if !authenticated}
+          <div class="sign-in-section">
+            <p class="section-description">
+              Already using Flint on another device? Sign in to sync your vaults.
+            </p>
+            <div class="sign-in-form">
+              <input
+                type="text"
+                class="vault-name-input"
+                placeholder="your.handle.bsky.social"
+                bind:value={blueskyHandle}
+                onkeydown={handleLoginKeyDown}
+                disabled={isLoggingIn}
+              />
+              <button
+                class="primary-action sign-in-button"
+                onclick={handleLogin}
+                disabled={isLoggingIn || !blueskyHandle.trim()}
+              >
+                {#if isLoggingIn}
+                  Connecting...
+                {:else}
+                  Sign in with Bluesky
+                {/if}
+              </button>
+            </div>
+            {#if loginError}
+              <p class="login-error">{loginError}</p>
+            {/if}
+          </div>
+
+          <div class="divider">
+            <span>or start fresh</span>
+          </div>
+        {:else if needsInvite}
+          <!-- Invite code interstitial -->
+          <div class="sign-in-section">
+            <p class="section-description">
+              An invite code is required to use cloud sync. Enter your code below.
+            </p>
+            <div class="sign-in-form">
+              <input
+                type="text"
+                class="vault-name-input"
+                placeholder="Invite code"
+                bind:value={inviteCodeInput}
+                onkeydown={handleInviteKeyDown}
+                disabled={isRedeemingInvite}
+              />
+              <button
+                class="primary-action sign-in-button"
+                onclick={handleRedeemInvite}
+                disabled={isRedeemingInvite || !inviteCodeInput.trim()}
+              >
+                {isRedeemingInvite ? 'Verifying...' : 'Submit Invite Code'}
+              </button>
+            </div>
+            {#if loginError}
+              <p class="login-error">{loginError}</p>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Remote vault discovery -->
+        {#if isLoadingRemoteVaults}
+          <div class="vault-section">
+            <h2>Checking for Synced Vaults...</h2>
+            <p class="section-description">Looking for vaults from your other devices.</p>
+          </div>
+        {:else if remoteVaults.length > 0}
+          <div class="vault-section">
+            <h2>Your Synced Vaults</h2>
+            <p class="section-description">
+              These vaults are synced from your other devices. Connect to start using them
+              here.
+            </p>
+
+            <div class="legacy-vault-list">
+              {#each remoteVaults as rv (rv.vaultId)}
+                <button
+                  class="legacy-vault-item"
+                  onclick={() => handleConnectRemoteVault(rv)}
+                  disabled={connectingVaultId !== null}
+                >
+                  <span class="vault-icon">&#x2601;</span>
+                  <div class="vault-info">
+                    <span class="vault-name">{rv.vaultName || 'Unnamed Vault'}</span>
+                    <span class="vault-path">Synced from cloud</span>
+                  </div>
+                  {#if connectingVaultId === rv.vaultId}
+                    <span class="import-icon">...</span>
+                  {:else}
+                    <span class="import-icon">Connect</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+
+            {#if connectError}
+              <div class="error-message">{connectError}</div>
+            {/if}
+          </div>
+
+          <div class="divider">
+            <span>or create a new vault</span>
+          </div>
+        {/if}
+
         <div class="quick-start">
           <div class="quick-start-form">
             <div class="form-field">
@@ -1326,6 +1551,39 @@
   .option-desc {
     font-size: 0.75rem;
     color: var(--text-secondary);
+  }
+
+  /* Sign in section */
+  .sign-in-section {
+    background: var(--bg-primary);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-light);
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .sign-in-section .section-description {
+    margin-bottom: 1rem;
+  }
+
+  .sign-in-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .sign-in-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .login-error {
+    color: #ef4444;
+    font-size: 0.8125rem;
+    margin: 0.25rem 0 0 0;
   }
 
   /* Mobile responsive */

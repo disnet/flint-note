@@ -1,0 +1,27 @@
+app = "flint-sync"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  DATA_DIR = "/data"
+  PORT = "3000"
+  PUBLIC_URL = "https://sync.flintnote.com"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/health"
+  timeout = "5s"
+
+[mounts]
+  source = "flint_data"
+  destination = "/data"

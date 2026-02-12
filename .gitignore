@@ -16,3 +16,4 @@ docs-src/.vitepress/cache
 screenshots/output/
 playwright-report/
 test-results/
+sync-server/data

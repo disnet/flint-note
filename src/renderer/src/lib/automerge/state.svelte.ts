@@ -10,7 +10,7 @@
 /* eslint-disable svelte/prefer-svelte-reactivity -- Date used for computation in utility functions */
 
 import * as Automerge from '@automerge/automerge';
-import type { DocHandle } from '@automerge/automerge-repo';
+import type { DocHandle, DocHandleChangePayload } from '@automerge/automerge-repo';
 import type {
   Note,
   NoteMetadata,
@@ -89,6 +89,19 @@ import {
   findContentHandle,
   clearContentCache
 } from './content-docs.svelte';
+import {
+  initCloudSync,
+  isCloudAuthenticated,
+  registerContentDocForSync,
+  registerVaultForSync,
+  registerAllContentDocs,
+  connectCloudSync,
+  fetchRemoteContentDocs,
+  getCloudUserDid,
+  setLastSyncError,
+  disconnectCloudSync,
+  onSyncConnected
+} from './cloud-sync.svelte';
 import { searchIndex } from './search-index.svelte';
 import { stabilizeWikilinksGlobally } from './wikilink-stabilization.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
@@ -115,6 +128,12 @@ let currentDoc = $state<NotesDocument>({
 });
 
 let docHandle: DocHandle<NotesDocument> | null = null;
+
+// Change listener for the active vault's document handle.
+// Stored so we can remove it when switching vaults.
+let activeChangeListener:
+  | ((payload: DocHandleChangePayload<NotesDocument>) => void)
+  | null = null;
 
 // Vault state
 let vaults = $state<Vault[]>([]);
@@ -262,9 +281,10 @@ export async function initializeState(vaultId?: string): Promise<void> {
     restoreLastViewState();
 
     // Subscribe to future changes
-    handle.on('change', ({ doc }) => {
+    activeChangeListener = ({ doc }) => {
       currentDoc = doc;
-    });
+    };
+    handle.on('change', activeChangeListener);
 
     // Connect file sync if vault has baseDirectory
     if (targetVault.baseDirectory) {
@@ -292,6 +312,27 @@ export async function initializeState(vaultId?: string): Promise<void> {
 
     // Initialize search index in background
     initializeSearchIndex();
+
+    // Update lastCloudSync on all synced vaults when WebSocket connects
+    onSyncConnected(() => {
+      const now = new Date().toISOString();
+      for (const v of vaults) {
+        if (v.cloudSyncEnabled) {
+          updateVaultInRepo(v.id, { lastCloudSync: now });
+        }
+      }
+    });
+
+    // Initialize cloud sync (loads session, validates, connects if valid)
+    initCloudSync()
+      .then(() => {
+        if (isCloudAuthenticated() && targetVault.cloudSyncEnabled) {
+          connectCloudSync();
+        }
+      })
+      .catch((error) => {
+        console.error('[CloudSync] Failed to initialize:', error);
+      });
 
     isInitialized = true;
     perf.end('initializeState');
@@ -817,6 +858,62 @@ export function createVault(name: string, baseDirectory?: string): Vault {
   return vault;
 }
 
+/**
+ * Connect to a remote vault discovered from the sync server.
+ * Creates a local vault entry pointing to the existing Automerge doc URL
+ * and starts syncing.
+ */
+export async function connectRemoteVault(
+  vaultId: string,
+  docUrl: string,
+  vaultName: string
+): Promise<Vault> {
+  const repo = getRepo();
+
+  // Create vault with the same ID from the server
+  const vault: Vault = {
+    id: vaultId,
+    name: vaultName,
+    docUrl,
+    archived: false,
+    created: nowISO(),
+    cloudSyncEnabled: true
+  };
+
+  // Save to localStorage and add to reactive state
+  addVaultToState(vault);
+  saveVaults(vaults);
+
+  // Ensure cloud sync WebSocket is connected
+  connectCloudSync();
+
+  // Tell Automerge to start syncing the root document
+  const handle = await repo.find(docUrl as Parameters<typeof repo.find>[0]);
+
+  // Fetch and find content docs so they sync too
+  const contentDocUrls = await fetchRemoteContentDocs(vaultId);
+  for (const contentUrl of contentDocUrls) {
+    repo.find(contentUrl as Parameters<typeof repo.find>[0]);
+  }
+
+  // Wait for root doc to be ready (with timeout)
+  try {
+    await Promise.race([
+      handle.whenReady(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout waiting for vault sync')), 30000)
+      )
+    ]);
+  } catch (err) {
+    console.warn(
+      '[connectRemoteVault] Root doc not ready yet, will sync in background:',
+      err
+    );
+  }
+
+  return vault;
+}
+
 // --- Legacy vault helpers ---
 
 /**
@@ -922,6 +1019,12 @@ export async function switchVault(
 
   const repo = getRepo();
 
+  // Remove change listener from the previous vault's doc handle
+  if (docHandle && activeChangeListener) {
+    docHandle.off('change', activeChangeListener);
+    activeChangeListener = null;
+  }
+
   // Clear content cache from previous vault
   clearContentCache();
 
@@ -949,9 +1052,10 @@ export async function switchVault(
   runSchemaMigrations();
 
   // Subscribe to changes
-  handle.on('change', ({ doc }) => {
+  activeChangeListener = ({ doc }) => {
     currentDoc = doc;
-  });
+  };
+  handle.on('change', activeChangeListener);
 
   // Reset view state before restoring from new vault
   activeItem = null;
@@ -1179,6 +1283,14 @@ export async function createNote(params: {
       ws.recentItemIds.push({ type: 'note', id });
     }
   });
+
+  // Register content doc with cloud sync server if sync is enabled
+  const activeVault = getActiveVault();
+  if (isCloudAuthenticated() && activeVault?.cloudSyncEnabled) {
+    registerContentDocForSync(contentHandle.url, activeVaultId).catch((err) => {
+      console.error('[CloudSync] Failed to register content doc:', err);
+    });
+  }
 
   // Index the new note for search
   const noteMetadata = currentDoc.notes[id];
@@ -3510,6 +3622,77 @@ export async function disableFileSync(): Promise<void> {
     vaults[index] = updatedVault;
     // Trigger reactivity
     vaults = [...vaults];
+  }
+}
+
+// --- Cloud Sync ---
+
+/**
+ * Enable cloud sync for the active vault.
+ * Registers the vault and all its content docs with the sync server.
+ */
+export async function enableCloudSync(): Promise<boolean> {
+  const vault = getActiveVault();
+  if (!vault || !isCloudAuthenticated()) return false;
+
+  // Guard against cross-user sync: if another user owns this vault's sync, block
+  const currentDid = getCloudUserDid() ?? undefined;
+  if (vault.cloudOwnerDid && vault.cloudOwnerDid !== currentDid) {
+    setLastSyncError(
+      'This vault is synced by a different account. Disable sync from the original account, or create a new vault.'
+    );
+    return false;
+  }
+
+  // Register vault with sync server
+  const result = await registerVaultForSync(vault.id, vault.docUrl, vault.name);
+  if (!result.ok) {
+    setLastSyncError(result.error ?? 'Failed to register vault');
+    return false;
+  }
+
+  // Register all existing content docs
+  if (currentDoc.contentUrls) {
+    await registerAllContentDocs(vault.id, currentDoc.contentUrls);
+  }
+
+  // Update vault metadata
+  updateVaultInRepo(vault.id, { cloudSyncEnabled: true, cloudOwnerDid: currentDid });
+
+  // Update local state
+  const index = vaults.findIndex((v) => v.id === vault.id);
+  if (index !== -1) {
+    vaults[index] = { ...vault, cloudSyncEnabled: true, cloudOwnerDid: currentDid };
+    vaults = [...vaults];
+  }
+
+  // Connect WebSocket sync
+  connectCloudSync();
+
+  return true;
+}
+
+/**
+ * Disable cloud sync for the active vault.
+ */
+export function disableCloudSync(): void {
+  const vault = getActiveVault();
+  if (!vault) return;
+
+  // Update vault metadata
+  updateVaultInRepo(vault.id, { cloudSyncEnabled: false, cloudOwnerDid: undefined });
+
+  // Update local state
+  const index = vaults.findIndex((v) => v.id === vault.id);
+  if (index !== -1) {
+    vaults[index] = { ...vault, cloudSyncEnabled: false, cloudOwnerDid: undefined };
+    vaults = [...vaults];
+  }
+
+  // Disconnect if no other vaults have sync enabled
+  const anyOtherSyncing = vaults.some((v) => v.id !== vault.id && v.cloudSyncEnabled);
+  if (!anyOtherSyncing) {
+    disconnectCloudSync();
   }
 }
 

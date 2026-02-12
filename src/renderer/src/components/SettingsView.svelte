@@ -5,6 +5,7 @@
    */
   import APIKeySettings from './APIKeySettings.svelte';
   import VaultSyncSettings from './VaultSyncSettings.svelte';
+  import CloudSyncSettings from './settings/CloudSyncSettings.svelte';
   import DebugSettings from './DebugSettings.svelte';
   import AboutSettings from './AboutSettings.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
@@ -163,6 +164,11 @@
 
   <!-- File Sync Settings -->
   <VaultSyncSettings />
+
+  <div class="settings-divider"></div>
+
+  <!-- Cloud Sync Settings -->
+  <CloudSyncSettings />
 
   <div class="settings-divider"></div>
 

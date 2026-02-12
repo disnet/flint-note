@@ -21,6 +21,7 @@
     type SearchResult,
     type SidebarItem
   } from '../lib/automerge';
+  import { isCloudAuthenticated } from '../lib/automerge/cloud-sync.svelte';
   import { isWeb } from '../lib/platform.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
 
@@ -55,6 +56,7 @@
     onSearchResultSelect: (note: NoteMetadata) => void;
     onVaultSelect: (vaultId: string) => void;
     onCreateVault: () => void;
+    onSyncFromCloud?: () => void;
     onToggleSidebar: () => void;
     onViewAllResults: () => void;
     isMobile?: boolean;
@@ -82,6 +84,7 @@
     onSearchResultSelect,
     onVaultSelect,
     onCreateVault,
+    onSyncFromCloud,
     onToggleSidebar,
     onViewAllResults,
     isMobile = false,
@@ -210,6 +213,11 @@
 
   function handleCreateVault(): void {
     onCreateVault();
+    closeVaultDropdown();
+  }
+
+  function handleSyncFromCloud(): void {
+    onSyncFromCloud?.();
     closeVaultDropdown();
   }
 
@@ -468,6 +476,27 @@
                   </svg>
                   <span class="vault-item-name">New Vault</span>
                 </button>
+
+                {#if isCloudAuthenticated()}
+                  <button class="vault-item new-vault-item" onclick={handleSyncFromCloud}>
+                    <svg
+                      class="vault-item-icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"
+                      />
+                      <path d="M12 12v9" />
+                      <path d="m8 17 4 4 4-4" />
+                    </svg>
+                    <span class="vault-item-name">Sync from Cloud</span>
+                  </button>
+                {/if}
               </div>
             {/if}
           </div>

@@ -15,6 +15,7 @@
     switchVault,
     importMarkdownDirectory
   } from './lib/automerge';
+  import { handleAuthCallback } from './lib/automerge/cloud-sync.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
   import { isElectron, isWeb } from './lib/platform.svelte';
   import { initializeRouter } from './lib/router.svelte';
@@ -95,9 +96,27 @@
     }
   }
 
+  // Handle deep link URL from flint:// protocol
+  function handleDeepLinkUrl(url: string): void {
+    try {
+      const parsed = new URL(url);
+      // flint://auth/callback parses as hostname='auth', pathname='/callback'
+      const path = `/${parsed.hostname}${parsed.pathname}`;
+
+      if (path === '/auth/callback') {
+        handleAuthCallback(parsed.searchParams);
+      } else {
+        console.warn('Unknown deep link path:', path);
+      }
+    } catch (err) {
+      console.error('Failed to parse deep link URL:', err);
+    }
+  }
+
   // Initialize automerge state
   onMount(() => {
     let unsubscribeStartupCommand: (() => void) | undefined;
+    let unsubscribeDeepLink: (() => void) | undefined;
     let cleanupRouter: (() => void) | undefined;
 
     async function init(): Promise<void> {
@@ -138,6 +157,9 @@
                 err instanceof Error ? err.message : 'Failed to execute startup command';
             }
           });
+
+          // Set up deep link listener for flint:// protocol URLs
+          unsubscribeDeepLink = window.api?.onDeepLink(handleDeepLinkUrl);
         }
 
         // Initialize URL router for web mode (after state is ready)
@@ -159,6 +181,7 @@
     // Cleanup on unmount
     return () => {
       unsubscribeStartupCommand?.();
+      unsubscribeDeepLink?.();
       cleanupRouter?.();
     };
   });

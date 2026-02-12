@@ -639,6 +639,12 @@ export interface Vault {
   legacyPath?: string;
   /** Note count from legacy vault (for display in UI before migration) */
   legacyNoteCount?: number;
+  /** Whether cloud sync is enabled for this vault */
+  cloudSyncEnabled?: boolean;
+  /** DID of the user who enabled cloud sync for this vault */
+  cloudOwnerDid?: string;
+  /** ISO timestamp of last successful cloud sync */
+  lastCloudSync?: string;
 }
 
 // ============================================================================

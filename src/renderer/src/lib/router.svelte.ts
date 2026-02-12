@@ -13,6 +13,7 @@ import {
   getNotes,
   type SystemView
 } from './automerge';
+import { handleAuthCallback } from './automerge/cloud-sync.svelte';
 import { sidebarState } from '../stores/sidebarState.svelte';
 
 // Route types
@@ -214,6 +215,16 @@ function handlePopState(): void {
 export function initializeRouter(): () => void {
   if (!isWeb()) {
     return () => {}; // No-op for Electron
+  }
+
+  // Handle OAuth callback before normal routing
+  const currentUrl = new SvelteURL(window.location.href);
+  if (currentUrl.pathname === '/auth/callback') {
+    const handled = handleAuthCallback(currentUrl.searchParams);
+    if (handled) {
+      // Clean the URL after processing the callback
+      window.history.replaceState({}, '', '/');
+    }
   }
 
   // Handle initial URL

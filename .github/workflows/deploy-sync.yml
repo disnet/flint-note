@@ -1,0 +1,31 @@
+name: Deploy Sync Server to Fly.io
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'sync-server/**'
+      - '.github/workflows/deploy-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Fly.io
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-setup-action@v2
+
+      - name: Deploy to Fly.io
+        run: fly deploy
+        working-directory: sync-server
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
