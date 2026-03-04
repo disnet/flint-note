@@ -25,7 +25,7 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        run: fly deploy
+        run: flyctl deploy
         working-directory: sync-server
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
