@@ -89,9 +89,15 @@
   $effect(() => {
     const init = async (): Promise<void> => {
       try {
-        const port = await window.api?.getChatServerPort();
-        if (port) {
-          reviewService = getReviewService(port);
+        if (window.api?.getChatServerPort) {
+          // Electron: use proxy
+          const port = await window.api.getChatServerPort();
+          if (port) {
+            reviewService = getReviewService(port);
+          }
+        } else {
+          // Web: no proxy needed
+          reviewService = getReviewService();
         }
       } catch (error) {
         console.error('Failed to initialize review service:', error);

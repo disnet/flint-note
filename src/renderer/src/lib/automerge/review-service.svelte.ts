@@ -6,7 +6,7 @@
  */
 
 import { streamText } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createAIProvider } from '../ai-provider.svelte';
 
 const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
@@ -164,13 +164,13 @@ export type ReviewServiceStatus = 'ready' | 'generating' | 'error';
  * Review Service class that handles AI-powered review prompts and feedback
  */
 export class ReviewService {
-  private proxyUrl: string;
+  private proxyPort?: number;
   private _status = $state<ReviewServiceStatus>('ready');
   private _error = $state<Error | null>(null);
   private abortController: AbortController | null = null;
 
-  constructor(proxyPort: number) {
-    this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
+  constructor(proxyPort?: number) {
+    this.proxyPort = proxyPort;
   }
 
   /**
@@ -230,12 +230,8 @@ export class ReviewService {
     this.abortController = new AbortController();
 
     try {
-      // Create OpenRouter provider pointing to our proxy
-      // The proxy will add the real API key
-      const openrouter = createOpenRouter({
-        baseURL: this.proxyUrl,
-        apiKey: 'proxy-handled' // Dummy - real key added by proxy
-      });
+      // Create AI provider (direct on web, proxy on Electron)
+      const openrouter = await createAIProvider(this.proxyPort);
 
       const result = streamText({
         model: openrouter(DEFAULT_MODEL),
@@ -299,12 +295,8 @@ export class ReviewService {
     this.abortController = new AbortController();
 
     try {
-      // Create OpenRouter provider pointing to our proxy
-      // The proxy will add the real API key
-      const openrouter = createOpenRouter({
-        baseURL: this.proxyUrl,
-        apiKey: 'proxy-handled' // Dummy - real key added by proxy
-      });
+      // Create AI provider (direct on web, proxy on Electron)
+      const openrouter = await createAIProvider(this.proxyPort);
 
       const result = streamText({
         model: openrouter(DEFAULT_MODEL),
@@ -358,7 +350,7 @@ let reviewServiceInstance: ReviewService | null = null;
  * Get or create the review service singleton
  * @param proxyPort The port number for the API proxy
  */
-export function getReviewService(proxyPort: number): ReviewService {
+export function getReviewService(proxyPort?: number): ReviewService {
   if (!reviewServiceInstance) {
     reviewServiceInstance = new ReviewService(proxyPort);
   }

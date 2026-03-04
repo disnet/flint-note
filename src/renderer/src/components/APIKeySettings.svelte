@@ -3,8 +3,10 @@
    * API Key Settings Component for Automerge UI
    *
    * Allows users to configure their OpenRouter API key for AI chat features.
-   * Uses Electron's secure storage to safely store the key.
+   * Uses secure storage (Electron keychain) or localStorage (web) to store the key.
    */
+  import { secureStorageService } from '../services/secureStorageService';
+  import { isWeb } from '../lib/platform.svelte';
 
   // State
   let apiKey = $state('');
@@ -16,7 +18,7 @@
   $effect(() => {
     const loadKey = async (): Promise<void> => {
       try {
-        const result = await window.api?.getApiKey({ provider: 'openrouter' });
+        const result = await secureStorageService.getApiKey('openrouter');
         if (result?.key) {
           apiKey = result.key;
           validateKey(result.key);
@@ -55,7 +57,7 @@
   async function saveKey(key: string): Promise<void> {
     try {
       isSaving = true;
-      await window.api?.storeApiKey({ provider: 'openrouter', key });
+      await secureStorageService.storeApiKey('openrouter', key);
     } catch (error) {
       console.error('Failed to save API key:', error);
     } finally {
@@ -67,7 +69,7 @@
   async function clearKey(): Promise<void> {
     try {
       isSaving = true;
-      await window.api?.storeApiKey({ provider: 'openrouter', key: '' });
+      await secureStorageService.storeApiKey('openrouter', '');
       apiKey = '';
       isValid = false;
     } catch (error) {
@@ -96,8 +98,12 @@
       </svg>
     </span>
     <span>
-      API keys are stored securely in your system's keychain. Your system may prompt you
-      to allow access.
+      {#if isWeb()}
+        API keys are stored in your browser's local storage.
+      {:else}
+        API keys are stored securely in your system's keychain. Your system may prompt you
+        to allow access.
+      {/if}
     </span>
   </div>
 
