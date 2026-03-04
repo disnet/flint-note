@@ -10,6 +10,7 @@
     getCloudSyncStatus,
     isCloudAuthenticated
   } from '../lib/automerge/cloud-sync.svelte';
+  import { getCloudFileSyncStatus } from '../lib/automerge/cloud-file-sync.svelte';
   import { isWeb } from '../lib/platform.svelte';
   import Tooltip from './Tooltip.svelte';
 
@@ -41,6 +42,16 @@
     }
     return syncDirectory;
   });
+
+  // Cloud file sync state
+  const fileSyncStatus = $derived(getCloudFileSyncStatus());
+  const fileSyncActive = $derived(
+    fileSyncStatus.isSyncing ||
+      fileSyncStatus.uploadQueue > 0 ||
+      fileSyncStatus.downloadQueue > 0
+  );
+  const fileSyncWarnings = $derived(fileSyncStatus.warnings);
+  const hasFileSyncWarnings = $derived(fileSyncWarnings.length > 0);
 
   // Cloud status color
   const cloudDotColor = $derived.by(() => {
@@ -78,6 +89,18 @@
           parts.push('cloud sync disconnected');
           break;
       }
+    }
+    if (fileSyncActive) {
+      const qParts: string[] = [];
+      if (fileSyncStatus.uploadQueue > 0)
+        qParts.push(`uploading ${fileSyncStatus.uploadQueue}`);
+      if (fileSyncStatus.downloadQueue > 0)
+        qParts.push(`downloading ${fileSyncStatus.downloadQueue}`);
+      if (fileSyncStatus.isSyncing && qParts.length === 0) qParts.push('syncing files');
+      parts.push(qParts.join(', '));
+    }
+    if (hasFileSyncWarnings) {
+      parts.push(`${fileSyncWarnings.length} file(s) could not sync`);
     }
     if (parts.length === 0) {
       return isWebUser ? 'Set up cloud sync' : 'Set up sync';
@@ -127,8 +150,8 @@
       <!-- Cloud sync indicator -->
       <button class="sync-badge enabled" onclick={handleOpenCloudSettings}>
         <span
-          class="sync-indicator {cloudDotColor}"
-          class:pulse={cloudStatus === 'connecting'}
+          class="sync-indicator {hasFileSyncWarnings ? 'yellow' : cloudDotColor}"
+          class:pulse={cloudStatus === 'connecting' || fileSyncActive}
         ></span>
         <svg
           class="cloud-icon"
@@ -141,7 +164,13 @@
         >
           <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
         </svg>
-        {#if !fileSyncEnabled}
+        {#if fileSyncActive && !fileSyncEnabled}
+          <span class="sync-text">syncing files...</span>
+        {:else if hasFileSyncWarnings && !fileSyncEnabled}
+          <span class="sync-text warning-text"
+            >{fileSyncWarnings.length} file{fileSyncWarnings.length === 1 ? '' : 's'} too large</span
+          >
+        {:else if !fileSyncEnabled}
           <span class="sync-text">cloud sync</span>
         {/if}
       </button>
@@ -245,6 +274,10 @@
 
   .sync-text {
     white-space: nowrap;
+  }
+
+  .warning-text {
+    color: #f59e0b;
   }
 
   /* Mobile adjustments - compact dot-only display */

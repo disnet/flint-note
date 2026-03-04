@@ -24,6 +24,11 @@
     updateNoteContent,
     getNoteContent
   } from '../lib/automerge';
+  import {
+    downloadFileFromCloud,
+    type CloudFileType
+  } from '../lib/automerge/cloud-file-sync.svelte';
+  import { isCloudAuthenticated } from '../lib/automerge/cloud-sync.svelte';
   import { nowISO } from '../lib/automerge/utils';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { floatingUIState } from '../stores/floatingUIState.svelte';
@@ -163,7 +168,20 @@ ${highlightLines.join('\n\n')}
       const content = await getNoteContent(note.id);
       noteContent = content;
 
-      const data = await pdfOpfsStorage.retrieve(hash);
+      let data = await pdfOpfsStorage.retrieve(hash);
+      if (!data && isCloudAuthenticated()) {
+        // Try downloading from cloud
+        const cloudData = await downloadFileFromCloud(
+          'pdf' as CloudFileType,
+          hash,
+          'pdf'
+        );
+        if (cloudData) {
+          // Store in OPFS for future use
+          await pdfOpfsStorage.store(cloudData);
+          data = cloudData;
+        }
+      }
       if (!data) {
         loadError = 'PDF file not found in storage';
         isLoading = false;

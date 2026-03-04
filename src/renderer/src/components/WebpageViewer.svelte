@@ -10,6 +10,12 @@
     getNoteContent
   } from '../lib/automerge';
   import { webpageOpfsStorage } from '../lib/automerge/webpage-opfs-storage.svelte';
+  import {
+    downloadFileFromCloud,
+    downloadWebpageMetadataFromCloud,
+    type CloudFileType
+  } from '../lib/automerge/cloud-file-sync.svelte';
+  import { isCloudAuthenticated } from '../lib/automerge/cloud-sync.svelte';
   import type { WebpageHighlight, WebpageSelectionInfo } from '../lib/automerge/types';
 
   // Props - matching EPUB viewer pattern
@@ -78,7 +84,25 @@
       noteContent = content;
 
       // Load HTML from OPFS
-      const html = await webpageOpfsStorage.retrieve(hash);
+      let html = await webpageOpfsStorage.retrieve(hash);
+      if (!html && isCloudAuthenticated()) {
+        // Try downloading from cloud
+        const cloudData = await downloadFileFromCloud(
+          'webpage' as CloudFileType,
+          hash,
+          'html'
+        );
+        if (cloudData) {
+          const decoder = new TextDecoder();
+          html = decoder.decode(cloudData);
+          await webpageOpfsStorage.store(html);
+          // Also fetch metadata
+          const metadata = await downloadWebpageMetadataFromCloud(hash);
+          if (metadata) {
+            await webpageOpfsStorage.storeMetadata(hash, metadata);
+          }
+        }
+      }
       if (!html) {
         throw new Error('Webpage content not found in storage');
       }

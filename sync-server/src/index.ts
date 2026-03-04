@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { createServer } from 'node:http';
 import { createAuthRoutes } from './auth/auth-routes.js';
 import { createDocumentRoutes } from './sync/document-registration.js';
+import { createFileRoutes } from './sync/file-routes.js';
 import { initSyncServer } from './sync/sync-server.js';
 import {
   verifySessionTokenAsync,
@@ -109,6 +110,14 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later' }
 });
 
+const fileLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 2000, // 2000 requests per minute for file upload/download (initial sync bursts)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' }
+});
+
 // Auth routes (public, rate limited)
 app.use('/auth', authLimiter, createAuthRoutes());
 
@@ -130,6 +139,10 @@ const requireAuth: express.RequestHandler = async (req, res, next) => {
   (req as AuthenticatedRequest).sessionId = session.sessionId;
   next();
 };
+
+// File upload/download routes (higher rate limit for initial sync bursts)
+// Must be mounted before /api to avoid the stricter apiLimiter matching first
+app.use('/api/files', fileLimiter, requireAuth, createFileRoutes());
 
 // Protected API routes (rate limited)
 app.use('/api', apiLimiter, requireAuth, createDocumentRoutes());

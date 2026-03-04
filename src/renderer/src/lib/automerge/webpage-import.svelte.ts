@@ -16,6 +16,7 @@ import {
   getIsFileSyncEnabled
 } from './state.svelte';
 import { syncFileToFilesystem } from './file-sync.svelte';
+import { uploadFileToCloudBackground } from './cloud-file-sync.svelte';
 import type { WebpageMetadata } from './types';
 
 /**
@@ -84,6 +85,13 @@ export async function importWebpageFromUrl(url: string): Promise<WebpageImportRe
       metadata: metadata as unknown as Record<string, unknown>
     });
   }
+
+  // Upload to cloud (fire-and-forget)
+  const encoder = new TextEncoder();
+  uploadFileToCloudBackground('webpage', hash, encoder.encode(html), {
+    extension: 'html',
+    metadata: metadata as unknown as Record<string, unknown>
+  });
 
   // Create the note
   const noteId = createWebpageNote({

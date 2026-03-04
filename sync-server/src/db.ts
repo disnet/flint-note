@@ -68,6 +68,20 @@ function initSchema(db: Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS file_metadata (
+      hash TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      extension TEXT NOT NULL,
+      user_did TEXT NOT NULL,
+      vault_id TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (hash, file_type, user_did)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_file_metadata_user_vault
+      ON file_metadata(user_did, vault_id);
   `);
 }
 

@@ -102,6 +102,7 @@ import {
   disconnectCloudSync,
   onSyncConnected
 } from './cloud-sync.svelte';
+import { syncMissingFiles } from './cloud-file-sync.svelte';
 import { searchIndex } from './search-index.svelte';
 import { stabilizeWikilinksGlobally } from './wikilink-stabilization.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
@@ -320,6 +321,14 @@ export async function initializeState(vaultId?: string): Promise<void> {
         if (v.cloudSyncEnabled) {
           updateVaultInRepo(v.id, { lastCloudSync: now });
         }
+      }
+
+      // Sync missing binary files (PDFs, EPUBs, images, webpages) in background
+      const currentVaultId = getActiveVaultId();
+      if (currentVaultId) {
+        syncMissingFiles(currentVaultId).catch((error) => {
+          console.error('[CloudFileSync] Background sync failed:', error);
+        });
       }
     });
 

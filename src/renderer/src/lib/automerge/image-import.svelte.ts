@@ -12,6 +12,7 @@
 import { imageOpfsStorage } from './image-opfs-storage.svelte';
 import { getIsFileSyncEnabled } from './state.svelte';
 import { syncFileToFilesystem } from './file-sync.svelte';
+import { uploadFileToCloudBackground } from './cloud-file-sync.svelte';
 
 /**
  * Result of an image import operation
@@ -108,6 +109,11 @@ export async function importImageFile(file: File): Promise<ImageImportResult> {
     });
   }
 
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('image', result.shortHash, arrayBuffer, {
+    extension: result.extension
+  });
+
   // Build markdown syntax
   const markdownSyntax = buildMarkdownImageSyntax(result.shortHash, result.extension);
 
@@ -146,6 +152,11 @@ export async function importImageFromData(
       extension: result.extension
     });
   }
+
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('image', result.shortHash, arrayBuffer, {
+    extension: result.extension
+  });
 
   // Build markdown syntax
   const markdownSyntax = buildMarkdownImageSyntax(result.shortHash, result.extension);

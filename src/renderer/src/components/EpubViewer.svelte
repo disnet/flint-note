@@ -13,6 +13,11 @@
     updateNoteContent,
     getNoteContent
   } from '../lib/automerge';
+  import {
+    downloadFileFromCloud,
+    type CloudFileType
+  } from '../lib/automerge/cloud-file-sync.svelte';
+  import { isCloudAuthenticated } from '../lib/automerge/cloud-sync.svelte';
   import { nowISO } from '../lib/automerge/utils';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { floatingUIState } from '../stores/floatingUIState.svelte';
@@ -144,7 +149,19 @@ ${highlightLines.join('\n\n')}
       const content = await getNoteContent(note.id);
       noteContent = content;
 
-      const data = await opfsStorage.retrieve(hash);
+      let data = await opfsStorage.retrieve(hash);
+      if (!data && isCloudAuthenticated()) {
+        // Try downloading from cloud
+        const cloudData = await downloadFileFromCloud(
+          'epub' as CloudFileType,
+          hash,
+          'epub'
+        );
+        if (cloudData) {
+          await opfsStorage.store(cloudData);
+          data = cloudData;
+        }
+      }
       if (!data) {
         loadError = 'EPUB file not found in storage';
         isLoading = false;

@@ -17,6 +17,7 @@ import {
   getIsFileSyncEnabled
 } from './state.svelte';
 import { syncFileToFilesystem } from './file-sync.svelte';
+import { uploadFileToCloudBackground } from './cloud-file-sync.svelte';
 import type { EpubMetadata } from './types';
 
 /**
@@ -155,6 +156,9 @@ export async function importEpubFile(file: File): Promise<EpubImportResult> {
     await syncFileToFilesystem('epub', hash, new Uint8Array(arrayBuffer));
   }
 
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('epub', hash, arrayBuffer, { extension: 'epub' });
+
   // Extract metadata
   const metadata = extractEpubMetadata(arrayBuffer, file.name);
 
@@ -203,6 +207,9 @@ export async function importEpubFromData(
   if (getIsFileSyncEnabled()) {
     await syncFileToFilesystem('epub', hash, new Uint8Array(arrayBuffer));
   }
+
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('epub', hash, arrayBuffer, { extension: 'epub' });
 
   // Extract metadata
   const metadata = extractEpubMetadata(arrayBuffer, filename);
