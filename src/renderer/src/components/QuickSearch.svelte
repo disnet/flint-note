@@ -5,6 +5,7 @@
    */
   import SearchResults from './SearchResults.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
+  import { deviceState } from '../stores/deviceState.svelte';
   import type {
     NoteMetadata,
     SearchResult,
@@ -41,10 +42,11 @@
 
   let inputElement = $state<HTMLInputElement | null>(null);
 
-  // Focus input when modal opens
+  const isMobile = $derived(deviceState.useMobileLayout);
+
+  // Focus input when modal opens — only on desktop
   $effect(() => {
-    if (isOpen && inputElement) {
-      // Small delay to ensure DOM is ready
+    if (isOpen && inputElement && !isMobile) {
       setTimeout(() => {
         inputElement?.focus();
       }, 10);
@@ -90,8 +92,6 @@
 
   function handleViewAll(): void {
     onViewAllResults();
-    // Note: don't call onClose() here - onViewAllResults handles closing the modal
-    // while preserving the search query for the expanded view
   }
 </script>
 
@@ -104,6 +104,21 @@
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="quick-search-modal" onclick={(e) => e.stopPropagation()}>
+      <div class="panel-header">
+        <h3>Search</h3>
+        <button class="close-btn" onclick={onClose} aria-label="Close">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
       <div class="search-input-wrapper">
         <svg
           class="search-icon"
@@ -130,7 +145,7 @@
           <button class="shortcut-hint shortcut-hint-btn" onclick={handleViewAll}>
             {modifierKey}⇧↵ show all
           </button>
-        {:else}
+        {:else if !isMobile}
           <div class="shortcut-hint">{modifierKey}O</div>
         {/if}
       </div>
@@ -147,11 +162,11 @@
               maxResults={8}
               selectedIndex={selectedSearchIndex}
               isLoading={isSearchingContent}
-              showKeyboardHints={true}
+              showKeyboardHints={!isMobile}
             />
             {#if searchResults.length > 8 && !isShowingRecent}
               <button class="view-all-btn" onclick={handleViewAll}>
-                View all {searchResults.length} results (Enter)
+                View all {searchResults.length} results
               </button>
             {/if}
           {:else if searchQuery.trim()}
@@ -163,16 +178,19 @@
       {:else}
         <div class="empty-state">
           <p>Type to search your notes</p>
-          <div class="keyboard-hints">
-            <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-            <span class="hint"><kbd>Enter</kbd> Open</span>
-            <span class="hint"><kbd>{modifierKey}</kbd><kbd>Enter</kbd> Add to Shelf</span
-            >
-            <span class="hint"
-              ><kbd>{modifierKey}</kbd><kbd>Shift</kbd><kbd>Enter</kbd> Expanded View</span
-            >
-            <span class="hint"><kbd>Esc</kbd> Close</span>
-          </div>
+          {#if !isMobile}
+            <div class="keyboard-hints">
+              <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+              <span class="hint"><kbd>Enter</kbd> Open</span>
+              <span class="hint"
+                ><kbd>{modifierKey}</kbd><kbd>Enter</kbd> Add to Shelf</span
+              >
+              <span class="hint"
+                ><kbd>{modifierKey}</kbd><kbd>Shift</kbd><kbd>Enter</kbd> Expanded View</span
+              >
+              <span class="hint"><kbd>Esc</kbd> Close</span>
+            </div>
+          {/if}
         </div>
       {/if}
     </div>
@@ -183,21 +201,18 @@
   .quick-search-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding-top: 15vh;
     z-index: 1000;
-    backdrop-filter: blur(2px);
   }
 
   .quick-search-modal {
     background: var(--bg-primary);
-    border-radius: 0.75rem;
-    box-shadow:
-      0 25px 50px -12px rgba(0, 0, 0, 0.25),
-      0 0 0 1px var(--border-medium);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 560px;
     overflow: hidden;
@@ -218,11 +233,44 @@
     }
   }
 
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+
+  .panel-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .close-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
   .search-input-wrapper {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 1.25rem;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
   }
@@ -237,7 +285,7 @@
     border: none;
     background: transparent;
     color: var(--text-primary);
-    font-size: 1.125rem;
+    font-size: 1rem;
     outline: none;
     padding: 0;
   }
@@ -342,5 +390,34 @@
     border-radius: 0.25rem;
     font-family: inherit;
     font-size: 0.6875rem;
+  }
+
+  /* Mobile: match shelf/chat panel styling */
+  @media (max-width: 767px) {
+    .quick-search-overlay {
+      padding-top: 0;
+      align-items: flex-end;
+    }
+
+    .quick-search-modal {
+      max-width: none;
+      left: 12px;
+      right: 12px;
+      margin: 0 12px calc(12px + var(--safe-area-bottom, 0px));
+      max-height: calc(100vh - 100px);
+      border: 1px solid var(--border-light);
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
   }
 </style>

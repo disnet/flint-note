@@ -20,7 +20,7 @@
 
   if (typeof window !== 'undefined' && 'visualViewport' in window) {
     const vv = window.visualViewport!;
-    const checkKeyboard = () => {
+    const checkKeyboard = (): void => {
       // If visual viewport is significantly shorter than the window, keyboard is up
       keyboardVisible = window.innerHeight - vv.height > 100;
     };

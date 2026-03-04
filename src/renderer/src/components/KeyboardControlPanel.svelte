@@ -113,32 +113,36 @@
     transform: translateX(-50%);
     z-index: 1000;
     display: flex;
-    gap: 8px;
-    padding: 6px;
-    background: var(--bg-elevated);
-    border-radius: 28px;
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.2),
-      0 2px 4px rgba(0, 0, 0, 0.1);
+    align-items: center;
+    gap: 0px;
+    padding: 2px 6px;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
   .panel-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 22px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     border: none;
     background: transparent;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
   }
 
   .panel-button:active {
+    color: var(--text-primary);
     background: var(--bg-hover);
   }
 
