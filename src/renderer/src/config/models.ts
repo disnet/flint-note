@@ -10,6 +10,7 @@ export interface ModelInfo {
   recommended?: boolean;
   description?: string;
   mode?: 'normal' | 'plus-ultra'; // Abstract mode for provider-agnostic selection
+  supportsThinking?: boolean;
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
@@ -23,17 +24,19 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     recommendedMaxConversation: 140000,
     recommended: true,
     mode: 'normal',
-    description: 'What you should use most of the time - fast and capable'
+    description: 'What you should use most of the time - fast and capable',
+    supportsThinking: true
   },
   {
-    id: 'anthropic/claude-sonnet-4.5',
+    id: 'anthropic/claude-sonnet-4.6',
     name: 'Plus Ultra',
     provider: 'openrouter',
     icon: '🧠',
     contextLength: 200000,
     recommendedMaxConversation: 140000,
     mode: 'plus-ultra',
-    description: 'When you need Flint to think really hard - slow and expensive'
+    description: 'When you need Flint to think really hard - slow and expensive',
+    supportsThinking: true
   },
 
   // Anthropic Direct - Claude Models
@@ -46,17 +49,19 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     recommendedMaxConversation: 140000,
     recommended: true,
     mode: 'normal',
-    description: 'What you should use most of the time - fast and capable'
+    description: 'What you should use most of the time - fast and capable',
+    supportsThinking: true
   },
   {
-    id: 'claude-sonnet-4-5-latest',
+    id: 'claude-sonnet-4-6-latest',
     name: 'Plus Ultra',
     provider: 'anthropic',
     icon: '🧠',
     contextLength: 200000,
     recommendedMaxConversation: 140000,
     mode: 'plus-ultra',
-    description: 'When you need Flint to think really hard - slow and expensive'
+    description: 'When you need Flint to think really hard - slow and expensive',
+    supportsThinking: true
   }
 ];
 

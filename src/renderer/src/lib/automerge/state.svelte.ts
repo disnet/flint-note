@@ -3108,7 +3108,7 @@ export async function addMessageToConversation(
 export async function updateConversationMessage(
   conversationId: string,
   messageId: string,
-  updates: Partial<Pick<PersistedChatMessage, 'content' | 'toolCalls'>>
+  updates: Partial<Pick<PersistedChatMessage, 'content' | 'toolCalls' | 'reasoning'>>
 ): Promise<void> {
   // Get conversation from cache (should already be loaded during streaming)
   const conversation = conversationCache.get(conversationId);
@@ -3143,6 +3143,9 @@ export async function updateConversationMessage(
       }
       return toolCall;
     });
+  }
+  if (updates.reasoning !== undefined) {
+    message.reasoning = updates.reasoning;
   }
   conversation.updated = now;
 

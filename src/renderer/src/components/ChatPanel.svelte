@@ -190,7 +190,11 @@
     if (isOpen && initialMessage && chatService && apiKeyConfigured && !isLoading) {
       // Start a new conversation and send the initial message
       chatService.startNewConversation();
-      chatService.sendMessage(initialMessage, modelStore.selectedModel);
+      chatService.sendMessage(
+        initialMessage,
+        modelStore.selectedModel,
+        modelStore.thinkingEnabled
+      );
 
       // Notify parent that we've consumed the initial message
       onInitialMessageConsumed?.();
@@ -369,7 +373,11 @@
     chatInputRef?.clear(); // Clear the CodeMirror editor
 
     try {
-      await chatService.sendMessage(messageText, currentModel);
+      await chatService.sendMessage(
+        messageText,
+        currentModel,
+        modelStore.thinkingEnabled
+      );
     } catch (err) {
       console.error('Failed to send message:', err);
     }
@@ -448,7 +456,10 @@
   // Handle continue when agent hits step limit
   async function handleContinue(): Promise<void> {
     if (!chatService) return;
-    await chatService.continueConversation(modelStore.selectedModel);
+    await chatService.continueConversation(
+      modelStore.selectedModel,
+      modelStore.thinkingEnabled
+    );
   }
 
   // Handle retry after network error
@@ -670,7 +681,38 @@
                         />
                       {/if}
                     {:else}
-                      <!-- Assistant messages: show inline tool widget, then final response -->
+                      <!-- Assistant messages: show reasoning, inline tool widget, then final response -->
+                      {#if message.reasoning}
+                        <div class="reasoning-section">
+                          {#if message.isReasoning}
+                            <div class="reasoning-header reasoning-active">
+                              <div class="reasoning-spinner"></div>
+                              <span>Thinking...</span>
+                            </div>
+                          {:else}
+                            <details class="reasoning-details">
+                              <summary class="reasoning-header">
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                >
+                                  <path
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                                  />
+                                </svg>
+                                <span>Thought process</span>
+                              </summary>
+                              <div class="reasoning-content">
+                                {message.reasoning}
+                              </div>
+                            </details>
+                          {/if}
+                        </div>
+                      {/if}
                       {#if hasToolCalls(message) || message.toolActivity?.isActive}
                         <InlineToolWidget
                           toolCalls={message.toolCalls ?? []}
@@ -780,6 +822,34 @@
                     <span class="mode-label">Plus Ultra</span>
                   </button>
                 </div>
+
+                <!-- Thinking Toggle -->
+                {#if modelStore.currentModelInfo.supportsThinking}
+                  <button
+                    type="button"
+                    class="thinking-toggle"
+                    class:active={modelStore.thinkingEnabled}
+                    onclick={() =>
+                      modelStore.setThinkingEnabled(!modelStore.thinkingEnabled)}
+                    title={modelStore.thinkingEnabled
+                      ? 'Extended thinking enabled - click to disable'
+                      : 'Enable extended thinking for deeper analysis'}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    <span class="thinking-label">Think</span>
+                  </button>
+                {/if}
 
                 <!-- Spacer -->
                 <div class="controls-spacer"></div>
@@ -1118,6 +1188,56 @@
     gap: 8px;
   }
 
+  /* Reasoning / thinking display */
+  .reasoning-section {
+    font-size: 0.8125rem;
+    max-width: 100%;
+  }
+
+  .reasoning-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgb(168, 85, 247);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 0;
+    list-style: none;
+  }
+
+  .reasoning-header::-webkit-details-marker {
+    display: none;
+  }
+
+  .reasoning-active {
+    cursor: default;
+  }
+
+  .reasoning-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(168, 85, 247, 0.3);
+    border-top-color: rgb(168, 85, 247);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .reasoning-details {
+    border-left: 2px solid rgba(168, 85, 247, 0.3);
+    padding-left: 8px;
+  }
+
+  .reasoning-content {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
   .empty-chat {
     text-align: center;
     padding: 32px 16px;
@@ -1268,6 +1388,36 @@
   }
 
   .mode-label {
+    font-weight: 500;
+  }
+
+  /* Thinking toggle */
+  .thinking-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+  }
+
+  .thinking-toggle:hover {
+    color: var(--text-secondary);
+    border-color: var(--text-muted);
+  }
+
+  .thinking-toggle.active {
+    background: rgba(168, 85, 247, 0.15);
+    color: rgb(168, 85, 247);
+    border-color: rgba(168, 85, 247, 0.4);
+  }
+
+  .thinking-label {
     font-weight: 500;
   }
 
