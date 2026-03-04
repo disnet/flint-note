@@ -50,7 +50,14 @@ export async function getOAuthClient(): Promise<NodeOAuthClient> {
       throw new Error('OAUTH_PRIVATE_KEY environment variable is required');
     }
 
-    const keyset = await Promise.all([JoseKey.fromImportable(privateKey)]);
+    // Use fromPKCS8 with explicit algorithm since Bun resolves jose to its
+    // browser/WebCrypto build which requires the alg parameter (fromImportable
+    // passes an empty string which fails in the browser runtime)
+    const keyset = await Promise.all([
+      privateKey.trim().startsWith('-----')
+        ? JoseKey.fromPKCS8(privateKey, 'ES256')
+        : JoseKey.fromImportable(privateKey)
+    ]);
 
     oauthClient = new NodeOAuthClient({
       clientMetadata: {
