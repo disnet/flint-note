@@ -59,6 +59,10 @@ export interface ChatMessage {
   createdAt: Date;
   /** Tool activity state for inline widget display during streaming */
   toolActivity?: ToolActivity;
+  /** Extended thinking / reasoning text (if thinking was enabled) */
+  reasoning?: string;
+  /** Whether reasoning is currently streaming */
+  isReasoning?: boolean;
 }
 
 /**
@@ -100,6 +104,7 @@ export type ChatStatus =
 interface LastRequestParams {
   text: string;
   model?: string;
+  thinkingEnabled?: boolean;
   type: 'send' | 'continue';
 }
 
@@ -470,6 +475,7 @@ export class ChatService {
       role: m.role,
       content: String(m.content ?? ''),
       toolCalls: m.toolCalls,
+      reasoning: m.reasoning,
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Date used for timestamp, not reactive state
       createdAt: new Date(m.createdAt)
     }));
@@ -493,8 +499,13 @@ export class ChatService {
    * Send a message and stream the response
    * @param text The message text to send
    * @param model Optional model ID to use (defaults to DEFAULT_MODEL)
+   * @param thinkingEnabled Whether to enable extended thinking/reasoning
    */
-  async sendMessage(text: string, model?: string): Promise<void> {
+  async sendMessage(
+    text: string,
+    model?: string,
+    thinkingEnabled?: boolean
+  ): Promise<void> {
     if (!text.trim() || this.isLoading) return;
 
     // Screenshot mode: use mock responses instead of real API calls
@@ -504,7 +515,7 @@ export class ChatService {
     }
 
     // Store request params for potential retry
-    this._lastRequestParams = { text: text.trim(), model, type: 'send' };
+    this._lastRequestParams = { text: text.trim(), model, thinkingEnabled, type: 'send' };
 
     // Clear any previous error and reset step tracking
     this._error = null;
@@ -639,7 +650,14 @@ export class ChatService {
         messages: coreMessages,
         tools,
         stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT), // Allow up to TOOL_CALL_STEP_LIMIT tool call rounds
-        abortSignal: this.abortController.signal
+        abortSignal: this.abortController.signal,
+        providerOptions: thinkingEnabled
+          ? {
+              openrouter: {
+                reasoning: { effort: 'high' }
+              }
+            }
+          : undefined
       });
 
       this._status = 'streaming';
@@ -659,11 +677,25 @@ export class ChatService {
             });
             break;
 
+          case 'reasoning-delta':
+            // Accumulate reasoning text and mark as reasoning
+            this.updateLastAssistantMessage((msg) => {
+              msg.reasoning = (msg.reasoning || '') + event.text;
+              msg.isReasoning = true;
+            });
+            break;
+
           case 'text-delta':
             // Buffer text - don't add to content yet
             // We'll add it to content only if this step has no tool calls
             this.currentStepText += event.text;
             this.pendingStepText += event.text;
+            // If we were reasoning, we're done now
+            this.updateLastAssistantMessage((msg) => {
+              if (msg.isReasoning) {
+                msg.isReasoning = false;
+              }
+            });
             break;
 
           case 'tool-call': {
@@ -891,12 +923,13 @@ export class ChatService {
   /**
    * Continue the conversation after hitting the step limit
    * @param model Optional model ID to use (defaults to DEFAULT_MODEL)
+   * @param thinkingEnabled Whether to enable extended thinking/reasoning
    */
-  async continueConversation(model?: string): Promise<void> {
+  async continueConversation(model?: string, thinkingEnabled?: boolean): Promise<void> {
     if (this._status !== 'awaiting_continue' || !this._conversationId) return;
 
     // Store request params for potential retry
-    this._lastRequestParams = { text: '', model, type: 'continue' };
+    this._lastRequestParams = { text: '', model, thinkingEnabled, type: 'continue' };
 
     // Reset step tracking for another round
     this._stoppedAtLimit = false;
@@ -1012,7 +1045,14 @@ export class ChatService {
         messages: coreMessages,
         tools,
         stopWhen: stepCountIs(TOOL_CALL_STEP_LIMIT),
-        abortSignal: this.abortController.signal
+        abortSignal: this.abortController.signal,
+        providerOptions: thinkingEnabled
+          ? {
+              openrouter: {
+                reasoning: { effort: 'high' }
+              }
+            }
+          : undefined
       });
 
       this._status = 'streaming';
@@ -1031,10 +1071,24 @@ export class ChatService {
             });
             break;
 
+          case 'reasoning-delta':
+            // Accumulate reasoning text and mark as reasoning
+            this.updateLastAssistantMessage((msg) => {
+              msg.reasoning = (msg.reasoning || '') + event.text;
+              msg.isReasoning = true;
+            });
+            break;
+
           case 'text-delta':
             // Buffer text - don't add to content yet
             this.currentStepText += event.text;
             this.pendingStepText += event.text;
+            // If we were reasoning, we're done now
+            this.updateLastAssistantMessage((msg) => {
+              if (msg.isReasoning) {
+                msg.isReasoning = false;
+              }
+            });
             break;
 
           case 'tool-call': {
@@ -1247,7 +1301,7 @@ export class ChatService {
   async retry(): Promise<void> {
     if (!this.canRetry || !this._lastRequestParams) return;
 
-    const { text, model, type } = this._lastRequestParams;
+    const { text, model, thinkingEnabled, type } = this._lastRequestParams;
 
     // Remove the failed assistant message before retrying
     if (this._messages.length > 0) {
@@ -1272,11 +1326,11 @@ export class ChatService {
 
     // Retry based on request type
     if (type === 'send') {
-      await this.sendMessage(text, model);
+      await this.sendMessage(text, model, thinkingEnabled);
     } else {
       // For continue, we need to set the status back to awaiting_continue first
       this._status = 'awaiting_continue';
-      await this.continueConversation(model);
+      await this.continueConversation(model, thinkingEnabled);
     }
   }
 
@@ -1395,7 +1449,8 @@ export class ChatService {
           this.currentAssistantMessageId,
           {
             content: msg.content,
-            toolCalls: msg.toolCalls as PersistedToolCall[] | undefined
+            toolCalls: msg.toolCalls as PersistedToolCall[] | undefined,
+            reasoning: msg.reasoning
           }
         );
       }

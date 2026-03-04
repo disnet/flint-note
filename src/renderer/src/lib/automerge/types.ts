@@ -288,6 +288,8 @@ export interface PersistedChatMessage {
   content: string;
   /** Tool calls made by assistant (if any) */
   toolCalls?: PersistedToolCall[];
+  /** Extended thinking / reasoning text (if thinking was enabled) */
+  reasoning?: string;
   /** ISO timestamp of creation */
   createdAt: string;
 }

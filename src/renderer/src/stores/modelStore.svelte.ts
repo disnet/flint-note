@@ -3,6 +3,7 @@ import type { ModelInfo } from '../config/models';
 
 class ModelStore {
   private selectedModel = $state(DEFAULT_MODEL);
+  private _thinkingEnabled = $state(false);
   private isLoading = $state(true);
   private isInitialized = $state(false);
   private initializationPromise: Promise<void> | null = null;
@@ -25,6 +26,10 @@ class ModelStore {
 
   get currentModelInfo(): ModelInfo {
     return getModelById(this.selectedModel) || getModelById(DEFAULT_MODEL)!;
+  }
+
+  get thinkingEnabled(): boolean {
+    return this._thinkingEnabled;
   }
 
   /**
@@ -55,6 +60,12 @@ class ModelStore {
         if (modelInfo) {
           this.selectedModel = storedModel;
         }
+      }
+
+      // Load thinking preference
+      const storedThinking = localStorage.getItem('flint-thinking-enabled');
+      if (storedThinking !== null) {
+        this._thinkingEnabled = storedThinking === 'true';
       }
     } catch (error) {
       console.warn('Failed to load model preference from storage:', error);
@@ -92,6 +103,14 @@ class ModelStore {
       throw error;
     }
   }
+
+  /**
+   * Toggle or set thinking mode and persist to localStorage
+   */
+  setThinkingEnabled(enabled: boolean): void {
+    this._thinkingEnabled = enabled;
+    localStorage.setItem('flint-thinking-enabled', String(enabled));
+  }
 }
 
 // Create singleton instance
@@ -124,6 +143,10 @@ export const modelStore = {
   get initialized() {
     return modelStoreInstance.initialized;
   },
+  get thinkingEnabled() {
+    return modelStoreInstance.thinkingEnabled;
+  },
   setSelectedModel: modelStoreInstance.setSelectedModel.bind(modelStoreInstance),
+  setThinkingEnabled: modelStoreInstance.setThinkingEnabled.bind(modelStoreInstance),
   ensureInitialized: modelStoreInstance.ensureInitialized.bind(modelStoreInstance)
 };
