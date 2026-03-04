@@ -35,6 +35,8 @@ function isAllowedOrigin(origin: string | undefined): boolean {
 }
 
 const app = express();
+// Trust the first proxy (Fly.io) so req.ip reflects the real client IP
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cookieParser());
 
