@@ -18,9 +18,11 @@ export function isWeb(): boolean {
 }
 
 /**
- * Check if AI features are available (requires Electron + chat server)
+ * Check if AI features are available.
+ * On Electron, requires chat server. On web, always available (key check deferred to init).
  */
 export function isAIAvailable(): boolean {
+  if (isWeb()) return true;
   return isElectron() && !!window.api?.getChatServerPort;
 }
 

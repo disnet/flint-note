@@ -103,8 +103,22 @@ export class SecureStorageService {
         return false;
       }
     }
-    // In web mode, we can't test the API key without the server
-    return false;
+    // Web mode: test the key directly
+    const { key } = await this.getApiKey(provider);
+    if (!key || !this.validateApiKey(provider, key)) return false;
+
+    if (provider === 'openrouter') {
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+          headers: { Authorization: `Bearer ${key}` }
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
+    // Anthropic: CORS blocks direct API calls, just validate format
+    return true;
   }
 
   async clearAllApiKeys(): Promise<void> {

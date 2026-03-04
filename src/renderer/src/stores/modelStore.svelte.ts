@@ -37,12 +37,18 @@ class ModelStore {
   }
 
   /**
-   * Initialize the store by loading data from file system
+   * Initialize the store by loading data from file system or localStorage
    */
   private async initialize(): Promise<void> {
     this.isLoading = true;
     try {
-      const storedModel = await window.api?.loadModelPreference();
+      let storedModel: string | undefined | null;
+      if (window.api?.loadModelPreference) {
+        storedModel = await window.api.loadModelPreference();
+      } else {
+        // Web fallback: localStorage
+        storedModel = localStorage.getItem('flint-model-preference');
+      }
       if (storedModel) {
         // Validate that the stored model still exists in our config
         const modelInfo = getModelById(storedModel);
@@ -74,7 +80,12 @@ class ModelStore {
 
     try {
       this.selectedModel = modelId;
-      await window.api?.saveModelPreference(modelId);
+      if (window.api?.saveModelPreference) {
+        await window.api.saveModelPreference(modelId);
+      } else {
+        // Web fallback: localStorage
+        localStorage.setItem('flint-model-preference', modelId);
+      }
     } catch (error) {
       console.error('Failed to save model preference to storage:', error);
       // Could revert the change here, but for now we'll keep the UI updated

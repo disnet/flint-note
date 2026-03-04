@@ -56,7 +56,7 @@
   // Create theme extension for chat input styling
   const editorTheme = EditorView.theme({
     '&': {
-      fontSize: '0.875rem',
+      fontSize: '1rem',
       fontFamily: 'inherit'
     },
     '.cm-content': {

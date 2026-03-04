@@ -13,7 +13,7 @@ import {
   type ToolResultPart,
   type ModelMessage
 } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createAIProvider } from '../ai-provider.svelte';
 import { createNoteTools } from './note-tools.svelte';
 import { createNoteTypeTools } from './notetype-tools.svelte';
 import { createEpubTools } from './epub-tools.svelte';
@@ -372,7 +372,7 @@ function buildDateTimeContext(): string {
 export const TOOL_BREAK_MARKER = '\n\n<!-- tool-break -->\n\n';
 
 export class ChatService {
-  private proxyUrl: string;
+  private proxyPort?: number;
   private _messages = $state<ChatMessage[]>([]);
   private _status = $state<ChatStatus>('ready');
   private _error = $state<Error | null>(null);
@@ -392,8 +392,8 @@ export class ChatService {
   // Store last request params for retry capability
   private _lastRequestParams: LastRequestParams | null = null;
 
-  constructor(proxyPort: number) {
-    this.proxyUrl = `http://127.0.0.1:${proxyPort}/api/chat/proxy`;
+  constructor(proxyPort?: number) {
+    this.proxyPort = proxyPort;
   }
 
   /**
@@ -629,12 +629,8 @@ export class ChatService {
         ...createWebpageTools()
       };
 
-      // Create OpenRouter provider pointing to our proxy
-      // The proxy will add the real API key
-      const openrouter = createOpenRouter({
-        baseURL: this.proxyUrl,
-        apiKey: 'proxy-handled' // Dummy - real key added by proxy
-      });
+      // Create AI provider (direct on web, proxy on Electron)
+      const openrouter = await createAIProvider(this.proxyPort);
 
       // Stream the response
       const result = streamText({
@@ -1006,11 +1002,8 @@ export class ChatService {
         ...createWebpageTools()
       };
 
-      // Create OpenRouter provider
-      const openrouter = createOpenRouter({
-        baseURL: this.proxyUrl,
-        apiKey: 'proxy-handled'
-      });
+      // Create AI provider (direct on web, proxy on Electron)
+      const openrouter = await createAIProvider(this.proxyPort);
 
       // Stream the response
       const result = streamText({
@@ -1413,6 +1406,6 @@ export class ChatService {
 /**
  * Create a new chat service instance
  */
-export function createChatService(proxyPort: number): ChatService {
+export function createChatService(proxyPort?: number): ChatService {
   return new ChatService(proxyPort);
 }

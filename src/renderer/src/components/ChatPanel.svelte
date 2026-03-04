@@ -32,6 +32,9 @@
   import PanelModeSwitcher from './PanelModeSwitcher.svelte';
   import { modelStore, setSelectedModel } from '../stores/modelStore.svelte';
   import { getModelsByProvider } from '../config/models';
+  import { isWeb } from '../lib/platform.svelte';
+  import { secureStorageService } from '../services/secureStorageService';
+  import { deviceState } from '../stores/deviceState.svelte';
 
   interface Props {
     /** Whether the panel is currently open */
@@ -110,30 +113,49 @@
       if (chatService && apiKeyConfigured === true) return;
 
       try {
-        // Get chat server port
-        const port = await window.api?.getChatServerPort();
-        serverPort = port ?? null;
-
         // Check if we're in screenshot mode (uses mock responses, no API key needed)
         const isScreenshotMode =
           document.documentElement.hasAttribute('data-screenshot-mode');
 
-        // In screenshot mode, skip API key check (mock responses are used)
-        if (isScreenshotMode) {
-          apiKeyConfigured = true;
-          if (port && !chatService) {
+        if (isWeb()) {
+          // Web path: validate API key from localStorage, no proxy needed
+          if (isScreenshotMode) {
+            apiKeyConfigured = true;
+            if (!chatService) {
+              chatService = createChatService();
+            }
+            return;
+          }
+
+          // Check if OpenRouter API key is configured
+          const { key } = await secureStorageService.getApiKey('openrouter');
+          const isValid = secureStorageService.validateApiKey('openrouter', key);
+          apiKeyConfigured = isValid;
+
+          if (isValid && !chatService) {
+            chatService = createChatService();
+          }
+        } else {
+          // Electron path: use proxy server
+          const port = await window.api?.getChatServerPort();
+          serverPort = port ?? null;
+
+          if (isScreenshotMode) {
+            apiKeyConfigured = true;
+            if (port && !chatService) {
+              chatService = createChatService(port);
+            }
+            return;
+          }
+
+          // Check if API key is configured
+          const isValid = await window.api?.testApiKey({ provider: 'openrouter' });
+          apiKeyConfigured = isValid ?? false;
+
+          // Initialize ChatService when port is available
+          if (port && isValid && !chatService) {
             chatService = createChatService(port);
           }
-          return;
-        }
-
-        // Check if API key is configured
-        const isValid = await window.api?.testApiKey({ provider: 'openrouter' });
-        apiKeyConfigured = isValid ?? false;
-
-        // Initialize ChatService when port is available
-        if (port && isValid && !chatService) {
-          chatService = createChatService(port);
         }
       } catch (error) {
         console.error('Failed to initialize chat panel:', error);
@@ -178,7 +200,23 @@
   // Fetch OpenRouter credits
   async function fetchCredits(): Promise<void> {
     try {
-      credits = (await window.api?.getOpenRouterCredits()) ?? null;
+      if (isWeb()) {
+        // Web: call OpenRouter API directly
+        const { key } = await secureStorageService.getApiKey('openrouter');
+        if (key) {
+          const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+            headers: { Authorization: `Bearer ${key}` }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            credits = data?.data
+              ? { remaining_credits: data.data.limit_remaining ?? data.data.usage ?? 0 }
+              : null;
+          }
+        }
+      } else {
+        credits = (await window.api?.getOpenRouterCredits()) ?? null;
+      }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
     }
@@ -305,7 +343,11 @@
 
   // Open OpenRouter dashboard
   function openOpenRouterDashboard(): void {
-    window.api?.openExternal({ url: 'https://openrouter.ai/credits' });
+    if (isWeb()) {
+      window.open('https://openrouter.ai/credits', '_blank');
+    } else {
+      window.api?.openExternal({ url: 'https://openrouter.ai/credits' });
+    }
   }
 
   // Derived current mode from model store
@@ -392,6 +434,9 @@
   // Handle note link clicks in chat messages
   function handleNoteClick(noteId: string): void {
     setActiveNoteId(noteId);
+    if (deviceState.useMobileLayout) {
+      onClose();
+    }
   }
 
   // Copy tool call JSON to clipboard
@@ -584,7 +629,7 @@
           <p>Configure your OpenRouter API key in Settings to start chatting.</p>
           <button class="setup-button" onclick={onGoToSettings}> Open Settings </button>
         </div>
-      {:else if !serverPort || apiKeyConfigured === null}
+      {:else if (!isWeb() && !serverPort) || apiKeyConfigured === null}
         <!-- Loading state -->
         <div class="loading-state">
           <div class="spinner"></div>
@@ -896,6 +941,18 @@
     transform: none;
   }
 
+  /* Mobile: full-width floating panel */
+  @media (max-width: 767px) {
+    .chat-panel:not(.expanded) {
+      left: 8px;
+      right: 8px;
+      bottom: calc(8px + var(--safe-area-bottom, 0px));
+      width: auto;
+      max-height: calc(100vh - 80px);
+      min-height: 0;
+    }
+  }
+
   .chat-panel-inner {
     display: flex;
     flex-direction: column;
@@ -934,6 +991,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
   }
 
   .header-btn {
@@ -945,6 +1003,7 @@
     border-radius: 4px;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
     justify-content: center;
     -webkit-app-region: no-drag;
   }
@@ -1385,5 +1444,16 @@
 
   .continue-button:hover {
     background: var(--accent-primary-hover, var(--accent-primary));
+  }
+
+  /* Mobile: hide mode text labels, show only icons */
+  @media (max-width: 767px) {
+    .mode-label {
+      display: none;
+    }
+
+    .chat-input-form {
+      padding: 8px 12px;
+    }
   }
 </style>
