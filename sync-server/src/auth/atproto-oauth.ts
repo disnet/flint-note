@@ -55,8 +55,8 @@ export async function getOAuthClient(): Promise<NodeOAuthClient> {
     // passes an empty string which fails in the browser runtime)
     const keyset = await Promise.all([
       privateKey.trim().startsWith('-----')
-        ? JoseKey.fromPKCS8(privateKey, 'ES256')
-        : JoseKey.fromImportable(privateKey)
+        ? JoseKey.fromPKCS8(privateKey, 'ES256', 'flint-signing-key')
+        : JoseKey.fromImportable(privateKey, 'flint-signing-key')
     ]);
 
     oauthClient = new NodeOAuthClient({
