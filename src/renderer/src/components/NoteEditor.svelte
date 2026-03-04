@@ -7,6 +7,7 @@
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { DocHandle } from '@automerge/automerge-repo';
   import type { NoteMetadata, NoteContentDocument } from '../lib/automerge';
+  import { deviceState } from '../stores/deviceState.svelte';
   import {
     getBacklinks,
     getAllNotes,
@@ -718,7 +719,10 @@
         // Delay position restoration to allow Automerge sync to complete
         setTimeout(() => {
           positionTracker?.restorePosition(() => {
-            editorView?.focus();
+            // Don't auto-focus on mobile — it triggers the virtual keyboard
+            if (!deviceState.isMobile) {
+              editorView?.focus();
+            }
           });
         }, 100);
 
