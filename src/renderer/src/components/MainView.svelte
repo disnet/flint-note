@@ -2056,7 +2056,6 @@
   {searchQuery}
   {searchResults}
   {selectedSearchIndex}
-  {isShowingRecent}
   {isSearchingContent}
   onClose={() => {
     quickSearchOpen = false;
@@ -2080,6 +2079,22 @@
     setActiveSystemView('expanded-search');
     setActiveItem(null);
     quickSearchOpen = false;
+  }}
+  onSystemViewSelect={(view) => {
+    handleSystemViewSelect(view);
+    quickSearchOpen = false;
+    searchQuery = '';
+    if (isMobileLayout) {
+      sidebarState.closeMobileDrawer();
+    }
+  }}
+  onSidebarItemSelect={(item) => {
+    handleItemSelect(item);
+    quickSearchOpen = false;
+    searchQuery = '';
+    if (isMobileLayout) {
+      sidebarState.closeMobileDrawer();
+    }
   }}
 />
 
