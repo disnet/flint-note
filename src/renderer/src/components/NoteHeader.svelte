@@ -126,10 +126,14 @@
     z-index: 1;
   }
 
-  /* On mobile, adjust icon position */
+  /* On mobile, adjust icon position and leave space for floating more button */
   @media (max-width: 767px) {
     .title-area :global(.note-type-dropdown.compact) {
       top: 0;
+    }
+
+    .note-header {
+      padding-top: 3.5rem; /* Space below the floating more button */
     }
   }
 

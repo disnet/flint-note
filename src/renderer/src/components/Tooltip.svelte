@@ -42,6 +42,8 @@
 
   function showTooltip(): void {
     if (!wrapperEl || !tooltipEl) return;
+    // Don't show tooltips on touch devices
+    if (!window.matchMedia('(hover: hover)').matches) return;
 
     tooltipEl.classList.add('visible');
 

@@ -247,8 +247,14 @@
     white-space: nowrap;
   }
 
-  /* Mobile adjustments */
+  /* Mobile adjustments - compact dot-only display */
   :global(.main-view.mobile-layout) .sync-badge {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  :global(.main-view.mobile-layout) .sync-path,
+  :global(.main-view.mobile-layout) .sync-text {
+    display: none;
   }
 </style>

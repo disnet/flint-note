@@ -101,7 +101,12 @@
   import ResizeHandle from './ResizeHandle.svelte';
   import WindowControls from './WindowControls.svelte';
   import { initializeState } from '../lib/automerge';
-  import { fetchRemoteVaults } from '../lib/automerge/cloud-sync.svelte';
+  import {
+    fetchRemoteVaults,
+    getCloudSyncStatus,
+    isCloudAuthenticated
+  } from '../lib/automerge/cloud-sync.svelte';
+  import { getIsFileSyncEnabled } from '../lib/automerge/state.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
@@ -124,6 +129,43 @@
 
   // Mobile layout detection
   const isMobileLayout = $derived(deviceState.useMobileLayout);
+
+  // Sync status for mobile more menu
+  const mobileSyncStatus = $derived.by(() => {
+    if (!isMobileLayout) return null;
+    const fileSyncEnabled = getIsFileSyncEnabled();
+    const cloudSyncEnabled = !!(activeVault?.cloudSyncEnabled && isCloudAuthenticated());
+    const cloudStatus = getCloudSyncStatus();
+
+    if (!fileSyncEnabled && !cloudSyncEnabled) {
+      return { label: 'Set up sync', dotColor: 'var(--text-muted)' };
+    }
+
+    const parts: string[] = [];
+    let dotColor = '#10b981'; // green
+
+    if (fileSyncEnabled) parts.push('file sync');
+    if (cloudSyncEnabled) {
+      switch (cloudStatus) {
+        case 'connected':
+          parts.push('cloud sync');
+          break;
+        case 'connecting':
+          parts.push('cloud connecting...');
+          dotColor = '#f59e0b';
+          break;
+        case 'error':
+          parts.push('cloud sync error');
+          dotColor = '#ef4444';
+          break;
+        case 'disconnected':
+          parts.push('cloud disconnected');
+          dotColor = 'var(--text-muted)';
+          break;
+      }
+    }
+    return { label: parts.join(' + '), dotColor };
+  });
 
   // Check if active note is an EPUB, PDF, Webpage, or Deck using source format
   const activeNoteSourceFormat = $derived(
@@ -2140,6 +2182,7 @@
       !isActiveNotePdf &&
       !isActiveNoteWebpage}
     showShowInFinder={!!getActiveVault()?.baseDirectory}
+    syncStatus={mobileSyncStatus}
     onClose={() => (moreMenuOpen = false)}
     onPin={handlePin}
     onUnpin={handleUnpin}
@@ -2149,6 +2192,7 @@
     onArchive={handleArchiveFromMenu}
     onUnarchive={handleUnarchiveFromMenu}
     onShowInFinder={handleShowInFinder}
+    onSyncAction={() => setActiveSystemView('settings')}
   />
 {/if}
 
@@ -2322,6 +2366,7 @@
     min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
     background: var(--bg-primary); /* Solid background for vibrancy mode */
+    position: relative;
   }
 
   /* Right Sidebar */
@@ -2909,33 +2954,65 @@
   }
 
   .main-view.mobile-layout .safe-zone {
-    padding-left: 1.25rem;
+    /* Float over content instead of taking up vertical space */
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: auto;
+    height: auto;
+    padding: 0.5rem 0.75rem;
+    z-index: 5;
+    -webkit-app-region: no-drag;
+    justify-content: flex-end;
   }
 
-  /* On macOS Electron mobile, add space for traffic lights */
-  :global([data-platform='macos']) .main-view.mobile-layout .safe-zone {
-    padding-left: 80px;
+  .main-view.mobile-layout .safe-zone-actions {
+    gap: 0;
   }
 
-  .main-view.mobile-layout .safe-zone-button,
+  /* Hide pin, shelf buttons, and sync badge on mobile (available via more menu) */
+  .main-view.mobile-layout .safe-zone-button {
+    display: none;
+  }
+
+  .main-view.mobile-layout .safe-zone-actions :global(.sync-badge-container) {
+    display: none;
+  }
+
+  /* Style more button like the mobile FAB */
   .main-view.mobile-layout .more-menu-button {
-    color: var(--text-muted);
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .main-view.mobile-layout .safe-zone-button,
-  .main-view.mobile-layout .more-menu-button {
-    width: var(--touch-target-min);
-    height: var(--touch-target-min);
-    padding: 0.5rem;
-  }
-
-  .main-view.mobile-layout .safe-zone-button svg,
   .main-view.mobile-layout .more-menu-button svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .main-view.mobile-layout .more-menu-button:active {
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .main-view.mobile-layout .floating-sidebar-toggle {
+    display: none;
+  }
+
+  /* Hide UpdateWidget on mobile */
+  .main-view.mobile-layout :global(.update-widget) {
     display: none;
   }
 
