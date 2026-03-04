@@ -320,7 +320,7 @@
     border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 1rem;
     outline: none;
   }
 

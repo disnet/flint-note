@@ -14,6 +14,7 @@
     isArchived: boolean;
     showPreviewMode?: boolean;
     showShowInFinder?: boolean;
+    syncStatus?: { label: string; dotColor: string } | null;
     onClose: () => void;
     onPin: () => void;
     onUnpin: () => void;
@@ -23,6 +24,7 @@
     onArchive: () => void;
     onUnarchive: () => void;
     onShowInFinder?: () => void;
+    onSyncAction?: () => void;
   }
 
   let {
@@ -36,6 +38,7 @@
     isArchived,
     showPreviewMode = true,
     showShowInFinder = false,
+    syncStatus = null,
     onClose,
     onPin,
     onUnpin,
@@ -44,7 +47,8 @@
     onToggleReview,
     onArchive,
     onUnarchive,
-    onShowInFinder
+    onShowInFinder,
+    onSyncAction
   }: Props = $props();
 
   let menuElement: HTMLDivElement | undefined = $state();
@@ -87,6 +91,11 @@
     onClose();
   }
 
+  function handleSyncClick(): void {
+    onSyncAction?.();
+    onClose();
+  }
+
   function handleMouseDown(e: MouseEvent): void {
     e.preventDefault();
   }
@@ -105,13 +114,22 @@
     }
   }
 
+  // Close on touch outside (mobile)
+  function handleTouchOutside(e: TouchEvent): void {
+    if (menuElement && !menuElement.contains(e.target as Node)) {
+      onClose();
+    }
+  }
+
   $effect(() => {
     if (!visible) return;
 
     document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('touchstart', handleTouchOutside, true);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleTouchOutside, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
   });
@@ -143,6 +161,21 @@
     style="left: {x}px; top: {y}px;"
     role="menu"
   >
+    {#if syncStatus}
+      <!-- Sync Status -->
+      <button
+        type="button"
+        class="menu-item"
+        onclick={handleSyncClick}
+        onmousedown={handleMouseDown}
+        role="menuitem"
+      >
+        <div class="sync-dot" style="background-color: {syncStatus.dotColor}"></div>
+        <span>{syncStatus.label}</span>
+      </button>
+      <div class="menu-divider"></div>
+    {/if}
+
     <!-- Pin/Unpin -->
     <button
       type="button"
@@ -400,6 +433,14 @@
 
   .menu-item span {
     flex: 1;
+  }
+
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    flex-grow: 0;
   }
 
   .check-icon {

@@ -1,14 +1,25 @@
 <script lang="ts">
   /**
-   * Quick search modal that appears when Cmd/Ctrl+K is pressed
-   * and the sidebar is closed
+   * Quick search panel — a mini-sidebar with system views, pinned notes,
+   * recent notes, and search results. Matches shelf/chat panel styling on mobile.
+   * Embeds the full SidebarItems component for drag/drop between pinned and recent.
    */
   import SearchResults from './SearchResults.svelte';
+  import SidebarItems from './SidebarItems.svelte';
+  import WorkspaceBar from './WorkspaceBar.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
-  import type {
-    NoteMetadata,
-    SearchResult,
-    EnhancedSearchResult
+  import { deviceState } from '../stores/deviceState.svelte';
+  import {
+    getActiveSystemView,
+    getReviewStats,
+    isSessionAvailable,
+    getUnprocessedCount,
+    getRoutinesDueNow,
+    type SidebarItem,
+    type SystemView,
+    type NoteMetadata,
+    type SearchResult,
+    type EnhancedSearchResult
   } from '../lib/automerge';
 
   interface Props {
@@ -16,13 +27,16 @@
     searchQuery: string;
     searchResults: (SearchResult | EnhancedSearchResult)[];
     selectedSearchIndex: number;
-    isShowingRecent: boolean;
     isSearchingContent: boolean;
     onClose: () => void;
     onSearchChange: (query: string) => void;
     onSearchResultSelect: (note: NoteMetadata) => void;
     onKeyDown: (event: KeyboardEvent) => void;
     onViewAllResults: () => void;
+    onSystemViewSelect: (
+      view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines' | null
+    ) => void;
+    onSidebarItemSelect: (item: SidebarItem) => void;
   }
 
   let {
@@ -30,21 +44,23 @@
     searchQuery,
     searchResults,
     selectedSearchIndex,
-    isShowingRecent,
     isSearchingContent,
     onClose,
     onSearchChange,
     onSearchResultSelect,
     onKeyDown,
-    onViewAllResults
+    onViewAllResults,
+    onSystemViewSelect,
+    onSidebarItemSelect
   }: Props = $props();
 
   let inputElement = $state<HTMLInputElement | null>(null);
 
-  // Focus input when modal opens
+  const isMobile = $derived(deviceState.useMobileLayout);
+
+  // Focus input when modal opens — only on desktop
   $effect(() => {
-    if (isOpen && inputElement) {
-      // Small delay to ensure DOM is ready
+    if (isOpen && inputElement && !isMobile) {
       setTimeout(() => {
         inputElement?.focus();
       }, 10);
@@ -55,25 +71,86 @@
   const isMac = navigator.platform.startsWith('Mac');
   const modifierKey = isMac ? '⌘' : 'Ctrl';
 
+  // Sidebar data
+  const activeSystemView = $derived(getActiveSystemView());
+  const reviewStats = $derived(getReviewStats());
+  const sessionAvailable = $derived(isSessionAvailable());
+  const reviewDueCount = $derived(sessionAvailable ? reviewStats.dueThisSession : 0);
+  const inboxCount = $derived(getUnprocessedCount());
+  const routinesDueCount = $derived(getRoutinesDueNow().length);
+
+  const hasSearchQuery = $derived(searchQuery.trim().length > 0);
+
+  // System views definition
+  type SystemViewDef = {
+    id: Exclude<SystemView, null | 'expanded-search'>;
+    label: string;
+    icon: string;
+    badge?: number;
+  };
+
+  const systemViews = $derived.by((): SystemViewDef[] => [
+    {
+      id: 'inbox',
+      label: 'Inbox',
+      icon: 'M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z M22 12 16 12 14 15 10 15 8 12 2 12',
+      badge: inboxCount > 0 ? inboxCount : undefined
+    },
+    {
+      id: 'daily',
+      label: 'Daily',
+      icon: 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18'
+    },
+    {
+      id: 'review',
+      label: 'Review',
+      icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+      badge: reviewDueCount > 0 ? reviewDueCount : undefined
+    },
+    {
+      id: 'routines',
+      label: 'Routines',
+      icon: 'M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2',
+      badge: routinesDueCount > 0 ? routinesDueCount : undefined
+    },
+    {
+      id: 'types',
+      label: 'Note Types',
+      icon: 'M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: 'M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0 M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'
+    }
+  ]);
+
+  // Filter system views by search query
+  const filteredSystemViews = $derived.by(() => {
+    if (!hasSearchQuery) return systemViews;
+    const q = searchQuery.toLowerCase();
+    return systemViews.filter((v) => v.label.toLowerCase().includes(q));
+  });
+
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       onClose();
       return;
     }
-    // Forward other keyboard events to parent handler
-    onKeyDown(event);
+    // Only forward to parent when we have search results
+    if (hasSearchQuery) {
+      onKeyDown(event);
 
-    // Close modal after Enter selection (parent handler processes the selection)
-    // But NOT for Cmd/Ctrl+Shift+Enter (view all) or Cmd/Ctrl+Enter (add to shelf)
-    if (
-      event.key === 'Enter' &&
-      searchResults.length > 0 &&
-      !event.shiftKey &&
-      !event.metaKey &&
-      !event.ctrlKey
-    ) {
-      onClose();
+      if (
+        event.key === 'Enter' &&
+        searchResults.length > 0 &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        onClose();
+      }
     }
   }
 
@@ -90,8 +167,18 @@
 
   function handleViewAll(): void {
     onViewAllResults();
-    // Note: don't call onClose() here - onViewAllResults handles closing the modal
-    // while preserving the search query for the expanded view
+  }
+
+  function handleSystemView(
+    view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines'
+  ): void {
+    onSystemViewSelect(view);
+    onClose();
+  }
+
+  function handleSidebarItemSelect(item: SidebarItem): void {
+    onSidebarItemSelect(item);
+    onClose();
   }
 </script>
 
@@ -126,53 +213,108 @@
           oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
           onkeydown={handleKeyDown}
         />
-        {#if searchQuery.trim()}
+        {#if hasSearchQuery}
           <button class="shortcut-hint shortcut-hint-btn" onclick={handleViewAll}>
             {modifierKey}⇧↵ show all
           </button>
-        {:else}
+        {:else if !isMobile}
           <div class="shortcut-hint">{modifierKey}O</div>
         {/if}
       </div>
 
-      {#if searchQuery.trim() || searchResults.length > 0}
-        <div class="search-results-container scrollable" use:scrollable>
-          {#if searchResults.length > 0}
-            {#if isShowingRecent}
-              <div class="results-header">Recent</div>
-            {/if}
+      <div class="panel-content">
+        {#if hasSearchQuery && searchResults.length > 0}
+          <!-- Search results mode -->
+          <div class="search-results-scroll scrollable" use:scrollable>
             <SearchResults
               results={searchResults}
               onSelect={handleResultSelect}
               maxResults={8}
               selectedIndex={selectedSearchIndex}
               isLoading={isSearchingContent}
-              showKeyboardHints={true}
+              showKeyboardHints={!isMobile}
             />
-            {#if searchResults.length > 8 && !isShowingRecent}
+            {#if searchResults.length > 8}
               <button class="view-all-btn" onclick={handleViewAll}>
-                View all {searchResults.length} results (Enter)
+                View all {searchResults.length} results
               </button>
             {/if}
-          {:else if searchQuery.trim()}
-            <div class="no-results">No matching notes found for "{searchQuery}"</div>
-          {:else}
-            <div class="no-results">No recent notes</div>
-          {/if}
-        </div>
-      {:else}
-        <div class="empty-state">
-          <p>Type to search your notes</p>
-          <div class="keyboard-hints">
-            <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-            <span class="hint"><kbd>Enter</kbd> Open</span>
-            <span class="hint"><kbd>{modifierKey}</kbd><kbd>Enter</kbd> Add to Shelf</span
-            >
-            <span class="hint"
-              ><kbd>{modifierKey}</kbd><kbd>Shift</kbd><kbd>Enter</kbd> Expanded View</span
-            >
-            <span class="hint"><kbd>Esc</kbd> Close</span>
           </div>
+        {:else if hasSearchQuery}
+          <!-- Search with no note results — show filtered system views -->
+          <div class="search-results-scroll scrollable" use:scrollable>
+            {#if filteredSystemViews.length > 0}
+              <div class="section">
+                <div class="section-header">Views</div>
+                {#each filteredSystemViews as view (view.id)}
+                  <button
+                    class="nav-item"
+                    class:active={activeSystemView === view.id}
+                    onclick={() => handleSystemView(view.id)}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d={view.icon}></path>
+                    </svg>
+                    <span class="item-title">{view.label}</span>
+                    {#if view.badge}
+                      <span class="badge">{view.badge}</span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#if filteredSystemViews.length === 0}
+              <div class="no-results">No results for "{searchQuery}"</div>
+            {/if}
+          </div>
+        {:else}
+          <!-- Default: system views + full SidebarItems with drag/drop + workspaces -->
+          <div class="section">
+            <div class="section-header">Views</div>
+            {#each systemViews as view (view.id)}
+              <button
+                class="nav-item"
+                class:active={activeSystemView === view.id}
+                onclick={() => handleSystemView(view.id)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d={view.icon}></path>
+                </svg>
+                <span class="item-title">{view.label}</span>
+                {#if view.badge}
+                  <span class="badge">{view.badge}</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+
+          <div class="sidebar-items-wrapper">
+            <SidebarItems onItemSelect={handleSidebarItemSelect} />
+          </div>
+        {/if}
+      </div>
+
+      {#if !hasSearchQuery}
+        <div class="workspace-bar-wrapper">
+          <WorkspaceBar />
         </div>
       {/if}
     </div>
@@ -183,21 +325,18 @@
   .quick-search-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding-top: 15vh;
     z-index: 1000;
-    backdrop-filter: blur(2px);
   }
 
   .quick-search-modal {
     background: var(--bg-primary);
-    border-radius: 0.75rem;
-    box-shadow:
-      0 25px 50px -12px rgba(0, 0, 0, 0.25),
-      0 0 0 1px var(--border-medium);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 560px;
     overflow: hidden;
@@ -222,7 +361,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 1.25rem;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
   }
@@ -237,7 +376,7 @@
     border: none;
     background: transparent;
     color: var(--text-primary);
-    font-size: 1.125rem;
+    font-size: 1rem;
     outline: none;
     padding: 0;
   }
@@ -268,21 +407,75 @@
     color: var(--text-secondary);
   }
 
-  .search-results-container {
+  .panel-content {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
   }
 
-  .results-header {
-    padding: 0.625rem 1rem;
+  .search-results-scroll {
+    overflow-y: auto;
+  }
+
+  .section {
+    padding: 4px 0;
+  }
+
+  .section-header {
+    padding: 8px 16px 4px;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
+  }
+
+  .nav-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+  }
+
+  .nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item:active {
+    background: var(--bg-hover);
+  }
+
+  .nav-item.active {
+    background: var(--accent-light);
+    color: var(--text-primary);
+  }
+
+  .nav-item svg {
+    flex-shrink: 0;
+  }
+
+  .item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
   }
 
   .view-all-btn {
@@ -309,38 +502,40 @@
     font-size: 0.875rem;
   }
 
-  .empty-state {
-    padding: 2rem 1rem;
-    text-align: center;
+  .workspace-bar-wrapper {
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
   }
 
-  .empty-state p {
-    margin: 0 0 1rem;
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
+  .sidebar-items-wrapper {
+    flex: 1;
+    min-height: 0;
   }
 
-  .keyboard-hints {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+  /* Mobile: match shelf/chat panel styling */
+  @media (max-width: 767px) {
+    .quick-search-overlay {
+      padding-top: 0;
+      align-items: flex-end;
+    }
 
-  .hint {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
+    .quick-search-modal {
+      max-width: none;
+      margin: 0 12px calc(12px + var(--safe-area-bottom, 0px));
+      max-height: calc(100vh - 100px);
+      border: 1px solid var(--border-light);
+      animation: slideUp 0.2s ease-out;
+    }
 
-  .hint kbd {
-    padding: 0.125rem 0.375rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.25rem;
-    font-family: inherit;
-    font-size: 0.6875rem;
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
   }
 </style>

@@ -3,6 +3,12 @@
  * Tracks whether the note editor is focused and holds a reference to the EditorView.
  */
 import type { EditorView } from 'codemirror';
+import { Transaction } from '@codemirror/state';
+import { startCompletion } from '@codemirror/autocomplete';
+import type { FormatType } from '../lib/automerge/selection-toolbar.svelte';
+import { toggleFormat } from '../lib/automerge/keyboard-shortcuts-extension.svelte';
+
+type InsertMenuCallback = () => void;
 
 interface EditorFocusState {
   isFocused: boolean;
@@ -14,6 +20,8 @@ class EditorFocusStateStore {
     isFocused: false,
     editorView: null
   });
+
+  private insertMenuCallback: InsertMenuCallback | null = null;
 
   /**
    * Update the editor focus state
@@ -53,8 +61,56 @@ class EditorFocusStateStore {
         insert: text
       },
       selection: { anchor: newCursorPos },
-      scrollIntoView: true
+      scrollIntoView: true,
+      annotations: Transaction.userEvent.of('input')
     });
+
+    // Trigger autocompletion (e.g. after inserting [[)
+    startCompletion(view);
+  }
+
+  /**
+   * Apply a formatting action using selection-aware toggle
+   * (matches desktop keyboard shortcut behavior — finds word at cursor, toggles existing formatting, etc.)
+   */
+  format(format: FormatType): void {
+    const view = this.state.editorView;
+    if (!view) return;
+
+    const markers: Record<string, [string, string]> = {
+      bold: ['**', '**'],
+      italic: ['*', '*'],
+      strikethrough: ['~~', '~~'],
+      code: ['`', '`']
+    };
+
+    const marker = markers[format];
+    if (marker) {
+      toggleFormat(view, marker[0], marker[1]);
+    }
+  }
+
+  /**
+   * Whether the editor currently has a non-empty text selection
+   */
+  get hasSelection(): boolean {
+    const view = this.state.editorView;
+    if (!view) return false;
+    return !view.state.selection.main.empty;
+  }
+
+  /**
+   * Register a callback to open the insert menu for the current editor
+   */
+  registerInsertMenu(callback: InsertMenuCallback | null): void {
+    this.insertMenuCallback = callback;
+  }
+
+  /**
+   * Open the insert menu at the current cursor line
+   */
+  openInsertMenu(): void {
+    this.insertMenuCallback?.();
   }
 
   /**
@@ -85,4 +141,16 @@ export function insertTextAtCursor(text: string, cursorOffset?: number): void {
 
 export function blurEditor(): void {
   editorFocusState.blur();
+}
+
+export function formatSelection(format: FormatType): void {
+  editorFocusState.format(format);
+}
+
+export function hasEditorSelection(): boolean {
+  return editorFocusState.hasSelection;
+}
+
+export function openInsertMenu(): void {
+  editorFocusState.openInsertMenu();
 }

@@ -101,12 +101,16 @@
   import ResizeHandle from './ResizeHandle.svelte';
   import WindowControls from './WindowControls.svelte';
   import { initializeState } from '../lib/automerge';
-  import { fetchRemoteVaults } from '../lib/automerge/cloud-sync.svelte';
+  import {
+    fetchRemoteVaults,
+    getCloudSyncStatus,
+    isCloudAuthenticated
+  } from '../lib/automerge/cloud-sync.svelte';
+  import { getIsFileSyncEnabled } from '../lib/automerge/state.svelte';
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import { isElectron, isWeb } from '../lib/platform.svelte';
-  import { createSwipeHandler } from '../lib/gestures.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
 
   // Derived state
@@ -125,6 +129,43 @@
 
   // Mobile layout detection
   const isMobileLayout = $derived(deviceState.useMobileLayout);
+
+  // Sync status for mobile more menu
+  const mobileSyncStatus = $derived.by(() => {
+    if (!isMobileLayout) return null;
+    const fileSyncEnabled = getIsFileSyncEnabled();
+    const cloudSyncEnabled = !!(activeVault?.cloudSyncEnabled && isCloudAuthenticated());
+    const cloudStatus = getCloudSyncStatus();
+
+    if (!fileSyncEnabled && !cloudSyncEnabled) {
+      return { label: 'Set up sync', dotColor: 'var(--text-muted)' };
+    }
+
+    const parts: string[] = [];
+    let dotColor = '#10b981'; // green
+
+    if (fileSyncEnabled) parts.push('file sync');
+    if (cloudSyncEnabled) {
+      switch (cloudStatus) {
+        case 'connected':
+          parts.push('cloud sync');
+          break;
+        case 'connecting':
+          parts.push('cloud connecting...');
+          dotColor = '#f59e0b';
+          break;
+        case 'error':
+          parts.push('cloud sync error');
+          dotColor = '#ef4444';
+          break;
+        case 'disconnected':
+          parts.push('cloud disconnected');
+          dotColor = 'var(--text-muted)';
+          break;
+      }
+    }
+    return { label: parts.join(' + '), dotColor };
+  });
 
   // Check if active note is an EPUB, PDF, Webpage, or Deck using source format
   const activeNoteSourceFormat = $derived(
@@ -419,10 +460,6 @@
 
   function handleSearchResultSelect(note: NoteMetadata): void {
     handleNoteSelect(note);
-    // Close drawer on mobile when selecting a search result
-    if (isMobileLayout) {
-      sidebarState.closeMobileDrawer();
-    }
   }
 
   function handleSearchFocus(): void {
@@ -833,9 +870,6 @@
 
   // File import state
   let isImporting = $state(false);
-
-  // Mobile drawer
-  let mainViewRef = $state<HTMLElement | null>(null);
 
   // Workspace actions
   function openNewWorkspaceModal(): void {
@@ -1299,46 +1333,6 @@
     }
   });
 
-  // Mobile edge swipe to open drawer (only when drawer is closed)
-  $effect(() => {
-    if (!isMobileLayout || !mainViewRef || sidebarState.mobileDrawerOpen) return;
-
-    const cleanup = createSwipeHandler(
-      mainViewRef,
-      {
-        onSwipeEnd: (direction) => {
-          if (direction === 'right') {
-            sidebarState.openMobileDrawer();
-          }
-        }
-      },
-      {
-        direction: 'horizontal',
-        edgeThreshold: 20,
-        edge: 'left',
-        threshold: 50,
-        preventDefaultOnEdge: true
-      }
-    );
-
-    return cleanup;
-  });
-
-  // Update theme-color meta tags based on drawer state (for mobile safe areas)
-  $effect(() => {
-    if (!isMobileLayout) return;
-
-    // When drawer is open, use sidebar color (--bg-secondary), otherwise use main view color (--bg-primary)
-    const lightColor = sidebarState.mobileDrawerOpen ? '#fafafa' : '#ffffff';
-    const darkColor = sidebarState.mobileDrawerOpen ? '#2d2d2d' : '#1a1a1a';
-
-    const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
-    const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
-
-    if (lightMeta) lightMeta.setAttribute('content', lightColor);
-    if (darkMeta) darkMeta.setAttribute('content', darkColor);
-  });
-
   // Keyboard shortcuts
   const isMac = navigator.platform.startsWith('Mac');
   const webMode = isWeb();
@@ -1504,17 +1498,9 @@
     mobileDrawerOpen={sidebarState.mobileDrawerOpen}
     onItemSelect={(item) => {
       handleItemSelect(item);
-      // Close drawer on mobile when selecting an item
-      if (isMobileLayout) {
-        sidebarState.closeMobileDrawer();
-      }
     }}
     onSystemViewSelect={(view) => {
       handleSystemViewSelect(view);
-      // Close drawer on mobile when selecting a view
-      if (isMobileLayout) {
-        sidebarState.closeMobileDrawer();
-      }
     }}
     onCreateNote={handleCreateNote}
     onCreateDeck={handleCreateDeck}
@@ -1540,17 +1526,9 @@
   />
 {/snippet}
 
-<div class="main-view" class:mobile-layout={isMobileLayout} bind:this={mainViewRef}>
-  <!-- Mobile: Sidebar outside app-layout so it doesn't slide with transform -->
-  {#if isMobileLayout}
-    {@render sidebarComponent()}
-  {/if}
-
+<div class="main-view" class:mobile-layout={isMobileLayout}>
   <!-- Main Layout -->
-  <div
-    class="app-layout"
-    class:mobile-drawer-open={isMobileLayout && sidebarState.mobileDrawerOpen}
-  >
+  <div class="app-layout">
     <!-- Desktop: Sidebar inside app-layout -->
     {#if !isMobileLayout}
       {@render sidebarComponent()}
@@ -1560,28 +1538,6 @@
     <div class="main-content">
       <!-- Safe zone for window dragging and controls -->
       <div class="safe-zone">
-        <!-- Mobile menu button -->
-        {#if isMobileLayout}
-          <button
-            class="mobile-menu-button"
-            onclick={() => sidebarState.toggleMobileDrawer()}
-            aria-label="Open menu"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-            </svg>
-          </button>
-        {/if}
         {#if !isMobileLayout && !sidebarState.leftSidebar.visible}
           <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
             <button
@@ -2003,11 +1959,13 @@
   />
 {:else}
   <MobileFAB
+    onSearch={() => {
+      quickSearchOpen = true;
+    }}
     onNewNote={handleCreateNote}
-    onToggleDrawer={() => sidebarState.toggleMobileDrawer()}
     onOpenChat={() => sidebarState.openPanel('chat')}
     onOpenShelf={() => sidebarState.openPanel('shelf')}
-    hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
+    hidden={chatPanelOpen || shelfPanelOpen}
   />
   <KeyboardControlPanel hidden={chatPanelOpen || shelfPanelOpen} />
 {/if}
@@ -2054,7 +2012,6 @@
   {searchQuery}
   {searchResults}
   {selectedSearchIndex}
-  {isShowingRecent}
   {isSearchingContent}
   onClose={() => {
     quickSearchOpen = false;
@@ -2078,6 +2035,16 @@
     setActiveSystemView('expanded-search');
     setActiveItem(null);
     quickSearchOpen = false;
+  }}
+  onSystemViewSelect={(view) => {
+    handleSystemViewSelect(view);
+    quickSearchOpen = false;
+    searchQuery = '';
+  }}
+  onSidebarItemSelect={(item) => {
+    handleItemSelect(item);
+    quickSearchOpen = false;
+    searchQuery = '';
   }}
 />
 
@@ -2215,6 +2182,7 @@
       !isActiveNotePdf &&
       !isActiveNoteWebpage}
     showShowInFinder={!!getActiveVault()?.baseDirectory}
+    syncStatus={mobileSyncStatus}
     onClose={() => (moreMenuOpen = false)}
     onPin={handlePin}
     onUnpin={handleUnpin}
@@ -2224,6 +2192,7 @@
     onArchive={handleArchiveFromMenu}
     onUnarchive={handleUnarchiveFromMenu}
     onShowInFinder={handleShowInFinder}
+    onSyncAction={() => setActiveSystemView('settings')}
   />
 {/if}
 
@@ -2397,6 +2366,7 @@
     min-height: 0; /* Important for nested flex containers */
     overflow: hidden;
     background: var(--bg-primary); /* Solid background for vibrancy mode */
+    position: relative;
   }
 
   /* Right Sidebar */
@@ -2983,67 +2953,67 @@
     padding-right: var(--safe-area-right, 0px);
   }
 
-  /* When drawer is open, slide main content completely off-screen */
-  .main-view.mobile-layout .app-layout.mobile-drawer-open {
-    transform: translateX(100%);
-  }
-
   .main-view.mobile-layout .safe-zone {
-    padding-left: 1.25rem;
+    /* Float over content instead of taking up vertical space */
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: auto;
+    height: auto;
+    padding: 0.5rem 0.75rem;
+    z-index: 5;
+    -webkit-app-region: no-drag;
+    justify-content: flex-end;
   }
 
-  /* On macOS Electron mobile, add space for traffic lights */
-  :global([data-platform='macos']) .main-view.mobile-layout .safe-zone {
-    padding-left: 80px;
+  .main-view.mobile-layout .safe-zone-actions {
+    gap: 0;
   }
 
-  .main-view.mobile-layout .safe-zone-button,
-  .main-view.mobile-layout .more-menu-button,
-  .main-view.mobile-layout .mobile-menu-button {
-    color: var(--text-muted);
+  /* Hide pin, shelf buttons, and sync badge on mobile (available via more menu) */
+  .main-view.mobile-layout .safe-zone-button {
+    display: none;
   }
 
-  .main-view.mobile-layout .safe-zone-button,
+  .main-view.mobile-layout .safe-zone-actions :global(.sync-badge-container) {
+    display: none;
+  }
+
+  /* Style more button like the mobile FAB */
   .main-view.mobile-layout .more-menu-button {
-    width: var(--touch-target-min);
-    height: var(--touch-target-min);
-    padding: 0.5rem;
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .main-view.mobile-layout .safe-zone-button svg,
   .main-view.mobile-layout .more-menu-button svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .main-view.mobile-layout .more-menu-button:active {
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .main-view.mobile-layout .floating-sidebar-toggle {
     display: none;
   }
 
-  /* Mobile menu button */
-  .mobile-menu-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: var(--touch-target-min);
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.25rem;
-    -webkit-app-region: no-drag;
-    -webkit-tap-highlight-color: transparent;
-    flex-shrink: 0;
-  }
-
-  .mobile-menu-button:active {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .mobile-menu-button svg {
-    width: 25px;
-    height: 25px;
+  /* Hide UpdateWidget on mobile */
+  .main-view.mobile-layout :global(.update-widget) {
+    display: none;
   }
 
   /* Sync from Cloud modal */

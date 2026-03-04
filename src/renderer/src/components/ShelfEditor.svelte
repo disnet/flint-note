@@ -8,6 +8,7 @@
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { DocHandle } from '@automerge/automerge-repo';
   import type { NoteContentDocument } from '../lib/automerge';
+  import { deviceState } from '../stores/deviceState.svelte';
   import {
     getAllNotes,
     createNote,
@@ -836,8 +837,9 @@
     }, 200);
   }
 
-  // Selection toolbar handler
+  // Selection toolbar handler — hidden on mobile (formatting is in KeyboardControlPanel)
   function handleShowSelectionToolbar(data: SelectionToolbarData | null): void {
+    if (deviceState.useMobileLayout) return;
     if (data) {
       selectionToolbarX = data.x;
       selectionToolbarRect = data.selectionRect;
@@ -908,7 +910,7 @@
       onLinkCreated: handleMarkdownLinkEdit,
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
-      onShowGutterMenu: handleShowGutterMenu,
+      onShowGutterMenu: deviceState.useMobileLayout ? undefined : handleShowGutterMenu,
       automergeSync: handle
         ? {
             handle: handle,

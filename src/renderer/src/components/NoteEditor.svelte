@@ -7,6 +7,7 @@
   import { EditorState, StateEffect } from '@codemirror/state';
   import type { DocHandle } from '@automerge/automerge-repo';
   import type { NoteMetadata, NoteContentDocument } from '../lib/automerge';
+  import { deviceState } from '../stores/deviceState.svelte';
   import {
     getBacklinks,
     getAllNotes,
@@ -174,8 +175,9 @@
   // Position tracking for scroll/cursor persistence
   let positionTracker: ReturnType<typeof createPositionTracker> | null = null;
 
-  // Selection toolbar handler
+  // Selection toolbar handler — hidden on mobile (formatting is in KeyboardControlPanel)
   function handleShowSelectionToolbar(data: SelectionToolbarData | null): void {
+    if (deviceState.useMobileLayout) return;
     if (data) {
       selectionToolbarX = data.x;
       selectionToolbarRect = data.selectionRect;
@@ -250,7 +252,7 @@
       onCursorChange: () => positionTracker?.savePosition(),
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
-      onShowGutterMenu: handleShowGutterMenu,
+      onShowGutterMenu: deviceState.useMobileLayout ? undefined : handleShowGutterMenu,
       placeholder: 'Start writing. Type "/" for commands, "[[" for note links...',
       // Deck widget support - navigate to notes when clicked in embedded decks
       onDeckNoteOpen: (deckNoteId) => {
@@ -626,10 +628,26 @@
 
   function handleEditorFocus(): void {
     editorFocusState.setFocused(true, editorView);
+    editorFocusState.registerInsertMenu(handleOpenInsertMenuAtCursor);
   }
 
   function handleEditorBlur(): void {
     editorFocusState.setFocused(false, null);
+    editorFocusState.registerInsertMenu(null);
+  }
+
+  /** Open the insert menu in gutter mode at the current cursor line */
+  function handleOpenInsertMenuAtCursor(): void {
+    if (!editorView) return;
+    const pos = editorView.state.selection.main.head;
+    const line = editorView.state.doc.lineAt(pos);
+    const coords = editorView.coordsAtPos(line.from);
+    if (!coords) return;
+    insertMenuX = coords.left;
+    insertMenuY = coords.bottom + 4;
+    insertMenuMode = { type: 'gutter', linePos: line.from };
+    insertMenuVisible = true;
+    selectionToolbarVisible = false;
   }
 
   function measureAndUpdateMarkerWidths(): void {
@@ -718,7 +736,10 @@
         // Delay position restoration to allow Automerge sync to complete
         setTimeout(() => {
           positionTracker?.restorePosition(() => {
-            editorView?.focus();
+            // Don't auto-focus on mobile — it triggers the virtual keyboard
+            if (!deviceState.isMobile) {
+              editorView?.focus();
+            }
           });
         }, 100);
 

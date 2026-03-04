@@ -164,7 +164,7 @@ function findFormattedRegionAtCursor(
  * If not formatted, applies formatting.
  * If no selection and no word at cursor, inserts empty markers with cursor inside.
  */
-function toggleFormat(view: EditorView, before: string, after: string): boolean {
+export function toggleFormat(view: EditorView, before: string, after: string): boolean {
   const { from, to } = view.state.selection.main;
   const doc = view.state.doc.toString();
 
