@@ -106,7 +106,6 @@
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import { isElectron, isWeb } from '../lib/platform.svelte';
-  import { createSwipeHandler } from '../lib/gestures.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
 
   // Derived state
@@ -419,10 +418,6 @@
 
   function handleSearchResultSelect(note: NoteMetadata): void {
     handleNoteSelect(note);
-    // Close drawer on mobile when selecting a search result
-    if (isMobileLayout) {
-      sidebarState.closeMobileDrawer();
-    }
   }
 
   function handleSearchFocus(): void {
@@ -833,9 +828,6 @@
 
   // File import state
   let isImporting = $state(false);
-
-  // Mobile drawer
-  let mainViewRef = $state<HTMLElement | null>(null);
 
   // Workspace actions
   function openNewWorkspaceModal(): void {
@@ -1299,46 +1291,6 @@
     }
   });
 
-  // Mobile edge swipe to open drawer (only when drawer is closed)
-  $effect(() => {
-    if (!isMobileLayout || !mainViewRef || sidebarState.mobileDrawerOpen) return;
-
-    const cleanup = createSwipeHandler(
-      mainViewRef,
-      {
-        onSwipeEnd: (direction) => {
-          if (direction === 'right') {
-            sidebarState.openMobileDrawer();
-          }
-        }
-      },
-      {
-        direction: 'horizontal',
-        edgeThreshold: 20,
-        edge: 'left',
-        threshold: 50,
-        preventDefaultOnEdge: true
-      }
-    );
-
-    return cleanup;
-  });
-
-  // Update theme-color meta tags based on drawer state (for mobile safe areas)
-  $effect(() => {
-    if (!isMobileLayout) return;
-
-    // When drawer is open, use sidebar color (--bg-secondary), otherwise use main view color (--bg-primary)
-    const lightColor = sidebarState.mobileDrawerOpen ? '#fafafa' : '#ffffff';
-    const darkColor = sidebarState.mobileDrawerOpen ? '#2d2d2d' : '#1a1a1a';
-
-    const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
-    const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
-
-    if (lightMeta) lightMeta.setAttribute('content', lightColor);
-    if (darkMeta) darkMeta.setAttribute('content', darkColor);
-  });
-
   // Keyboard shortcuts
   const isMac = navigator.platform.startsWith('Mac');
   const webMode = isWeb();
@@ -1504,17 +1456,9 @@
     mobileDrawerOpen={sidebarState.mobileDrawerOpen}
     onItemSelect={(item) => {
       handleItemSelect(item);
-      // Close drawer on mobile when selecting an item
-      if (isMobileLayout) {
-        sidebarState.closeMobileDrawer();
-      }
     }}
     onSystemViewSelect={(view) => {
       handleSystemViewSelect(view);
-      // Close drawer on mobile when selecting a view
-      if (isMobileLayout) {
-        sidebarState.closeMobileDrawer();
-      }
     }}
     onCreateNote={handleCreateNote}
     onCreateDeck={handleCreateDeck}
@@ -1540,17 +1484,9 @@
   />
 {/snippet}
 
-<div class="main-view" class:mobile-layout={isMobileLayout} bind:this={mainViewRef}>
-  <!-- Mobile: Sidebar outside app-layout so it doesn't slide with transform -->
-  {#if isMobileLayout}
-    {@render sidebarComponent()}
-  {/if}
-
+<div class="main-view" class:mobile-layout={isMobileLayout}>
   <!-- Main Layout -->
-  <div
-    class="app-layout"
-    class:mobile-drawer-open={isMobileLayout && sidebarState.mobileDrawerOpen}
-  >
+  <div class="app-layout">
     <!-- Desktop: Sidebar inside app-layout -->
     {#if !isMobileLayout}
       {@render sidebarComponent()}
@@ -1560,28 +1496,6 @@
     <div class="main-content">
       <!-- Safe zone for window dragging and controls -->
       <div class="safe-zone">
-        <!-- Mobile menu button -->
-        {#if isMobileLayout}
-          <button
-            class="mobile-menu-button"
-            onclick={() => sidebarState.toggleMobileDrawer()}
-            aria-label="Open menu"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-            </svg>
-          </button>
-        {/if}
         {#if !isMobileLayout && !sidebarState.leftSidebar.visible}
           <Tooltip text="Toggle sidebar (⌘B)" position="bottom">
             <button
@@ -2009,7 +1923,7 @@
     onNewNote={handleCreateNote}
     onOpenChat={() => sidebarState.openPanel('chat')}
     onOpenShelf={() => sidebarState.openPanel('shelf')}
-    hidden={chatPanelOpen || shelfPanelOpen || sidebarState.mobileDrawerOpen}
+    hidden={chatPanelOpen || shelfPanelOpen}
   />
   <KeyboardControlPanel hidden={chatPanelOpen || shelfPanelOpen} />
 {/if}
@@ -2084,17 +1998,11 @@
     handleSystemViewSelect(view);
     quickSearchOpen = false;
     searchQuery = '';
-    if (isMobileLayout) {
-      sidebarState.closeMobileDrawer();
-    }
   }}
   onSidebarItemSelect={(item) => {
     handleItemSelect(item);
     quickSearchOpen = false;
     searchQuery = '';
-    if (isMobileLayout) {
-      sidebarState.closeMobileDrawer();
-    }
   }}
 />
 
@@ -3000,11 +2908,6 @@
     padding-right: var(--safe-area-right, 0px);
   }
 
-  /* When drawer is open, slide main content completely off-screen */
-  .main-view.mobile-layout .app-layout.mobile-drawer-open {
-    transform: translateX(100%);
-  }
-
   .main-view.mobile-layout .safe-zone {
     padding-left: 1.25rem;
   }
@@ -3015,8 +2918,7 @@
   }
 
   .main-view.mobile-layout .safe-zone-button,
-  .main-view.mobile-layout .more-menu-button,
-  .main-view.mobile-layout .mobile-menu-button {
+  .main-view.mobile-layout .more-menu-button {
     color: var(--text-muted);
   }
 
@@ -3035,32 +2937,6 @@
 
   .main-view.mobile-layout .floating-sidebar-toggle {
     display: none;
-  }
-
-  /* Mobile menu button */
-  .mobile-menu-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: var(--touch-target-min);
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.25rem;
-    -webkit-app-region: no-drag;
-    -webkit-tap-highlight-color: transparent;
-    flex-shrink: 0;
-  }
-
-  .mobile-menu-button:active {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .mobile-menu-button svg {
-    width: 25px;
-    height: 25px;
   }
 
   /* Sync from Cloud modal */
