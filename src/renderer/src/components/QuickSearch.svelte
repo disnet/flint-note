@@ -2,13 +2,13 @@
   /**
    * Quick search panel — a mini-sidebar with system views, pinned notes,
    * recent notes, and search results. Matches shelf/chat panel styling on mobile.
+   * Embeds the full SidebarItems component for drag/drop between pinned and recent.
    */
   import SearchResults from './SearchResults.svelte';
+  import SidebarItems from './SidebarItems.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import {
-    getPinnedItems,
-    getRecentItems,
     getActiveSystemView,
     getReviewStats,
     isSessionAvailable,
@@ -72,8 +72,6 @@
 
   // Sidebar data
   const activeSystemView = $derived(getActiveSystemView());
-  const pinnedItems = $derived(getPinnedItems());
-  const recentItems = $derived(getRecentItems());
   const reviewStats = $derived(getReviewStats());
   const sessionAvailable = $derived(isSessionAvailable());
   const reviewDueCount = $derived(sessionAvailable ? reviewStats.dueThisSession : 0);
@@ -133,20 +131,6 @@
     return systemViews.filter((v) => v.label.toLowerCase().includes(q));
   });
 
-  // Filter pinned items by search query
-  const filteredPinned = $derived.by(() => {
-    if (!hasSearchQuery) return pinnedItems;
-    const q = searchQuery.toLowerCase();
-    return pinnedItems.filter((item) => item.title.toLowerCase().includes(q));
-  });
-
-  // Filter recent items by search query
-  const filteredRecent = $derived.by(() => {
-    if (!hasSearchQuery) return recentItems;
-    const q = searchQuery.toLowerCase();
-    return recentItems.filter((item) => item.title.toLowerCase().includes(q));
-  });
-
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -191,7 +175,7 @@
     onClose();
   }
 
-  function handleSidebarItem(item: SidebarItem): void {
+  function handleSidebarItemSelect(item: SidebarItem): void {
     onSidebarItemSelect(item);
     onClose();
   }
@@ -237,80 +221,62 @@
         {/if}
       </div>
 
-      <div class="panel-content scrollable" use:scrollable>
+      <div class="panel-content">
         {#if hasSearchQuery && searchResults.length > 0}
           <!-- Search results mode -->
-          <SearchResults
-            results={searchResults}
-            onSelect={handleResultSelect}
-            maxResults={8}
-            selectedIndex={selectedSearchIndex}
-            isLoading={isSearchingContent}
-            showKeyboardHints={!isMobile}
-          />
-          {#if searchResults.length > 8}
-            <button class="view-all-btn" onclick={handleViewAll}>
-              View all {searchResults.length} results
-            </button>
-          {/if}
-        {:else if hasSearchQuery && searchResults.length === 0}
-          <!-- Search with no results but still show filtered views/items -->
-          {#if filteredSystemViews.length > 0}
-            <div class="section">
-              <div class="section-header">Views</div>
-              {#each filteredSystemViews as view (view.id)}
-                <button
-                  class="nav-item"
-                  class:active={activeSystemView === view.id}
-                  onclick={() => handleSystemView(view.id)}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+          <div class="search-results-scroll scrollable" use:scrollable>
+            <SearchResults
+              results={searchResults}
+              onSelect={handleResultSelect}
+              maxResults={8}
+              selectedIndex={selectedSearchIndex}
+              isLoading={isSearchingContent}
+              showKeyboardHints={!isMobile}
+            />
+            {#if searchResults.length > 8}
+              <button class="view-all-btn" onclick={handleViewAll}>
+                View all {searchResults.length} results
+              </button>
+            {/if}
+          </div>
+        {:else if hasSearchQuery}
+          <!-- Search with no note results — show filtered system views -->
+          <div class="search-results-scroll scrollable" use:scrollable>
+            {#if filteredSystemViews.length > 0}
+              <div class="section">
+                <div class="section-header">Views</div>
+                {#each filteredSystemViews as view (view.id)}
+                  <button
+                    class="nav-item"
+                    class:active={activeSystemView === view.id}
+                    onclick={() => handleSystemView(view.id)}
                   >
-                    <path d={view.icon}></path>
-                  </svg>
-                  <span class="item-title">{view.label}</span>
-                  {#if view.badge}
-                    <span class="badge">{view.badge}</span>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-          {/if}
-          {#if filteredPinned.length > 0}
-            <div class="section">
-              <div class="section-header">Pinned</div>
-              {#each filteredPinned as item (item.type + '-' + item.id)}
-                <button class="nav-item" onclick={() => handleSidebarItem(item)}>
-                  <span class="item-icon">{item.icon}</span>
-                  <span class="item-title">{item.title}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-          {#if filteredRecent.length > 0}
-            <div class="section">
-              <div class="section-header">Recent</div>
-              {#each filteredRecent as item (item.type + '-' + item.id)}
-                <button class="nav-item" onclick={() => handleSidebarItem(item)}>
-                  <span class="item-icon">{item.icon}</span>
-                  <span class="item-title">{item.title}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-          {#if filteredSystemViews.length === 0 && filteredPinned.length === 0 && filteredRecent.length === 0}
-            <div class="no-results">No results for "{searchQuery}"</div>
-          {/if}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d={view.icon}></path>
+                    </svg>
+                    <span class="item-title">{view.label}</span>
+                    {#if view.badge}
+                      <span class="badge">{view.badge}</span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#if filteredSystemViews.length === 0}
+              <div class="no-results">No results for "{searchQuery}"</div>
+            {/if}
+          </div>
         {:else}
-          <!-- Default: show sidebar-like content -->
+          <!-- Default: system views + full SidebarItems with drag/drop -->
           <div class="section">
             <div class="section-header">Views</div>
             {#each systemViews as view (view.id)}
@@ -339,30 +305,8 @@
             {/each}
           </div>
 
-          {#if pinnedItems.length > 0}
-            <div class="section">
-              <div class="section-header">Pinned</div>
-              {#each pinnedItems as item (item.type + '-' + item.id)}
-                <button class="nav-item" onclick={() => handleSidebarItem(item)}>
-                  <span class="item-icon">{item.icon}</span>
-                  <span class="item-title">{item.title}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-
-          <div class="section">
-            <div class="section-header">Recent</div>
-            {#if recentItems.length > 0}
-              {#each recentItems as item (item.type + '-' + item.id)}
-                <button class="nav-item" onclick={() => handleSidebarItem(item)}>
-                  <span class="item-icon">{item.icon}</span>
-                  <span class="item-title">{item.title}</span>
-                </button>
-              {/each}
-            {:else}
-              <div class="no-results">No recent items</div>
-            {/if}
+          <div class="sidebar-items-wrapper">
+            <SidebarItems onItemSelect={handleSidebarItemSelect} />
           </div>
         {/if}
       </div>
@@ -462,6 +406,10 @@
     overflow-y: auto;
   }
 
+  .search-results-scroll {
+    overflow-y: auto;
+  }
+
   .section {
     padding: 4px 0;
   }
@@ -509,13 +457,6 @@
     flex-shrink: 0;
   }
 
-  .item-icon {
-    flex-shrink: 0;
-    width: 16px;
-    text-align: center;
-    font-size: 0.875rem;
-  }
-
   .item-title {
     flex: 1;
     overflow: hidden;
@@ -552,6 +493,11 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 0.875rem;
+  }
+
+  .sidebar-items-wrapper {
+    flex: 1;
+    min-height: 0;
   }
 
   /* Mobile: match shelf/chat panel styling */
