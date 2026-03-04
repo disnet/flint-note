@@ -6,6 +6,7 @@
    */
   import SearchResults from './SearchResults.svelte';
   import SidebarItems from './SidebarItems.svelte';
+  import WorkspaceBar from './WorkspaceBar.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import {
@@ -276,7 +277,7 @@
             {/if}
           </div>
         {:else}
-          <!-- Default: system views + full SidebarItems with drag/drop -->
+          <!-- Default: system views + full SidebarItems with drag/drop + workspaces -->
           <div class="section">
             <div class="section-header">Views</div>
             {#each systemViews as view (view.id)}
@@ -310,6 +311,12 @@
           </div>
         {/if}
       </div>
+
+      {#if !hasSearchQuery}
+        <div class="workspace-bar-wrapper">
+          <WorkspaceBar />
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -493,6 +500,11 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 0.875rem;
+  }
+
+  .workspace-bar-wrapper {
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
   }
 
   .sidebar-items-wrapper {
