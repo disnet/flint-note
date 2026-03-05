@@ -2849,6 +2849,7 @@ export function getWeekData(startDate: string): WeekData {
     const createdNotes = Object.values(currentDoc.notes).filter((note) => {
       if (note.archived) return false;
       if (note.type === DAILY_NOTE_TYPE_ID) return false;
+      if (!note.created) return false;
       const createdDate = note.created.split('T')[0];
       return createdDate === dateString;
     });
@@ -2857,6 +2858,7 @@ export function getWeekData(startDate: string): WeekData {
     const modifiedNotes = Object.values(currentDoc.notes).filter((note) => {
       if (note.archived) return false;
       if (note.type === DAILY_NOTE_TYPE_ID) return false;
+      if (!note.created || !note.updated) return false;
       const createdDate = note.created.split('T')[0];
       const updatedDate = note.updated.split('T')[0];
       // Only include if modified today but not created today
