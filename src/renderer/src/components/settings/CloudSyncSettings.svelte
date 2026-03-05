@@ -14,6 +14,10 @@
     enableCloudSync,
     disableCloudSync
   } from '../../lib/automerge/state.svelte';
+  import {
+    getCloudFileSyncStatus,
+    clearCloudFileSyncWarnings
+  } from '../../lib/automerge/cloud-file-sync.svelte';
   import SyncStatus from './SyncStatus.svelte';
 
   let blueskyHandle = $state('');
@@ -31,6 +35,13 @@
   const cloudSyncEnabled = $derived(activeVault?.cloudSyncEnabled ?? false);
   const syncError = $derived(getLastSyncError());
   const needsInvite = $derived(isInviteRequired());
+  const fileSyncStatus = $derived(getCloudFileSyncStatus());
+  const fileSyncWarnings = $derived(fileSyncStatus.warnings);
+  const fileSyncActive = $derived(
+    fileSyncStatus.isSyncing ||
+      fileSyncStatus.uploadQueue > 0 ||
+      fileSyncStatus.downloadQueue > 0
+  );
   const ownerMismatch = $derived(
     activeVault?.cloudOwnerDid != null &&
       activeVault.cloudOwnerDid !== '' &&
@@ -172,6 +183,40 @@
       </div>
 
       <SyncStatus status={syncStatus} error={syncError} />
+
+      {#if fileSyncActive}
+        <div class="file-sync-status">
+          <span class="file-sync-indicator pulse"></span>
+          <span class="file-sync-text">
+            Syncing files...
+            {#if fileSyncStatus.uploadQueue > 0}
+              (uploading {fileSyncStatus.uploadQueue})
+            {/if}
+            {#if fileSyncStatus.downloadQueue > 0}
+              (downloading {fileSyncStatus.downloadQueue})
+            {/if}
+          </span>
+        </div>
+      {/if}
+
+      {#if fileSyncWarnings.length > 0}
+        <div class="file-sync-warnings">
+          <div class="warnings-header">
+            <span class="warnings-title"
+              >{fileSyncWarnings.length} file{fileSyncWarnings.length === 1 ? '' : 's'} could
+              not sync</span
+            >
+            <button class="dismiss-warnings" onclick={clearCloudFileSyncWarnings}>
+              dismiss
+            </button>
+          </div>
+          <ul class="warnings-list">
+            {#each fileSyncWarnings as warning (warning.hash)}
+              <li>{warning.fileType}: {warning.reason}</li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
 
       {#if activeVault}
         <div class="vault-sync-toggle">
@@ -385,5 +430,85 @@
 
   .action-button.danger:hover:not(:disabled) {
     background-color: rgba(239, 68, 68, 0.1);
+  }
+
+  .file-sync-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .file-sync-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    flex-shrink: 0;
+  }
+
+  .file-sync-indicator.pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  .file-sync-text {
+    font-size: 0.8125rem;
+  }
+
+  .file-sync-warnings {
+    padding: 0.75rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 6px;
+  }
+
+  .warnings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .warnings-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #f59e0b;
+  }
+
+  .dismiss-warnings {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+  }
+
+  .dismiss-warnings:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .warnings-list {
+    margin: 0;
+    padding: 0 0 0 1.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
   }
 </style>

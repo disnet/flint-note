@@ -18,6 +18,7 @@ import {
   getIsFileSyncEnabled
 } from './state.svelte';
 import { syncFileToFilesystem } from './file-sync.svelte';
+import { uploadFileToCloudBackground } from './cloud-file-sync.svelte';
 import type { PdfMetadata } from './types';
 
 // Configure PDF.js worker (using Vite's URL import for local bundling)
@@ -112,6 +113,9 @@ export async function importPdfFile(file: File): Promise<PdfImportResult> {
     await syncFileToFilesystem('pdf', hash, new Uint8Array(arrayBuffer));
   }
 
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('pdf', hash, arrayBuffer, { extension: 'pdf' });
+
   // Extract metadata
   const metadata = await extractPdfMetadata(arrayBuffer, file.name);
 
@@ -162,6 +166,9 @@ export async function importPdfFromData(
   if (getIsFileSyncEnabled()) {
     await syncFileToFilesystem('pdf', hash, new Uint8Array(arrayBuffer));
   }
+
+  // Upload to cloud (fire-and-forget)
+  uploadFileToCloudBackground('pdf', hash, arrayBuffer, { extension: 'pdf' });
 
   // Extract metadata
   const metadata = await extractPdfMetadata(arrayBuffer, filename);

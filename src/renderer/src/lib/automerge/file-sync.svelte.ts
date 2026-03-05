@@ -11,6 +11,7 @@ import { imageOpfsStorage } from './image-opfs-storage.svelte';
 import { importPdfFromData } from './pdf-import.svelte';
 import { importEpubFromData } from './epub-import.svelte';
 import { importWebpageFromFilesystem } from './webpage-import.svelte';
+import { uploadFileToCloudBackground } from './cloud-file-sync.svelte';
 import type { EpubNoteProps, PdfNoteProps, WebpageNoteProps } from './types';
 import {
   hasManifest,
@@ -221,6 +222,10 @@ export async function handleFileAddedFromFilesystem(data: {
             arrayBuffer,
             `${data.hash}.${data.extension}`
           );
+          // Upload to cloud (fire-and-forget)
+          uploadFileToCloudBackground('image', data.hash, data.data, {
+            extension: data.extension
+          });
         }
         break;
       }

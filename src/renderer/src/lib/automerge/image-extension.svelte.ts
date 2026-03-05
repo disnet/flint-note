@@ -22,6 +22,8 @@ import {
   buildMarkdownImageSyntax
 } from './image-import.svelte';
 import { getActiveVault } from './state.svelte';
+import { downloadFileFromCloud } from './cloud-file-sync.svelte';
+import { isCloudAuthenticated } from './cloud-sync.svelte';
 
 // Regex to match OPFS image markdown: ![alt](opfs://images/hash.ext)
 const IMAGE_REGEX = /!\[([^\]]*)\]\((opfs:\/\/images\/([a-f0-9]{8})\.(\w+))\)/gi;
@@ -98,7 +100,17 @@ async function loadImageBlobUrl(
   state.isLoading = true;
 
   try {
-    const blobUrl = await imageOpfsStorage.getBlobUrl(shortHash, extension);
+    let blobUrl = await imageOpfsStorage.getBlobUrl(shortHash, extension);
+
+    // If not found locally, try downloading from cloud
+    if (!blobUrl && isCloudAuthenticated()) {
+      const cloudData = await downloadFileFromCloud('image', shortHash, extension);
+      if (cloudData) {
+        await imageOpfsStorage.storeWithFilename(cloudData, `${shortHash}.${extension}`);
+        blobUrl = await imageOpfsStorage.getBlobUrl(shortHash, extension);
+      }
+    }
+
     state.blobUrl = blobUrl;
     state.isLoading = false;
     state.error = blobUrl ? null : 'Image not found';

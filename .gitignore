@@ -17,3 +17,4 @@ screenshots/output/
 playwright-report/
 test-results/
 sync-server/data
+data/

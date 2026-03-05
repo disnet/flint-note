@@ -102,6 +102,12 @@ import {
   disconnectCloudSync,
   onSyncConnected
 } from './cloud-sync.svelte';
+import {
+  syncMissingFiles,
+  uploadConversationToCloudBackground,
+  downloadConversationFromCloud,
+  syncMissingConversations
+} from './cloud-file-sync.svelte';
 import { searchIndex } from './search-index.svelte';
 import { stabilizeWikilinksGlobally } from './wikilink-stabilization.svelte';
 import { parseDeckYaml, type DeckConfig } from '../../../../shared/deck-yaml-utils';
@@ -320,6 +326,17 @@ export async function initializeState(vaultId?: string): Promise<void> {
         if (v.cloudSyncEnabled) {
           updateVaultInRepo(v.id, { lastCloudSync: now });
         }
+      }
+
+      // Sync missing binary files (PDFs, EPUBs, images, webpages) and conversations in background
+      const currentVaultId = getActiveVaultId();
+      if (currentVaultId) {
+        syncMissingFiles(currentVaultId).catch((error) => {
+          console.error('[CloudFileSync] Background file sync failed:', error);
+        });
+        syncMissingConversations(currentVaultId).catch((error) => {
+          console.error('[CloudFileSync] Background conversation sync failed:', error);
+        });
       }
     });
 
@@ -2929,7 +2946,20 @@ export async function getConversation(id: string): Promise<Conversation | null> 
   if (cached) return cached;
 
   // Load from OPFS
-  const conversation = await conversationOpfsStorage.retrieve(id);
+  let conversation = await conversationOpfsStorage.retrieve(id);
+
+  // If not in OPFS, try downloading from cloud
+  if (!conversation) {
+    const vaultId = getActiveVaultId();
+    if (vaultId) {
+      conversation = await downloadConversationFromCloud(id, vaultId);
+      if (conversation) {
+        // Store locally for future access
+        await conversationOpfsStorage.store(conversation);
+      }
+    }
+  }
+
   if (conversation) {
     conversationCache.set(id, conversation);
   }
@@ -2988,6 +3018,9 @@ export async function createConversation(params?: {
 
   // Store in OPFS
   await conversationOpfsStorage.store(conversation);
+
+  // Upload to cloud (fire-and-forget)
+  uploadConversationToCloudBackground(id, conversation);
 
   // Cache it
   conversationCache.set(id, conversation);
@@ -3084,6 +3117,9 @@ export async function addMessageToConversation(
   // Save to OPFS
   await conversationOpfsStorage.store(conversation);
 
+  // Upload to cloud (fire-and-forget)
+  uploadConversationToCloudBackground(conversationId, conversation);
+
   // Update cache
   conversationCache.set(conversationId, conversation);
 
@@ -3152,6 +3188,9 @@ export async function updateConversationMessage(
   // Save to OPFS
   await conversationOpfsStorage.store(conversation);
 
+  // Upload to cloud (fire-and-forget)
+  uploadConversationToCloudBackground(conversationId, conversation);
+
   // Update index timestamp in Automerge
   if (docHandle) {
     docHandle.change((doc) => {
@@ -3182,6 +3221,9 @@ export async function updateConversation(
     }
     conversation.updated = now;
     await conversationOpfsStorage.store(conversation);
+
+    // Upload to cloud (fire-and-forget)
+    uploadConversationToCloudBackground(id, conversation);
   }
 
   // Update index in Automerge
@@ -3211,6 +3253,9 @@ export async function archiveConversation(id: string): Promise<void> {
     conversation.archived = true;
     conversation.updated = now;
     await conversationOpfsStorage.store(conversation);
+
+    // Upload to cloud (fire-and-forget)
+    uploadConversationToCloudBackground(id, conversation);
   }
 
   // Clear from cache
@@ -3266,6 +3311,9 @@ export async function unarchiveConversation(id: string): Promise<void> {
     conversation.archived = false;
     conversation.updated = now;
     await conversationOpfsStorage.store(conversation);
+
+    // Upload to cloud (fire-and-forget)
+    uploadConversationToCloudBackground(id, conversation);
   }
 
   // Clear from cache to force reload
