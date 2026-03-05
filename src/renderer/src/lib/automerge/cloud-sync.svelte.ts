@@ -458,7 +458,7 @@ export async function fetchRemoteContentDocs(vaultId: string): Promise<string[]>
     if (!res.ok) return [];
 
     const data = await res.json();
-    return (data.documents || []).map((d: { docUrl: string }) => d.docUrl);
+    return data.docUrls || [];
   } catch {
     return [];
   }

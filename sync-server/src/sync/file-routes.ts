@@ -58,8 +58,139 @@ export function createFileRoutes(): Router {
   // Raw body parser for upload routes only
   const rawBodyParser = express.raw({ limit: '50mb', type: 'application/octet-stream' });
 
+  // --- Static path routes MUST come before parameterized routes ---
+  // (Express matches in definition order, so /manifest/:vaultId must precede /:fileType/:hash)
+
+  // GET /manifest/:vaultId — List all files for a vault
+  router.get('/manifest/:vaultId', (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { vaultId } = req.params;
+    if (!isValidVaultId(vaultId)) {
+      res.status(400).json({ error: 'Invalid vault ID' });
+      return;
+    }
+
+    try {
+      const db = getDb();
+      const files = db
+        .query(
+          `SELECT hash, file_type as fileType, extension, size_bytes as sizeBytes
+           FROM file_metadata
+           WHERE user_did = ? AND vault_id = ?`
+        )
+        .all(userDid, vaultId) as Array<{
+        hash: string;
+        fileType: string;
+        extension: string;
+        sizeBytes: number;
+      }>;
+
+      res.json({ files });
+    } catch (error) {
+      console.error('[FileRoutes] Manifest fetch failed:', error);
+      res.status(500).json({ error: 'Failed to fetch manifest' });
+    }
+  });
+
+  // PUT /webpage/:hash/metadata — Upload webpage metadata
+  router.put(
+    '/webpage/:hash/metadata',
+    express.json({ limit: '1mb' }),
+    async (req, res) => {
+      const authReq = req as AuthenticatedRequest;
+      const userDid = authReq.userDid;
+      if (!userDid) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { hash } = req.params;
+      if (!isValidHash(hash)) {
+        res.status(400).json({ error: 'Invalid hash' });
+        return;
+      }
+
+      const metadata = req.body as Record<string, unknown>;
+      if (!metadata || typeof metadata !== 'object') {
+        res.status(400).json({ error: 'Invalid metadata body' });
+        return;
+      }
+
+      // Verify user has access
+      const db = getDb();
+      const record = db
+        .query(
+          'SELECT 1 FROM file_metadata WHERE hash = ? AND file_type = ? AND user_did = ?'
+        )
+        .get(hash, 'webpage', userDid);
+
+      if (!record) {
+        res.status(404).json({ error: 'File not found' });
+        return;
+      }
+
+      try {
+        await fileStorage.storeMetadata(hash, metadata);
+        res.status(200).json({ ok: true });
+      } catch (error) {
+        console.error('[FileRoutes] Metadata upload failed:', error);
+        res.status(500).json({ error: 'Metadata upload failed' });
+      }
+    }
+  );
+
+  // GET /webpage/:hash/metadata — Download webpage metadata
+  router.get('/webpage/:hash/metadata', async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { hash } = req.params;
+    if (!isValidHash(hash)) {
+      res.status(400).json({ error: 'Invalid hash' });
+      return;
+    }
+
+    // Verify user has access
+    const db = getDb();
+    const record = db
+      .query(
+        'SELECT 1 FROM file_metadata WHERE hash = ? AND file_type = ? AND user_did = ?'
+      )
+      .get(hash, 'webpage', userDid);
+
+    if (!record) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    try {
+      const metadata = await fileStorage.retrieveMetadata(hash);
+      if (!metadata) {
+        res.status(404).json({ error: 'Metadata not found' });
+        return;
+      }
+
+      res.json(metadata);
+    } catch (error) {
+      console.error('[FileRoutes] Metadata download failed:', error);
+      res.status(500).json({ error: 'Metadata download failed' });
+    }
+  });
+
+  // --- Parameterized file routes ---
+
   // PUT /:fileType/:hash — Upload file
-  router.put('/:fileType/:hash', rawBodyParser, (req, res) => {
+  router.put('/:fileType/:hash', rawBodyParser, async (req, res) => {
     const authReq = req as AuthenticatedRequest;
     const userDid = authReq.userDid;
     if (!userDid) {
@@ -112,7 +243,7 @@ export function createFileRoutes(): Router {
 
     try {
       // Store file on disk
-      fileStorage.store(
+      await fileStorage.store(
         hash,
         fileType as 'pdf' | 'epub' | 'image' | 'webpage',
         extension,
@@ -139,7 +270,7 @@ export function createFileRoutes(): Router {
   });
 
   // GET /:fileType/:hash — Download file
-  router.get('/:fileType/:hash', (req, res) => {
+  router.get('/:fileType/:hash', async (req, res) => {
     const authReq = req as AuthenticatedRequest;
     const userDid = authReq.userDid;
     if (!userDid) {
@@ -177,7 +308,7 @@ export function createFileRoutes(): Router {
     }
 
     try {
-      const data = fileStorage.retrieve(
+      const data = await fileStorage.retrieve(
         hash,
         fileType as 'pdf' | 'epub' | 'image' | 'webpage',
         extension
@@ -198,228 +329,8 @@ export function createFileRoutes(): Router {
     }
   });
 
-  // PUT /webpage/:hash/metadata — Upload webpage metadata
-  router.put('/webpage/:hash/metadata', express.json({ limit: '1mb' }), (req, res) => {
-    const authReq = req as AuthenticatedRequest;
-    const userDid = authReq.userDid;
-    if (!userDid) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
-    const { hash } = req.params;
-    if (!isValidHash(hash)) {
-      res.status(400).json({ error: 'Invalid hash' });
-      return;
-    }
-
-    const metadata = req.body as Record<string, unknown>;
-    if (!metadata || typeof metadata !== 'object') {
-      res.status(400).json({ error: 'Invalid metadata body' });
-      return;
-    }
-
-    try {
-      fileStorage.storeMetadata(hash, metadata);
-      res.status(200).json({ ok: true });
-    } catch (error) {
-      console.error('[FileRoutes] Metadata upload failed:', error);
-      res.status(500).json({ error: 'Metadata upload failed' });
-    }
-  });
-
-  // GET /webpage/:hash/metadata — Download webpage metadata
-  router.get('/webpage/:hash/metadata', (req, res) => {
-    const authReq = req as AuthenticatedRequest;
-    const userDid = authReq.userDid;
-    if (!userDid) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
-    const { hash } = req.params;
-    if (!isValidHash(hash)) {
-      res.status(400).json({ error: 'Invalid hash' });
-      return;
-    }
-
-    // Verify user has access
-    const db = getDb();
-    const record = db
-      .query(
-        'SELECT 1 FROM file_metadata WHERE hash = ? AND file_type = ? AND user_did = ?'
-      )
-      .get(hash, 'webpage', userDid);
-
-    if (!record) {
-      res.status(404).json({ error: 'File not found' });
-      return;
-    }
-
-    try {
-      const metadata = fileStorage.retrieveMetadata(hash);
-      if (!metadata) {
-        res.status(404).json({ error: 'Metadata not found' });
-        return;
-      }
-
-      res.json(metadata);
-    } catch (error) {
-      console.error('[FileRoutes] Metadata download failed:', error);
-      res.status(500).json({ error: 'Metadata download failed' });
-    }
-  });
-
-  // GET /:vaultId/manifest — List all files for a vault
-  router.get('/:vaultId/manifest', (req, res) => {
-    const authReq = req as AuthenticatedRequest;
-    const userDid = authReq.userDid;
-    if (!userDid) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
-    const { vaultId } = req.params;
-    if (!isValidVaultId(vaultId)) {
-      res.status(400).json({ error: 'Invalid vault ID' });
-      return;
-    }
-
-    try {
-      const db = getDb();
-      const files = db
-        .query(
-          `SELECT hash, file_type as fileType, extension, size_bytes as sizeBytes
-           FROM file_metadata
-           WHERE user_did = ? AND vault_id = ?`
-        )
-        .all(userDid, vaultId) as Array<{
-        hash: string;
-        fileType: string;
-        extension: string;
-        sizeBytes: number;
-      }>;
-
-      res.json({ files });
-    } catch (error) {
-      console.error('[FileRoutes] Manifest fetch failed:', error);
-      res.status(500).json({ error: 'Failed to fetch manifest' });
-    }
-  });
-
   // --- Conversation routes ---
-
-  // PUT /conversation/:vaultId/:conversationId — Upload conversation JSON
-  router.put(
-    '/conversation/:vaultId/:conversationId',
-    express.json({ limit: '10mb' }),
-    (req, res) => {
-      const authReq = req as AuthenticatedRequest;
-      const userDid = authReq.userDid;
-      if (!userDid) {
-        res.status(401).json({ error: 'Not authenticated' });
-        return;
-      }
-
-      const { vaultId, conversationId } = req.params;
-
-      if (!isValidVaultId(vaultId)) {
-        res.status(400).json({ error: 'Invalid vault ID' });
-        return;
-      }
-      if (!isValidConversationId(conversationId)) {
-        res.status(400).json({ error: 'Invalid conversation ID' });
-        return;
-      }
-
-      const body = JSON.stringify(req.body);
-      const bodyBuffer = Buffer.from(body, 'utf-8');
-
-      if (bodyBuffer.length > MAX_CONVERSATION_SIZE) {
-        res.status(413).json({ error: 'Conversation too large (max 10MB)' });
-        return;
-      }
-
-      try {
-        fileStorage.storeConversation(vaultId, conversationId, bodyBuffer);
-
-        // Upsert metadata
-        const db = getDb();
-        const updatedAt = (req.body as Record<string, unknown>)?.updated as
-          | string
-          | undefined;
-        db.run(
-          `INSERT INTO conversation_metadata (conversation_id, user_did, vault_id, updated_at, size_bytes)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT (conversation_id, user_did) DO UPDATE SET
-             vault_id = excluded.vault_id,
-             updated_at = excluded.updated_at,
-             size_bytes = excluded.size_bytes`,
-          [
-            conversationId,
-            userDid,
-            vaultId,
-            updatedAt || new Date().toISOString(),
-            bodyBuffer.length
-          ]
-        );
-
-        res.status(200).json({ ok: true, sizeBytes: bodyBuffer.length });
-      } catch (error) {
-        console.error('[FileRoutes] Conversation upload failed:', error);
-        res.status(500).json({ error: 'Upload failed' });
-      }
-    }
-  );
-
-  // GET /conversation/:vaultId/:conversationId — Download conversation JSON
-  router.get('/conversation/:vaultId/:conversationId', (req, res) => {
-    const authReq = req as AuthenticatedRequest;
-    const userDid = authReq.userDid;
-    if (!userDid) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
-    const { vaultId, conversationId } = req.params;
-
-    if (!isValidVaultId(vaultId)) {
-      res.status(400).json({ error: 'Invalid vault ID' });
-      return;
-    }
-    if (!isValidConversationId(conversationId)) {
-      res.status(400).json({ error: 'Invalid conversation ID' });
-      return;
-    }
-
-    // Verify user has access
-    const db = getDb();
-    const record = db
-      .query(
-        'SELECT 1 FROM conversation_metadata WHERE conversation_id = ? AND user_did = ? AND vault_id = ?'
-      )
-      .get(conversationId, userDid, vaultId);
-
-    if (!record) {
-      res.status(404).json({ error: 'Conversation not found' });
-      return;
-    }
-
-    try {
-      const data = fileStorage.retrieveConversation(vaultId, conversationId);
-      if (!data) {
-        res.status(404).json({ error: 'Conversation not found on disk' });
-        return;
-      }
-
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Length', data.length.toString());
-      res.send(data);
-    } catch (error) {
-      console.error('[FileRoutes] Conversation download failed:', error);
-      res.status(500).json({ error: 'Download failed' });
-    }
-  });
+  // Manifest route MUST come before parameterized /:conversationId routes
 
   // GET /conversation/:vaultId/manifest — List conversations for a vault
   router.get('/conversation/:vaultId/manifest', (req, res) => {
@@ -457,8 +368,124 @@ export function createFileRoutes(): Router {
     }
   });
 
+  // PUT /conversation/:vaultId/:conversationId — Upload conversation JSON
+  router.put(
+    '/conversation/:vaultId/:conversationId',
+    express.json({ limit: '10mb' }),
+    async (req, res) => {
+      const authReq = req as AuthenticatedRequest;
+      const userDid = authReq.userDid;
+      if (!userDid) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { vaultId, conversationId } = req.params;
+
+      if (!isValidVaultId(vaultId)) {
+        res.status(400).json({ error: 'Invalid vault ID' });
+        return;
+      }
+      if (!isValidConversationId(conversationId)) {
+        res.status(400).json({ error: 'Invalid conversation ID' });
+        return;
+      }
+
+      const body = JSON.stringify(req.body);
+      const bodyBuffer = Buffer.from(body, 'utf-8');
+
+      if (bodyBuffer.length > MAX_CONVERSATION_SIZE) {
+        res.status(413).json({ error: 'Conversation too large (max 10MB)' });
+        return;
+      }
+
+      try {
+        await fileStorage.storeConversation(userDid, vaultId, conversationId, bodyBuffer);
+
+        // Upsert metadata
+        const db = getDb();
+        const updatedAt = (req.body as Record<string, unknown>)?.updated as
+          | string
+          | undefined;
+        db.run(
+          `INSERT INTO conversation_metadata (conversation_id, user_did, vault_id, updated_at, size_bytes)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (conversation_id, user_did) DO UPDATE SET
+             vault_id = excluded.vault_id,
+             updated_at = excluded.updated_at,
+             size_bytes = excluded.size_bytes`,
+          [
+            conversationId,
+            userDid,
+            vaultId,
+            updatedAt || new Date().toISOString(),
+            bodyBuffer.length
+          ]
+        );
+
+        res.status(200).json({ ok: true, sizeBytes: bodyBuffer.length });
+      } catch (error) {
+        console.error('[FileRoutes] Conversation upload failed:', error);
+        res.status(500).json({ error: 'Upload failed' });
+      }
+    }
+  );
+
+  // GET /conversation/:vaultId/:conversationId — Download conversation JSON
+  router.get('/conversation/:vaultId/:conversationId', async (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { vaultId, conversationId } = req.params;
+
+    if (!isValidVaultId(vaultId)) {
+      res.status(400).json({ error: 'Invalid vault ID' });
+      return;
+    }
+    if (!isValidConversationId(conversationId)) {
+      res.status(400).json({ error: 'Invalid conversation ID' });
+      return;
+    }
+
+    // Verify user has access
+    const db = getDb();
+    const record = db
+      .query(
+        'SELECT 1 FROM conversation_metadata WHERE conversation_id = ? AND user_did = ? AND vault_id = ?'
+      )
+      .get(conversationId, userDid, vaultId);
+
+    if (!record) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    try {
+      const data = await fileStorage.retrieveConversation(
+        userDid,
+        vaultId,
+        conversationId
+      );
+      if (!data) {
+        res.status(404).json({ error: 'Conversation not found on disk' });
+        return;
+      }
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Length', data.length.toString());
+      res.send(data);
+    } catch (error) {
+      console.error('[FileRoutes] Conversation download failed:', error);
+      res.status(500).json({ error: 'Download failed' });
+    }
+  });
+
   // DELETE /conversation/:vaultId/:conversationId — Delete conversation
-  router.delete('/conversation/:vaultId/:conversationId', (req, res) => {
+  router.delete('/conversation/:vaultId/:conversationId', async (req, res) => {
     const authReq = req as AuthenticatedRequest;
     const userDid = authReq.userDid;
     if (!userDid) {
@@ -478,7 +505,7 @@ export function createFileRoutes(): Router {
     }
 
     try {
-      fileStorage.deleteConversation(vaultId, conversationId);
+      await fileStorage.deleteConversation(userDid, vaultId, conversationId);
 
       const db = getDb();
       db.run(
@@ -494,7 +521,7 @@ export function createFileRoutes(): Router {
   });
 
   // HEAD /:fileType/:hash — Check file existence
-  router.head('/:fileType/:hash', (req, res) => {
+  router.head('/:fileType/:hash', async (req, res) => {
     const authReq = req as AuthenticatedRequest;
     const userDid = authReq.userDid;
     if (!userDid) {
@@ -515,7 +542,20 @@ export function createFileRoutes(): Router {
       return;
     }
 
-    const onDisk = fileStorage.exists(
+    // Verify user has access (has a file_metadata record)
+    const db = getDb();
+    const record = db
+      .query(
+        'SELECT 1 FROM file_metadata WHERE hash = ? AND file_type = ? AND user_did = ?'
+      )
+      .get(hash, fileType, userDid);
+
+    if (!record) {
+      res.status(404).end();
+      return;
+    }
+
+    const onDisk = await fileStorage.exists(
       hash,
       fileType as 'pdf' | 'epub' | 'image' | 'webpage',
       extension

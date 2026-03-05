@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { createAuthRoutes } from './auth/auth-routes.js';
 import { createDocumentRoutes } from './sync/document-registration.js';
 import { createFileRoutes } from './sync/file-routes.js';
-import { initSyncServer } from './sync/sync-server.js';
+import { initSyncServer, getActiveUserCount } from './sync/sync-server.js';
 import {
   verifySessionTokenAsync,
   cleanExpiredSessions,
@@ -163,6 +163,17 @@ setInterval(
     cleanExpiredOAuthState();
   },
   60 * 60 * 1000 // Every hour
+);
+
+// Memory usage logging
+setInterval(
+  () => {
+    const mem = process.memoryUsage();
+    console.log(
+      `[memory] rss=${(mem.rss / 1024 / 1024).toFixed(1)}MB heap=${(mem.heapUsed / 1024 / 1024).toFixed(1)}/${(mem.heapTotal / 1024 / 1024).toFixed(1)}MB activeUsers=${getActiveUserCount()}`
+    );
+  },
+  5 * 60 * 1000 // Every 5 minutes
 );
 
 server.listen(PORT, () => {

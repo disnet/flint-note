@@ -3,10 +3,10 @@
  * and conversation JSON files.
  *
  * Binary files: DATA_DIR/files/{fileType}/{hash}.{ext} (content-addressed)
- * Conversations: DATA_DIR/conversations/{vaultId}/{conversationId}.json (ID-addressed)
+ * Conversations: DATA_DIR/conversations/{userDid}/{vaultId}/{conversationId}.json (ID-addressed, user-scoped)
  */
 
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const DATA_DIR = process.env.DATA_DIR || './data';
@@ -32,41 +32,44 @@ function getFilePath(hash: string, fileType: FileType, extension: string): strin
 /**
  * Ensure the directory for a file type exists
  */
-function ensureDir(fileType: FileType): void {
-  fs.mkdirSync(getTypeDir(fileType), { recursive: true });
+async function ensureDir(fileType: FileType): Promise<void> {
+  await fs.mkdir(getTypeDir(fileType), { recursive: true });
 }
 
 /**
  * Store a file on disk. Skips write if file already exists (deduplication).
  */
-export function store(
+export async function store(
   hash: string,
   fileType: FileType,
   extension: string,
   data: Buffer
-): void {
-  ensureDir(fileType);
+): Promise<void> {
+  await ensureDir(fileType);
   const filePath = getFilePath(hash, fileType, extension);
 
-  if (fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
     return; // Already stored
+  } catch {
+    // File doesn't exist, proceed to write
   }
 
-  fs.writeFileSync(filePath, data);
+  await fs.writeFile(filePath, data);
 }
 
 /**
  * Retrieve a file from disk. Returns null if not found.
  */
-export function retrieve(
+export async function retrieve(
   hash: string,
   fileType: FileType,
   extension: string
-): Buffer | null {
+): Promise<Buffer | null> {
   const filePath = getFilePath(hash, fileType, extension);
 
   try {
-    return fs.readFileSync(filePath);
+    return await fs.readFile(filePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
@@ -78,27 +81,41 @@ export function retrieve(
 /**
  * Check if a file exists on disk.
  */
-export function exists(hash: string, fileType: FileType, extension: string): boolean {
-  return fs.existsSync(getFilePath(hash, fileType, extension));
+export async function exists(
+  hash: string,
+  fileType: FileType,
+  extension: string
+): Promise<boolean> {
+  try {
+    await fs.access(getFilePath(hash, fileType, extension));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Store webpage metadata JSON alongside the HTML file.
  */
-export function storeMetadata(hash: string, metadata: Record<string, unknown>): void {
-  ensureDir('webpage');
+export async function storeMetadata(
+  hash: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  await ensureDir('webpage');
   const metaPath = path.join(getTypeDir('webpage'), `${hash}.meta.json`);
-  fs.writeFileSync(metaPath, JSON.stringify(metadata));
+  await fs.writeFile(metaPath, JSON.stringify(metadata));
 }
 
 /**
  * Retrieve webpage metadata JSON.
  */
-export function retrieveMetadata(hash: string): Record<string, unknown> | null {
+export async function retrieveMetadata(
+  hash: string
+): Promise<Record<string, unknown> | null> {
   const metaPath = path.join(getTypeDir('webpage'), `${hash}.meta.json`);
 
   try {
-    const data = fs.readFileSync(metaPath, 'utf-8');
+    const data = await fs.readFile(metaPath, 'utf-8');
     return JSON.parse(data) as Record<string, unknown>;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -111,41 +128,54 @@ export function retrieveMetadata(hash: string): Record<string, unknown> | null {
 // --- Conversation storage ---
 
 /**
- * Get the directory for a vault's conversations
+ * Sanitize a userDid for filesystem safety
  */
-function getConversationVaultDir(vaultId: string): string {
-  return path.join(CONVERSATIONS_DIR, vaultId);
+function sanitizeDid(userDid: string): string {
+  return userDid.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/**
+ * Get the directory for a user's vault conversations
+ */
+function getConversationVaultDir(userDid: string, vaultId: string): string {
+  return path.join(CONVERSATIONS_DIR, sanitizeDid(userDid), vaultId);
 }
 
 /**
  * Get the file path for a specific conversation
  */
-function getConversationPath(vaultId: string, conversationId: string): string {
-  return path.join(getConversationVaultDir(vaultId), `${conversationId}.json`);
+function getConversationPath(
+  userDid: string,
+  vaultId: string,
+  conversationId: string
+): string {
+  return path.join(getConversationVaultDir(userDid, vaultId), `${conversationId}.json`);
 }
 
 /**
  * Store a conversation JSON file. Always overwrites (conversations are mutable).
  */
-export function storeConversation(
+export async function storeConversation(
+  userDid: string,
   vaultId: string,
   conversationId: string,
   data: Buffer
-): void {
-  const dir = getConversationVaultDir(vaultId);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(getConversationPath(vaultId, conversationId), data);
+): Promise<void> {
+  const dir = getConversationVaultDir(userDid, vaultId);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(getConversationPath(userDid, vaultId, conversationId), data);
 }
 
 /**
  * Retrieve a conversation JSON file. Returns null if not found.
  */
-export function retrieveConversation(
+export async function retrieveConversation(
+  userDid: string,
   vaultId: string,
   conversationId: string
-): Buffer | null {
+): Promise<Buffer | null> {
   try {
-    return fs.readFileSync(getConversationPath(vaultId, conversationId));
+    return await fs.readFile(getConversationPath(userDid, vaultId, conversationId));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
@@ -157,16 +187,29 @@ export function retrieveConversation(
 /**
  * Check if a conversation file exists on disk.
  */
-export function conversationExists(vaultId: string, conversationId: string): boolean {
-  return fs.existsSync(getConversationPath(vaultId, conversationId));
+export async function conversationExists(
+  userDid: string,
+  vaultId: string,
+  conversationId: string
+): Promise<boolean> {
+  try {
+    await fs.access(getConversationPath(userDid, vaultId, conversationId));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Delete a conversation file from disk. Returns true if deleted.
  */
-export function deleteConversation(vaultId: string, conversationId: string): boolean {
+export async function deleteConversation(
+  userDid: string,
+  vaultId: string,
+  conversationId: string
+): Promise<boolean> {
   try {
-    fs.unlinkSync(getConversationPath(vaultId, conversationId));
+    await fs.unlink(getConversationPath(userDid, vaultId, conversationId));
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {

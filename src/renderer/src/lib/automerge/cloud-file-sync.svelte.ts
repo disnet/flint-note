@@ -239,7 +239,7 @@ export async function fetchCloudFileManifest(
 
   try {
     const res = await fetch(
-      `${serverUrl}/api/files/${encodeURIComponent(vaultId)}/manifest`,
+      `${serverUrl}/api/files/manifest/${encodeURIComponent(vaultId)}`,
       {
         credentials: 'include'
       }
