@@ -627,13 +627,19 @@
   }
 
   function handleEditorFocus(): void {
-    editorFocusState.setFocused(true, editorView);
-    editorFocusState.registerInsertMenu(handleOpenInsertMenuAtCursor);
+    // Defer state mutation to avoid state_unsafe_mutation during Svelte's flush cycle
+    queueMicrotask(() => {
+      editorFocusState.setFocused(true, editorView);
+      editorFocusState.registerInsertMenu(handleOpenInsertMenuAtCursor);
+    });
   }
 
   function handleEditorBlur(): void {
-    editorFocusState.setFocused(false, null);
-    editorFocusState.registerInsertMenu(null);
+    // Defer state mutation to avoid state_unsafe_mutation during Svelte's flush cycle
+    queueMicrotask(() => {
+      editorFocusState.setFocused(false, null);
+      editorFocusState.registerInsertMenu(null);
+    });
   }
 
   /** Open the insert menu in gutter mode at the current cursor line */
@@ -670,7 +676,7 @@
         // Remove focus/blur handlers before destroying
         editorView.contentDOM.removeEventListener('focus', handleEditorFocus);
         editorView.contentDOM.removeEventListener('blur', handleEditorBlur);
-        editorFocusState.setFocused(false, null);
+        queueMicrotask(() => editorFocusState.setFocused(false, null));
         editorView.destroy();
         editorView = null;
       }
@@ -716,7 +722,7 @@
           // Remove focus/blur handlers before destroying
           editorView.contentDOM.removeEventListener('focus', handleEditorFocus);
           editorView.contentDOM.removeEventListener('blur', handleEditorBlur);
-          editorFocusState.setFocused(false, null);
+          queueMicrotask(() => editorFocusState.setFocused(false, null));
           editorView.destroy();
           editorView = null;
         }
