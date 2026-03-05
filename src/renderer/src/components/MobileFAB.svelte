@@ -11,10 +11,20 @@
     onNewNote: () => void;
     onOpenChat: () => void;
     onOpenShelf: () => void;
+    onMoreMenu?: ((event: MouseEvent) => void) | undefined;
+    showMoreMenu?: boolean;
     hidden?: boolean;
   }
 
-  let { onSearch, onNewNote, onOpenChat, onOpenShelf, hidden = false }: Props = $props();
+  let {
+    onSearch,
+    onNewNote,
+    onOpenChat,
+    onOpenShelf,
+    onMoreMenu,
+    showMoreMenu = false,
+    hidden = false
+  }: Props = $props();
 
   let keyboardVisible = $state(false);
 
@@ -95,6 +105,17 @@
         ></path>
       </svg>
     </button>
+
+    {#if showMoreMenu && onMoreMenu}
+      <div class="separator"></div>
+      <button class="action-btn" onclick={onMoreMenu} aria-label="More options">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="2"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+          <circle cx="12" cy="19" r="2"></circle>
+        </svg>
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -125,6 +146,14 @@
     :global(:root:not([data-theme='light'])) .mobile-action-bar {
       background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
     }
+  }
+
+  .separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border-light);
+    margin: 0 2px;
+    flex-shrink: 0;
   }
 
   .action-btn {

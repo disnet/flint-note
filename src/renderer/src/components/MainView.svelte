@@ -314,7 +314,12 @@
   function handleMoreButtonClick(event: MouseEvent): void {
     const button = event.currentTarget as HTMLButtonElement;
     const rect = button.getBoundingClientRect();
-    moreMenuPosition = { x: rect.right - 180, y: rect.bottom + 4 };
+    if (isMobileLayout) {
+      // Position above the FAB bar
+      moreMenuPosition = { x: rect.right - 180, y: rect.top - 4 };
+    } else {
+      moreMenuPosition = { x: rect.right - 180, y: rect.bottom + 4 };
+    }
     moreMenuOpen = true;
   }
 
@@ -1965,6 +1970,8 @@
     onNewNote={handleCreateNote}
     onOpenChat={() => sidebarState.openPanel('chat')}
     onOpenShelf={() => sidebarState.openPanel('shelf')}
+    onMoreMenu={handleMoreButtonClick}
+    showMoreMenu={!!activeNote}
     hidden={chatPanelOpen || shelfPanelOpen}
   />
   <KeyboardControlPanel hidden={chatPanelOpen || shelfPanelOpen} />
@@ -2204,6 +2211,7 @@
       !isActiveNotePdf &&
       !isActiveNoteWebpage}
     showShowInFinder={!!getActiveVault()?.baseDirectory}
+    anchorBottom={isMobileLayout}
     syncStatus={mobileSyncStatus}
     onClose={() => (moreMenuOpen = false)}
     onPin={handlePin}
@@ -2994,7 +3002,7 @@
     gap: 0;
   }
 
-  /* Hide pin, shelf buttons, and sync badge on mobile (available via more menu) */
+  /* Hide pin, shelf buttons, sync badge, and more button on mobile (available via FAB) */
   .main-view.mobile-layout .safe-zone-button {
     display: none;
   }
@@ -3003,43 +3011,8 @@
     display: none;
   }
 
-  /* Style more button like the mobile FAB */
   .main-view.mobile-layout .more-menu-button {
-    color: var(--text-secondary);
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 50%;
-    background: color-mix(in srgb, #ffffff 85%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-light);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-
-  :global([data-theme='dark']) .main-view.mobile-layout .more-menu-button {
-    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme='light'])) .main-view.mobile-layout .more-menu-button {
-      background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
-    }
-  }
-
-  .main-view.mobile-layout .more-menu-button svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .main-view.mobile-layout .more-menu-button:active {
-    color: var(--text-primary);
-    background: var(--bg-hover);
+    display: none;
   }
 
   .main-view.mobile-layout .floating-sidebar-toggle {
