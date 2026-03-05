@@ -2046,6 +2046,21 @@
     quickSearchOpen = false;
     searchQuery = '';
   }}
+  onCreateNote={() => {
+    quickSearchOpen = false;
+    searchQuery = '';
+    handleCreateNote();
+  }}
+  onCreateDeck={() => {
+    quickSearchOpen = false;
+    searchQuery = '';
+    handleCreateDeck();
+  }}
+  onCaptureWebpage={() => {
+    quickSearchOpen = false;
+    searchQuery = '';
+    showArchiveWebpageModal = true;
+  }}
 />
 
 {#if showLegacyMigrationModal}

@@ -37,6 +37,9 @@
       view: 'settings' | 'types' | 'daily' | 'review' | 'inbox' | 'routines' | null
     ) => void;
     onSidebarItemSelect: (item: SidebarItem) => void;
+    onCreateNote?: () => void;
+    onCreateDeck?: () => void;
+    onCaptureWebpage?: () => void;
   }
 
   let {
@@ -51,7 +54,10 @@
     onKeyDown,
     onViewAllResults,
     onSystemViewSelect,
-    onSidebarItemSelect
+    onSidebarItemSelect,
+    onCreateNote,
+    onCreateDeck,
+    onCaptureWebpage
   }: Props = $props();
 
   let inputElement = $state<HTMLInputElement | null>(null);
@@ -190,7 +196,7 @@
     onkeydown={(e) => e.key === 'Escape' && onClose()}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="quick-search-modal" onclick={(e) => e.stopPropagation()}>
+    <div class="quick-search-modal">
       <div class="search-input-wrapper">
         <svg
           class="search-icon"
@@ -314,7 +320,7 @@
 
       {#if !hasSearchQuery}
         <div class="workspace-bar-wrapper">
-          <WorkspaceBar />
+          <WorkspaceBar {onCreateNote} {onCreateDeck} {onCaptureWebpage} />
         </div>
       {/if}
     </div>
