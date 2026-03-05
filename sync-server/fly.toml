@@ -16,12 +16,17 @@ primary_region = "sjc"
   min_machines_running = 0
 
 [[http_service.checks]]
-  grace_period = "10s"
+  grace_period = "120s"
   interval = "30s"
   method = "GET"
   path = "/health"
-  timeout = "5s"
+  timeout = "10s"
 
 [mounts]
   source = "flint_data"
   destination = "/data"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
