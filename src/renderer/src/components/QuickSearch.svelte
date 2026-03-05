@@ -15,12 +15,16 @@
     isSessionAvailable,
     getUnprocessedCount,
     getRoutinesDueNow,
+    updateVaultInState,
+    isLegacyVault,
     type SidebarItem,
     type SystemView,
     type NoteMetadata,
     type SearchResult,
-    type EnhancedSearchResult
+    type EnhancedSearchResult,
+    type Vault
   } from '../lib/automerge';
+  import { isCloudAuthenticated } from '../lib/automerge/cloud-sync.svelte';
 
   interface Props {
     isOpen: boolean;
@@ -40,6 +44,11 @@
     onCreateNote?: () => void;
     onCreateDeck?: () => void;
     onCaptureWebpage?: () => void;
+    vaults?: Vault[];
+    activeVault?: Vault | null;
+    onVaultSelect?: (vaultId: string) => void;
+    onCreateVault?: () => void;
+    onSyncFromCloud?: () => void;
   }
 
   let {
@@ -57,7 +66,12 @@
     onSidebarItemSelect,
     onCreateNote,
     onCreateDeck,
-    onCaptureWebpage
+    onCaptureWebpage,
+    vaults = [],
+    activeVault = null,
+    onVaultSelect,
+    onCreateVault,
+    onSyncFromCloud
   }: Props = $props();
 
   let inputElement = $state<HTMLInputElement | null>(null);
@@ -86,6 +100,74 @@
   const routinesDueCount = $derived(getRoutinesDueNow().length);
 
   const hasSearchQuery = $derived(searchQuery.trim().length > 0);
+
+  // Vault switcher state (mobile only)
+  let isVaultDropdownOpen = $state(false);
+  const showVaultSwitcher = $derived(isMobile && vaults.length > 0);
+
+  // Vault editing state
+  let editingVaultId = $state<string | null>(null);
+  let editingVaultName = $state('');
+
+  function handleVaultSelect(vaultId: string): void {
+    onVaultSelect?.(vaultId);
+    isVaultDropdownOpen = false;
+  }
+
+  function handleCreateVault(): void {
+    onCreateVault?.();
+    isVaultDropdownOpen = false;
+    onClose();
+  }
+
+  function handleSyncFromCloud(): void {
+    onSyncFromCloud?.();
+    isVaultDropdownOpen = false;
+    onClose();
+  }
+
+  function handleArchiveVault(vault: Vault, event: MouseEvent): void {
+    event.stopPropagation();
+    if (vault.id === activeVault?.id) {
+      if (vaults.length <= 1) return;
+      const otherVault = vaults.find((v) => v.id !== vault.id);
+      if (otherVault) {
+        onVaultSelect?.(otherVault.id);
+      }
+    }
+    updateVaultInState(vault.id, { archived: true });
+    isVaultDropdownOpen = false;
+  }
+
+  function handleStartEditVault(vault: Vault, event: MouseEvent): void {
+    event.stopPropagation();
+    editingVaultId = vault.id;
+    editingVaultName = vault.name;
+  }
+
+  function handleSaveVaultName(vaultId: string): void {
+    const trimmedName = editingVaultName.trim();
+    if (trimmedName) {
+      updateVaultInState(vaultId, { name: trimmedName });
+    }
+    editingVaultId = null;
+    editingVaultName = '';
+  }
+
+  function handleCancelEditVault(): void {
+    editingVaultId = null;
+    editingVaultName = '';
+  }
+
+  function handleVaultNameKeyDown(event: KeyboardEvent, vaultId: string): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSaveVaultName(vaultId);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancelEditVault();
+    }
+  }
 
   // System views definition
   type SystemViewDef = {
@@ -159,6 +241,13 @@
       }
     }
   }
+
+  // Close vault dropdown when modal closes
+  $effect(() => {
+    if (!isOpen) {
+      isVaultDropdownOpen = false;
+    }
+  });
 
   function handleOverlayClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
@@ -285,7 +374,182 @@
         {:else}
           <!-- Default: system views + full SidebarItems with drag/drop + workspaces -->
           <div class="section">
-            <div class="section-header">Views</div>
+            <div class="section-header">
+              <span>Views</span>
+              {#if showVaultSwitcher}
+                <div class="vault-switcher-inline">
+                  <button
+                    class="vault-switch-btn"
+                    onclick={() => (isVaultDropdownOpen = !isVaultDropdownOpen)}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                      />
+                    </svg>
+                    <span>{activeVault?.name || 'Vault'}</span>
+                    <svg
+                      class="vault-chevron"
+                      class:rotated={isVaultDropdownOpen}
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  {#if isVaultDropdownOpen}
+                    <div class="vault-dropdown-inline">
+                      {#each vaults as vault (vault.id)}
+                        <div class="vault-item-row" class:legacy={isLegacyVault(vault)}>
+                          {#if editingVaultId === vault.id}
+                            <div class="vault-dropdown-item editing">
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                                />
+                              </svg>
+                              <!-- svelte-ignore a11y_autofocus -->
+                              <input
+                                type="text"
+                                class="vault-name-input"
+                                bind:value={editingVaultName}
+                                onkeydown={(e) => handleVaultNameKeyDown(e, vault.id)}
+                                onblur={() => handleSaveVaultName(vault.id)}
+                                autofocus
+                              />
+                            </div>
+                          {:else}
+                            <button
+                              class="vault-dropdown-item"
+                              class:active={activeVault?.id === vault.id}
+                              class:legacy={isLegacyVault(vault)}
+                              onclick={() => handleVaultSelect(vault.id)}
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                                />
+                              </svg>
+                              <span class="vault-item-name">{vault.name}</span>
+                              {#if isLegacyVault(vault)}
+                                <span class="legacy-badge">Import</span>
+                              {/if}
+                            </button>
+                          {/if}
+                          {#if !isLegacyVault(vault) && editingVaultId !== vault.id}
+                            <button
+                              class="vault-action-btn"
+                              onclick={(e) => handleStartEditVault(vault, e)}
+                              title="Rename vault"
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                                />
+                                <path d="m15 5 4 4" />
+                              </svg>
+                            </button>
+                            <button
+                              class="vault-action-btn"
+                              onclick={(e) => handleArchiveVault(vault, e)}
+                              title="Archive vault"
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <rect width="20" height="5" x="2" y="3" rx="1" />
+                                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                                <path d="m9.5 11 5 0" />
+                              </svg>
+                            </button>
+                          {/if}
+                        </div>
+                      {/each}
+
+                      <div class="vault-dropdown-separator"></div>
+
+                      <button
+                        class="vault-dropdown-item new-vault"
+                        onclick={handleCreateVault}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path d="M12 5v14" />
+                          <path d="m5 12 14 0" />
+                        </svg>
+                        <span>New Vault</span>
+                      </button>
+
+                      {#if isCloudAuthenticated()}
+                        <button
+                          class="vault-dropdown-item new-vault"
+                          onclick={handleSyncFromCloud}
+                        >
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <path
+                              d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"
+                            />
+                            <path d="M12 12v9" />
+                            <path d="m8 17 4 4 4-4" />
+                          </svg>
+                          <span>Sync from Cloud</span>
+                        </button>
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
             {#each systemViews as view (view.id)}
               <button
                 class="nav-item"
@@ -428,12 +692,166 @@
   }
 
   .section-header {
-    padding: 8px 16px 4px;
+    padding: 4px 16px 2px;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    line-height: 1;
+  }
+
+  .vault-switcher-inline {
+    position: relative;
+  }
+
+  .vault-switch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 30px;
+    min-height: 0;
+    padding: 0 6px;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 500;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .vault-switch-btn:active {
+    background: var(--bg-hover);
+  }
+
+  .vault-chevron {
+    transition: transform 0.15s ease;
+  }
+
+  .vault-chevron.rotated {
+    transform: rotate(180deg);
+  }
+
+  .vault-dropdown-inline {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 160px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    padding: 4px;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .vault-item-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .vault-dropdown-item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .vault-dropdown-item:active {
+    background: var(--bg-hover);
+  }
+
+  .vault-dropdown-item.active {
+    background: var(--accent-light);
+    color: var(--text-primary);
+  }
+
+  .vault-dropdown-item.editing {
+    gap: 8px;
+    padding: 4px 10px;
+  }
+
+  .vault-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vault-name-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    padding: 2px 6px;
+    outline: none;
+  }
+
+  .vault-name-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .legacy-badge {
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--accent-light);
+    color: var(--accent-primary);
+    text-transform: uppercase;
+  }
+
+  .vault-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-height: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .vault-action-btn:active {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+
+  .vault-dropdown-item.new-vault {
+    color: var(--text-muted);
+  }
+
+  .vault-dropdown-separator {
+    height: 1px;
+    background: var(--border-light);
+    margin: 4px 0;
   }
 
   .nav-item {

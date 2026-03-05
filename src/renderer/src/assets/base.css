@@ -358,20 +358,20 @@ button {
   body {
     /* Prevent pull-to-refresh on mobile */
     overscroll-behavior-y: contain;
-    /* Respect safe areas */
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
+    /* Safe areas handled by app-layout, not body - avoids pushing 100dvh main-view off screen */
   }
 
   /* Prevent iOS Safari from scrolling the body when keyboard opens */
-  html[data-platform='web'],
-  html[data-platform='web'] body {
+  /* NOTE: avoid position:fixed on body — iOS 26 Safari clips fixed elements to inner viewport */
+  html[data-platform='web'] {
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
-    position: fixed;
-    width: 100%;
-    height: 100%;
+  }
+  html[data-platform='web'] body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   /* Ensure touch targets are large enough */
