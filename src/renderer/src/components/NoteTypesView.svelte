@@ -3,6 +3,7 @@
    * Note Types management view for Automerge-based notes
    * Allows creating, editing, and managing note types
    */
+  import { SvelteMap } from 'svelte/reactivity';
   import {
     getNoteTypes,
     getAllNotes,
@@ -53,9 +54,20 @@
   // Paginated notes
   const paginatedNotes = $derived(notesForSelectedType.slice(offset, offset + pageSize));
 
+  // Precompute note counts for all types in a single pass
+  const noteCountsByType = $derived.by(() => {
+    const counts = new SvelteMap<string, number>();
+    for (const n of allNotes) {
+      if (!n.archived && n.type) {
+        counts.set(n.type, (counts.get(n.type) || 0) + 1);
+      }
+    }
+    return counts;
+  });
+
   // Get note count for a type
   function getNoteCount(typeId: string): number {
-    return allNotes.filter((n) => !n.archived && n.type === typeId).length;
+    return noteCountsByType.get(typeId) || 0;
   }
 
   // Get notes for a specific type
