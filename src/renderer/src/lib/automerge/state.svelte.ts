@@ -44,7 +44,8 @@ import type {
   ReviewData,
   ReviewHistoryEntry,
   ReviewStatus,
-  SavedSearch
+  SavedSearch,
+  ShelfItemData
 } from './types';
 import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
 import {
@@ -126,12 +127,197 @@ async function getRouter(): Promise<RouterModule | null> {
 }
 
 // --- Private reactive state ---
+// Per-field reactive state — only reassigned when Automerge patches touch that field.
+// This avoids invalidating every $derived when only one field changes.
 
-let currentDoc = $state<NotesDocument>({
+let stateWorkspaces = $state<Record<string, Workspace>>({});
+let stateNoteTypes = $state<Record<string, NoteType>>({});
+let stateWorkspaceOrder = $state<string[] | undefined>(undefined);
+let stateConversationIndex = $state<Record<string, ConversationIndexEntry> | undefined>(
+  undefined
+);
+let stateShelfItems = $state<ShelfItemData[] | undefined>(undefined);
+let stateAgentRoutines = $state<Record<string, AgentRoutine> | undefined>(undefined);
+let stateReviewState = $state<ReviewState | undefined>(undefined);
+let stateProcessedNoteIds = $state<Record<string, string> | undefined>(undefined);
+let stateSavedSearches = $state<Record<string, SavedSearch> | undefined>(undefined);
+
+// Non-reactive reference for imperative/mutation code paths
+// (e.g. reading right after docHandle.change() where $derived hasn't updated yet)
+let rawDoc: NotesDocument = {
   notes: {},
   workspaces: {},
   activeWorkspaceId: '',
   noteTypes: {}
+};
+
+// Top-level field names in NotesDocument that have reactive state
+type DocField = keyof NotesDocument;
+
+/**
+ * Inspect Automerge patches and return which top-level fields changed.
+ * If any patch has an empty path (full doc replacement), returns 'all'.
+ */
+function extractChangedFields(patches: Automerge.Patch[]): Set<DocField> | 'all' {
+  const changed = new Set<DocField>();
+  for (const patch of patches) {
+    if (patch.path.length === 0) {
+      return 'all';
+    }
+    changed.add(patch.path[0] as DocField);
+  }
+  return changed;
+}
+
+// --- Materialized notes cache ---
+// Strips Automerge proxies for fast downstream access.
+// Uses $state.raw to avoid Svelte proxy overhead on reads (getReviewStats etc.
+// iterate every note — proxy trap cost was the dominant bottleneck).
+// Patch-based incremental updates: changing one note (e.g. lastOpened) mutates
+// in place WITHOUT reassigning, so $derived consumers don't re-run at all.
+// Only "structural" changes (add/delete notes, title/type/archived/review/etc.)
+// trigger a reference change that wakes up $derived consumers.
+
+export type MaterializedNote = NoteMetadata & {
+  _createdTime: number;
+  _updatedTime: number;
+};
+
+function materializeNote(note: NoteMetadata): MaterializedNote {
+  return {
+    ...note,
+    _createdTime: new Date(note.created).getTime(),
+    _updatedTime: new Date(note.updated).getTime()
+  };
+}
+
+// $state.raw — plain object, no Svelte deep proxy. Consumers only react
+// when the variable itself is reassigned (not on in-place mutation).
+let materializedNotesDict = $state.raw<Record<string, MaterializedNote>>({});
+const materializedNotesArray = $derived(Object.values(materializedNotesDict));
+
+// Note fields that don't need to trigger reactive updates in consumers.
+// Changes to these are written in place silently.
+const SILENT_NOTE_FIELDS = new Set(['lastOpened']);
+
+/**
+ * Full rebuild of the materialized notes cache from a doc snapshot.
+ */
+function rebuildMaterializedNotes(notes: Record<string, NoteMetadata>): void {
+  const result: Record<string, MaterializedNote> = {};
+  for (const id of Object.keys(notes)) {
+    result[id] = materializeNote(notes[id]);
+  }
+  materializedNotesDict = result;
+}
+
+/**
+ * Incremental update: only re-materialize notes whose IDs appear in patches.
+ * Falls back to full rebuild if a patch targets the 'notes' key itself.
+ * Only reassigns materializedNotesDict (triggering $derived consumers) when
+ * the change is "structural" — silent fields like lastOpened are written
+ * in place without waking up consumers.
+ */
+function patchMaterializedNotes(
+  notes: Record<string, NoteMetadata>,
+  patches: Automerge.Patch[]
+): void {
+  const changedIds = new Set<string>();
+  const deletedIds = new Set<string>();
+  let needsReactiveUpdate = false;
+
+  for (const patch of patches) {
+    if (patch.path[0] !== 'notes') continue;
+    if (patch.path.length < 2) {
+      // Path is just ['notes'] — full map replaced
+      rebuildMaterializedNotes(notes);
+      return;
+    }
+    const noteId = patch.path[1] as string;
+    if (patch.action === 'del' && patch.path.length === 2) {
+      deletedIds.add(noteId);
+      needsReactiveUpdate = true;
+    } else {
+      changedIds.add(noteId);
+      // If the changed field is not in the silent set, we need a reactive update
+      if (patch.path.length < 3 || !SILENT_NOTE_FIELDS.has(patch.path[2] as string)) {
+        needsReactiveUpdate = true;
+      }
+    }
+  }
+
+  if (changedIds.size === 0 && deletedIds.size === 0) return;
+
+  // Always update entries in place (fast, no reactive notification)
+  for (const id of deletedIds) {
+    delete materializedNotesDict[id];
+  }
+  for (const id of changedIds) {
+    const note = notes[id];
+    if (note) {
+      materializedNotesDict[id] = materializeNote(note);
+    }
+  }
+
+  // Only reassign (trigger $derived consumers) for structural changes
+  if (needsReactiveUpdate) {
+    materializedNotesDict = { ...materializedNotesDict };
+  }
+}
+
+/**
+ * Update rawDoc always, then conditionally reassign only the reactive
+ * state variables whose fields are in `changed`.
+ * When notes change, uses patches for incremental materialization.
+ */
+function applyDocToReactiveState(
+  doc: NotesDocument,
+  changed: Set<DocField> | 'all',
+  patches?: Automerge.Patch[]
+): void {
+  rawDoc = doc;
+
+  const all = changed === 'all';
+
+  if (all || changed.has('notes')) {
+    if (all || !patches) {
+      rebuildMaterializedNotes(doc.notes);
+    } else {
+      patchMaterializedNotes(doc.notes, patches);
+    }
+  }
+  if (all || changed.has('workspaces')) stateWorkspaces = doc.workspaces;
+  if (all || changed.has('noteTypes')) stateNoteTypes = doc.noteTypes;
+  if (all || changed.has('workspaceOrder')) stateWorkspaceOrder = doc.workspaceOrder;
+  if (all || changed.has('conversationIndex'))
+    stateConversationIndex = doc.conversationIndex;
+  if (all || changed.has('shelfItems')) stateShelfItems = doc.shelfItems;
+  if (all || changed.has('agentRoutines')) stateAgentRoutines = doc.agentRoutines;
+  if (all || changed.has('reviewState')) stateReviewState = doc.reviewState;
+  if (all || changed.has('processedNoteIds'))
+    stateProcessedNoteIds = doc.processedNoteIds;
+  if (all || changed.has('savedSearches')) stateSavedSearches = doc.savedSearches;
+}
+
+// Same for note types
+const materializedNoteTypesDict = $derived.by(() => {
+  const result: Record<string, NoteType> = {};
+  const types = stateNoteTypes ?? {};
+  for (const id of Object.keys(types)) {
+    result[id] = { ...types[id] };
+  }
+  return result;
+});
+
+// Materialized processedNoteIds
+const materializedProcessedNoteIds = $derived.by(() => {
+  const raw = stateProcessedNoteIds;
+  if (!raw) return {} as Record<string, string>;
+  const result: Record<string, string> = {};
+  for (const id of Object.keys(raw)) {
+    result[id] = raw[id];
+  }
+  return result;
 });
 
 let docHandle: DocHandle<NotesDocument> | null = null;
@@ -169,7 +355,7 @@ function saveActiveWorkspaceId(vaultId: string, workspaceId: string): void {
  * then to the first workspace.
  */
 function restoreActiveWorkspace(vaultId: string): void {
-  const workspaces = currentDoc.workspaces;
+  const workspaces = rawDoc.workspaces;
   const workspaceIds = Object.keys(workspaces);
 
   if (workspaceIds.length === 0) {
@@ -185,8 +371,8 @@ function restoreActiveWorkspace(vaultId: string): void {
   }
 
   // Fall back to Automerge doc value (migration from synced → local)
-  if (currentDoc.activeWorkspaceId && workspaces[currentDoc.activeWorkspaceId]) {
-    localActiveWorkspaceId = currentDoc.activeWorkspaceId;
+  if (rawDoc.activeWorkspaceId && workspaces[rawDoc.activeWorkspaceId]) {
+    localActiveWorkspaceId = rawDoc.activeWorkspaceId;
     saveActiveWorkspaceId(vaultId, localActiveWorkspaceId);
     return;
   }
@@ -315,7 +501,7 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Get initial state
     const doc = handle.doc();
     if (doc) {
-      currentDoc = doc;
+      applyDocToReactiveState(doc, 'all');
     }
 
     // Restore active workspace from localStorage (device-local)
@@ -340,9 +526,10 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Restore last view state if available
     restoreLastViewState();
 
-    // Subscribe to future changes
-    activeChangeListener = ({ doc }) => {
-      currentDoc = doc;
+    // Subscribe to future changes — use patches to only update affected fields
+    activeChangeListener = ({ doc, patches }) => {
+      const changed = extractChangedFields(patches);
+      applyDocToReactiveState(doc, changed, patches);
     };
     handle.on('change', activeChangeListener);
 
@@ -824,7 +1011,7 @@ function initializeSearchIndex(): void {
   searchIndex.setContentLoader(getNoteContent);
 
   // Get all non-archived notes
-  const allNotes = Object.values(currentDoc.notes).filter((n) => !n.archived);
+  const allNotes = materializedNotesArray.filter((n) => !n.archived);
 
   // Build index in background (non-blocking)
   searchIndex.buildIndex(allNotes).catch((err) => {
@@ -1111,7 +1298,7 @@ export async function switchVault(
   // Get initial state
   const doc = handle.doc();
   if (doc) {
-    currentDoc = doc;
+    applyDocToReactiveState(doc, 'all');
   }
 
   // Restore active workspace from localStorage (device-local)
@@ -1126,9 +1313,10 @@ export async function switchVault(
   // Run schema versioned migrations
   runSchemaMigrations();
 
-  // Subscribe to changes
-  activeChangeListener = ({ doc }) => {
-    currentDoc = doc;
+  // Subscribe to changes — use patches to only update affected fields
+  activeChangeListener = ({ doc, patches }) => {
+    const changed = extractChangedFields(patches);
+    applyDocToReactiveState(doc, changed, patches);
   };
   handle.on('change', activeChangeListener);
 
@@ -1168,30 +1356,30 @@ export async function switchVault(
  * Get all non-archived notes (metadata only), sorted by updated time (newest first)
  */
 export function getNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return materializedNotesArray
     .filter((note) => !note.archived)
-    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    .sort((a, b) => b._updatedTime - a._updatedTime);
 }
 
 /**
  * Get all notes including archived (metadata only)
  */
 export function getAllNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes);
+  return materializedNotesArray;
 }
 
 /**
  * Get all notes as a dictionary (metadata only, for deck queries)
  */
 export function getNotesDict(): Record<string, NoteMetadata> {
-  return currentDoc.notes;
+  return materializedNotesDict;
 }
 
 /**
  * Get all note types as a dictionary (for deck queries)
  */
 export function getNoteTypesDict(): Record<string, NoteType> {
-  return currentDoc.noteTypes;
+  return materializedNoteTypesDict;
 }
 
 /**
@@ -1201,10 +1389,10 @@ export function getNoteTypesDict(): Record<string, NoteType> {
 export function searchNotes(query: string): NoteMetadata[] {
   if (!query.trim()) return [];
   const lowerQuery = query.toLowerCase();
-  return Object.values(currentDoc.notes)
+  return materializedNotesArray
     .filter((note) => !note.archived)
     .filter((note) => note.title.toLowerCase().includes(lowerQuery))
-    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    .sort((a, b) => b._updatedTime - a._updatedTime);
 }
 
 /**
@@ -1217,7 +1405,7 @@ export async function searchNotesWithContent(query: string): Promise<Note[]> {
   const lowerQuery = query.toLowerCase();
   const results: Note[] = [];
 
-  const notes = Object.values(currentDoc.notes).filter((note) => !note.archived);
+  const notes = materializedNotesArray.filter((note) => !note.archived);
 
   for (const note of notes) {
     // Check title first (cheap)
@@ -1243,9 +1431,9 @@ export async function searchNotesWithContent(query: string): Promise<Note[]> {
  * Get notes by type (metadata only)
  */
 export function getNotesByType(typeId: string): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return materializedNotesArray
     .filter((note) => !note.archived && note.type === typeId)
-    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    .sort((a, b) => b._updatedTime - a._updatedTime);
 }
 
 /**
@@ -1261,7 +1449,7 @@ export function filterNotes(
   }
 
   const logic = input.logic ?? 'AND';
-  const noteTypes = currentDoc.noteTypes;
+  const noteTypes = materializedNoteTypesDict;
 
   return notes.filter((note) => {
     if (logic === 'AND') {
@@ -1368,7 +1556,7 @@ export async function createNote(params: {
   }
 
   // Index the new note for search
-  const noteMetadata = currentDoc.notes[id];
+  const noteMetadata = rawDoc.notes[id];
   if (noteMetadata) {
     searchIndex.indexNote(noteMetadata, params.content || '').catch((err) => {
       console.error('[Search] Failed to index new note:', err);
@@ -1414,7 +1602,7 @@ export function updateNote(
 
   // Re-index note when title changes (content will be loaded by indexNote)
   if (updates.title !== undefined) {
-    const noteMetadata = currentDoc.notes[id];
+    const noteMetadata = rawDoc.notes[id];
     if (noteMetadata) {
       searchIndex.indexNote(noteMetadata).catch((err) => {
         console.error('[Search] Failed to re-index note:', err);
@@ -1443,7 +1631,7 @@ export async function updateNoteContent(id: string, content: string): Promise<vo
   if (!activeVaultId) throw new Error('No active vault');
 
   const repo = getRepo();
-  const contentUrl = currentDoc.contentUrls?.[id];
+  const contentUrl = rawDoc.contentUrls?.[id];
   const contentHandle = await getContentHandle(repo, activeVaultId, id, contentUrl);
 
   contentHandle.change((doc) => {
@@ -1459,7 +1647,7 @@ export async function updateNoteContent(id: string, content: string): Promise<vo
   });
 
   // Re-index note with new content
-  const noteMetadata = currentDoc.notes[id];
+  const noteMetadata = rawDoc.notes[id];
   if (noteMetadata) {
     searchIndex.indexNote(noteMetadata, content).catch((err) => {
       console.error('[Search] Failed to re-index note content:', err);
@@ -1474,7 +1662,7 @@ export async function getNoteContent(noteId: string): Promise<string> {
   if (!activeVaultId) return '';
 
   const repo = getRepo();
-  const contentUrl = currentDoc.contentUrls?.[noteId];
+  const contentUrl = rawDoc.contentUrls?.[noteId];
   const handle = await findContentHandle(repo, activeVaultId, noteId, contentUrl);
 
   if (!handle) return '';
@@ -1487,7 +1675,7 @@ export async function getNoteContent(noteId: string): Promise<string> {
  * Get full note with content loaded (async)
  */
 export async function getFullNote(noteId: string): Promise<Note | undefined> {
-  const metadata = currentDoc.notes[noteId];
+  const metadata = materializedNotesDict[noteId];
   if (!metadata) return undefined;
 
   const content = await getNoteContent(noteId);
@@ -1503,7 +1691,7 @@ export async function getNoteContentHandle(
   if (!activeVaultId) return null;
 
   const repo = getRepo();
-  const contentUrl = currentDoc.contentUrls?.[noteId];
+  const contentUrl = rawDoc.contentUrls?.[noteId];
   return getContentHandle(repo, activeVaultId, noteId, contentUrl);
 }
 
@@ -1593,8 +1781,8 @@ export function deleteNote(id: string): void {
  * Get all workspaces in display order
  */
 export function getWorkspaces(): Workspace[] {
-  const workspaces = currentDoc.workspaces;
-  const order = currentDoc.workspaceOrder;
+  const workspaces = stateWorkspaces;
+  const order = stateWorkspaceOrder;
 
   // If we have an order array, use it to sort workspaces
   if (order && order.length > 0) {
@@ -1623,9 +1811,7 @@ export function getWorkspaces(): Workspace[] {
  * Get the active workspace
  */
 export function getActiveWorkspace(): Workspace | undefined {
-  return localActiveWorkspaceId
-    ? currentDoc.workspaces[localActiveWorkspaceId]
-    : undefined;
+  return localActiveWorkspaceId ? stateWorkspaces[localActiveWorkspaceId] : undefined;
 }
 
 /**
@@ -1700,7 +1886,7 @@ function refToSidebarItem(
   noteTypes: Record<string, NoteType>
 ): SidebarItem | null {
   if (ref.type === 'note') {
-    const note = currentDoc.notes[ref.id];
+    const note = materializedNotesDict[ref.id];
     if (!note) return null;
     const noteType = noteTypes[note.type];
     const displayText = note.title || 'Untitled';
@@ -1717,7 +1903,7 @@ function refToSidebarItem(
       }
     };
   } else if (ref.type === 'conversation') {
-    const entry = currentDoc.conversationIndex?.[ref.id];
+    const entry = stateConversationIndex?.[ref.id];
     if (!entry || entry.archived) return null;
     return {
       id: entry.id,
@@ -1730,7 +1916,7 @@ function refToSidebarItem(
       }
     };
   } else if (ref.type === 'saved-search') {
-    const savedSearch = currentDoc.savedSearches?.[ref.id];
+    const savedSearch = stateSavedSearches?.[ref.id];
     if (!savedSearch || savedSearch.archived) return null;
     return {
       id: savedSearch.id,
@@ -1753,7 +1939,7 @@ export function getRecentItems(): SidebarItem[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  const noteTypes = currentDoc.noteTypes ?? {};
+  const noteTypes = materializedNoteTypesDict;
   const refs = getWorkspaceRecentRefs(workspace);
 
   return refs
@@ -1827,7 +2013,7 @@ export function updateWorkspace(
 export function deleteWorkspace(id: string): boolean {
   if (!docHandle) throw new Error('Not initialized');
 
-  const workspaces = Object.keys(currentDoc.workspaces);
+  const workspaces = Object.keys(stateWorkspaces);
   if (workspaces.length <= 1) {
     return false; // Cannot delete last workspace
   }
@@ -1863,7 +2049,7 @@ export function setActiveWorkspace(workspaceId: string): void {
   if (!docHandle) throw new Error('Not initialized');
 
   // Only set if the workspace exists
-  if (currentDoc.workspaces[workspaceId]) {
+  if (stateWorkspaces[workspaceId]) {
     localActiveWorkspaceId = workspaceId;
     if (activeVaultId) {
       saveActiveWorkspaceId(activeVaultId, workspaceId);
@@ -2054,7 +2240,7 @@ export function getPinnedItems(): SidebarItem[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  const noteTypes = currentDoc.noteTypes ?? {};
+  const noteTypes = materializedNoteTypesDict;
   const refs = getWorkspacePinnedRefs(workspace);
 
   return refs
@@ -2159,7 +2345,7 @@ export function reorderPinnedItems(fromIndex: number, toIndex: number): void {
  * Get all non-archived note types
  */
 export function getNoteTypes(): NoteType[] {
-  return Object.values(currentDoc.noteTypes ?? {})
+  return Object.values(materializedNoteTypesDict)
     .filter((type) => !type.archived)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -2168,14 +2354,14 @@ export function getNoteTypes(): NoteType[] {
  * Get all note types including archived
  */
 export function getAllNoteTypes(): NoteType[] {
-  return Object.values(currentDoc.noteTypes ?? {});
+  return Object.values(materializedNoteTypesDict);
 }
 
 /**
  * Get a single note type by ID
  */
 export function getNoteType(id: string): NoteType | undefined {
-  return currentDoc.noteTypes?.[id];
+  return materializedNoteTypesDict[id];
 }
 
 // --- NoteType mutations ---
@@ -2366,7 +2552,7 @@ export function setNoteType(noteId: string, typeId: string): void {
  * Get a note's property values
  */
 export function getNoteProps(noteId: string): Record<string, unknown> {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   return note?.props ?? {};
 }
 
@@ -2374,7 +2560,7 @@ export function getNoteProps(noteId: string): Record<string, unknown> {
  * Get a single note metadata by ID (without content)
  */
 export function getNote(noteId: string): NoteMetadata | undefined {
-  return currentDoc.notes[noteId];
+  return materializedNotesDict[noteId];
 }
 
 /**
@@ -2435,7 +2621,7 @@ export function deleteNoteProp(noteId: string, propName: string): void {
  * Get property definitions for a note type
  */
 export function getNoteTypeProperties(typeId: string): PropertyDefinition[] {
-  const noteType = currentDoc.noteTypes?.[typeId];
+  const noteType = materializedNoteTypesDict[typeId];
   return noteType?.properties ?? [];
 }
 
@@ -2444,7 +2630,7 @@ export function getNoteTypeProperties(typeId: string): PropertyDefinition[] {
  * Returns configured chips or defaults to system fields (handles empty array)
  */
 export function getNoteTypeEditorChips(typeId: string): string[] {
-  const noteType = currentDoc.noteTypes?.[typeId];
+  const noteType = materializedNoteTypesDict[typeId];
   return noteType?.editorChips?.length ? noteType.editorChips : ['created', 'updated'];
 }
 
@@ -2558,7 +2744,7 @@ export function setSelectedNoteTypeId(typeId: string | null): void {
  */
 export function getActiveNote(): NoteMetadata | undefined {
   if (!activeItem || activeItem.type !== 'note') return undefined;
-  return currentDoc.notes[activeItem.id];
+  return materializedNotesDict[activeItem.id];
 }
 
 /**
@@ -2567,7 +2753,7 @@ export function getActiveNote(): NoteMetadata | undefined {
  */
 export function getActiveConversationEntry(): ConversationIndexEntry | undefined {
   if (!activeItem || activeItem.type !== 'conversation') return undefined;
-  return currentDoc.conversationIndex?.[activeItem.id];
+  return stateConversationIndex?.[activeItem.id];
 }
 
 // --- Convenience wrappers for backward compatibility ---
@@ -2695,7 +2881,7 @@ export interface BacklinkResult {
 export async function getBacklinks(noteId: string): Promise<BacklinkResult[]> {
   const backlinks: BacklinkResult[] = [];
 
-  for (const note of Object.values(currentDoc.notes)) {
+  for (const note of Object.values(materializedNotesDict)) {
     if (note.archived || note.id === noteId) continue;
 
     // Load content for this note
@@ -2827,7 +3013,7 @@ export function getDailyNoteId(date: string): string {
  */
 export function getDailyNote(date: string): NoteMetadata | undefined {
   const dailyNoteId = getDailyNoteId(date);
-  return currentDoc.notes[dailyNoteId];
+  return materializedNotesDict[dailyNoteId];
 }
 
 /**
@@ -2842,7 +3028,7 @@ export async function getOrCreateDailyNote(date: string): Promise<NoteMetadata> 
   ensureDailyNoteType();
 
   const dailyNoteId = getDailyNoteId(date);
-  const existing = currentDoc.notes[dailyNoteId];
+  const existing = rawDoc.notes[dailyNoteId];
 
   if (existing) {
     return existing;
@@ -2870,7 +3056,7 @@ export async function getOrCreateDailyNote(date: string): Promise<NoteMetadata> 
     doc.contentUrls[dailyNoteId] = contentHandle.url;
   });
 
-  return currentDoc.notes[dailyNoteId];
+  return rawDoc.notes[dailyNoteId];
 }
 
 /**
@@ -2880,7 +3066,7 @@ export async function updateDailyNote(date: string, content: string): Promise<vo
   if (!docHandle) throw new Error('Not initialized');
 
   const dailyNoteId = getDailyNoteId(date);
-  const existing = currentDoc.notes[dailyNoteId];
+  const existing = rawDoc.notes[dailyNoteId];
 
   // If content is empty and note doesn't exist, don't create it
   if (!content.trim() && !existing) {
@@ -2910,7 +3096,7 @@ export function getWeekData(startDate: string): WeekData {
     const dailyNote = getDailyNote(dateString) || null;
 
     // Get notes created on this date (excluding daily notes)
-    const createdNotes = Object.values(currentDoc.notes).filter((note) => {
+    const createdNotes = Object.values(materializedNotesDict).filter((note) => {
       if (note.archived) return false;
       if (note.type === DAILY_NOTE_TYPE_ID) return false;
       if (!note.created) return false;
@@ -2919,7 +3105,7 @@ export function getWeekData(startDate: string): WeekData {
     });
 
     // Get notes modified on this date (excluding daily notes and notes created today)
-    const modifiedNotes = Object.values(currentDoc.notes).filter((note) => {
+    const modifiedNotes = Object.values(materializedNotesDict).filter((note) => {
       if (note.archived) return false;
       if (note.type === DAILY_NOTE_TYPE_ID) return false;
       if (!note.created || !note.updated) return false;
@@ -2996,7 +3182,7 @@ export function getConversations(): ConversationIndexEntry[] {
   const workspace = getActiveWorkspace();
   if (!workspace) return [];
 
-  const index = currentDoc.conversationIndex ?? {};
+  const index = stateConversationIndex ?? {};
   return Object.values(index)
     .filter((entry) => !entry.archived && entry.workspaceId === workspace.id)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -3037,7 +3223,7 @@ export async function getConversation(id: string): Promise<Conversation | null> 
  * Returns undefined if not found.
  */
 export function getConversationEntry(id: string): ConversationIndexEntry | undefined {
-  return currentDoc.conversationIndex?.[id];
+  return stateConversationIndex?.[id];
 }
 
 /**
@@ -3470,7 +3656,7 @@ export function bumpItemToRecent(ref: SidebarItemRef): void {
  * Get all saved searches (non-archived), sorted by updated time (newest first)
  */
 export function getSavedSearches(): SavedSearch[] {
-  const searches = currentDoc.savedSearches ?? {};
+  const searches = stateSavedSearches ?? {};
   return Object.values(searches)
     .filter((s) => !s.archived)
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -3480,7 +3666,7 @@ export function getSavedSearches(): SavedSearch[] {
  * Get a saved search by ID
  */
 export function getSavedSearch(id: string): SavedSearch | undefined {
-  return currentDoc.savedSearches?.[id];
+  return stateSavedSearches?.[id];
 }
 
 // --- Saved Search mutations ---
@@ -3769,8 +3955,8 @@ export async function enableCloudSync(): Promise<boolean> {
   }
 
   // Register all existing content docs
-  if (currentDoc.contentUrls) {
-    await registerAllContentDocs(vault.id, currentDoc.contentUrls);
+  if (rawDoc.contentUrls) {
+    await registerAllContentDocs(vault.id, rawDoc.contentUrls);
   }
 
   // Update vault metadata
@@ -3828,13 +4014,11 @@ export function disableCloudSync(): void {
 
 // --- Shelf Items (persisted in Automerge) ---
 
-import type { ShelfItemData } from './types';
-
 /**
  * Get all shelf items
  */
 export function getShelfItems(): ShelfItemData[] {
-  return currentDoc.shelfItems ?? [];
+  return stateShelfItems ?? [];
 }
 
 /**
@@ -3844,7 +4028,7 @@ export function isItemOnShelf(
   type: 'note' | 'conversation' | 'saved-search',
   id: string
 ): boolean {
-  const items = currentDoc.shelfItems ?? [];
+  const items = stateShelfItems ?? [];
   return items.some((item) => item.type === type && item.id === id);
 }
 
@@ -3947,7 +4131,7 @@ export const EPUB_NOTE_TYPE_ID = 'type-epub';
  * Get all non-archived EPUB notes, sorted by last read (most recent first)
  */
 export function getEpubNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return Object.values(materializedNotesDict)
     .filter((note) => !note.archived && getSourceFormat(note) === 'epub')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
@@ -4067,7 +4251,7 @@ export function updateEpubTextSize(noteId: string, textSize: number): void {
  * Get EPUB props from a note
  */
 export function getEpubProps(noteId: string): EpubNoteProps | undefined {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   if (!note || getSourceFormat(note) !== 'epub') return undefined;
   return note.props as EpubNoteProps | undefined;
 }
@@ -4083,7 +4267,7 @@ export const PDF_NOTE_TYPE_ID = 'type-pdf';
  * Get all non-archived PDF notes, sorted by last read (most recent first)
  */
 export function getPdfNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return Object.values(materializedNotesDict)
     .filter((note) => !note.archived && getSourceFormat(note) === 'pdf')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
@@ -4205,7 +4389,7 @@ export function updatePdfZoomLevel(noteId: string, zoomLevel: number): void {
  * Get PDF props from a note
  */
 export function getPdfProps(noteId: string): PdfNoteProps | undefined {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   if (!note || getSourceFormat(note) !== 'pdf') return undefined;
   return note.props as PdfNoteProps | undefined;
 }
@@ -4221,7 +4405,7 @@ export const WEBPAGE_NOTE_TYPE_ID = 'type-webpage';
  * Get all non-archived webpage notes, sorted by last read (most recent first)
  */
 export function getWebpageNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return Object.values(materializedNotesDict)
     .filter((note) => !note.archived && getSourceFormat(note) === 'webpage')
     .sort((a, b) => {
       // Sort by lastRead if available, otherwise by updated
@@ -4327,7 +4511,7 @@ export function updateWebpageReadingState(
  * Get Webpage props from a note
  */
 export function getWebpageProps(noteId: string): WebpageNoteProps | undefined {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   if (!note || getSourceFormat(note) !== 'webpage') return undefined;
   return note.props as WebpageNoteProps | undefined;
 }
@@ -4343,11 +4527,9 @@ export const DECK_NOTE_TYPE_ID = 'type-deck';
  * Get all non-archived Deck notes, sorted by updated (most recent first)
  */
 export function getDeckNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes)
+  return Object.values(materializedNotesDict)
     .filter((note) => !note.archived && getSourceFormat(note) === 'deck')
-    .sort((a, b) => {
-      return new Date(b.updated).getTime() - new Date(a.updated).getTime();
-    });
+    .sort((a, b) => b._updatedTime - a._updatedTime);
 }
 
 /**
@@ -4396,7 +4578,7 @@ export function createDeckNote(title: string, config?: DeckConfig): string {
  * Returns null if note is not a deck or doesn't have a config
  */
 export function getDeckConfig(noteId: string): DeckConfig | null {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   if (!note || getSourceFormat(note) !== 'deck') return null;
   return (note.props?.deckConfig as DeckConfig) ?? null;
 }
@@ -4446,7 +4628,7 @@ export type { ReviewStats };
  */
 export function getReviewState(): ReviewState {
   return (
-    currentDoc.reviewState ?? {
+    stateReviewState ?? {
       currentSessionNumber: 1,
       lastSessionDate: null,
       config: DEFAULT_REVIEW_CONFIG
@@ -4619,7 +4801,7 @@ export function reactivateReview(noteId: string): void {
  * Get review data for a specific note
  */
 export function getReviewData(noteId: string): ReviewData | null {
-  const note = currentDoc.notes[noteId];
+  const note = materializedNotesDict[noteId];
   return note?.review ?? null;
 }
 
@@ -4627,7 +4809,7 @@ export function getReviewData(noteId: string): ReviewData | null {
  * Get all notes with review enabled (active or retired) - metadata only
  */
 export function getReviewEnabledNotes(): NoteMetadata[] {
-  return Object.values(currentDoc.notes).filter(
+  return Object.values(materializedNotesDict).filter(
     (note) => !note.archived && note.review?.enabled
   );
 }
@@ -4639,7 +4821,7 @@ export function getNotesForReview(): NoteMetadata[] {
   const currentSession = getCurrentSessionNumber();
   const config = getReviewConfig();
 
-  const dueNotes = Object.values(currentDoc.notes)
+  const dueNotes = Object.values(materializedNotesDict)
     .filter((note) => {
       if (note.archived) return false;
       if (!note.review?.enabled) return false;
@@ -4651,7 +4833,7 @@ export function getNotesForReview(): NoteMetadata[] {
       const aSession = a.review?.nextSessionNumber ?? 0;
       const bSession = b.review?.nextSessionNumber ?? 0;
       if (aSession !== bSession) return aSession - bSession;
-      return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+      return b._updatedTime - a._updatedTime;
     })
     .slice(0, config.sessionSize);
 
@@ -4663,7 +4845,7 @@ export function getNotesForReview(): NoteMetadata[] {
  */
 export function getReviewStats(): ReviewStats {
   const currentSession = getCurrentSessionNumber();
-  const notes = Object.values(currentDoc.notes);
+  const notes = Object.values(materializedNotesDict);
 
   let dueThisSession = 0;
   let totalEnabled = 0;
@@ -4704,7 +4886,7 @@ export function getAllReviewHistory(): Array<{
     entry: ReviewHistoryEntry;
   }> = [];
 
-  for (const note of Object.values(currentDoc.notes)) {
+  for (const note of Object.values(materializedNotesDict)) {
     if (note.archived) continue;
     if (!note.review?.reviewHistory) continue;
 
@@ -4928,7 +5110,7 @@ export function getCurrentReviewNote(): NoteMetadata | null {
   const noteId = session.noteIds[session.currentIndex];
   if (!noteId) return null;
 
-  return currentDoc.notes[noteId] ?? null;
+  return materializedNotesDict[noteId] ?? null;
 }
 
 /**
@@ -4950,7 +5132,7 @@ export function getReviewQueueNotes(): Array<{
     isOverdue: boolean;
   }> = [];
 
-  for (const note of Object.values(currentDoc.notes)) {
+  for (const note of Object.values(materializedNotesDict)) {
     if (note.archived) continue;
     if (!note.review?.enabled) continue;
 
@@ -4989,26 +5171,25 @@ export function getUnprocessedNotes(daysBack: number = 7): InboxNote[] {
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
   const cutoffTime = cutoffDate.getTime();
 
-  const processedNoteIds = currentDoc.processedNoteIds ?? {};
+  const processedNoteIds = materializedProcessedNoteIds;
 
   return (
-    Object.values(currentDoc.notes)
+    materializedNotesArray
       .filter((note) => {
         if (note.archived) return false;
         // Note must be created within the lookback period
-        const createdTime = new Date(note.created).getTime();
-        if (createdTime < cutoffTime) return false;
+        if (note._createdTime < cutoffTime) return false;
         // Note must not be processed
         return !processedNoteIds[note.id];
       })
+      // Sort by created date, newest first
+      .sort((a, b) => b._createdTime - a._createdTime)
       .map((note) => ({
         id: note.id,
         title: note.title,
         type: note.type,
         created: note.created
       }))
-      // Sort by created date, newest first
-      .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
   );
 }
 
@@ -5021,19 +5202,19 @@ export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
   const cutoffTime = cutoffDate.getTime();
 
-  const processedNoteIds = currentDoc.processedNoteIds ?? {};
+  const processedNoteIds = materializedProcessedNoteIds;
 
   return (
     Object.entries(processedNoteIds)
       .filter(([noteId, processedAt]) => {
-        const note = currentDoc.notes[noteId];
+        const note = materializedNotesDict[noteId];
         if (!note || note.archived) return false;
         // Must be processed within the lookback period
         const processedTime = new Date(processedAt).getTime();
         return processedTime >= cutoffTime;
       })
       .map(([noteId, processedAt]) => {
-        const note = currentDoc.notes[noteId];
+        const note = materializedNotesDict[noteId];
         return {
           id: note.id,
           title: note.title,
@@ -5050,10 +5231,25 @@ export function getProcessedNotes(daysBack: number = 7): InboxNote[] {
 }
 
 /**
- * Get the count of unprocessed notes for the inbox badge
+ * Get the count of unprocessed notes for the inbox badge.
+ * Optimized to only count (no mapping/sorting).
  */
 export function getUnprocessedCount(daysBack: number = 7): number {
-  return getUnprocessedNotes(daysBack).length;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffTime = cutoffDate.getTime();
+
+  const processedNoteIds = materializedProcessedNoteIds;
+  let count = 0;
+
+  for (const note of materializedNotesArray) {
+    if (note.archived) continue;
+    if (note._createdTime < cutoffTime) continue;
+    if (processedNoteIds[note.id]) continue;
+    count++;
+  }
+
+  return count;
 }
 
 /**
@@ -5120,7 +5316,7 @@ export function unmarkAllNotesAsProcessed(noteIds: string[]): void {
  * Check if a note is processed
  */
 export function isNoteProcessed(noteId: string): boolean {
-  return !!currentDoc.processedNoteIds?.[noteId];
+  return !!materializedProcessedNoteIds[noteId];
 }
 
 // ============================================================================
@@ -5131,7 +5327,7 @@ export function isNoteProcessed(noteId: string): boolean {
  * Get all non-archived routines
  */
 export function getRoutines(): AgentRoutine[] {
-  const routines = currentDoc.agentRoutines || {};
+  const routines = stateAgentRoutines || {};
   return Object.values(routines).filter((r) => r.status !== 'archived');
 }
 
@@ -5139,7 +5335,7 @@ export function getRoutines(): AgentRoutine[] {
  * Get all routines including archived
  */
 export function getAllRoutines(): AgentRoutine[] {
-  const routines = currentDoc.agentRoutines || {};
+  const routines = stateAgentRoutines || {};
   return Object.values(routines);
 }
 
@@ -5147,14 +5343,14 @@ export function getAllRoutines(): AgentRoutine[] {
  * Get a single routine by ID
  */
 export function getRoutine(id: string): AgentRoutine | undefined {
-  return currentDoc.agentRoutines?.[id];
+  return stateAgentRoutines?.[id];
 }
 
 /**
  * Get a routine by name (case-insensitive)
  */
 export function getRoutineByName(name: string): AgentRoutine | undefined {
-  const routines = currentDoc.agentRoutines || {};
+  const routines = stateAgentRoutines || {};
   const lowerName = name.toLowerCase();
   return Object.values(routines).find((r) => r.name.toLowerCase() === lowerName);
 }
@@ -5387,7 +5583,7 @@ function computeRoutineDueInfo(
  * Get routines as list items with computed due info
  */
 export function getRoutineListItems(input?: ListRoutinesInput): RoutineListItem[] {
-  const routines = currentDoc.agentRoutines || {};
+  const routines = stateAgentRoutines || {};
   const now = new Date();
 
   let result = Object.values(routines);
