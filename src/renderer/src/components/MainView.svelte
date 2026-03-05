@@ -3008,15 +3008,26 @@
     height: 40px;
     padding: 0;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+    background: color-mix(in srgb, #ffffff 85%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-light);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+
+  :global([data-theme='dark']) .main-view.mobile-layout .more-menu-button {
+    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .main-view.mobile-layout .more-menu-button {
+      background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+    }
   }
 
   .main-view.mobile-layout .more-menu-button svg {
