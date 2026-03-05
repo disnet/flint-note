@@ -1,62 +1,57 @@
 import { Repo } from '@automerge/automerge-repo';
 import { NodeFSStorageAdapter } from '@automerge/automerge-repo-storage-nodefs';
-import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 import type { Server } from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
 import { verifySessionTokenAsync, parseCookies } from '../auth/session.js';
 import { canAccessDocument } from './vault-access.js';
+import { SingleWebSocketAdapter } from './SingleWebSocketAdapter.js';
 
 const DATA_DIR = process.env.DATA_DIR || './data';
 const DOCS_DIR = path.join(DATA_DIR, 'automerge-docs');
 
-let repo: Repo;
+const REPO_SHUTDOWN_DELAY_MS = 30_000; // 30s grace period before shutting down idle repos
 
-export function getRepo(): Repo {
-  return repo;
+interface UserRepoEntry {
+  repo: Repo;
+  adapters: Map<WsWebSocket, SingleWebSocketAdapter>;
+  shuttingDown?: boolean;
+  shutdownTimer?: ReturnType<typeof setTimeout>;
+}
+
+const userRepos = new Map<string, UserRepoEntry>();
+// Per-user mutex to prevent concurrent repo creation races
+const userLocks = new Map<string, Promise<void>>();
+
+function withUserLock(userDid: string, fn: () => Promise<void>): Promise<void> {
+  const prev = userLocks.get(userDid) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  userLocks.set(userDid, next);
+  // Clean up lock entry when chain settles
+  next.then(() => {
+    if (userLocks.get(userDid) === next) userLocks.delete(userDid);
+  });
+  return next;
+}
+
+export function getActiveUserCount(): number {
+  return userRepos.size;
 }
 
 export function initSyncServer(httpServer: Server): void {
   fs.mkdirSync(DOCS_DIR, { recursive: true });
 
-  const storage = new NodeFSStorageAdapter(DOCS_DIR);
-
   const wss = new WebSocketServer({ noServer: true });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- NodeWSServerAdapter expects its own WebSocketServer type
-  const wsAdapter = new NodeWSServerAdapter(wss as any);
-
-  repo = new Repo({
-    network: [wsAdapter],
-    storage,
-    peerId: 'flint-sync-server' as Repo['peerId'],
-    sharePolicy: async (peerId, docId) => {
-      // Authorization check: only share documents the peer has access to
-      const peerDid = peerDidMap.get(peerId);
-      if (!peerDid) return false;
-
-      const docUrl = `automerge:${docId}`;
-      return canAccessDocument(peerDid, docUrl);
-    }
-  });
-
-  // Map peer IDs to user DIDs for authorization
-  const peerDidMap = new Map<string, string>();
-  // Map WebSocket instances to user DIDs (set during upgrade, used during peer-candidate)
-  const socketDidMap = new Map<WsWebSocket, string>();
-
-  // Handle WebSocket upgrade with authentication
   httpServer.on('upgrade', async (request, socket, head) => {
     const url = new URL(request.url || '', `http://${request.headers.host}`);
 
-    // Only handle /sync path
     if (url.pathname !== '/sync') {
       socket.destroy();
       return;
     }
 
-    // Parse session token from cookie header
     const cookies = parseCookies(request.headers.cookie || '');
     const token = cookies['flint_session'];
     if (!token) {
@@ -72,36 +67,115 @@ export function initSyncServer(httpServer: Server): void {
       return;
     }
 
+    const userDid = session.userDid;
+
     wss.handleUpgrade(request, socket, head, (ws) => {
-      // Track DID by WebSocket instance for secure peer-candidate mapping
-      socketDidMap.set(ws, session.userDid);
-
-      ws.on('close', () => {
-        socketDidMap.delete(ws);
-      });
-
-      wss.emit('connection', ws, request);
+      handleNewConnection(ws, userDid);
     });
   });
 
-  // Track peer DIDs when connections are established
-  // The adapter stores sockets[peerId] = socket, so we can look up the
-  // specific socket for this peer and match it to the authenticated DID.
-  wsAdapter.on('peer-candidate', ({ peerId }: { peerId: string }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessing adapter internals for secure peer-DID mapping
-    const adapterSockets = (wsAdapter as any).sockets as Record<string, WsWebSocket>;
-    const peerSocket = adapterSockets[peerId];
-    if (peerSocket) {
-      const did = socketDidMap.get(peerSocket);
-      if (did) {
-        peerDidMap.set(peerId, did);
-      }
+  console.log('Automerge sync server initialized (per-user repos)');
+}
+
+function handleNewConnection(ws: WsWebSocket, userDid: string): void {
+  const adapter = new SingleWebSocketAdapter(ws);
+
+  withUserLock(userDid, async () => {
+    let entry = userRepos.get(userDid);
+
+    // If repo was shut down (by a prior lock holder), clear it
+    if (entry?.shuttingDown) {
+      entry = undefined;
+    }
+
+    // Cancel any pending grace-period shutdown timer
+    if (entry?.shutdownTimer) {
+      clearTimeout(entry.shutdownTimer);
+      entry.shutdownTimer = undefined;
+    }
+
+    if (!entry) {
+      // Create a new Repo for this user with isolated storage
+      const userDir = path.join(DOCS_DIR, userDid.replace(/[^a-zA-Z0-9]/g, '_'));
+      fs.mkdirSync(userDir, { recursive: true });
+      const storage = new NodeFSStorageAdapter(userDir);
+
+      const repo = new Repo({
+        network: [adapter],
+        storage,
+        peerId: `flint-sync-${userDid.slice(-8)}-${Date.now()}` as Repo['peerId'],
+        sharePolicy: async (_peerId, docId) => {
+          const docUrl = `automerge:${docId}`;
+          return canAccessDocument(userDid, docUrl);
+        }
+      });
+
+      entry = { repo, adapters: new Map() };
+      userRepos.set(userDid, entry);
+      console.log(`Created repo for user ${userDid} (active users: ${userRepos.size})`);
+    } else {
+      // Add adapter to existing Repo
+      entry.repo.networkSubsystem.addNetworkAdapter(adapter);
+    }
+
+    entry.adapters.set(ws, adapter);
+
+    ws.on('close', () => {
+      handleDisconnection(ws, userDid);
+    });
+  });
+}
+
+function handleDisconnection(ws: WsWebSocket, userDid: string): void {
+  // Remove the adapter immediately under the lock, then schedule
+  // deferred shutdown outside the lock so it doesn't block new connections.
+  withUserLock(userDid, async () => {
+    const entry = userRepos.get(userDid);
+    if (!entry) return;
+
+    const adapter = entry.adapters.get(ws);
+    if (adapter) {
+      entry.repo.networkSubsystem.removeNetworkAdapter(adapter);
+      entry.adapters.delete(ws);
+    }
+
+    if (entry.adapters.size === 0) {
+      // Schedule a deferred shutdown (outside the lock)
+      scheduleRepoShutdown(entry, userDid);
     }
   });
+}
 
-  wsAdapter.on('peer-disconnected', ({ peerId }: { peerId: string }) => {
-    peerDidMap.delete(peerId);
-  });
+function scheduleRepoShutdown(entry: UserRepoEntry, userDid: string): void {
+  // Clear any existing timer
+  if (entry.shutdownTimer) {
+    clearTimeout(entry.shutdownTimer);
+  }
 
-  console.log('Automerge sync server initialized');
+  entry.shutdownTimer = setTimeout(() => {
+    entry.shutdownTimer = undefined;
+    // Acquire lock to safely check state and shut down
+    withUserLock(userDid, async () => {
+      // A new connection arrived during grace period — abort shutdown
+      if (entry.adapters.size > 0 || entry.shuttingDown) return;
+      // Entry was replaced by a new repo — abort
+      if (userRepos.get(userDid) !== entry) return;
+
+      entry.shuttingDown = true;
+      try {
+        await entry.repo.shutdown();
+        if (userRepos.get(userDid) === entry) {
+          userRepos.delete(userDid);
+        }
+        console.log(
+          `Shut down repo for user ${userDid} (active users: ${userRepos.size})`
+        );
+      } catch (err) {
+        if (userRepos.get(userDid) === entry) {
+          userRepos.delete(userDid);
+        }
+        console.error(`Error shutting down repo for user ${userDid}:`, err);
+      }
+    });
+  }, REPO_SHUTDOWN_DELAY_MS);
 }

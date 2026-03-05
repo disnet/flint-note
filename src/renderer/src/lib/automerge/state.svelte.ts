@@ -100,7 +100,8 @@ import {
   getCloudUserDid,
   setLastSyncError,
   disconnectCloudSync,
-  onSyncConnected
+  onSyncConnected,
+  getCloudSyncStatus
 } from './cloud-sync.svelte';
 import {
   syncMissingFiles,
@@ -382,8 +383,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
       }
 
       // Sync missing binary files (PDFs, EPUBs, images, webpages) and conversations in background
-      const currentVaultId = getActiveVaultId();
-      if (currentVaultId) {
+      const currentVault = getActiveVault();
+      if (currentVault?.cloudSyncEnabled) {
+        const currentVaultId = currentVault.id;
         syncMissingFiles(currentVaultId).catch((error) => {
           console.error('[CloudFileSync] Background file sync failed:', error);
         });
@@ -3781,8 +3783,21 @@ export async function enableCloudSync(): Promise<boolean> {
     vaults = [...vaults];
   }
 
-  // Connect WebSocket sync
+  // If WebSocket is already connected (initCloudSync connects on startup),
+  // connectCloudSync() will be a no-op and onSyncConnected won't fire.
+  // In that case we need to explicitly trigger file/conversation sync.
+  const alreadyConnected = getCloudSyncStatus() === 'connected';
   connectCloudSync();
+
+  if (alreadyConnected) {
+    syncMissingFiles(vault.id).catch((error) => {
+      console.error('[CloudFileSync] Initial file sync failed:', error);
+    });
+    syncMissingConversations(vault.id).catch((error) => {
+      console.error('[CloudFileSync] Initial conversation sync failed:', error);
+    });
+  }
+  // Otherwise, onSyncConnected callback will handle it when WebSocket connects
 
   return true;
 }

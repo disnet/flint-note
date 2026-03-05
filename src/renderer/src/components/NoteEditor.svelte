@@ -279,6 +279,7 @@
 
   // Load content handle when note ID changes
   $effect(() => {
+    if (!note) return;
     const noteId = note.id;
 
     // Only reload if the note ID actually changed
@@ -297,7 +298,7 @@
     contentHandle = null;
 
     getNoteContentHandle(noteId).then((handle) => {
-      if (handle && note.id === noteId) {
+      if (handle && note?.id === noteId) {
         contentHandle = handle;
         const doc = handle.doc();
         initialContent = doc?.content || '';
@@ -562,9 +563,10 @@
 
   // Load backlinks when note changes
   $effect(() => {
+    if (!note) return;
     const noteId = note.id;
     getBacklinks(noteId).then((result) => {
-      if (note.id === noteId) {
+      if (note?.id === noteId) {
         backlinks = result;
       }
     });
@@ -700,7 +702,7 @@
 
   // Create or recreate editor when container is available and content is loaded
   $effect(() => {
-    if (editorContainer && !isLoadingContent && contentHandle) {
+    if (note && editorContainer && !isLoadingContent && contentHandle) {
       // Check if we need to create/recreate the editor
       // Also check if editor is attached to a different (stale) container - happens when toggling preview mode
       const editorDetached =
