@@ -2265,8 +2265,7 @@
 
 <style>
   .main-view {
-    height: 100vh; /* fallback for older browsers */
-    height: 100dvh; /* dynamic viewport height - adjusts with keyboard on iOS */
+    height: 100%;
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);
@@ -2968,11 +2967,14 @@
     background: var(--bg-primary);
     transition: transform var(--mobile-drawer-transition);
     box-shadow: -4px 0 16px transparent;
-    /* Extend into safe areas */
-    padding-top: var(--safe-area-top, 0px);
-    padding-bottom: var(--safe-area-bottom, 0px);
+    /* No safe area padding — let content scroll to screen edges */
     padding-left: var(--safe-area-left, 0px);
     padding-right: var(--safe-area-right, 0px);
+  }
+
+  /* Bottom padding so content isn't hidden behind FAB / home indicator */
+  .main-view.mobile-layout .content-wrapper {
+    padding-bottom: calc(70px + var(--safe-area-bottom, 0px));
   }
 
   .main-view.mobile-layout .safe-zone {
