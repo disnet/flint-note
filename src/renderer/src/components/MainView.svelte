@@ -2967,7 +2967,7 @@
     background: var(--bg-primary);
     transition: transform var(--mobile-drawer-transition);
     box-shadow: -4px 0 16px transparent;
-    /* No safe area padding — let content scroll to screen edges */
+    padding-top: var(--safe-area-top, 0px);
     padding-left: var(--safe-area-left, 0px);
     padding-right: var(--safe-area-right, 0px);
   }
