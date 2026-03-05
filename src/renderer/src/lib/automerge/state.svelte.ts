@@ -145,6 +145,56 @@ let activeChangeListener:
 let vaults = $state<Vault[]>([]);
 let activeVaultId = $state<string | null>(null);
 
+// Active workspace (device-local, persisted in localStorage per vault)
+let localActiveWorkspaceId = $state<string>('');
+
+const ACTIVE_WORKSPACE_KEY_PREFIX = 'flint-active-workspace-';
+
+function getActiveWorkspaceKey(vaultId: string): string {
+  return `${ACTIVE_WORKSPACE_KEY_PREFIX}${vaultId}`;
+}
+
+function loadActiveWorkspaceId(vaultId: string): string | null {
+  return localStorage.getItem(getActiveWorkspaceKey(vaultId));
+}
+
+function saveActiveWorkspaceId(vaultId: string, workspaceId: string): void {
+  localStorage.setItem(getActiveWorkspaceKey(vaultId), workspaceId);
+}
+
+/**
+ * Restore the active workspace from localStorage.
+ * Falls back to the Automerge doc value (migration from synced state),
+ * then to the first workspace.
+ */
+function restoreActiveWorkspace(vaultId: string): void {
+  const workspaces = currentDoc.workspaces;
+  const workspaceIds = Object.keys(workspaces);
+
+  if (workspaceIds.length === 0) {
+    localActiveWorkspaceId = '';
+    return;
+  }
+
+  // Try localStorage first (device-local preference)
+  const stored = loadActiveWorkspaceId(vaultId);
+  if (stored && workspaces[stored]) {
+    localActiveWorkspaceId = stored;
+    return;
+  }
+
+  // Fall back to Automerge doc value (migration from synced → local)
+  if (currentDoc.activeWorkspaceId && workspaces[currentDoc.activeWorkspaceId]) {
+    localActiveWorkspaceId = currentDoc.activeWorkspaceId;
+    saveActiveWorkspaceId(vaultId, localActiveWorkspaceId);
+    return;
+  }
+
+  // Fall back to first workspace
+  localActiveWorkspaceId = workspaceIds[0];
+  saveActiveWorkspaceId(vaultId, localActiveWorkspaceId);
+}
+
 // UI state (persisted in Automerge document's lastViewState)
 let activeItem = $state<ActiveItem>(null);
 let activeSystemView = $state<SystemView>(null);
@@ -266,6 +316,9 @@ export async function initializeState(vaultId?: string): Promise<void> {
     if (doc) {
       currentDoc = doc;
     }
+
+    // Restore active workspace from localStorage (device-local)
+    restoreActiveWorkspace(targetVault.id);
 
     // Ensure default note type exists (migration for existing vaults)
     perf.start('Run Migrations');
@@ -1059,6 +1112,9 @@ export async function switchVault(
     currentDoc = doc;
   }
 
+  // Restore active workspace from localStorage (device-local)
+  restoreActiveWorkspace(vaultId);
+
   // Ensure default note type exists
   ensureDefaultNoteType();
 
@@ -1293,7 +1349,7 @@ export async function createNote(params: {
     doc.contentUrls[id] = contentHandle.url;
 
     // Auto-add to recent items in active workspace
-    const workspaceId = doc.activeWorkspaceId;
+    const workspaceId = localActiveWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
@@ -1565,8 +1621,9 @@ export function getWorkspaces(): Workspace[] {
  * Get the active workspace
  */
 export function getActiveWorkspace(): Workspace | undefined {
-  const workspaceId = currentDoc.activeWorkspaceId;
-  return workspaceId ? currentDoc.workspaces[workspaceId] : undefined;
+  return localActiveWorkspaceId
+    ? currentDoc.workspaces[localActiveWorkspaceId]
+    : undefined;
 }
 
 /**
@@ -1785,9 +1842,12 @@ export function deleteWorkspace(id: string): boolean {
     }
 
     // If we deleted the active workspace, switch to another
-    if (doc.activeWorkspaceId === id) {
+    if (localActiveWorkspaceId === id) {
       const remaining = Object.keys(doc.workspaces);
-      doc.activeWorkspaceId = remaining[0] || '';
+      localActiveWorkspaceId = remaining[0] || '';
+      if (activeVaultId) {
+        saveActiveWorkspaceId(activeVaultId, localActiveWorkspaceId);
+      }
     }
   });
 
@@ -1800,11 +1860,13 @@ export function deleteWorkspace(id: string): boolean {
 export function setActiveWorkspace(workspaceId: string): void {
   if (!docHandle) throw new Error('Not initialized');
 
-  docHandle.change((doc) => {
-    if (doc.workspaces[workspaceId]) {
-      doc.activeWorkspaceId = workspaceId;
+  // Only set if the workspace exists
+  if (currentDoc.workspaces[workspaceId]) {
+    localActiveWorkspaceId = workspaceId;
+    if (activeVaultId) {
+      saveActiveWorkspaceId(activeVaultId, workspaceId);
     }
-  });
+  }
 }
 
 /**
@@ -1815,7 +1877,7 @@ export function addItemToWorkspace(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -1854,7 +1916,7 @@ export function removeItemFromWorkspace(ref: SidebarItemRef): SidebarItemRef | n
   }
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (ws) {
       ensureWorkspaceArrays(ws);
       const idx = ws.recentItemIds.findIndex(
@@ -1888,7 +1950,7 @@ export function moveItemToWorkspace(
 ): void {
   if (!docHandle) throw new Error('Not initialized');
 
-  const currentWorkspaceId = currentDoc.activeWorkspaceId;
+  const currentWorkspaceId = localActiveWorkspaceId;
 
   // Don't do anything if moving to the same workspace
   if (targetWorkspaceId === currentWorkspaceId) return;
@@ -1947,7 +2009,7 @@ export function reorderRecentItems(fromIndex: number, toIndex: number): void {
   if (!workspace) return;
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -2012,7 +2074,7 @@ export function pinItem(ref: SidebarItemRef): void {
   if (pinnedRefs.some((r) => r.type === ref.type && r.id === ref.id)) return;
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -2041,7 +2103,7 @@ export function unpinItem(ref: SidebarItemRef): void {
   if (!workspace) return;
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -2079,7 +2141,7 @@ export function reorderPinnedItems(fromIndex: number, toIndex: number): void {
   if (!workspace) return;
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -3043,7 +3105,7 @@ export async function createConversation(params?: {
 
     // Add to workspace's recent items (unless explicitly skipped)
     if (addToRecent) {
-      const ws = doc.workspaces[doc.activeWorkspaceId];
+      const ws = doc.workspaces[localActiveWorkspaceId];
       if (ws) {
         ensureWorkspaceArrays(ws);
         ws.recentItemIds.push({ type: 'conversation', id });
@@ -3381,7 +3443,7 @@ export function bumpItemToRecent(ref: SidebarItemRef): void {
   if (!docHandle) throw new Error('Not initialized');
 
   docHandle.change((doc) => {
-    const ws = doc.workspaces[doc.activeWorkspaceId];
+    const ws = doc.workspaces[localActiveWorkspaceId];
     if (!ws) return;
     ensureWorkspaceArrays(ws);
 
@@ -3456,7 +3518,7 @@ export function createSavedSearch(params: {
 
     // Add to active workspace's recent items
     if (addToRecent) {
-      const workspace = doc.workspaces[doc.activeWorkspaceId];
+      const workspace = doc.workspaces[localActiveWorkspaceId];
       if (workspace) {
         if (!workspace.recentItemIds) {
           workspace.recentItemIds = [];
@@ -3920,7 +3982,7 @@ export function createEpubNote(params: {
     };
 
     // Auto-add to recent items in active workspace
-    const workspaceId = doc.activeWorkspaceId;
+    const workspaceId = localActiveWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
@@ -4058,7 +4120,7 @@ export function createPdfNote(params: {
     };
 
     // Auto-add to recent items in active workspace
-    const workspaceId = doc.activeWorkspaceId;
+    const workspaceId = localActiveWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
@@ -4204,7 +4266,7 @@ export function createWebpageNote(params: {
     };
 
     // Auto-add to recent items in active workspace
-    const workspaceId = doc.activeWorkspaceId;
+    const workspaceId = localActiveWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
@@ -4301,7 +4363,7 @@ export function createDeckNote(title: string, config?: DeckConfig): string {
     };
 
     // Auto-add to recent items in active workspace
-    const workspaceId = doc.activeWorkspaceId;
+    const workspaceId = localActiveWorkspaceId;
     if (workspaceId && doc.workspaces[workspaceId]) {
       const ws = doc.workspaces[workspaceId];
       ensureWorkspaceArrays(ws);
