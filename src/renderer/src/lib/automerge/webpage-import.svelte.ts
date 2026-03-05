@@ -163,6 +163,13 @@ export async function importWebpageFromFilesystem(
     await webpageOpfsStorage.storeMetadata(storedHash, metadata);
   }
 
+  // Upload to cloud (fire-and-forget)
+  const encoder = new TextEncoder();
+  uploadFileToCloudBackground('webpage', storedHash, encoder.encode(htmlContent), {
+    extension: 'html',
+    metadata: metadata as Record<string, unknown> | undefined
+  });
+
   // Extract metadata for note creation
   const title = (metadata?.title as string) || 'Imported Webpage';
   const url = (metadata?.url as string) || '';

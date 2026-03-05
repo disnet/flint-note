@@ -1,7 +1,9 @@
 /**
- * File storage module for binary files (PDFs, EPUBs, images, webpages).
- * Files are stored on disk at DATA_DIR/files/{fileType}/{hash}.{ext}
- * Content-addressed by hash for automatic deduplication.
+ * File storage module for binary files (PDFs, EPUBs, images, webpages)
+ * and conversation JSON files.
+ *
+ * Binary files: DATA_DIR/files/{fileType}/{hash}.{ext} (content-addressed)
+ * Conversations: DATA_DIR/conversations/{vaultId}/{conversationId}.json (ID-addressed)
  */
 
 import fs from 'node:fs';
@@ -9,6 +11,7 @@ import path from 'node:path';
 
 const DATA_DIR = process.env.DATA_DIR || './data';
 const FILES_DIR = path.join(DATA_DIR, 'files');
+const CONVERSATIONS_DIR = path.join(DATA_DIR, 'conversations');
 
 type FileType = 'pdf' | 'epub' | 'image' | 'webpage';
 
@@ -100,6 +103,74 @@ export function retrieveMetadata(hash: string): Record<string, unknown> | null {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
+    }
+    throw error;
+  }
+}
+
+// --- Conversation storage ---
+
+/**
+ * Get the directory for a vault's conversations
+ */
+function getConversationVaultDir(vaultId: string): string {
+  return path.join(CONVERSATIONS_DIR, vaultId);
+}
+
+/**
+ * Get the file path for a specific conversation
+ */
+function getConversationPath(vaultId: string, conversationId: string): string {
+  return path.join(getConversationVaultDir(vaultId), `${conversationId}.json`);
+}
+
+/**
+ * Store a conversation JSON file. Always overwrites (conversations are mutable).
+ */
+export function storeConversation(
+  vaultId: string,
+  conversationId: string,
+  data: Buffer
+): void {
+  const dir = getConversationVaultDir(vaultId);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(getConversationPath(vaultId, conversationId), data);
+}
+
+/**
+ * Retrieve a conversation JSON file. Returns null if not found.
+ */
+export function retrieveConversation(
+  vaultId: string,
+  conversationId: string
+): Buffer | null {
+  try {
+    return fs.readFileSync(getConversationPath(vaultId, conversationId));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if a conversation file exists on disk.
+ */
+export function conversationExists(vaultId: string, conversationId: string): boolean {
+  return fs.existsSync(getConversationPath(vaultId, conversationId));
+}
+
+/**
+ * Delete a conversation file from disk. Returns true if deleted.
+ */
+export function deleteConversation(vaultId: string, conversationId: string): boolean {
+  try {
+    fs.unlinkSync(getConversationPath(vaultId, conversationId));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
     }
     throw error;
   }

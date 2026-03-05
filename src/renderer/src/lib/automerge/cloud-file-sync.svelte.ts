@@ -11,6 +11,8 @@
 
 import { getSyncServerUrl, isCloudAuthenticated } from './cloud-sync.svelte';
 import { getActiveVaultId } from './state.svelte';
+import { conversationOpfsStorage } from './conversation-opfs-storage.svelte';
+import type { Conversation } from './types';
 import {
   getPdfHashes,
   getEpubHashes,
@@ -486,6 +488,224 @@ async function getLocalFileData(
       return imageOpfsStorage.retrieve(hash, extension);
     default:
       return null;
+  }
+}
+
+// --- Conversation cloud sync ---
+
+interface ConversationManifestEntry {
+  conversationId: string;
+  updatedAt: string;
+  sizeBytes: number;
+}
+
+/**
+ * Upload a conversation to the cloud sync server.
+ */
+export async function uploadConversationToCloud(
+  conversationId: string,
+  conversation: Conversation,
+  vaultId: string
+): Promise<boolean> {
+  if (!isCloudAuthenticated()) return false;
+
+  const serverUrl = getSyncServerUrl();
+
+  try {
+    uploadQueue++;
+
+    const res = await fetch(
+      `${serverUrl}/api/files/conversation/${encodeURIComponent(vaultId)}/${encodeURIComponent(conversationId)}`,
+      {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(conversation)
+      }
+    );
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error(
+        `[CloudFileSync] Conversation upload failed for ${conversationId}:`,
+        err
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error(
+      `[CloudFileSync] Conversation upload error for ${conversationId}:`,
+      error
+    );
+    return false;
+  } finally {
+    uploadQueue--;
+  }
+}
+
+/**
+ * Download a conversation from the cloud sync server.
+ * Returns the conversation object or null if not found.
+ */
+export async function downloadConversationFromCloud(
+  conversationId: string,
+  vaultId: string
+): Promise<Conversation | null> {
+  if (!isCloudAuthenticated()) return null;
+
+  const serverUrl = getSyncServerUrl();
+
+  try {
+    downloadQueue++;
+
+    const res = await fetch(
+      `${serverUrl}/api/files/conversation/${encodeURIComponent(vaultId)}/${encodeURIComponent(conversationId)}`,
+      {
+        credentials: 'include'
+      }
+    );
+
+    if (!res.ok) return null;
+
+    return (await res.json()) as Conversation;
+  } catch (error) {
+    console.error(
+      `[CloudFileSync] Conversation download error for ${conversationId}:`,
+      error
+    );
+    return null;
+  } finally {
+    downloadQueue--;
+  }
+}
+
+/**
+ * Upload a conversation to cloud in the background (fire-and-forget).
+ */
+export function uploadConversationToCloudBackground(
+  conversationId: string,
+  conversation: Conversation
+): void {
+  const vaultId = getActiveVaultId();
+  if (!vaultId || !isCloudAuthenticated()) return;
+
+  uploadConversationToCloud(conversationId, conversation, vaultId).catch((error) => {
+    console.error(
+      `[CloudFileSync] Background conversation upload failed for ${conversationId}:`,
+      error
+    );
+  });
+}
+
+/**
+ * Fetch the conversation manifest for a vault from the cloud.
+ */
+export async function fetchConversationManifest(
+  vaultId: string
+): Promise<ConversationManifestEntry[]> {
+  if (!isCloudAuthenticated()) return [];
+
+  const serverUrl = getSyncServerUrl();
+
+  try {
+    const res = await fetch(
+      `${serverUrl}/api/files/conversation/${encodeURIComponent(vaultId)}/manifest`,
+      {
+        credentials: 'include'
+      }
+    );
+
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as { conversations: ConversationManifestEntry[] };
+    return data.conversations || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Sync missing conversations between local OPFS and cloud.
+ * - Conversations on cloud but not local → download to OPFS
+ * - Conversations local but not on cloud → upload
+ * - Conversations on both with different updatedAt → sync newer version (last-write-wins)
+ */
+export async function syncMissingConversations(vaultId: string): Promise<void> {
+  if (!isCloudAuthenticated()) return;
+
+  console.log('[CloudFileSync] Starting conversation sync for vault:', vaultId);
+
+  try {
+    // Fetch cloud manifest
+    const cloudConversations = await fetchConversationManifest(vaultId);
+
+    // Build cloud lookup by ID
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const cloudMap = new Map<string, ConversationManifestEntry>();
+    for (const entry of cloudConversations) {
+      cloudMap.set(entry.conversationId, entry);
+    }
+
+    // Get local conversation IDs from OPFS
+    const localIds = await conversationOpfsStorage.listIds();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const localIdSet = new Set(localIds);
+
+    const toDownload: string[] = [];
+    const toUpload: string[] = [];
+
+    // Check cloud conversations against local
+    for (const [cloudId, cloudEntry] of cloudMap) {
+      if (!localIdSet.has(cloudId)) {
+        // On cloud but not local → download
+        toDownload.push(cloudId);
+      } else {
+        // On both — compare timestamps for last-write-wins
+        const localConversation = await conversationOpfsStorage.retrieve(cloudId);
+        if (localConversation) {
+          const localTime = Date.parse(localConversation.updated);
+          const cloudTime = Date.parse(cloudEntry.updatedAt);
+          if (cloudTime > localTime) {
+            toDownload.push(cloudId);
+          } else if (localTime > cloudTime) {
+            toUpload.push(cloudId);
+          }
+        }
+      }
+    }
+
+    // Check local conversations not on cloud → upload
+    for (const localId of localIds) {
+      if (!cloudMap.has(localId)) {
+        toUpload.push(localId);
+      }
+    }
+
+    console.log(
+      `[CloudFileSync] Conversation sync: ${toDownload.length} to download, ${toUpload.length} to upload`
+    );
+
+    // Process downloads
+    await processWithConcurrency(toDownload, 2, async (conversationId) => {
+      const conversation = await downloadConversationFromCloud(conversationId, vaultId);
+      if (conversation) {
+        await conversationOpfsStorage.store(conversation);
+      }
+    });
+
+    // Process uploads
+    await processWithConcurrency(toUpload, 2, async (conversationId) => {
+      const conversation = await conversationOpfsStorage.retrieve(conversationId);
+      if (conversation) {
+        await uploadConversationToCloud(conversationId, conversation, vaultId);
+      }
+    });
+
+    console.log('[CloudFileSync] Conversation sync complete');
+  } catch (error) {
+    console.error('[CloudFileSync] Conversation sync failed:', error);
   }
 }
 

@@ -16,7 +16,9 @@ const VALID_FILE_TYPES = ['pdf', 'epub', 'image', 'webpage'];
 const VALID_EXTENSION_PATTERN = /^[a-z0-9]{1,10}$/;
 const VALID_HASH_PATTERN = /^[a-f0-9]{8,128}$/;
 const VAULT_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const CONVERSATION_ID_PATTERN = /^conv-[a-z0-9]{8}$/;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_CONVERSATION_SIZE = 10 * 1024 * 1024; // 10MB
 
 function isValidFileType(type: string): boolean {
   return VALID_FILE_TYPES.includes(type);
@@ -37,6 +39,10 @@ function isValidVaultId(id: string): boolean {
     id.length <= 512 &&
     VAULT_ID_PATTERN.test(id)
   );
+}
+
+function isValidConversationId(id: string): boolean {
+  return typeof id === 'string' && CONVERSATION_ID_PATTERN.test(id);
 }
 
 /**
@@ -98,9 +104,7 @@ export function createFileRoutes(): Router {
     // Images use 8-char short hashes (prefix of SHA-256), so compare prefix only
     const computedHash = computeHash(body);
     const hashMatches =
-      fileType === 'image'
-        ? computedHash.startsWith(hash)
-        : computedHash === hash;
+      fileType === 'image' ? computedHash.startsWith(hash) : computedHash === hash;
     if (!hashMatches) {
       res.status(400).json({ error: 'Hash mismatch: body does not match provided hash' });
       return;
@@ -300,6 +304,192 @@ export function createFileRoutes(): Router {
     } catch (error) {
       console.error('[FileRoutes] Manifest fetch failed:', error);
       res.status(500).json({ error: 'Failed to fetch manifest' });
+    }
+  });
+
+  // --- Conversation routes ---
+
+  // PUT /conversation/:vaultId/:conversationId — Upload conversation JSON
+  router.put(
+    '/conversation/:vaultId/:conversationId',
+    express.json({ limit: '10mb' }),
+    (req, res) => {
+      const authReq = req as AuthenticatedRequest;
+      const userDid = authReq.userDid;
+      if (!userDid) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { vaultId, conversationId } = req.params;
+
+      if (!isValidVaultId(vaultId)) {
+        res.status(400).json({ error: 'Invalid vault ID' });
+        return;
+      }
+      if (!isValidConversationId(conversationId)) {
+        res.status(400).json({ error: 'Invalid conversation ID' });
+        return;
+      }
+
+      const body = JSON.stringify(req.body);
+      const bodyBuffer = Buffer.from(body, 'utf-8');
+
+      if (bodyBuffer.length > MAX_CONVERSATION_SIZE) {
+        res.status(413).json({ error: 'Conversation too large (max 10MB)' });
+        return;
+      }
+
+      try {
+        fileStorage.storeConversation(vaultId, conversationId, bodyBuffer);
+
+        // Upsert metadata
+        const db = getDb();
+        const updatedAt = (req.body as Record<string, unknown>)?.updated as
+          | string
+          | undefined;
+        db.run(
+          `INSERT INTO conversation_metadata (conversation_id, user_did, vault_id, updated_at, size_bytes)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (conversation_id, user_did) DO UPDATE SET
+             vault_id = excluded.vault_id,
+             updated_at = excluded.updated_at,
+             size_bytes = excluded.size_bytes`,
+          [
+            conversationId,
+            userDid,
+            vaultId,
+            updatedAt || new Date().toISOString(),
+            bodyBuffer.length
+          ]
+        );
+
+        res.status(200).json({ ok: true, sizeBytes: bodyBuffer.length });
+      } catch (error) {
+        console.error('[FileRoutes] Conversation upload failed:', error);
+        res.status(500).json({ error: 'Upload failed' });
+      }
+    }
+  );
+
+  // GET /conversation/:vaultId/:conversationId — Download conversation JSON
+  router.get('/conversation/:vaultId/:conversationId', (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { vaultId, conversationId } = req.params;
+
+    if (!isValidVaultId(vaultId)) {
+      res.status(400).json({ error: 'Invalid vault ID' });
+      return;
+    }
+    if (!isValidConversationId(conversationId)) {
+      res.status(400).json({ error: 'Invalid conversation ID' });
+      return;
+    }
+
+    // Verify user has access
+    const db = getDb();
+    const record = db
+      .query(
+        'SELECT 1 FROM conversation_metadata WHERE conversation_id = ? AND user_did = ? AND vault_id = ?'
+      )
+      .get(conversationId, userDid, vaultId);
+
+    if (!record) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    try {
+      const data = fileStorage.retrieveConversation(vaultId, conversationId);
+      if (!data) {
+        res.status(404).json({ error: 'Conversation not found on disk' });
+        return;
+      }
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Length', data.length.toString());
+      res.send(data);
+    } catch (error) {
+      console.error('[FileRoutes] Conversation download failed:', error);
+      res.status(500).json({ error: 'Download failed' });
+    }
+  });
+
+  // GET /conversation/:vaultId/manifest — List conversations for a vault
+  router.get('/conversation/:vaultId/manifest', (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { vaultId } = req.params;
+    if (!isValidVaultId(vaultId)) {
+      res.status(400).json({ error: 'Invalid vault ID' });
+      return;
+    }
+
+    try {
+      const db = getDb();
+      const conversations = db
+        .query(
+          `SELECT conversation_id as conversationId, updated_at as updatedAt, size_bytes as sizeBytes
+           FROM conversation_metadata
+           WHERE user_did = ? AND vault_id = ?`
+        )
+        .all(userDid, vaultId) as Array<{
+        conversationId: string;
+        updatedAt: string;
+        sizeBytes: number;
+      }>;
+
+      res.json({ conversations });
+    } catch (error) {
+      console.error('[FileRoutes] Conversation manifest failed:', error);
+      res.status(500).json({ error: 'Failed to fetch manifest' });
+    }
+  });
+
+  // DELETE /conversation/:vaultId/:conversationId — Delete conversation
+  router.delete('/conversation/:vaultId/:conversationId', (req, res) => {
+    const authReq = req as AuthenticatedRequest;
+    const userDid = authReq.userDid;
+    if (!userDid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const { vaultId, conversationId } = req.params;
+
+    if (!isValidVaultId(vaultId)) {
+      res.status(400).json({ error: 'Invalid vault ID' });
+      return;
+    }
+    if (!isValidConversationId(conversationId)) {
+      res.status(400).json({ error: 'Invalid conversation ID' });
+      return;
+    }
+
+    try {
+      fileStorage.deleteConversation(vaultId, conversationId);
+
+      const db = getDb();
+      db.run(
+        'DELETE FROM conversation_metadata WHERE conversation_id = ? AND user_did = ?',
+        [conversationId, userDid]
+      );
+
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error('[FileRoutes] Conversation delete failed:', error);
+      res.status(500).json({ error: 'Delete failed' });
     }
   });
 

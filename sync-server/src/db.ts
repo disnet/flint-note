@@ -82,6 +82,19 @@ function initSchema(db: Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_file_metadata_user_vault
       ON file_metadata(user_did, vault_id);
+
+    CREATE TABLE IF NOT EXISTS conversation_metadata (
+      conversation_id TEXT NOT NULL,
+      user_did TEXT NOT NULL,
+      vault_id TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (conversation_id, user_did)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_conversation_metadata_user_vault
+      ON conversation_metadata(user_did, vault_id);
   `);
 }
 
