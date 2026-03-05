@@ -14,6 +14,7 @@
     isArchived: boolean;
     showPreviewMode?: boolean;
     showShowInFinder?: boolean;
+    anchorBottom?: boolean;
     syncStatus?: { label: string; dotColor: string } | null;
     onClose: () => void;
     onPin: () => void;
@@ -38,6 +39,7 @@
     isArchived,
     showPreviewMode = true,
     showShowInFinder = false,
+    anchorBottom = false,
     syncStatus = null,
     onClose,
     onPin,
@@ -146,9 +148,16 @@
         menuElement.style.left = `${viewportWidth - rect.width - 8}px`;
       }
 
-      // Adjust vertical position if needed
-      if (rect.bottom > viewportHeight) {
-        menuElement.style.top = `${viewportHeight - rect.height - 8}px`;
+      if (anchorBottom) {
+        // Anchored from bottom — adjust if menu goes above viewport
+        if (rect.top < 0) {
+          menuElement.style.bottom = `${viewportHeight - rect.height - 8}px`;
+        }
+      } else {
+        // Adjust vertical position if needed
+        if (rect.bottom > viewportHeight) {
+          menuElement.style.top = `${viewportHeight - rect.height - 8}px`;
+        }
       }
     }
   });
@@ -158,7 +167,9 @@
   <div
     bind:this={menuElement}
     class="actions-menu"
-    style="left: {x}px; top: {y}px;"
+    style="left: {x}px; {anchorBottom
+      ? `bottom: ${window.innerHeight - y}px`
+      : `top: ${y}px`};"
     role="menu"
   >
     {#if syncStatus}
