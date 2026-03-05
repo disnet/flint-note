@@ -34,6 +34,16 @@
       editorFocusState.isFocused
   );
 
+  // Panel height (44px) + padding (8px) - used to position above keyboard
+  const PANEL_OFFSET = 52;
+
+  // Position the panel at the bottom of the visual viewport.
+  // We use top-based positioning instead of bottom because on iOS,
+  // position:fixed is relative to the layout viewport, not the visual viewport.
+  // When scrolling with the keyboard open, the visual viewport moves independently,
+  // so we need visualBottom (offsetTop + height) to track it correctly.
+  const panelTop = $derived(keyboardState.visualBottom - PANEL_OFFSET);
+
   function handleOpenInsertMenu(event: PointerEvent | TouchEvent): void {
     event.preventDefault();
     openInsertMenu();
@@ -67,7 +77,7 @@
 </script>
 
 {#if shouldShow}
-  <div class="keyboard-panel" style:--kb-height="{keyboardState.height}px">
+  <div class="keyboard-panel" style:top="{panelTop}px">
     <button
       class="panel-button insert-button"
       onpointerdown={handleOpenInsertMenu}
@@ -203,7 +213,7 @@
 <style>
   .keyboard-panel {
     position: fixed;
-    bottom: calc(var(--kb-height, 0px) + 8px);
+    /* top is set dynamically via style binding to track the visual viewport */
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
