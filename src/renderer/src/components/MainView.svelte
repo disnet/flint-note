@@ -2061,6 +2061,13 @@
     searchQuery = '';
     showArchiveWebpageModal = true;
   }}
+  {vaults}
+  activeVault={activeVault ?? null}
+  onVaultSelect={(vaultId) => {
+    handleVaultSelect(vaultId);
+  }}
+  onCreateVault={handleCreateVault}
+  onSyncFromCloud={handleSyncFromCloud}
 />
 
 {#if showLegacyMigrationModal}
