@@ -67,23 +67,32 @@ export function getUserVaults(userDid: string): VaultInfo[] {
     .all(userDid) as VaultInfo[];
 }
 
+let cachedVaultAccessStmt: ReturnType<ReturnType<typeof getDb>['query']> | undefined;
+let cachedContentAccessStmt: ReturnType<ReturnType<typeof getDb>['query']> | undefined;
+
 export function canAccessDocument(userDid: string, docUrl: string): boolean {
-  const db = getDb();
+  if (!cachedVaultAccessStmt) {
+    cachedVaultAccessStmt = getDb().query(
+      'SELECT 1 FROM vault_access WHERE user_did = ? AND doc_url = ?'
+    );
+  }
+  if (!cachedContentAccessStmt) {
+    cachedContentAccessStmt = getDb().query(
+      'SELECT 1 FROM content_doc_access WHERE doc_url = ? AND user_did = ?'
+    );
+  }
 
   // Check vault root documents
-  const vaultAccess = db
-    .query('SELECT 1 FROM vault_access WHERE user_did = ? AND doc_url = ?')
-    .get(userDid, docUrl);
-  if (vaultAccess) return true;
+  if (cachedVaultAccessStmt.get(userDid, docUrl)) return true;
 
   // Check content documents
-  const contentAccess = db
-    .query(
-      `SELECT 1 FROM content_doc_access
-       WHERE doc_url = ? AND user_did = ?`
-    )
-    .get(docUrl, userDid);
-  return !!contentAccess;
+  return !!cachedContentAccessStmt.get(docUrl, userDid);
+}
+
+/** Reset prepared statements (for testing) */
+export function resetAccessStatements(): void {
+  cachedVaultAccessStmt = undefined;
+  cachedContentAccessStmt = undefined;
 }
 
 export function getVaultContentDocs(userDid: string, vaultId: string): string[] {

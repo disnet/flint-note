@@ -1,24 +1,9 @@
 import { Database } from 'bun:sqlite';
-import path from 'node:path';
-import fs from 'node:fs';
 
-const DATA_DIR = process.env.DATA_DIR || './data';
-
-let db: Database;
-
-export function getDb(): Database {
-  if (!db) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const dbPath = path.join(DATA_DIR, 'flint-sync.db');
-    db = new Database(dbPath);
-    db.exec('PRAGMA journal_mode = WAL');
-    db.exec('PRAGMA foreign_keys = ON');
-    initSchema(db);
-  }
-  return db;
-}
-
-function initSchema(db: Database): void {
+export function createTestDb(): Database {
+  const db = new Database(':memory:');
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA foreign_keys = ON');
   db.exec(`
     CREATE TABLE IF NOT EXISTS vault_access (
       user_did TEXT NOT NULL,
@@ -108,10 +93,5 @@ function initSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_sync_states_user
       ON sync_states(user_did);
   `);
-}
-
-export function closeDb(): void {
-  if (db) {
-    db.close();
-  }
+  return db;
 }
