@@ -4,7 +4,8 @@ import type { PeerId, PeerMetadata, Message } from '@automerge/automerge-repo';
 import type { WebSocket as WsWebSocket } from 'ws';
 
 const ProtocolV1 = '1';
-const KEEP_ALIVE_INTERVAL_MS = 5000;
+const KEEP_ALIVE_INTERVAL_MS = 15000;
+const MAX_MISSED_PONGS = 2;
 
 interface JoinMessage {
   type: 'join';
@@ -34,7 +35,7 @@ export class SingleWebSocketAdapter extends NetworkAdapter {
   #readyResolve: (() => void) | undefined;
   #readyPromise: Promise<void>;
   #pingInterval: ReturnType<typeof setInterval> | undefined;
-  #pongReceived = true;
+  #missedPongs = 0;
 
   constructor(socket: WsWebSocket) {
     super();
@@ -57,17 +58,17 @@ export class SingleWebSocketAdapter extends NetworkAdapter {
     });
 
     socket.on('pong', () => {
-      this.#pongReceived = true;
+      this.#missedPongs = 0;
     });
 
-    // Keep-alive: ping every 5s, terminate if no pong within 10s
+    // Keep-alive: ping every 15s, terminate after MAX_MISSED_PONGS consecutive misses
     this.#pingInterval = setInterval(() => {
-      if (!this.#pongReceived) {
+      if (this.#missedPongs >= MAX_MISSED_PONGS) {
         console.warn('SingleWebSocketAdapter: pong not received, terminating connection');
         this.#socket.terminate();
         return;
       }
-      this.#pongReceived = false;
+      this.#missedPongs++;
       this.#socket.ping();
     }, KEEP_ALIVE_INTERVAL_MS);
   }
