@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",
-    "dev": "bun --watch src/index.ts"
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test tests/",
+    "test:watch": "bun test --watch tests/"
   },
   "dependencies": {
     "@atproto/oauth-client-node": "^0.2.0",
     "@automerge/automerge": "^3.2.1",
     "@automerge/automerge-repo": "^2.5.3",
-    "@automerge/automerge-repo-network-websocket": "^2.5.3",
-    "@automerge/automerge-repo-storage-nodefs": "^2.5.3",
     "cookie-parser": "^1.4.7",
     "express": "^4.21.0",
     "express-rate-limit": "^8.2.1",

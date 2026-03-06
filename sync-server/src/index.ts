@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { createAuthRoutes } from './auth/auth-routes.js';
 import { createDocumentRoutes } from './sync/document-registration.js';
 import { createFileRoutes } from './sync/file-routes.js';
-import { initSyncServer, getActiveUserCount } from './sync/sync-server.js';
+import { initLeanSyncServer, getActiveUserCount } from './sync/lean-sync-server.js';
 import {
   verifySessionTokenAsync,
   cleanExpiredSessions,
@@ -150,8 +150,8 @@ app.use('/api', apiLimiter, requireAuth, createDocumentRoutes());
 // Create HTTP server
 const server = createServer(app);
 
-// Initialize Automerge sync server (handles WebSocket upgrades)
-initSyncServer(server);
+// Initialize sync server (handles WebSocket upgrades)
+initLeanSyncServer(server);
 
 // Initialize database
 getDb();
