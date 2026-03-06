@@ -5,6 +5,7 @@
 
 import { type Repo, type DocHandle, type AutomergeUrl } from '@automerge/automerge-repo';
 import type { NoteContentDocument } from './types';
+import { isCloudAuthenticated } from './cloud-sync.svelte';
 
 // Cache of loaded content handles (not reactive, just a module-level cache)
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -91,11 +92,41 @@ export async function getContentHandle(
         contentHandles.set(noteId, handle);
         return handle;
       }
-      // Document unavailable, fall through to create new one
+
+      // Document unavailable — if cloud sync is active, the doc may still be
+      // syncing from the server. Don't create a new (empty) doc which would
+      // shadow the real content. Return a temporary empty handle instead.
+      if (isCloudAuthenticated()) {
+        console.warn(
+          `[ContentDocs] Content doc unavailable for ${noteId} (still syncing?), returning empty handle`
+        );
+        const tempHandle = repo.create<NoteContentDocument>({
+          noteId,
+          content: ''
+        });
+        // Cache but do NOT persist the URL — on next load the original URL
+        // will be retried and should succeed once the doc has synced.
+        contentHandles.set(noteId, tempHandle);
+        return tempHandle;
+      }
+
+      // No cloud sync — doc is genuinely lost (e.g. IndexedDB cleared)
       console.warn(
         `[ContentDocs] Content doc unavailable for ${noteId}, creating new one`
       );
     } catch (error) {
+      if (isCloudAuthenticated()) {
+        console.warn(
+          `[ContentDocs] Error loading content doc for ${noteId} (still syncing?):`,
+          error
+        );
+        const tempHandle = repo.create<NoteContentDocument>({
+          noteId,
+          content: ''
+        });
+        contentHandles.set(noteId, tempHandle);
+        return tempHandle;
+      }
       console.warn(`[ContentDocs] Error loading content doc for ${noteId}:`, error);
       // Fall through to create new one
     }

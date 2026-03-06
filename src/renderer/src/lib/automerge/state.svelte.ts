@@ -10,7 +10,11 @@
 /* eslint-disable svelte/prefer-svelte-reactivity -- Date used for computation in utility functions */
 
 import * as Automerge from '@automerge/automerge';
-import type { DocHandle, DocHandleChangePayload } from '@automerge/automerge-repo';
+import type {
+  DocHandle,
+  DocHandleChangePayload,
+  AutomergeUrl
+} from '@automerge/automerge-repo';
 import type {
   Note,
   NoteMetadata,
@@ -1149,10 +1153,19 @@ export async function connectRemoteVault(
   // Tell Automerge to start syncing the root document
   const handle = await repo.find(docUrl as Parameters<typeof repo.find>[0]);
 
-  // Fetch and find content docs so they sync too
+  // Fetch and find content docs so they start syncing in the background.
+  // We don't await these — they'll sync gradually. Use allowableStates to
+  // accept 'unavailable' without throwing (docs may not sync before the
+  // 60s handle timeout, especially with many docs).
   const contentDocUrls = await fetchRemoteContentDocs(vaultId);
   for (const contentUrl of contentDocUrls) {
-    repo.find(contentUrl as Parameters<typeof repo.find>[0]);
+    repo
+      .find(contentUrl as AutomergeUrl, {
+        allowableStates: ['ready', 'unavailable']
+      })
+      .catch(() => {
+        // Silently ignore — doc will be retried when accessed
+      });
   }
 
   // Wait for root doc to be ready (with timeout)
