@@ -9,6 +9,20 @@ on:
     types: [created]
 
 jobs:
+  sync-server-lockfile:
+    runs-on: ubuntu-latest
+    name: Check sync-server lockfile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Verify lockfile is up to date
+        run: bun install --frozen-lockfile
+        working-directory: sync-server
+
   build:
     runs-on: ${{ matrix.os }}
 
