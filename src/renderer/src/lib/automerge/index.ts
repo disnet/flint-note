@@ -218,6 +218,7 @@ export {
 
   // Conversation getters
   getConversations,
+  getAllConversationsByWorkspace,
   getConversation,
   getConversationEntry,
   clearConversationCache,

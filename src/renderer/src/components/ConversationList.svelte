@@ -1,10 +1,10 @@
 <script lang="ts">
   /**
    * Conversation list component for AI chat history
-   * Shows recent conversations with title and date
+   * Shows recent conversations grouped by workspace
    */
   import {
-    getConversations,
+    getAllConversationsByWorkspace,
     archiveConversation,
     type ConversationIndexEntry
   } from '../lib/automerge';
@@ -25,7 +25,8 @@
     onNoteClick
   }: Props = $props();
 
-  const conversations = $derived(getConversations());
+  const groups = $derived(getAllConversationsByWorkspace());
+  const hasAnyConversations = $derived(groups.some((g) => g.conversations.length > 0));
 
   function formatDate(isoString: string): string {
     const date = new Date(isoString);
@@ -82,62 +83,72 @@
     </button>
   </div>
 
-  {#if conversations.length === 0}
+  {#if !hasAnyConversations}
     <div class="empty-state">
       <p>No conversations yet</p>
       <p class="empty-hint">Start a new chat to begin</p>
     </div>
   {:else}
     <div class="conversations" role="list">
-      {#each conversations as conv (conv.id)}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          class="conversation-item"
-          class:active={activeConversationId === conv.id}
-          onclick={() => onConversationSelect(conv)}
-          role="listitem"
-        >
-          <div class="conv-icon">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+      {#each groups as group (group.workspaceId)}
+        {#if group.conversations.length > 0}
+          {#if groups.length > 1}
+            <div class="workspace-group-header">
+              <span class="workspace-icon">{group.workspaceIcon}</span>
+              <span class="workspace-name">{group.workspaceName}</span>
+            </div>
+          {/if}
+          {#each group.conversations as conv (conv.id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div
+              class="conversation-item"
+              class:active={activeConversationId === conv.id}
+              onclick={() => onConversationSelect(conv)}
+              role="listitem"
             >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-              ></path>
-            </svg>
-          </div>
-          <div class="conv-content">
-            <span class="conv-title">
-              <WikilinkText text={conv.title} {onNoteClick} />
-            </span>
-            <span class="conv-date">{formatDate(conv.updated)}</span>
-          </div>
-          <button
-            class="archive-btn"
-            onclick={(e) => handleArchive(e, conv.id)}
-            title="Archive conversation"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path
-                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-              ></path>
-            </svg>
-          </button>
-        </div>
+              <div class="conv-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="conv-content">
+                <span class="conv-title">
+                  <WikilinkText text={conv.title} {onNoteClick} />
+                </span>
+                <span class="conv-date">{formatDate(conv.updated)}</span>
+              </div>
+              <button
+                class="archive-btn"
+                onclick={(e) => handleArchive(e, conv.id)}
+                title="Archive conversation"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          {/each}
+        {/if}
       {/each}
     </div>
   {/if}
@@ -282,5 +293,33 @@
   .archive-btn:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+  }
+
+  .workspace-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.4rem 0.25rem;
+    margin-top: 0.25rem;
+  }
+
+  .workspace-group-header:first-child {
+    margin-top: 0;
+  }
+
+  .workspace-icon {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .workspace-name {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>
