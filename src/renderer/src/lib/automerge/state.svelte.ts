@@ -3983,20 +3983,14 @@ export async function enableCloudSync(): Promise<boolean> {
   }
 
   // If WebSocket is already connected (initCloudSync connects on startup),
-  // connectCloudSync() will be a no-op and onSyncConnected won't fire.
-  // In that case we need to explicitly trigger file/conversation sync.
+  // the server didn't know about our docs during the initial peer handshake.
+  // Disconnect and reconnect so the repo re-announces all documents to the server.
   const alreadyConnected = getCloudSyncStatus() === 'connected';
-  connectCloudSync();
-
   if (alreadyConnected) {
-    syncMissingFiles(vault.id).catch((error) => {
-      console.error('[CloudFileSync] Initial file sync failed:', error);
-    });
-    syncMissingConversations(vault.id).catch((error) => {
-      console.error('[CloudFileSync] Initial conversation sync failed:', error);
-    });
+    disconnectCloudSync();
   }
-  // Otherwise, onSyncConnected callback will handle it when WebSocket connects
+  connectCloudSync();
+  // onSyncConnected callback will handle file/conversation sync when WebSocket connects
 
   return true;
 }
