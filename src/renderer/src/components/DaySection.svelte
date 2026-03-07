@@ -5,7 +5,6 @@
    */
   import DailyNoteEditor from './DailyNoteEditor.svelte';
   import type { DayData } from '../lib/automerge';
-  import { parseISODate } from '../utils/dateUtils';
 
   interface Props {
     dayData: DayData;
@@ -27,12 +26,6 @@
   let editorRef: DailyNoteEditor | undefined = $state();
   // Reference to the container element for scrolling
   let containerRef: HTMLDivElement | undefined = $state();
-
-  // Get short day name (Mon, Tue, Wed, etc.)
-  const shortDayName = $derived.by(() => {
-    const date = parseISODate(dayData.date);
-    return date.toLocaleDateString('en-US', { weekday: 'short' });
-  });
 
   function handleDayLabelClick(event: MouseEvent): void {
     if (event.shiftKey) {
@@ -59,17 +52,15 @@
 </script>
 
 <div bind:this={containerRef} class="day-section" class:is-today={isToday}>
-  <div class="day-gutter">
-    <button
-      class="day-label"
-      class:is-today={isToday}
-      onclick={handleDayLabelClick}
-      type="button"
-      title="Open {dayHeader}"
-    >
-      {shortDayName}
-    </button>
-  </div>
+  <button
+    class="day-label"
+    class:is-today={isToday}
+    onclick={handleDayLabelClick}
+    type="button"
+    title="Open {dayHeader}"
+  >
+    {dayHeader}
+  </button>
 
   <div class="day-content">
     <DailyNoteEditor bind:this={editorRef} date={dayData.date} />
@@ -78,33 +69,25 @@
 
 <style>
   .day-section {
-    display: grid;
-    grid-template-columns: 80px 1fr;
-  }
-
-  .day-gutter {
-    position: sticky;
-    top: 0;
-    height: fit-content;
-    padding: 0.5rem;
-    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border-secondary, rgba(128, 128, 128, 0.15));
+    padding-bottom: 0.5rem;
   }
 
   .day-label {
     display: block;
-    width: 100%;
     background: none;
     border: none;
-    padding: 0;
+    padding: 0.5rem 0 0.25rem;
     text-align: left;
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-secondary);
     transition: color 0.2s ease;
     text-transform: uppercase;
-    text-decoration: underline;
     letter-spacing: 0.05em;
   }
 
@@ -117,26 +100,17 @@
   }
 
   .day-content {
-    padding-bottom: 1rem;
-    padding-right: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 
   /* Mobile responsive */
   @media (max-width: 768px) {
-    .day-section {
-      grid-template-columns: 60px 1fr;
-    }
-
-    .day-gutter {
-      padding: 0.5rem 0.25rem;
-    }
-
     .day-label {
       font-size: 0.75rem;
     }
 
     .day-content {
-      padding-bottom: 0.75rem;
+      padding-bottom: 0.25rem;
     }
   }
 </style>
