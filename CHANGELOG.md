@@ -1,5 +1,22 @@
 # Changelog - Release
 
+## [0.16.0]
+
+### Added
+
+- experimental cloud sync. requires invite code for now.
+- can now toggled extended thinking mode for agent
+- can now use agent on web
+
+### Changed
+
+- cleaned up UI for small screens (e.g. phones) across the app
+- plus ultra agent now uses Sonnet 4.6
+
+### Fixed
+
+- fixed list visual indentation bug when switching notes
+
 ## [0.15.4]
 
 ### Fixed
