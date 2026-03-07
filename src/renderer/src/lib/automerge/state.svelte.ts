@@ -3210,6 +3210,65 @@ export function getConversations(): ConversationIndexEntry[] {
 }
 
 /**
+ * Get all non-archived conversations across all workspaces, grouped by workspace ID.
+ * Sorted by updated (newest first) within each group.
+ */
+export function getAllConversationsByWorkspace(): {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceIcon: string;
+  conversations: ConversationIndexEntry[];
+}[] {
+  const index = stateConversationIndex ?? {};
+  const workspaces = stateWorkspaces;
+
+  // Group conversations by workspace
+  const grouped = new Map<string, ConversationIndexEntry[]>();
+  for (const entry of Object.values(index)) {
+    if (entry.archived) continue;
+    let list = grouped.get(entry.workspaceId);
+    if (!list) {
+      list = [];
+      grouped.set(entry.workspaceId, list);
+    }
+    list.push(entry);
+  }
+
+  // Sort conversations within each group
+  for (const list of grouped.values()) {
+    list.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+  }
+
+  // Build result with workspace metadata, active workspace first
+  const activeWsId = localActiveWorkspaceId;
+  const result: {
+    workspaceId: string;
+    workspaceName: string;
+    workspaceIcon: string;
+    conversations: ConversationIndexEntry[];
+  }[] = [];
+
+  for (const [wsId, conversations] of grouped) {
+    const ws = workspaces[wsId];
+    result.push({
+      workspaceId: wsId,
+      workspaceName: ws?.name ?? 'Unknown',
+      workspaceIcon: ws?.icon ?? '',
+      conversations
+    });
+  }
+
+  // Active workspace first, then alphabetical
+  result.sort((a, b) => {
+    if (a.workspaceId === activeWsId) return -1;
+    if (b.workspaceId === activeWsId) return 1;
+    return a.workspaceName.localeCompare(b.workspaceName);
+  });
+
+  return result;
+}
+
+/**
  * Get a full conversation by ID (async, loads from OPFS if needed).
  * Returns null if not found.
  */
