@@ -3069,6 +3069,14 @@ export async function getOrCreateDailyNote(date: string): Promise<NoteMetadata> 
     doc.contentUrls[dailyNoteId] = contentHandle.url;
   });
 
+  // Register content doc with cloud sync server if sync is enabled
+  const activeVault = getActiveVault();
+  if (isCloudAuthenticated() && activeVault?.cloudSyncEnabled) {
+    registerContentDocForSync(contentHandle.url, activeVaultId).catch((err) => {
+      console.error('[CloudSync] Failed to register daily note content doc:', err);
+    });
+  }
+
   return rawDoc.notes[dailyNoteId];
 }
 
