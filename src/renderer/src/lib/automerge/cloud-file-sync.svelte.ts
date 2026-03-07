@@ -26,7 +26,7 @@ import { imageOpfsStorage } from './image-opfs-storage.svelte';
 
 // --- Types ---
 
-export type CloudFileType = 'pdf' | 'epub' | 'image' | 'webpage';
+export type CloudFileType = 'pdf' | 'epub' | 'image' | 'webpage' | 'conversation';
 
 interface CloudFileManifestEntry {
   hash: string;
@@ -530,6 +530,21 @@ export async function uploadConversationToCloud(
         `[CloudFileSync] Conversation upload failed for ${conversationId}:`,
         err
       );
+
+      if (res.status === 413) {
+        addWarning(
+          'conversation',
+          conversationId,
+          'Conversation too large to sync (max 50MB)'
+        );
+      } else if (res.status !== 401 && res.status !== 403) {
+        addWarning(
+          'conversation',
+          conversationId,
+          err.error || `Upload failed (${res.status})`
+        );
+      }
+
       return false;
     }
 
