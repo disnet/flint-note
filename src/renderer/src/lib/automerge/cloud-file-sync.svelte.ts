@@ -606,6 +606,9 @@ export function uploadConversationToCloudBackground(
   const vaultId = getActiveVaultId();
   if (!vaultId || !isCloudAuthenticated()) return;
 
+  // Don't upload archived conversations
+  if (conversation.archived) return;
+
   uploadConversationToCloud(conversationId, conversation, vaultId).catch((error) => {
     console.error(
       `[CloudFileSync] Background conversation upload failed for ${conversationId}:`,
@@ -710,10 +713,10 @@ export async function syncMissingConversations(vaultId: string): Promise<void> {
       }
     });
 
-    // Process uploads
+    // Process uploads (skip archived conversations)
     await processWithConcurrency(toUpload, 2, async (conversationId) => {
       const conversation = await conversationOpfsStorage.retrieve(conversationId);
-      if (conversation) {
+      if (conversation && !conversation.archived) {
         await uploadConversationToCloud(conversationId, conversation, vaultId);
       }
     });
