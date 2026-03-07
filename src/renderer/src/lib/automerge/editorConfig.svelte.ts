@@ -268,7 +268,11 @@ export class EditorConfig {
       ...(this.options.onShowGutterMenu
         ? [gutterPlusButtonExtension(this.options.onShowGutterMenu)]
         : []),
-      EditorView.contentAttributes.of({ spellcheck: 'true' }),
+      EditorView.contentAttributes.of({
+        spellcheck: 'true',
+        autocorrect: 'on',
+        autocapitalize: 'sentences'
+      }),
       EditorView.editable.of(true)
     ];
 

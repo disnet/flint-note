@@ -183,7 +183,11 @@
       EditorView.lineWrapping,
       isDarkMode ? githubDark : githubLight,
       getEditorTheme(),
-      EditorView.contentAttributes.of({ spellcheck: 'true' })
+      EditorView.contentAttributes.of({
+        spellcheck: 'true',
+        autocorrect: 'on',
+        autocapitalize: 'sentences'
+      })
     ];
 
     // Add dark mode theme override for search highlights

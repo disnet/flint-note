@@ -77,7 +77,11 @@
       EditorView.lineWrapping,
       isDarkMode ? githubDark : githubLight,
       getEditorTheme(),
-      EditorView.contentAttributes.of({ spellcheck: 'true' })
+      EditorView.contentAttributes.of({
+        spellcheck: 'true',
+        autocorrect: 'on',
+        autocapitalize: 'sentences'
+      })
     ];
 
     // Add wikilinks if handler provided
