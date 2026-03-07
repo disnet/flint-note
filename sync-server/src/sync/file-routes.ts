@@ -18,7 +18,7 @@ const VALID_HASH_PATTERN = /^[a-f0-9]{8,128}$/;
 const VAULT_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const CONVERSATION_ID_PATTERN = /^conv-[a-z0-9]{8}$/;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const MAX_CONVERSATION_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_CONVERSATION_SIZE = 50 * 1024 * 1024; // 50MB
 
 function isValidFileType(type: string): boolean {
   return VALID_FILE_TYPES.includes(type);
@@ -371,7 +371,7 @@ export function createFileRoutes(): Router {
   // PUT /conversation/:vaultId/:conversationId — Upload conversation JSON
   router.put(
     '/conversation/:vaultId/:conversationId',
-    express.json({ limit: '10mb' }),
+    express.json({ limit: '50mb' }),
     async (req, res) => {
       const authReq = req as AuthenticatedRequest;
       const userDid = authReq.userDid;
