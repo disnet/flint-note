@@ -227,7 +227,7 @@
     padding: 1rem 0 2rem;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0.5rem;
   }
 
   /* Mobile responsive */

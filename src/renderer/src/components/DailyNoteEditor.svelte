@@ -478,13 +478,11 @@
   }
 
   .daily-note-editor-wrapper.focused {
-    box-shadow:
-      0 0 0 2px var(--accent-primary),
-      0 0 10px rgba(99, 102, 241, 0.3);
+    box-shadow: none;
   }
 
   .editor-container {
-    padding: 0.25rem;
+    padding: 0;
     transition: max-height 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 

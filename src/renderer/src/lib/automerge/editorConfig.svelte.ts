@@ -135,7 +135,7 @@ export class EditorConfig {
         fontFamily: 'var(--font-editor) !important',
         color: 'var(--text-primary)',
         caretColor: 'var(--text-primary)',
-        ...(isDailyNote ? { padding: '0' } : {})
+        ...(isDailyNote ? { padding: '0 !important' } : {})
       },
       '.cm-cursor': {
         borderLeftColor: 'var(--text-primary)'
@@ -150,8 +150,16 @@ export class EditorConfig {
         fontFamily: 'var(--font-editor) !important'
       },
       '.cm-line': {
-        fontFamily: 'var(--font-editor) !important'
-      }
+        fontFamily: 'var(--font-editor) !important',
+        ...(isDailyNote ? { paddingLeft: '0' } : {})
+      },
+      ...(isDailyNote
+        ? {
+            '.cm-gutters': {
+              display: 'none !important'
+            }
+          }
+        : {})
     });
   }
 
