@@ -139,6 +139,8 @@ export {
   getActiveWorkspace,
   getRecentItems,
   isItemRecent,
+  getPinnedItemsForWorkspace,
+  getRecentItemsForWorkspace,
 
   // Workspace mutations
   createWorkspace,

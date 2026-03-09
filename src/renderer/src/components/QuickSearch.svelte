@@ -7,6 +7,7 @@
   import SearchResults from './SearchResults.svelte';
   import SidebarItems from './SidebarItems.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import WorkspaceSwipeContainer from './WorkspaceSwipeContainer.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import {
@@ -17,6 +18,9 @@
     getRoutinesDueNow,
     updateVaultInState,
     isLegacyVault,
+    getWorkspaces,
+    getActiveWorkspace,
+    setActiveWorkspace,
     type SidebarItem,
     type SystemView,
     type NoteMetadata,
@@ -100,6 +104,17 @@
   const routinesDueCount = $derived(getRoutinesDueNow().length);
 
   const hasSearchQuery = $derived(searchQuery.trim().length > 0);
+
+  // Workspace swipe state (mobile only)
+  const allWorkspaces = $derived(getWorkspaces());
+  const activeWs = $derived(getActiveWorkspace());
+  const showSwipe = $derived(isMobile && allWorkspaces.length > 1 && !hasSearchQuery);
+  let isDraggingItem = $state(false);
+  let isSwipingWorkspace = $state(false);
+
+  function handleWorkspaceSwipeChange(id: string): void {
+    setActiveWorkspace(id);
+  }
 
   // Vault switcher state (mobile only)
   let isVaultDropdownOpen = $state(false);
@@ -285,7 +300,7 @@
     onkeydown={(e) => e.key === 'Escape' && onClose()}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="quick-search-modal">
+    <div class="quick-search-modal" class:swipe-active={showSwipe}>
       <div class="search-input-wrapper">
         <svg
           class="search-icon"
@@ -317,7 +332,7 @@
         {/if}
       </div>
 
-      <div class="panel-content">
+      <div class="panel-content" class:panel-content-swipe={showSwipe}>
         {#if hasSearchQuery && searchResults.length > 0}
           <!-- Search results mode -->
           <div class="search-results-scroll scrollable" use:scrollable>
@@ -576,9 +591,32 @@
             {/each}
           </div>
 
-          <div class="sidebar-items-wrapper">
-            <SidebarItems onItemSelect={handleSidebarItemSelect} />
-          </div>
+          {#if showSwipe}
+            <WorkspaceSwipeContainer
+              workspaces={allWorkspaces}
+              activeWorkspaceId={activeWs?.id}
+              onWorkspaceChange={handleWorkspaceSwipeChange}
+              disabled={isDraggingItem}
+              onSwipeStateChange={(swiping) => (isSwipingWorkspace = swiping)}
+            >
+              {#snippet page(wsId)}
+                <div class="sidebar-items-wrapper">
+                  <SidebarItems
+                    onItemSelect={handleSidebarItemSelect}
+                    workspaceId={wsId === activeWs?.id ? undefined : wsId}
+                    disableDrag={isSwipingWorkspace}
+                    onDragStateChange={wsId === activeWs?.id
+                      ? (dragging) => (isDraggingItem = dragging)
+                      : undefined}
+                  />
+                </div>
+              {/snippet}
+            </WorkspaceSwipeContainer>
+          {:else}
+            <div class="sidebar-items-wrapper">
+              <SidebarItems onItemSelect={handleSidebarItemSelect} />
+            </div>
+          {/if}
         {/if}
       </div>
 
@@ -681,6 +719,12 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+  }
+
+  .panel-content-swipe {
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden;
   }
 
   .search-results-scroll {
@@ -949,6 +993,10 @@
       max-height: calc(100vh - 100px);
       border: 1px solid var(--border-light);
       animation: slideUp 0.2s ease-out;
+    }
+
+    .quick-search-modal.swipe-active {
+      height: calc(100vh - 100px);
     }
 
     @keyframes slideUp {

@@ -1961,6 +1961,36 @@ export function getRecentItems(): SidebarItem[] {
 }
 
 /**
+ * Get pinned items for a specific workspace by ID
+ */
+export function getPinnedItemsForWorkspace(workspaceId: string): SidebarItem[] {
+  const workspace = stateWorkspaces[workspaceId];
+  if (!workspace) return [];
+
+  const noteTypes = materializedNoteTypesDict;
+  const refs = getWorkspacePinnedRefs(workspace);
+
+  return refs
+    .map((ref) => refToSidebarItem(ref, noteTypes))
+    .filter((item): item is SidebarItem => item !== null);
+}
+
+/**
+ * Get recent items for a specific workspace by ID
+ */
+export function getRecentItemsForWorkspace(workspaceId: string): SidebarItem[] {
+  const workspace = stateWorkspaces[workspaceId];
+  if (!workspace) return [];
+
+  const noteTypes = materializedNoteTypesDict;
+  const refs = getWorkspaceRecentRefs(workspace);
+
+  return refs
+    .map((ref) => refToSidebarItem(ref, noteTypes))
+    .filter((item): item is SidebarItem => item !== null);
+}
+
+/**
  * Check if an item is in the recent items of the active workspace
  */
 export function isItemRecent(ref: SidebarItemRef): boolean {

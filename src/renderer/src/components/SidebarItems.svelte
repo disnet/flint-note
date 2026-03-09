@@ -8,6 +8,8 @@
   import {
     getPinnedItems,
     getRecentItems,
+    getPinnedItemsForWorkspace,
+    getRecentItemsForWorkspace,
     removeItemFromWorkspace,
     moveItemToWorkspace,
     pinItem,
@@ -44,13 +46,31 @@
 
   interface Props {
     onItemSelect: (item: SidebarItem) => void;
+    /** When provided, show items for this workspace (read-only, no drag) */
+    workspaceId?: string;
+    /** Called when drag state changes (true = dragging, false = not dragging) */
+    onDragStateChange?: (isDragging: boolean) => void;
+    /** Externally disable drag (e.g. during swipe) */
+    disableDrag?: boolean;
   }
 
-  let { onItemSelect }: Props = $props();
+  let {
+    onItemSelect,
+    workspaceId,
+    onDragStateChange,
+    disableDrag = false
+  }: Props = $props();
+
+  /** When workspaceId is provided or drag is externally disabled, no drag/reorder */
+  const isPreview = $derived(!!workspaceId || disableDrag);
 
   // Reactive state
-  const pinnedItems = $derived(getPinnedItems());
-  const recentItems = $derived(getRecentItems());
+  const pinnedItems = $derived(
+    workspaceId ? getPinnedItemsForWorkspace(workspaceId) : getPinnedItems()
+  );
+  const recentItems = $derived(
+    workspaceId ? getRecentItemsForWorkspace(workspaceId) : getRecentItems()
+  );
   const activeItem = $derived(getActiveItem());
 
   // Track recent items length to detect new items being added
@@ -126,9 +146,15 @@
   // Touch drag state (for mobile long-press drag)
   let touchDragActive = $state(false);
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = $state(0);
   let touchStartY = $state(0);
   let touchCurrentY = $state(0);
   const LONG_PRESS_DURATION = 300; // ms to trigger drag mode
+
+  // Notify parent when drag state changes
+  $effect(() => {
+    onDragStateChange?.(touchDragActive);
+  });
 
   const ANIMATION_DURATION = 200;
 
@@ -633,6 +659,7 @@
     if (!isTouchDevice) return;
 
     const touch = e.touches[0];
+    touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchCurrentY = touch.clientY;
 
@@ -675,10 +702,11 @@
     const touch = e.touches[0];
     touchCurrentY = touch.clientY;
 
-    // If we moved too much before long-press triggered, cancel it (user is scrolling)
+    // If we moved too much before long-press triggered, cancel it (user is scrolling or swiping)
     if (!touchDragActive && longPressTimer) {
-      const moveDistance = Math.abs(touchCurrentY - touchStartY);
-      if (moveDistance > 10) {
+      const moveX = Math.abs(touch.clientX - touchStartX);
+      const moveY = Math.abs(touchCurrentY - touchStartY);
+      if (moveX > 10 || moveY > 10) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
         cleanupTouchListeners();
@@ -1051,10 +1079,10 @@
           role="button"
           tabindex="0"
           onkeydown={(e) => e.key === 'Enter' && handleItemClick(listItem.item)}
-          draggable={!isTouchDevice}
-          ondragstart={(e) => handleDragStart(e, index, listItem.item)}
-          ondragend={handleDragEnd}
-          ontouchstart={(e) => handleTouchStart(e, index, listItem.item)}
+          draggable={!isTouchDevice && !isPreview}
+          ondragstart={(e) => !isPreview && handleDragStart(e, index, listItem.item)}
+          ondragend={!isPreview ? handleDragEnd : undefined}
+          ontouchstart={(e) => !isPreview && handleTouchStart(e, index, listItem.item)}
           data-sidebar-item
           data-item-id={listItem.item.id}
           data-item-type={listItem.item.type}
