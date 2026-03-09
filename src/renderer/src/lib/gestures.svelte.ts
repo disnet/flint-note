@@ -37,8 +37,6 @@ export interface SwipeOptions {
   maxDistance?: number;
   /** Prevent default on touchstart when in edge zone (blocks Safari back gesture) */
   preventDefaultOnEdge?: boolean;
-  /** Once primary-axis movement exceeds this threshold, lock direction and stop cancelling (0 = disabled) */
-  directionLockThreshold?: number;
 }
 
 const DEFAULT_OPTIONS: Required<SwipeOptions> = {
@@ -48,8 +46,7 @@ const DEFAULT_OPTIONS: Required<SwipeOptions> = {
   edgeThreshold: 0,
   edge: 'left',
   maxDistance: 300,
-  preventDefaultOnEdge: false,
-  directionLockThreshold: 0
+  preventDefaultOnEdge: false
 };
 
 /**
@@ -71,7 +68,6 @@ export function createSwipeHandler(
     startTime: 0,
     isActive: false
   };
-  let directionLocked = false;
 
   function handleTouchStart(e: TouchEvent): void {
     const touch = e.touches[0];
@@ -112,7 +108,6 @@ export function createSwipeHandler(
       startTime: Date.now(),
       isActive: true
     };
-    directionLocked = false;
 
     callbacks.onSwipeStart?.();
   }
@@ -127,33 +122,15 @@ export function createSwipeHandler(
     const deltaX = state.currentX - state.startX;
     const deltaY = state.currentY - state.startY;
 
-    // Check if direction is now locked (committed to this swipe)
-    if (!directionLocked && opts.directionLockThreshold > 0) {
-      const primaryDistance =
-        opts.direction === 'vertical' ? Math.abs(deltaY) : Math.abs(deltaX);
-      if (primaryDistance >= opts.directionLockThreshold) {
-        directionLocked = true;
-      }
-    }
-
     // Check if swiping in the wrong direction (should scroll instead)
-    // Skip this check if direction is already locked
-    if (
-      !directionLocked &&
-      opts.direction === 'horizontal' &&
-      Math.abs(deltaY) > Math.abs(deltaX) * 1.5
-    ) {
+    if (opts.direction === 'horizontal' && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
       // User is scrolling vertically, cancel swipe
       state.isActive = false;
       callbacks.onSwipeCancel?.();
       return;
     }
 
-    if (
-      !directionLocked &&
-      opts.direction === 'vertical' &&
-      Math.abs(deltaX) > Math.abs(deltaY) * 1.5
-    ) {
+    if (opts.direction === 'vertical' && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
       // User is scrolling horizontally, cancel swipe
       state.isActive = false;
       callbacks.onSwipeCancel?.();
