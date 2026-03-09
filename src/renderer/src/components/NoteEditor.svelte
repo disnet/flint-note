@@ -252,7 +252,7 @@
       onCursorChange: () => positionTracker?.savePosition(),
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
-      onShowGutterMenu: deviceState.useMobileLayout ? undefined : handleShowGutterMenu,
+      onShowGutterMenu: handleShowGutterMenu,
       placeholder: 'Start writing. Type "/" for commands, "[[" for note links...',
       // Deck widget support - navigate to notes when clicked in embedded decks
       onDeckNoteOpen: (deckNoteId) => {

@@ -28,7 +28,9 @@
     getOrCreateDailyNote
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
+  import type { GutterMenuData } from '../lib/automerge/gutter-plus-button.svelte';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
+  import InsertMenu from './InsertMenu.svelte';
 
   interface Props {
     date: string;
@@ -114,6 +116,30 @@
     !isFocused && !isManuallyExpanded && hasContent && isContentClipped
   );
 
+  // Insert menu state
+  let insertMenuVisible = $state(false);
+  let insertMenuX = $state(0);
+  let insertMenuY = $state(0);
+  let insertMenuMode = $state<
+    | { type: 'gutter'; linePos: number }
+    | { type: 'slash'; slashFrom: number; slashTo: number }
+  >({ type: 'gutter', linePos: 0 });
+
+  function handleShowGutterMenu(data: GutterMenuData | null): void {
+    if (data) {
+      insertMenuX = data.x;
+      insertMenuY = data.y;
+      insertMenuMode = { type: 'gutter', linePos: data.linePos };
+      insertMenuVisible = true;
+    } else {
+      insertMenuVisible = false;
+    }
+  }
+
+  function handleInsertMenuClose(): void {
+    insertMenuVisible = false;
+  }
+
   // Create editor config with content handle
   function createEditorConfig(
     handle: DocHandle<NoteContentDocument> | null,
@@ -121,6 +147,7 @@
   ): EditorConfig {
     return new EditorConfig({
       onWikilinkClick: handleWikilinkClick,
+      onShowGutterMenu: handleShowGutterMenu,
       placeholder: 'Start typing to create entry...',
       variant: 'daily-note',
       automergeSync: handle
@@ -467,6 +494,15 @@
       {/if}
     </div>
   {/if}
+
+  <InsertMenu
+    bind:visible={insertMenuVisible}
+    x={insertMenuX}
+    y={insertMenuY}
+    {editorView}
+    mode={insertMenuMode}
+    onClose={handleInsertMenuClose}
+  />
 </div>
 
 <style>
