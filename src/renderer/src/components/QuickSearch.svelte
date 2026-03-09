@@ -1033,13 +1033,34 @@
   }
 
   .workspace-bar-wrapper {
-    border-top: 1px solid var(--border-light);
     flex-shrink: 0;
+    margin-top: -3rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .workspace-bar-wrapper :global(.workspace-bar) {
+    background: transparent;
+    border-top: none;
+    mask-image: linear-gradient(to bottom, transparent, black 40%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%);
+  }
+
+  .workspace-bar-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    mask-image: linear-gradient(to bottom, transparent, black 40%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%);
+    z-index: -1;
   }
 
   .sidebar-items-wrapper {
     flex: 1;
     min-height: 0;
+    padding-bottom: 3rem;
   }
 
   /* Mobile: match shelf/chat panel styling */
