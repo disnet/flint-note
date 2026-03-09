@@ -565,30 +565,32 @@
                 </div>
               {/if}
             </div>
-            {#each systemViews as view (view.id)}
-              <button
-                class="nav-item"
-                class:active={activeSystemView === view.id}
-                onclick={() => handleSystemView(view.id)}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+            <div class="system-views-grid">
+              {#each systemViews as view (view.id)}
+                <button
+                  class="nav-item-card"
+                  class:active={activeSystemView === view.id}
+                  onclick={() => handleSystemView(view.id)}
                 >
-                  <path d={view.icon}></path>
-                </svg>
-                <span class="item-title">{view.label}</span>
-                {#if view.badge}
-                  <span class="badge">{view.badge}</span>
-                {/if}
-              </button>
-            {/each}
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d={view.icon}></path>
+                  </svg>
+                  <span class="card-label">{view.label}</span>
+                  {#if view.badge}
+                    <span class="card-badge">{view.badge}</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
           </div>
 
           {#if showSwipe}
@@ -898,6 +900,71 @@
     margin: 4px 0;
   }
 
+  .system-views-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 4px 12px 8px;
+  }
+
+  .nav-item-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  @media (hover: hover) {
+    .nav-item-card:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-medium, var(--border-light));
+    }
+  }
+
+  .nav-item-card:active {
+    background: var(--bg-hover);
+  }
+
+  .nav-item-card.active {
+    background: var(--accent-light);
+    color: var(--text-primary);
+    border-color: var(--accent-primary, var(--border-light));
+  }
+
+  .nav-item-card svg {
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .card-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-badge {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Search-filtered system views (simple list) */
   .nav-item {
     width: 100%;
     display: flex;
@@ -912,11 +979,6 @@
     cursor: pointer;
     text-align: left;
     transition: background 0.15s ease;
-  }
-
-  .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
   }
 
   .nav-item:active {
