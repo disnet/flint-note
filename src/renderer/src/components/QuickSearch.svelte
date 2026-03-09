@@ -80,44 +80,24 @@
 
   let inputElement = $state<HTMLInputElement | null>(null);
   let modalElement = $state<HTMLElement | null>(null);
-  let modalAnimating = $state(false);
   let swipeContainerEl = $state<HTMLElement | null>(null);
-  let swipeViewportEl = $state<HTMLElement | null>(null);
   let swipeCleanup: (() => void) | null = null;
-
-  let sidebarDragging = $state(false);
 
   // Swipe carousel state
   let swipeOffsetX = $state(0);
   let swipeTransition = $state(false);
-  let swipeLocked = $state(false);
+  let swipeLocked = false;
   let swipeDirection: 'left' | 'right' | null = null;
   let swipeCloneEl: HTMLElement | null = null;
   let originalWorkspaceId: string | null = null;
   let containerWidth = 0;
-  let swipeAnimationTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function clearSwipeTimer(): void {
-    if (swipeAnimationTimer !== null) {
-      clearTimeout(swipeAnimationTimer);
-      swipeAnimationTimer = null;
-    }
-  }
 
   function cleanupSwipeClone(): void {
-    clearSwipeTimer();
     swipeCloneEl?.remove();
     swipeCloneEl = null;
     swipeLocked = false;
     swipeDirection = null;
     originalWorkspaceId = null;
-    // Unlock viewport/container heights
-    if (swipeViewportEl) {
-      swipeViewportEl.style.height = '';
-    }
-    if (swipeContainerEl) {
-      swipeContainerEl.style.minHeight = '';
-    }
   }
 
   const isMobile = $derived(deviceState.useMobileLayout);
@@ -131,17 +111,6 @@
     }
   });
 
-  // Play open animation then clear it (animation creates a containing block
-  // that breaks position:fixed on descendants like context menus)
-  $effect(() => {
-    if (!isOpen) return;
-    modalAnimating = true;
-    const timer = setTimeout(() => {
-      modalAnimating = false;
-    }, 250);
-    return () => clearTimeout(timer);
-  });
-
   // Mobile swipe to switch workspaces — carousel style
   $effect(() => {
     if (!isOpen || !isMobile || !modalElement) return;
@@ -151,15 +120,15 @@
       modalElement,
       {
         onSwipeStart: () => {
-          // Clean up any leftover clone from a previous swipe
-          cleanupSwipeClone();
           swipeTransition = false;
           swipeOffsetX = 0;
+          swipeLocked = false;
+          swipeDirection = null;
           originalWorkspaceId = getActiveWorkspace()?.id ?? null;
           containerWidth = swipeContainerEl?.offsetWidth ?? 400;
         },
         onSwipeMove: (deltaX) => {
-          if (hasSearchQuery || sidebarDragging) return;
+          if (hasSearchQuery) return;
           const workspaces = getWorkspaces();
           if (workspaces.length <= 1) return;
 
@@ -188,16 +157,6 @@
             // Lock direction and set up carousel
             swipeLocked = true;
             swipeDirection = dir;
-
-            // Lock viewport height so content resize doesn't shift the modal
-            const lockedHeight = swipeViewportEl?.offsetHeight ?? 0;
-            if (swipeViewportEl) {
-              swipeViewportEl.style.height = `${lockedHeight}px`;
-            }
-            // Force swipe container to fill the locked height
-            if (swipeContainerEl) {
-              swipeContainerEl.style.minHeight = `${lockedHeight}px`;
-            }
 
             // Clone current content as the "outgoing" snapshot
             swipeCloneEl = swipeContainerEl.cloneNode(true) as HTMLElement;
@@ -249,7 +208,7 @@
             swipeCloneEl.style.transform = `translateX(${exitTarget}px)`;
             swipeTransition = true;
             swipeOffsetX = 0;
-            swipeAnimationTimer = setTimeout(() => cleanupSwipeClone(), 250);
+            setTimeout(() => cleanupSwipeClone(), 250);
           } else {
             // Snap back: animate both back, restore original workspace
             const returnTarget =
@@ -262,7 +221,7 @@
             if (originalWorkspaceId) {
               setActiveWorkspace(originalWorkspaceId);
             }
-            swipeAnimationTimer = setTimeout(() => {
+            setTimeout(() => {
               cleanupSwipeClone();
               swipeTransition = false;
               swipeOffsetX = 0;
@@ -270,31 +229,15 @@
           }
         },
         onSwipeCancel: () => {
-          if (swipeLocked && swipeCloneEl) {
-            // Animate both back to original positions before cleanup
-            const returnTarget =
-              swipeDirection === 'left' ? containerWidth : -containerWidth;
-            swipeCloneEl.style.transition = 'transform 0.25s ease-out';
-            swipeCloneEl.style.transform = 'translateX(0px)';
-            swipeTransition = true;
-            swipeOffsetX = returnTarget;
-
-            if (originalWorkspaceId) {
-              setActiveWorkspace(originalWorkspaceId);
-            }
-            swipeAnimationTimer = setTimeout(() => {
-              cleanupSwipeClone();
-              swipeTransition = false;
-              swipeOffsetX = 0;
-            }, 250);
-          } else {
-            // Never locked in, just reset
-            swipeTransition = true;
-            swipeOffsetX = 0;
+          if (swipeLocked && originalWorkspaceId) {
+            setActiveWorkspace(originalWorkspaceId);
           }
+          cleanupSwipeClone();
+          swipeTransition = true;
+          swipeOffsetX = 0;
         }
       },
-      { direction: 'horizontal', threshold: 30, directionLockThreshold: 15 }
+      { direction: 'horizontal', threshold: 30 }
     );
     return () => {
       cleanupSwipeClone();
@@ -504,11 +447,7 @@
     onkeydown={(e) => e.key === 'Escape' && onClose()}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="quick-search-modal"
-      class:animating={modalAnimating}
-      bind:this={modalElement}
-    >
+    <div class="quick-search-modal" bind:this={modalElement}>
       <div class="search-input-wrapper">
         <svg
           class="search-icon"
@@ -540,18 +479,11 @@
         {/if}
       </div>
 
-      <div
-        class="swipe-viewport"
-        class:swiping={swipeLocked || swipeTransition}
-        bind:this={swipeViewportEl}
-      >
+      <div class="swipe-viewport">
         <div
           class="swipe-container"
           class:swipe-transition={swipeTransition}
-          class:swiping={swipeLocked || swipeTransition}
-          style:transform={swipeOffsetX !== 0
-            ? `translateX(${swipeOffsetX}px)`
-            : undefined}
+          style:transform="translateX({swipeOffsetX}px)"
           bind:this={swipeContainerEl}
         >
           <div class="panel-content">
@@ -817,11 +749,7 @@
               </div>
 
               <div class="sidebar-items-wrapper">
-                <SidebarItems
-                  onItemSelect={handleSidebarItemSelect}
-                  disableTouchDrag={swipeLocked}
-                  bind:isTouchDragging={sidebarDragging}
-                />
+                <SidebarItems onItemSelect={handleSidebarItemSelect} />
               </div>
             {/if}
           </div>
@@ -855,13 +783,11 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 560px;
+    overflow: hidden;
+    animation: slideDown 0.15s ease-out;
     display: flex;
     flex-direction: column;
     max-height: 70vh;
-  }
-
-  .quick-search-modal.animating {
-    animation: slideDown 0.15s ease-out;
   }
 
   @keyframes slideDown {
@@ -877,14 +803,11 @@
 
   .swipe-viewport {
     position: relative;
+    overflow: hidden;
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-  }
-
-  .swipe-viewport.swiping {
-    overflow: hidden;
   }
 
   .swipe-container {
@@ -892,11 +815,8 @@
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    background: var(--bg-primary);
-  }
-
-  .swipe-container.swiping {
     will-change: transform;
+    background: var(--bg-primary);
   }
 
   .swipe-container.swipe-transition {
@@ -1222,12 +1142,8 @@
     .quick-search-modal {
       max-width: none;
       margin: 0 12px calc(12px + var(--safe-area-bottom, 0px));
-      height: calc(100vh - 100px);
-      max-height: none;
+      max-height: calc(100vh - 100px);
       border: 1px solid var(--border-light);
-    }
-
-    .quick-search-modal.animating {
       animation: slideUp 0.2s ease-out;
     }
 
