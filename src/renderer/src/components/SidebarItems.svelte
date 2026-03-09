@@ -4,7 +4,18 @@
    * Shows pinned and recent items (notes and conversations) in a single list with a separator
    * Dragging items above/below the separator pins/unpins them
    */
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
+  import type { Action } from 'svelte/action';
+
+  // Portal action: moves element to document.body so it escapes overflow/transform clipping
+  const portal: Action = (node) => {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  };
   import {
     getPinnedItems,
     getRecentItems,
@@ -180,7 +191,7 @@
     if (contextMenuOpen && contextMenuElement) {
       const rect = contextMenuElement.getBoundingClientRect();
       const padding = 8;
-      let { x, y } = contextMenuPosition;
+      let { x, y } = untrack(() => contextMenuPosition);
       let needsUpdate = false;
 
       // Adjust horizontal position if menu extends past right edge
@@ -1159,50 +1170,32 @@
   <div class="drag-zone"></div>
 </div>
 
-<!-- Context menu -->
+<!-- Context menu (portaled to body to escape overflow/transform clipping) -->
 {#if contextMenuOpen}
-  <!-- Backdrop to catch clicks outside menu -->
-  <div
-    class="context-menu-backdrop"
-    onclick={closeContextMenu}
-    oncontextmenu={(e) => {
-      e.preventDefault();
-      closeContextMenu();
-    }}
-    role="presentation"
-  ></div>
-  <div
-    bind:this={contextMenuElement}
-    class="context-menu"
-    style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
-    role="menu"
-  >
-    <!-- Pin/Unpin -->
-    <button class="context-menu-item" onclick={handlePinUnpin} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M12 17v5"></path>
-        <path
-          d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
-        ></path>
-        {#if contextMenuSection === 'pinned'}
-          <line x1="2" y1="2" x2="22" y2="22"></line>
-        {/if}
-      </svg>
-      <span class="menu-item-label"
-        >{contextMenuSection === 'pinned' ? 'Unpin' : 'Pin'}</span
-      >
-    </button>
-
-    <!-- Shelf toggle (for notes, conversations, and saved searches) -->
-    {#if contextMenuItemType === 'note' || contextMenuItemType === 'conversation' || contextMenuItemType === 'saved-search'}
-      <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
+  <div use:portal>
+    <!-- Backdrop to catch clicks outside menu -->
+    <div
+      class="context-menu-backdrop"
+      onclick={(e) => {
+        e.stopPropagation();
+        closeContextMenu();
+      }}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeContextMenu();
+      }}
+      role="presentation"
+    ></div>
+    <div
+      bind:this={contextMenuElement}
+      class="context-menu"
+      style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+      onclick={(e) => e.stopPropagation()}
+      role="menu"
+    >
+      <!-- Pin/Unpin -->
+      <button class="context-menu-item" onclick={handlePinUnpin} role="menuitem">
         <svg
           width="14"
           height="14"
@@ -1211,132 +1204,159 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
-        </svg>
-        <span class="menu-item-label">
-          {contextMenuItemOnShelf ? 'Remove from Shelf' : 'Add to Shelf'}
-        </span>
-      </button>
-    {/if}
-
-    <!-- Close (only for recent items) -->
-    {#if contextMenuSection === 'recent'}
-      <button class="context-menu-item" onclick={handleClose} role="menuitem">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-        <span class="menu-item-label">Close</span>
-      </button>
-    {/if}
-
-    <!-- Archive toggle (hide for already-archived saved searches) -->
-    {#if !(contextMenuItemType === 'saved-search' && contextMenuItemArchived)}
-      <button class="context-menu-item" onclick={handleArchive} role="menuitem">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="21 8 21 21 3 21 3 8"></polyline>
-          <rect x="1" y="3" width="22" height="5"></rect>
-          <line x1="10" y1="12" x2="14" y2="12"></line>
-        </svg>
-        <span class="menu-item-label">
-          {#if contextMenuItemType === 'saved-search'}
-            Delete
-          {:else}
-            {contextMenuItemArchived ? 'Unarchive' : 'Archive'}
+          <path d="M12 17v5"></path>
+          <path
+            d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+          ></path>
+          {#if contextMenuSection === 'pinned'}
+            <line x1="2" y1="2" x2="22" y2="22"></line>
           {/if}
-        </span>
+        </svg>
+        <span class="menu-item-label"
+          >{contextMenuSection === 'pinned' ? 'Unpin' : 'Pin'}</span
+        >
       </button>
-    {/if}
 
-    <!-- Review toggle (only for reviewable notes) -->
-    {#if contextMenuNoteReviewable}
-      <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-        </svg>
-        <span class="menu-item-label">
-          {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
-        </span>
-      </button>
-    {/if}
+      <!-- Shelf toggle (for notes, conversations, and saved searches) -->
+      {#if contextMenuItemType === 'note' || contextMenuItemType === 'conversation' || contextMenuItemType === 'saved-search'}
+        <button class="context-menu-item" onclick={handleToggleShelf} role="menuitem">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"
+            ></path>
+          </svg>
+          <span class="menu-item-label">
+            {contextMenuItemOnShelf ? 'Remove from Shelf' : 'Add to Shelf'}
+          </span>
+        </button>
+      {/if}
 
-    <!-- Move to workspace (only show if there are other workspaces) -->
-    {#if workspaces.length > 1}
-      <div class="context-menu-divider"></div>
-      <div
-        class="context-menu-item has-submenu"
-        role="menuitem"
-        tabindex="0"
-        onmouseenter={() => (workspaceSubmenuOpen = true)}
-        onmouseleave={() => (workspaceSubmenuOpen = false)}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M3 3h7v7H3z"></path>
-          <path d="M14 3h7v7h-7z"></path>
-          <path d="M14 14h7v7h-7z"></path>
-          <path d="M3 14h7v7H3z"></path>
-        </svg>
-        <span class="menu-item-label">Move to Workspace</span>
-        <svg
-          class="submenu-arrow"
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
+      <!-- Close (only for recent items) -->
+      {#if contextMenuSection === 'recent'}
+        <button class="context-menu-item" onclick={handleClose} role="menuitem">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+          <span class="menu-item-label">Close</span>
+        </button>
+      {/if}
 
-        <!-- Workspace submenu -->
-        {#if workspaceSubmenuOpen}
-          <div bind:this={submenuElement} class="context-submenu" role="menu">
-            {#each workspaces as workspace (workspace.id)}
-              {#if workspace.id !== activeWorkspace?.id}
-                <button
-                  class="context-menu-item"
-                  onclick={() => handleMoveToWorkspace(workspace.id)}
-                  role="menuitem"
-                >
-                  <span class="workspace-emoji">{workspace.icon || '📁'}</span>
-                  <span class="menu-item-label">{workspace.name}</span>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
+      <!-- Archive toggle (hide for already-archived saved searches) -->
+      {#if !(contextMenuItemType === 'saved-search' && contextMenuItemArchived)}
+        <button class="context-menu-item" onclick={handleArchive} role="menuitem">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="21 8 21 21 3 21 3 8"></polyline>
+            <rect x="1" y="3" width="22" height="5"></rect>
+            <line x1="10" y1="12" x2="14" y2="12"></line>
+          </svg>
+          <span class="menu-item-label">
+            {#if contextMenuItemType === 'saved-search'}
+              Delete
+            {:else}
+              {contextMenuItemArchived ? 'Unarchive' : 'Archive'}
+            {/if}
+          </span>
+        </button>
+      {/if}
+
+      <!-- Review toggle (only for reviewable notes) -->
+      {#if contextMenuNoteReviewable}
+        <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+          </svg>
+          <span class="menu-item-label">
+            {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
+          </span>
+        </button>
+      {/if}
+
+      <!-- Move to workspace (only show if there are other workspaces) -->
+      {#if workspaces.length > 1}
+        <div class="context-menu-divider"></div>
+        <div
+          class="context-menu-item has-submenu"
+          role="menuitem"
+          tabindex="0"
+          onmouseenter={() => (workspaceSubmenuOpen = true)}
+          onmouseleave={() => (workspaceSubmenuOpen = false)}
+          onclick={() => (workspaceSubmenuOpen = !workspaceSubmenuOpen)}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 3h7v7H3z"></path>
+            <path d="M14 3h7v7h-7z"></path>
+            <path d="M14 14h7v7h-7z"></path>
+            <path d="M3 14h7v7H3z"></path>
+          </svg>
+          <span class="menu-item-label">Move to Workspace</span>
+          <svg
+            class="submenu-arrow"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+
+          <!-- Workspace submenu -->
+          {#if workspaceSubmenuOpen}
+            <div bind:this={submenuElement} class="context-submenu" role="menu">
+              {#each workspaces as workspace (workspace.id)}
+                {#if workspace.id !== activeWorkspace?.id}
+                  <button
+                    class="context-menu-item"
+                    onclick={() => handleMoveToWorkspace(workspace.id)}
+                    role="menuitem"
+                  >
+                    <span class="workspace-emoji">{workspace.icon || '📁'}</span>
+                    <span class="menu-item-label">{workspace.name}</span>
+                  </button>
+                {/if}
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 {/if}
 
@@ -1616,15 +1636,15 @@
     color: var(--text-primary);
   }
 
-  /* Context menu styles */
-  .context-menu-backdrop {
+  /* Context menu styles — :global because the menu is portaled to document.body */
+  :global(.context-menu-backdrop) {
     position: fixed;
     inset: 0;
     z-index: 999;
     -webkit-app-region: no-drag;
   }
 
-  .context-menu {
+  :global(.context-menu) {
     position: fixed;
     z-index: 1000;
     background: var(--bg-primary);
@@ -1636,7 +1656,7 @@
     -webkit-app-region: no-drag;
   }
 
-  .context-menu-item {
+  :global(.context-menu-item) {
     width: 100%;
     display: flex;
     align-items: center;
@@ -1652,36 +1672,36 @@
     transition: background-color 0.15s ease;
   }
 
-  .context-menu-item:hover {
+  :global(.context-menu-item:hover) {
     background: var(--bg-secondary);
   }
 
-  .context-menu-item svg {
+  :global(.context-menu-item svg) {
     flex-shrink: 0;
     color: var(--text-secondary);
   }
 
-  .context-menu-divider {
+  :global(.context-menu-divider) {
     height: 1px;
     background: var(--border-light);
     margin: 0.25rem 0;
   }
 
-  .menu-item-label {
+  :global(.menu-item-label) {
     flex: 1;
   }
 
   /* Submenu styles */
-  .has-submenu {
+  :global(.has-submenu) {
     position: relative;
   }
 
-  .submenu-arrow {
+  :global(.submenu-arrow) {
     margin-left: auto;
     flex-shrink: 0;
   }
 
-  .context-submenu {
+  :global(.context-submenu) {
     position: absolute;
     left: 100%;
     top: 0;
@@ -1694,7 +1714,7 @@
     margin-left: 0.25rem;
   }
 
-  .workspace-emoji {
+  :global(.workspace-emoji) {
     font-size: 14px;
     line-height: 1;
   }
