@@ -695,7 +695,7 @@
 <style>
   .workspace-bar {
     border-top: 1px solid var(--border-light);
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     background: var(--bg-secondary);
     flex-shrink: 0;
     position: relative;
@@ -748,26 +748,24 @@
     justify-content: center;
     width: 2rem;
     height: 2rem;
+    min-width: var(--touch-target-min, 2rem);
+    min-height: var(--touch-target-min, 2rem);
     padding: 0;
-    border: 2px solid transparent;
+    border: none;
     border-radius: 0.5rem;
     background: transparent;
     font-size: 1rem;
     cursor: grab;
-    transition:
-      background-color 0.2s ease,
-      border-color 0.2s ease;
+    transition: background-color 0.2s ease;
     user-select: none;
   }
 
   .workspace-icon:hover {
     background: var(--bg-primary);
-    border-color: var(--border-medium);
   }
 
   .workspace-icon.active {
-    border-color: var(--accent-primary);
-    background: var(--accent-light);
+    background: var(--bg-hover);
   }
 
   .workspace-icon.dragging {
