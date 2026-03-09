@@ -8,7 +8,6 @@
   import SidebarItems from './SidebarItems.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import { scrollable } from '../lib/scrollable.svelte';
-  import { createSwipeHandler } from '../lib/gestures.svelte';
   import { deviceState } from '../stores/deviceState.svelte';
   import {
     getActiveSystemView,
@@ -18,9 +17,6 @@
     getRoutinesDueNow,
     updateVaultInState,
     isLegacyVault,
-    getWorkspaces,
-    getActiveWorkspace,
-    setActiveWorkspace,
     type SidebarItem,
     type SystemView,
     type NoteMetadata,
@@ -79,26 +75,6 @@
   }: Props = $props();
 
   let inputElement = $state<HTMLInputElement | null>(null);
-  let modalElement = $state<HTMLElement | null>(null);
-  let swipeContainerEl = $state<HTMLElement | null>(null);
-  let swipeCleanup: (() => void) | null = null;
-
-  // Swipe carousel state
-  let swipeOffsetX = $state(0);
-  let swipeTransition = $state(false);
-  let swipeLocked = false;
-  let swipeDirection: 'left' | 'right' | null = null;
-  let swipeCloneEl: HTMLElement | null = null;
-  let originalWorkspaceId: string | null = null;
-  let containerWidth = 0;
-
-  function cleanupSwipeClone(): void {
-    swipeCloneEl?.remove();
-    swipeCloneEl = null;
-    swipeLocked = false;
-    swipeDirection = null;
-    originalWorkspaceId = null;
-  }
 
   const isMobile = $derived(deviceState.useMobileLayout);
 
@@ -109,141 +85,6 @@
         inputElement?.focus();
       }, 10);
     }
-  });
-
-  // Mobile swipe to switch workspaces — carousel style
-  $effect(() => {
-    if (!isOpen || !isMobile || !modalElement) return;
-
-    swipeCleanup?.();
-    swipeCleanup = createSwipeHandler(
-      modalElement,
-      {
-        onSwipeStart: () => {
-          swipeTransition = false;
-          swipeOffsetX = 0;
-          swipeLocked = false;
-          swipeDirection = null;
-          originalWorkspaceId = getActiveWorkspace()?.id ?? null;
-          containerWidth = swipeContainerEl?.offsetWidth ?? 400;
-        },
-        onSwipeMove: (deltaX) => {
-          if (hasSearchQuery) return;
-          const workspaces = getWorkspaces();
-          if (workspaces.length <= 1) return;
-
-          if (!swipeLocked) {
-            // Not committed yet — check if we've moved enough to lock in
-            if (Math.abs(deltaX) < 15) {
-              swipeOffsetX = deltaX * 0.3;
-              return;
-            }
-
-            // Determine direction and check neighbor exists
-            const dir: 'left' | 'right' = deltaX < 0 ? 'left' : 'right';
-            const current = getActiveWorkspace();
-            if (!current) return;
-            const idx = workspaces.findIndex((w) => w.id === current.id);
-            const hasNeighbor =
-              (dir === 'left' && idx < workspaces.length - 1) ||
-              (dir === 'right' && idx > 0);
-
-            if (!hasNeighbor || !swipeContainerEl) {
-              // At the edge — rubber-band only
-              swipeOffsetX = deltaX * 0.15;
-              return;
-            }
-
-            // Lock direction and set up carousel
-            swipeLocked = true;
-            swipeDirection = dir;
-
-            // Clone current content as the "outgoing" snapshot
-            swipeCloneEl = swipeContainerEl.cloneNode(true) as HTMLElement;
-            swipeCloneEl.style.position = 'absolute';
-            swipeCloneEl.style.top = '0';
-            swipeCloneEl.style.left = '0';
-            swipeCloneEl.style.right = '0';
-            swipeCloneEl.style.bottom = '0';
-            swipeCloneEl.style.pointerEvents = 'none';
-            swipeCloneEl.style.zIndex = '1';
-            swipeContainerEl.parentElement!.appendChild(swipeCloneEl);
-
-            // Switch workspace so real container shows neighbor
-            const neighborIdx = dir === 'left' ? idx + 1 : idx - 1;
-            setActiveWorkspace(workspaces[neighborIdx].id);
-          }
-
-          if (swipeLocked && swipeCloneEl) {
-            // Carousel: clone (outgoing) and real container (incoming) slide together
-            // Clone starts at 0, real content starts at ±containerWidth
-            swipeCloneEl.style.transform = `translateX(${deltaX}px)`;
-            if (swipeDirection === 'left') {
-              // Dragging left: incoming content is to the right
-              swipeOffsetX = containerWidth + deltaX;
-            } else {
-              // Dragging right: incoming content is to the left
-              swipeOffsetX = -containerWidth + deltaX;
-            }
-          }
-        },
-        onSwipeEnd: (direction) => {
-          if (!swipeLocked || !swipeCloneEl) {
-            // Never locked in — just snap back
-            swipeTransition = true;
-            swipeOffsetX = 0;
-            return;
-          }
-
-          const completed =
-            direction !== null &&
-            ((swipeDirection === 'left' && direction === 'left') ||
-              (swipeDirection === 'right' && direction === 'right'));
-
-          if (completed) {
-            // Animate to final positions: clone exits, real content settles at 0
-            const exitTarget =
-              swipeDirection === 'left' ? -containerWidth : containerWidth;
-            swipeCloneEl.style.transition = 'transform 0.25s ease-out';
-            swipeCloneEl.style.transform = `translateX(${exitTarget}px)`;
-            swipeTransition = true;
-            swipeOffsetX = 0;
-            setTimeout(() => cleanupSwipeClone(), 250);
-          } else {
-            // Snap back: animate both back, restore original workspace
-            const returnTarget =
-              swipeDirection === 'left' ? containerWidth : -containerWidth;
-            swipeCloneEl.style.transition = 'transform 0.25s ease-out';
-            swipeCloneEl.style.transform = 'translateX(0px)';
-            swipeTransition = true;
-            swipeOffsetX = returnTarget;
-
-            if (originalWorkspaceId) {
-              setActiveWorkspace(originalWorkspaceId);
-            }
-            setTimeout(() => {
-              cleanupSwipeClone();
-              swipeTransition = false;
-              swipeOffsetX = 0;
-            }, 250);
-          }
-        },
-        onSwipeCancel: () => {
-          if (swipeLocked && originalWorkspaceId) {
-            setActiveWorkspace(originalWorkspaceId);
-          }
-          cleanupSwipeClone();
-          swipeTransition = true;
-          swipeOffsetX = 0;
-        }
-      },
-      { direction: 'horizontal', threshold: 30 }
-    );
-    return () => {
-      cleanupSwipeClone();
-      swipeCleanup?.();
-      swipeCleanup = null;
-    };
   });
 
   // Detect platform for shortcut display
@@ -401,13 +242,10 @@
     }
   }
 
-  // Reset state when modal closes
+  // Close vault dropdown when modal closes
   $effect(() => {
     if (!isOpen) {
       isVaultDropdownOpen = false;
-      cleanupSwipeClone();
-      swipeOffsetX = 0;
-      swipeTransition = false;
     }
   });
 
@@ -447,7 +285,7 @@
     onkeydown={(e) => e.key === 'Escape' && onClose()}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="quick-search-modal" bind:this={modalElement}>
+    <div class="quick-search-modal">
       <div class="search-input-wrapper">
         <svg
           class="search-icon"
@@ -479,250 +317,31 @@
         {/if}
       </div>
 
-      <div class="swipe-viewport">
-        <div
-          class="swipe-container"
-          class:swipe-transition={swipeTransition}
-          style:transform="translateX({swipeOffsetX}px)"
-          bind:this={swipeContainerEl}
-        >
-          <div class="panel-content">
-            {#if hasSearchQuery && searchResults.length > 0}
-              <!-- Search results mode -->
-              <div class="search-results-scroll scrollable" use:scrollable>
-                <SearchResults
-                  results={searchResults}
-                  onSelect={handleResultSelect}
-                  maxResults={8}
-                  selectedIndex={selectedSearchIndex}
-                  isLoading={isSearchingContent}
-                  showKeyboardHints={!isMobile}
-                />
-                {#if searchResults.length > 8}
-                  <button class="view-all-btn" onclick={handleViewAll}>
-                    View all {searchResults.length} results
-                  </button>
-                {/if}
-              </div>
-            {:else if hasSearchQuery}
-              <!-- Search with no note results — show filtered system views -->
-              <div class="search-results-scroll scrollable" use:scrollable>
-                {#if filteredSystemViews.length > 0}
-                  <div class="section">
-                    <div class="section-header">Views</div>
-                    {#each filteredSystemViews as view (view.id)}
-                      <button
-                        class="nav-item"
-                        class:active={activeSystemView === view.id}
-                        onclick={() => handleSystemView(view.id)}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d={view.icon}></path>
-                        </svg>
-                        <span class="item-title">{view.label}</span>
-                        {#if view.badge}
-                          <span class="badge">{view.badge}</span>
-                        {/if}
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-                {#if filteredSystemViews.length === 0}
-                  <div class="no-results">No results for "{searchQuery}"</div>
-                {/if}
-              </div>
-            {:else}
-              <!-- Default: system views + full SidebarItems with drag/drop + workspaces -->
+      <div class="panel-content">
+        {#if hasSearchQuery && searchResults.length > 0}
+          <!-- Search results mode -->
+          <div class="search-results-scroll scrollable" use:scrollable>
+            <SearchResults
+              results={searchResults}
+              onSelect={handleResultSelect}
+              maxResults={8}
+              selectedIndex={selectedSearchIndex}
+              isLoading={isSearchingContent}
+              showKeyboardHints={!isMobile}
+            />
+            {#if searchResults.length > 8}
+              <button class="view-all-btn" onclick={handleViewAll}>
+                View all {searchResults.length} results
+              </button>
+            {/if}
+          </div>
+        {:else if hasSearchQuery}
+          <!-- Search with no note results — show filtered system views -->
+          <div class="search-results-scroll scrollable" use:scrollable>
+            {#if filteredSystemViews.length > 0}
               <div class="section">
-                <div class="section-header">
-                  <span>Views</span>
-                  {#if showVaultSwitcher}
-                    <div class="vault-switcher-inline">
-                      <button
-                        class="vault-switch-btn"
-                        onclick={() => (isVaultDropdownOpen = !isVaultDropdownOpen)}
-                      >
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <path
-                            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
-                          />
-                        </svg>
-                        <span>{activeVault?.name || 'Vault'}</span>
-                        <svg
-                          class="vault-chevron"
-                          class:rotated={isVaultDropdownOpen}
-                          width="10"
-                          height="10"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <path d="m6 9 6 6 6-6" />
-                        </svg>
-                      </button>
-                      {#if isVaultDropdownOpen}
-                        <div class="vault-dropdown-inline">
-                          {#each vaults as vault (vault.id)}
-                            <div
-                              class="vault-item-row"
-                              class:legacy={isLegacyVault(vault)}
-                            >
-                              {#if editingVaultId === vault.id}
-                                <div class="vault-dropdown-item editing">
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                  >
-                                    <path
-                                      d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
-                                    />
-                                  </svg>
-                                  <!-- svelte-ignore a11y_autofocus -->
-                                  <input
-                                    type="text"
-                                    class="vault-name-input"
-                                    bind:value={editingVaultName}
-                                    onkeydown={(e) => handleVaultNameKeyDown(e, vault.id)}
-                                    onblur={() => handleSaveVaultName(vault.id)}
-                                    autofocus
-                                  />
-                                </div>
-                              {:else}
-                                <button
-                                  class="vault-dropdown-item"
-                                  class:active={activeVault?.id === vault.id}
-                                  class:legacy={isLegacyVault(vault)}
-                                  onclick={() => handleVaultSelect(vault.id)}
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                  >
-                                    <path
-                                      d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
-                                    />
-                                  </svg>
-                                  <span class="vault-item-name">{vault.name}</span>
-                                  {#if isLegacyVault(vault)}
-                                    <span class="legacy-badge">Import</span>
-                                  {/if}
-                                </button>
-                              {/if}
-                              {#if !isLegacyVault(vault) && editingVaultId !== vault.id}
-                                <button
-                                  class="vault-action-btn"
-                                  onclick={(e) => handleStartEditVault(vault, e)}
-                                  title="Rename vault"
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                  >
-                                    <path
-                                      d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
-                                    />
-                                    <path d="m15 5 4 4" />
-                                  </svg>
-                                </button>
-                                <button
-                                  class="vault-action-btn"
-                                  onclick={(e) => handleArchiveVault(vault, e)}
-                                  title="Archive vault"
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                  >
-                                    <rect width="20" height="5" x="2" y="3" rx="1" />
-                                    <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                                    <path d="m9.5 11 5 0" />
-                                  </svg>
-                                </button>
-                              {/if}
-                            </div>
-                          {/each}
-
-                          <div class="vault-dropdown-separator"></div>
-
-                          <button
-                            class="vault-dropdown-item new-vault"
-                            onclick={handleCreateVault}
-                          >
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                            >
-                              <path d="M12 5v14" />
-                              <path d="m5 12 14 0" />
-                            </svg>
-                            <span>New Vault</span>
-                          </button>
-
-                          {#if isCloudAuthenticated()}
-                            <button
-                              class="vault-dropdown-item new-vault"
-                              onclick={handleSyncFromCloud}
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                              >
-                                <path
-                                  d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"
-                                />
-                                <path d="M12 12v9" />
-                                <path d="m8 17 4 4 4-4" />
-                              </svg>
-                              <span>Sync from Cloud</span>
-                            </button>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-                {#each systemViews as view (view.id)}
+                <div class="section-header">Views</div>
+                {#each filteredSystemViews as view (view.id)}
                   <button
                     class="nav-item"
                     class:active={activeSystemView === view.id}
@@ -747,20 +366,227 @@
                   </button>
                 {/each}
               </div>
-
-              <div class="sidebar-items-wrapper">
-                <SidebarItems onItemSelect={handleSidebarItemSelect} />
-              </div>
+            {/if}
+            {#if filteredSystemViews.length === 0}
+              <div class="no-results">No results for "{searchQuery}"</div>
             {/if}
           </div>
+        {:else}
+          <!-- Default: system views + full SidebarItems with drag/drop + workspaces -->
+          <div class="section">
+            <div class="section-header">
+              <span>Views</span>
+              {#if showVaultSwitcher}
+                <div class="vault-switcher-inline">
+                  <button
+                    class="vault-switch-btn"
+                    onclick={() => (isVaultDropdownOpen = !isVaultDropdownOpen)}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                      />
+                    </svg>
+                    <span>{activeVault?.name || 'Vault'}</span>
+                    <svg
+                      class="vault-chevron"
+                      class:rotated={isVaultDropdownOpen}
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  {#if isVaultDropdownOpen}
+                    <div class="vault-dropdown-inline">
+                      {#each vaults as vault (vault.id)}
+                        <div class="vault-item-row" class:legacy={isLegacyVault(vault)}>
+                          {#if editingVaultId === vault.id}
+                            <div class="vault-dropdown-item editing">
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                                />
+                              </svg>
+                              <!-- svelte-ignore a11y_autofocus -->
+                              <input
+                                type="text"
+                                class="vault-name-input"
+                                bind:value={editingVaultName}
+                                onkeydown={(e) => handleVaultNameKeyDown(e, vault.id)}
+                                onblur={() => handleSaveVaultName(vault.id)}
+                                autofocus
+                              />
+                            </div>
+                          {:else}
+                            <button
+                              class="vault-dropdown-item"
+                              class:active={activeVault?.id === vault.id}
+                              class:legacy={isLegacyVault(vault)}
+                              onclick={() => handleVaultSelect(vault.id)}
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                                />
+                              </svg>
+                              <span class="vault-item-name">{vault.name}</span>
+                              {#if isLegacyVault(vault)}
+                                <span class="legacy-badge">Import</span>
+                              {/if}
+                            </button>
+                          {/if}
+                          {#if !isLegacyVault(vault) && editingVaultId !== vault.id}
+                            <button
+                              class="vault-action-btn"
+                              onclick={(e) => handleStartEditVault(vault, e)}
+                              title="Rename vault"
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <path
+                                  d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                                />
+                                <path d="m15 5 4 4" />
+                              </svg>
+                            </button>
+                            <button
+                              class="vault-action-btn"
+                              onclick={(e) => handleArchiveVault(vault, e)}
+                              title="Archive vault"
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                              >
+                                <rect width="20" height="5" x="2" y="3" rx="1" />
+                                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                                <path d="m9.5 11 5 0" />
+                              </svg>
+                            </button>
+                          {/if}
+                        </div>
+                      {/each}
 
-          {#if !hasSearchQuery}
-            <div class="workspace-bar-wrapper">
-              <WorkspaceBar {onCreateNote} {onCreateDeck} {onCaptureWebpage} />
+                      <div class="vault-dropdown-separator"></div>
+
+                      <button
+                        class="vault-dropdown-item new-vault"
+                        onclick={handleCreateVault}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path d="M12 5v14" />
+                          <path d="m5 12 14 0" />
+                        </svg>
+                        <span>New Vault</span>
+                      </button>
+
+                      {#if isCloudAuthenticated()}
+                        <button
+                          class="vault-dropdown-item new-vault"
+                          onclick={handleSyncFromCloud}
+                        >
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <path
+                              d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"
+                            />
+                            <path d="M12 12v9" />
+                            <path d="m8 17 4 4 4-4" />
+                          </svg>
+                          <span>Sync from Cloud</span>
+                        </button>
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
-          {/if}
-        </div>
+            {#each systemViews as view (view.id)}
+              <button
+                class="nav-item"
+                class:active={activeSystemView === view.id}
+                onclick={() => handleSystemView(view.id)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d={view.icon}></path>
+                </svg>
+                <span class="item-title">{view.label}</span>
+                {#if view.badge}
+                  <span class="badge">{view.badge}</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+
+          <div class="sidebar-items-wrapper">
+            <SidebarItems onItemSelect={handleSidebarItemSelect} />
+          </div>
+        {/if}
       </div>
+
+      {#if !hasSearchQuery}
+        <div class="workspace-bar-wrapper">
+          <WorkspaceBar {onCreateNote} {onCreateDeck} {onCaptureWebpage} />
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -799,28 +625,6 @@
       opacity: 1;
       transform: translateY(0) scale(1);
     }
-  }
-
-  .swipe-viewport {
-    position: relative;
-    overflow: hidden;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .swipe-container {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    will-change: transform;
-    background: var(--bg-primary);
-  }
-
-  .swipe-container.swipe-transition {
-    transition: transform 0.25s ease-out;
   }
 
   .search-input-wrapper {
