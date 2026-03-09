@@ -53,14 +53,16 @@
     e.preventDefault();
   }
 
-  // Calculate final position avoiding viewport edges
-  const toolbarWidth = 240;
-  const toolbarHeight = 40;
+  // Measure the actual toolbar element for accurate positioning
+  let toolbarEl = $state<HTMLDivElement | null>(null);
   const padding = 8;
   const gap = 8;
 
   const position = $derived.by(() => {
     if (!visible || !selectionRect) return { x: 0, y: 0 };
+
+    const toolbarWidth = toolbarEl?.offsetWidth ?? 240;
+    const toolbarHeight = toolbarEl?.offsetHeight ?? 40;
 
     let finalX = x - toolbarWidth / 2; // Center on selection
     let finalY = selectionRect.top - toolbarHeight - gap; // Above selection
@@ -90,6 +92,7 @@
 
 {#if visible}
   <div
+    bind:this={toolbarEl}
     class="selection-toolbar"
     class:touch={useTouchInteractions()}
     style="left: {position.x}px; top: {position.y}px;"

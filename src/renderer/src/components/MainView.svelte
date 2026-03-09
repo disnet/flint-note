@@ -83,7 +83,7 @@
   import DailyView from './DailyView.svelte';
   import FABMenu from './FABMenu.svelte';
   import MobileFAB from './MobileFAB.svelte';
-  import KeyboardControlPanel from './KeyboardControlPanel.svelte';
+
   import ChatPanelWeb from './ChatPanelWeb.svelte';
   import ShelfPanel from './ShelfPanel.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
@@ -1974,7 +1974,7 @@
     showMoreMenu={!!activeNote}
     hidden={chatPanelOpen || shelfPanelOpen}
   />
-  <KeyboardControlPanel hidden={chatPanelOpen || shelfPanelOpen} />
+  <!-- Mobile formatting is now handled by the inline toolbar CM extension -->
 {/if}
 
 <!-- Floating panels (only when not expanded) -->

@@ -188,27 +188,37 @@
   }
 
   // Calculate position avoiding viewport edges
-  const menuWidth = 250;
-  const menuMaxHeight = 300;
   const padding = 8;
 
   const position = $derived.by(() => {
     if (!visible) return { x: 0, y: 0 };
 
+    const isTouch = useTouchInteractions();
+    const menuWidth = isTouch ? 280 : 250;
+    const menuMaxHeight = isTouch ? 350 : 300;
+
+    // Use visual viewport when available (handles mobile keyboard)
+    const vpWidth = window.visualViewport?.width ?? window.innerWidth;
+    const vpHeight = window.visualViewport?.height ?? window.innerHeight;
+    const vpOffsetLeft = window.visualViewport?.offsetLeft ?? 0;
+    const vpOffsetTop = window.visualViewport?.offsetTop ?? 0;
+
     let finalX = x;
     let finalY = y;
 
-    // Keep within horizontal bounds
-    if (finalX + menuWidth > window.innerWidth - padding) {
-      finalX = window.innerWidth - menuWidth - padding;
+    // Keep within horizontal bounds of the visual viewport
+    const rightEdge = vpOffsetLeft + vpWidth;
+    if (finalX + menuWidth > rightEdge - padding) {
+      finalX = rightEdge - menuWidth - padding;
     }
-    if (finalX < padding) finalX = padding;
+    if (finalX < vpOffsetLeft + padding) finalX = vpOffsetLeft + padding;
 
-    // Keep within vertical bounds
-    if (finalY + menuMaxHeight > window.innerHeight - padding) {
-      finalY = window.innerHeight - menuMaxHeight - padding;
+    // Keep within vertical bounds of the visual viewport
+    const bottomEdge = vpOffsetTop + vpHeight;
+    if (finalY + menuMaxHeight > bottomEdge - padding) {
+      finalY = bottomEdge - menuMaxHeight - padding;
     }
-    if (finalY < padding) finalY = padding;
+    if (finalY < vpOffsetTop + padding) finalY = vpOffsetTop + padding;
 
     return { x: finalX, y: finalY };
   });

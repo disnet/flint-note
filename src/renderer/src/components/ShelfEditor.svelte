@@ -910,7 +910,7 @@
       onLinkCreated: handleMarkdownLinkEdit,
       onShowSelectionToolbar: handleShowSelectionToolbar,
       onShowSlashMenu: handleShowSlashMenu,
-      onShowGutterMenu: deviceState.useMobileLayout ? undefined : handleShowGutterMenu,
+      onShowGutterMenu: handleShowGutterMenu,
       automergeSync: handle
         ? {
             handle: handle,

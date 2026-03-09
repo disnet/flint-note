@@ -57,6 +57,8 @@ import {
   type GutterMenuData,
   type GutterMenuHandler
 } from './gutter-plus-button.svelte';
+import { inlineToolbarExtension } from './inline-toolbar-extension.svelte';
+import { useMobileLayout } from '../../stores/deviceState.svelte';
 import { automergeSyncPlugin } from '@automerge/automerge-codemirror';
 import type { DocHandle } from '@automerge/automerge-repo';
 import type { NotesDocument } from './types';
@@ -264,9 +266,13 @@ export class EditorConfig {
       ...(this.options.onShowSelectionToolbar
         ? [selectionToolbarExtension(this.options.onShowSelectionToolbar)]
         : []),
-      // Gutter plus button extension
-      ...(this.options.onShowGutterMenu
+      // Gutter plus button extension (desktop only — mobile uses inline toolbar)
+      ...(this.options.onShowGutterMenu && !useMobileLayout()
         ? [gutterPlusButtonExtension(this.options.onShowGutterMenu)]
+        : []),
+      // Inline floating toolbar for mobile (replaces KeyboardControlPanel)
+      ...(useMobileLayout()
+        ? [inlineToolbarExtension(this.options.onShowGutterMenu)]
         : []),
       EditorView.contentAttributes.of({
         spellcheck: 'true',
