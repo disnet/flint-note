@@ -300,6 +300,11 @@ const CURSOR_X_KEY = '__inlineToolbarCursorX';
  *
  * Reads the cached cursor x from the DOM element (set during CM's read phase
  * via getCoords) so each editor instance tracks its own value.
+ *
+ * cursorX is in viewport coordinates (from coordsAtPos), but the tooltip's
+ * `left` style is relative to its offset parent. We convert viewport bounds
+ * to parent-relative coords so clamping works correctly even when the editor
+ * is inside a transformed container (e.g. mobile drawer layout).
  */
 function clampTooltipHorizontally(dom: HTMLElement): void {
   const cursorX = (dom as unknown as Record<string, unknown>)[CURSOR_X_KEY] as
@@ -309,11 +314,21 @@ function clampTooltipHorizontally(dom: HTMLElement): void {
 
   const w = dom.offsetWidth;
   const padding = 8;
-  const vw = window.innerWidth;
 
-  // Center on actual cursor position, then clamp to viewport
-  let targetLeft = cursorX - w / 2;
-  targetLeft = Math.max(padding, Math.min(targetLeft, vw - w - padding));
+  // The tooltip is positioned relative to its offset parent, so we need
+  // to convert viewport coordinates to parent-relative coordinates.
+  const parent = dom.offsetParent as HTMLElement | null;
+  const parentLeft = parent?.getBoundingClientRect().left ?? 0;
+
+  // Convert cursor position from viewport to parent-relative coords
+  const cursorRelX = cursorX - parentLeft;
+
+  // Viewport edges in parent-relative coords
+  const minLeft = padding - parentLeft;
+  const maxLeft = window.innerWidth - w - padding - parentLeft;
+
+  let targetLeft = cursorRelX - w / 2;
+  targetLeft = Math.max(minLeft, Math.min(targetLeft, maxLeft));
 
   dom.style.left = `${targetLeft}px`;
 }

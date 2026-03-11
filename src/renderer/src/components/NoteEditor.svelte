@@ -39,6 +39,7 @@
   } from '../lib/automerge/markdown-links.svelte';
   import { isElectron } from '../lib/platform.svelte';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
+  import { portal } from '../lib/portal.svelte';
   import NoteHeader from './NoteHeader.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
   import WikilinkEditPopover from './WikilinkEditPopover.svelte';
@@ -1428,24 +1429,27 @@
   />
 </div>
 
-<!-- Selection Toolbar -->
-<SelectionToolbar
-  bind:visible={selectionToolbarVisible}
-  x={selectionToolbarX}
-  selectionRect={selectionToolbarRect}
-  onFormat={handleSelectionFormat}
-  onClose={handleSelectionToolbarClose}
-/>
+<!-- Floating UI elements - portaled to body to escape transformed containers -->
+<div use:portal>
+  <!-- Selection Toolbar -->
+  <SelectionToolbar
+    bind:visible={selectionToolbarVisible}
+    x={selectionToolbarX}
+    selectionRect={selectionToolbarRect}
+    onFormat={handleSelectionFormat}
+    onClose={handleSelectionToolbarClose}
+  />
 
-<!-- Insert Menu (for slash commands and gutter button) -->
-<InsertMenu
-  bind:visible={insertMenuVisible}
-  x={insertMenuX}
-  y={insertMenuY}
-  {editorView}
-  mode={insertMenuMode}
-  onClose={handleInsertMenuClose}
-/>
+  <!-- Insert Menu (for slash commands and gutter button) -->
+  <InsertMenu
+    bind:visible={insertMenuVisible}
+    x={insertMenuX}
+    y={insertMenuY}
+    {editorView}
+    mode={insertMenuMode}
+    onClose={handleInsertMenuClose}
+  />
+</div>
 
 <style>
   .note-editor {
