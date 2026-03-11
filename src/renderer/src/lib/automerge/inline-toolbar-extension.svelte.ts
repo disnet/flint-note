@@ -188,6 +188,17 @@ function buildCompactToolbar(
     }
   });
 
+  // [[ button — insert wikilink and trigger autocomplete
+  const wikilinkBtn = createTextButton('Wikilink', '[[', 'style-btn mono', () => {
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: pos, to: pos, insert: '[[' },
+      selection: { anchor: pos + 2 },
+      annotations: Transaction.userEvent.of('input')
+    });
+    startCompletion(view);
+  });
+
   // Aa button (inline styles)
   const styleBtn = createTextButton('Style', 'Aa', 'style-btn', () => {
     view.dispatch({ effects: setToolbarMode.of('styles') });
@@ -195,6 +206,7 @@ function buildCompactToolbar(
 
   container.appendChild(plusBtn);
   container.appendChild(styleBtn);
+  container.appendChild(wikilinkBtn);
 }
 
 /**
@@ -363,7 +375,11 @@ function createToolbarTooltip(
           const coords = view.coordsAtPos(pos);
           if (coords)
             (dom as unknown as Record<string, unknown>)[CURSOR_X_KEY] = coords.left;
-          return coords ?? { left: 0, right: 0, top: 0, bottom: 0 };
+          // Shift down a bit so the toolbar doesn't sit right against the cursor line
+          const offset = 4;
+          return coords
+            ? { ...coords, bottom: coords.bottom + offset }
+            : { left: 0, right: 0, top: 0, bottom: 0 };
         },
         update: (update) => {
           // Keep view ref current for getCoords
@@ -398,7 +414,7 @@ function injectGlobalStyle(): void {
   style.id = 'cm-inline-toolbar-style';
   style.textContent = `
     .cm-tooltip.cm-inline-toolbar {
-      background: color-mix(in srgb, #ffffff 85%, transparent) !important;
+      background: color-mix(in srgb, #ffffff 45%, transparent) !important;
       backdrop-filter: blur(12px) !important;
       -webkit-backdrop-filter: blur(12px) !important;
       border: 1px solid var(--border-light) !important;
@@ -408,7 +424,7 @@ function injectGlobalStyle(): void {
     }
     @media (prefers-color-scheme: dark) {
       .cm-tooltip.cm-inline-toolbar {
-        background: color-mix(in srgb, var(--bg-elevated) 85%, transparent) !important;
+        background: color-mix(in srgb, var(--bg-elevated) 45%, transparent) !important;
       }
     }
   `;
