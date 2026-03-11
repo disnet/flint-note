@@ -102,17 +102,13 @@
         }
       }
 
-      editorView.dispatch({
-        changes: { from: insertPos, to: replaceEnd, insert: command.insert }
-      });
+      // Calculate cursor position: end of inserted text, adjusted by cursorOffset if specified
+      const cursorPos = insertPos + command.insert.length + (command.cursorOffset ?? 0);
 
-      // Position cursor if specified
-      if (command.cursorOffset !== undefined) {
-        const newPos = insertPos + command.insert.length + command.cursorOffset;
-        editorView.dispatch({
-          selection: { anchor: newPos }
-        });
-      }
+      editorView.dispatch({
+        changes: { from: insertPos, to: replaceEnd, insert: command.insert },
+        selection: { anchor: cursorPos }
+      });
 
       editorView.focus();
     }
