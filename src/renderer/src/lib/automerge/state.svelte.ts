@@ -583,6 +583,12 @@ export async function initializeState(vaultId?: string): Promise<void> {
         syncMissingConversations(currentVaultId).catch((error) => {
           console.error('[CloudFileSync] Background conversation sync failed:', error);
         });
+        // Re-register all content docs to catch any created while offline
+        if (rawDoc.contentUrls) {
+          registerAllContentDocs(currentVaultId, rawDoc.contentUrls).catch((error) => {
+            console.error('[CloudSync] Failed to re-register content docs:', error);
+          });
+        }
       }
     });
 
