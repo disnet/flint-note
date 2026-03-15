@@ -342,6 +342,7 @@ export async function registerVaultForSync(
   vaultName?: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (!userDid) return { ok: false, error: 'Not authenticated' };
+  if (!navigator.onLine) return { ok: false, error: 'Offline' };
 
   try {
     const res = await fetch(`${SYNC_SERVER_URL}/api/vaults/register`, {
@@ -375,6 +376,7 @@ export async function registerContentDocForSync(
   vaultId: string
 ): Promise<boolean> {
   if (!userDid) return false;
+  if (!navigator.onLine) return false;
 
   try {
     const res = await fetch(`${SYNC_SERVER_URL}/api/documents/register`, {
@@ -398,6 +400,7 @@ export async function registerContentDocsBatch(
   docs: Array<{ docUrl: string; vaultId: string }>
 ): Promise<boolean> {
   if (!userDid) return false;
+  if (!navigator.onLine) return false;
 
   try {
     const res = await fetch(`${SYNC_SERVER_URL}/api/documents/register-batch`, {
