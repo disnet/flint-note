@@ -93,9 +93,17 @@ import {
   getContentHandle,
   findContentHandle,
   clearContentCache,
+  removeFromContentCache,
+  getCachedContentHandle,
+  signalContentDocChanged,
   getContentDocResolvedVersion,
   getLastResolvedNoteId
 } from './content-docs.svelte';
+import {
+  checkAndResolveContentUrlConflicts,
+  checkAllDailyNoteConflicts,
+  clearConflictResolutionState
+} from './content-conflict-resolver.svelte';
 import {
   initCloudSync,
   isCloudAuthenticated,
@@ -303,6 +311,41 @@ function applyDocToReactiveState(
   if (all || changed.has('processedNoteIds'))
     stateProcessedNoteIds = doc.processedNoteIds;
   if (all || changed.has('savedSearches')) stateSavedSearches = doc.savedSearches;
+
+  // When contentUrls change, invalidate stale cached handles and signal editors to reload
+  if (!all && changed.has('contentUrls') && patches) {
+    // Invalidate cached content handles whose URL no longer matches the doc
+    const changedNoteIds = patches
+      .filter((p) => p.path[0] === 'contentUrls' && typeof p.path[1] === 'string')
+      .map((p) => p.path[1] as string);
+    for (const noteId of changedNoteIds) {
+      const cachedHandle = getCachedContentHandle(noteId);
+      const currentUrl = doc.contentUrls?.[noteId];
+      if (cachedHandle && currentUrl && cachedHandle.url !== currentUrl) {
+        removeFromContentCache(noteId);
+        // Signal the editor to re-fetch the handle with the new URL
+        signalContentDocChanged(noteId);
+      }
+    }
+
+    // Check for content URL conflicts on daily notes
+    const dailyNoteIds = changedNoteIds.filter((id) => id.startsWith('daily-'));
+    if (dailyNoteIds.length > 0 && docHandle) {
+      const repo = getRepo();
+      if (repo) {
+        queueMicrotask(() =>
+          checkAndResolveContentUrlConflicts(
+            docHandle!,
+            repo,
+            activeVaultId,
+            dailyNoteIds
+          ).catch((err) =>
+            console.error('[ConflictResolver] Error resolving conflicts:', err)
+          )
+        );
+      }
+    }
+  }
 }
 
 // Same for note types
@@ -527,6 +570,11 @@ export async function initializeState(vaultId?: string): Promise<void> {
     // Migrate deck notes from YAML content to structured props (async, runs in background)
     migrateDeckConfigsToProps().catch((err) => {
       console.error('[Migration] Deck config migration failed:', err);
+    });
+
+    // Check for daily note content URL conflicts (async, runs in background)
+    checkAllDailyNoteConflicts(handle, getRepo(), targetVault.id).catch((err) => {
+      console.error('[ConflictResolver] Startup conflict check failed:', err);
     });
 
     // Restore last view state if available
@@ -1320,8 +1368,9 @@ export async function switchVault(
     activeChangeListener = null;
   }
 
-  // Clear content cache from previous vault
+  // Clear content cache and conflict resolution state from previous vault
   clearContentCache();
+  clearConflictResolutionState();
 
   // Update active vault
   activeVaultId = vaultId;
@@ -1348,6 +1397,11 @@ export async function switchVault(
 
   // Run schema versioned migrations
   runSchemaMigrations();
+
+  // Check for daily note content URL conflicts (async, runs in background)
+  checkAllDailyNoteConflicts(handle, repo, vaultId).catch((err) => {
+    console.error('[ConflictResolver] Startup conflict check failed:', err);
+  });
 
   // Subscribe to changes — use patches to only update affected fields
   activeChangeListener = ({ doc, patches }) => {
