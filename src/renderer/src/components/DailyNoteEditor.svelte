@@ -25,7 +25,9 @@
     forceWikilinkRefresh,
     getNoteContentHandle,
     getDailyNote,
-    getOrCreateDailyNote
+    getOrCreateDailyNote,
+    getContentDocResolvedVersion,
+    getLastResolvedNoteId
   } from '../lib/automerge';
   import type { WikilinkTargetType } from '../lib/automerge';
   import type { GutterMenuData } from '../lib/automerge/gutter-plus-button.svelte';
@@ -85,6 +87,29 @@
       isUnsyncedMode = true;
       isLoadingContent = false;
       content = '';
+    }
+  });
+
+  // Reload content when a pending content doc resolves from sync
+  $effect(() => {
+    // Read version to make this effect reactive to content doc resolutions
+    const resolvedId =
+      getContentDocResolvedVersion() >= 0 ? getLastResolvedNoteId() : null;
+    const existingNote = getDailyNote(date);
+    if (resolvedId && existingNote && resolvedId === existingNote.id) {
+      getNoteContentHandle(resolvedId).then((handle) => {
+        if (handle) {
+          contentHandle = handle;
+          const doc = handle.doc();
+          content = doc?.content || '';
+          isLoadingContent = false;
+          handle.on('change', ({ doc }) => {
+            if (doc) {
+              content = doc.content || '';
+            }
+          });
+        }
+      });
     }
   });
 

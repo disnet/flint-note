@@ -92,7 +92,9 @@ import {
 import {
   getContentHandle,
   findContentHandle,
-  clearContentCache
+  clearContentCache,
+  getContentDocResolvedVersion,
+  getLastResolvedNoteId
 } from './content-docs.svelte';
 import {
   initCloudSync,
@@ -565,6 +567,13 @@ export async function initializeState(vaultId?: string): Promise<void> {
     initializeSearchIndex();
 
     // Update lastCloudSync on all synced vaults when WebSocket connects
+    // Track whether we need to reconnect after registering content docs.
+    // This prevents an infinite reconnect loop: register → reconnect → onSyncConnected → register...
+    // Reset when going offline so the next online cycle does registration again.
+    let needsContentDocReconnect = true;
+    window.addEventListener('offline', () => {
+      needsContentDocReconnect = true;
+    });
     onSyncConnected(() => {
       const now = new Date().toISOString();
       for (const v of vaults) {
@@ -583,11 +592,19 @@ export async function initializeState(vaultId?: string): Promise<void> {
         syncMissingConversations(currentVaultId).catch((error) => {
           console.error('[CloudFileSync] Background conversation sync failed:', error);
         });
-        // Re-register all content docs to catch any created while offline
-        if (rawDoc.contentUrls) {
-          registerAllContentDocs(currentVaultId, rawDoc.contentUrls).catch((error) => {
-            console.error('[CloudSync] Failed to re-register content docs:', error);
-          });
+        // Re-register all content docs to catch any created while offline,
+        // then reconnect so the repo re-announces docs to the server
+        // (the server ignores sync for unregistered docs).
+        if (rawDoc.contentUrls && needsContentDocReconnect) {
+          needsContentDocReconnect = false;
+          registerAllContentDocs(currentVaultId, rawDoc.contentUrls)
+            .then(() => {
+              disconnectCloudSync();
+              connectCloudSync();
+            })
+            .catch((error) => {
+              console.error('[CloudSync] Failed to re-register content docs:', error);
+            });
         }
       }
     });
@@ -1713,6 +1730,8 @@ export async function getNoteContentHandle(
   const contentUrl = rawDoc.contentUrls?.[noteId];
   return getContentHandle(repo, activeVaultId, noteId, contentUrl);
 }
+
+export { getContentDocResolvedVersion, getLastResolvedNoteId };
 
 /**
  * Archive a note (soft delete)
