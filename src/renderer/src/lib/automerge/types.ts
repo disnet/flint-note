@@ -570,6 +570,8 @@ export interface NotesDocument {
   processedNoteIds?: Record<string, string>;
   /** Mapping of noteId -> Automerge URL for content documents */
   contentUrls?: Record<string, string>;
+  /** Resolved contentUrl conflicts: noteId -> { mergedUrls, resolvedAt } */
+  resolvedContentConflicts?: Record<string, { mergedUrls: string[]; resolvedAt: string }>;
   /** Saved searches keyed by ID */
   savedSearches?: Record<string, SavedSearch>;
 }

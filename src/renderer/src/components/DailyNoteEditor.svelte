@@ -91,6 +91,7 @@
   });
 
   // Reload content when a pending content doc resolves from sync
+  // (also triggered when contentUrls changes due to conflict resolution)
   $effect(() => {
     // Read version to make this effect reactive to content doc resolutions
     const resolvedId =
@@ -99,6 +100,11 @@
     if (resolvedId && existingNote && resolvedId === existingNote.id) {
       getNoteContentHandle(resolvedId).then((handle) => {
         if (handle) {
+          // Destroy existing editor so it gets recreated with the new handle
+          if (editorView) {
+            editorView.destroy();
+            editorView = null;
+          }
           contentHandle = handle;
           const doc = handle.doc();
           content = doc?.content || '';

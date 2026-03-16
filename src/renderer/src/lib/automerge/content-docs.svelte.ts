@@ -42,6 +42,16 @@ export function getLastResolvedNoteId(): string | null {
 }
 
 /**
+ * Signal that a content doc handle for a note should be reloaded.
+ * Increments the resolved version counter and sets the noteId,
+ * causing editors watching these signals to re-fetch the handle.
+ */
+export function signalContentDocChanged(noteId: string): void {
+  lastResolvedNoteId = noteId;
+  contentDocResolvedVersion++;
+}
+
+/**
  * Start the retry loop for pending content docs if not already running.
  */
 function startRetryLoop(repo: Repo): void {
