@@ -24,6 +24,8 @@
     getConversationEntry,
     getSelectedWikilink,
     applyFormat,
+    getContentDocResolvedVersion,
+    getLastResolvedNoteId,
     type SelectionToolbarData,
     type FormatType,
     type GutterMenuData,
@@ -150,6 +152,24 @@
         isLoadingContent = false;
       }
     });
+  });
+
+  // Reload content when a pending content doc resolves from sync
+  $effect(() => {
+    // Read version to make this effect reactive to content doc resolutions
+    const resolvedId =
+      getContentDocResolvedVersion() >= 0 ? getLastResolvedNoteId() : null;
+    if (resolvedId && resolvedId === noteId) {
+      getNoteContentHandle(resolvedId).then((handle) => {
+        if (handle && noteId === resolvedId) {
+          contentHandle = handle;
+          const doc = handle.doc();
+          initialContent = doc?.content || '';
+          isLoadingContent = false;
+          recreateEditor();
+        }
+      });
+    }
   });
 
   async function handleWikilinkClick(

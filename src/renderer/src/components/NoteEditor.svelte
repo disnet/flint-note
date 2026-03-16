@@ -26,6 +26,8 @@
     setActiveSystemView,
     setSelectedNoteTypeId,
     applyFormat,
+    getLastResolvedNoteId,
+    getContentDocResolvedVersion,
     type BacklinkResult,
     type SelectionToolbarData,
     type FormatType,
@@ -306,6 +308,35 @@
         isLoadingContent = false;
       }
     });
+  });
+
+  // Reload content when a pending content doc resolves from sync
+  $effect(() => {
+    // Read version to make this effect reactive to content doc resolutions
+    const resolvedId =
+      getContentDocResolvedVersion() >= 0 ? getLastResolvedNoteId() : null;
+    if (resolvedId && resolvedId === note?.id) {
+      // Destroy existing editor so it gets recreated with the real handle.
+      // Use untrack to avoid creating a reactive dependency on editorView,
+      // which would cause an infinite loop (destroy → recreate → retrigger).
+      untrack(() => {
+        if (editorView) {
+          editorView.contentDOM.removeEventListener('focus', handleEditorFocus);
+          editorView.contentDOM.removeEventListener('blur', handleEditorBlur);
+          editorView.destroy();
+          editorView = null;
+        }
+      });
+
+      getNoteContentHandle(resolvedId).then((handle) => {
+        if (handle && note?.id === resolvedId) {
+          contentHandle = handle;
+          const doc = handle.doc();
+          initialContent = doc?.content || '';
+          isLoadingContent = false;
+        }
+      });
+    }
   });
 
   function handleTitleEnterKey(): void {

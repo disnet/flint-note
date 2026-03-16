@@ -132,6 +132,8 @@ export {
   getNoteContent,
   getFullNote,
   getNoteContentHandle,
+  getContentDocResolvedVersion,
+  getLastResolvedNoteId,
   searchNotesWithContent,
 
   // Workspace getters

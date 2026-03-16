@@ -11,6 +11,89 @@ import { isCloudAuthenticated } from './cloud-sync.svelte';
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const contentHandles = new Map<string, DocHandle<NoteContentDocument>>();
 
+// Track pending content docs that need retry (noteId -> { url, vaultId, retryCount })
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const pendingContentDocs = new Map<
+  string,
+  { url: string; vaultId: string; retryCount: number }
+>();
+let retryTimerId: ReturnType<typeof setTimeout> | null = null;
+const MAX_RETRIES = 10;
+const RETRY_INTERVAL_MS = 3000;
+
+// Reactive signal: increments when a pending content doc becomes available.
+// Editors can watch this to know when to re-fetch content.
+let contentDocResolvedVersion = $state(0);
+// The noteId that was most recently resolved
+let lastResolvedNoteId = $state<string | null>(null);
+
+/**
+ * Reactive version counter that increments when a pending content doc resolves.
+ */
+export function getContentDocResolvedVersion(): number {
+  return contentDocResolvedVersion;
+}
+
+/**
+ * The noteId of the most recently resolved content doc.
+ */
+export function getLastResolvedNoteId(): string | null {
+  return lastResolvedNoteId;
+}
+
+/**
+ * Start the retry loop for pending content docs if not already running.
+ */
+function startRetryLoop(repo: Repo): void {
+  if (retryTimerId !== null) return;
+  if (pendingContentDocs.size === 0) return;
+
+  retryTimerId = setTimeout(async () => {
+    retryTimerId = null;
+
+    const resolved: string[] = [];
+    for (const [noteId, pending] of pendingContentDocs) {
+      try {
+        const handle = await repo.find<NoteContentDocument>(pending.url as AutomergeUrl);
+        await handle.whenReady();
+
+        if (handle.isReady()) {
+          contentHandles.set(noteId, handle);
+          resolved.push(noteId);
+          console.log(`[ContentDocs] Pending content doc resolved for ${noteId}`);
+          lastResolvedNoteId = noteId;
+          contentDocResolvedVersion++;
+        } else {
+          pending.retryCount++;
+          if (pending.retryCount >= MAX_RETRIES) {
+            console.warn(
+              `[ContentDocs] Giving up on pending content doc for ${noteId} after ${MAX_RETRIES} retries`
+            );
+            resolved.push(noteId);
+          }
+        }
+      } catch {
+        pending.retryCount++;
+        if (pending.retryCount >= MAX_RETRIES) {
+          console.warn(
+            `[ContentDocs] Giving up on pending content doc for ${noteId} after ${MAX_RETRIES} retries`
+          );
+          resolved.push(noteId);
+        }
+      }
+    }
+
+    for (const noteId of resolved) {
+      pendingContentDocs.delete(noteId);
+    }
+
+    // Continue retrying if there are still pending docs
+    if (pendingContentDocs.size > 0) {
+      startRetryLoop(repo);
+    }
+  }, RETRY_INTERVAL_MS);
+}
+
 // localStorage key prefix for content URL mappings
 const CONTENT_URLS_PREFIX = 'flint-content-urls-';
 
@@ -95,7 +178,8 @@ export async function getContentHandle(
 
       // Document unavailable — if cloud sync is active, the doc may still be
       // syncing from the server. Don't create a new (empty) doc which would
-      // shadow the real content. Return a temporary empty handle instead.
+      // shadow the real content. Return a temporary empty handle and schedule
+      // retries to pick up the real doc when it arrives.
       if (isCloudAuthenticated()) {
         console.warn(
           `[ContentDocs] Content doc unavailable for ${noteId} (still syncing?), returning empty handle`
@@ -104,9 +188,9 @@ export async function getContentHandle(
           noteId,
           content: ''
         });
-        // Cache but do NOT persist the URL — on next load the original URL
-        // will be retried and should succeed once the doc has synced.
-        contentHandles.set(noteId, tempHandle);
+        // Don't cache — let retries replace with real handle
+        pendingContentDocs.set(noteId, { url, vaultId, retryCount: 0 });
+        startRetryLoop(repo);
         return tempHandle;
       }
 
@@ -124,7 +208,9 @@ export async function getContentHandle(
           noteId,
           content: ''
         });
-        contentHandles.set(noteId, tempHandle);
+        // Don't cache — let retries replace with real handle
+        pendingContentDocs.set(noteId, { url, vaultId, retryCount: 0 });
+        startRetryLoop(repo);
         return tempHandle;
       }
       console.warn(`[ContentDocs] Error loading content doc for ${noteId}:`, error);
@@ -196,6 +282,11 @@ export function getCachedContentHandle(
  */
 export function clearContentCache(): void {
   contentHandles.clear();
+  pendingContentDocs.clear();
+  if (retryTimerId !== null) {
+    clearTimeout(retryTimerId);
+    retryTimerId = null;
+  }
 }
 
 /**
