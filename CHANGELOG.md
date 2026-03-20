@@ -1,5 +1,11 @@
 # Changelog - Release
 
+## [0.16.3]
+
+### Fixed
+
+- fixed offline sync issue with daily notes
+
 ## [0.16.0]
 
 ### Added
