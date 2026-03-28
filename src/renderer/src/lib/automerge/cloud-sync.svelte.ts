@@ -36,6 +36,10 @@ let lastSyncError = $state<string | null>(null);
 let inviteRequired = $state(false);
 let wsAdapter: BrowserWebSocketClientAdapter | null = null;
 let onSyncConnectedCallback: (() => void) | null = null;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+// Refresh the session every 20 hours (well before the 24h server expiry)
+const SESSION_REFRESH_INTERVAL_MS = 20 * 60 * 60 * 1000;
 
 /**
  * Register a callback that fires when the WebSocket sync connection is established.
@@ -264,6 +268,49 @@ export async function redeemInviteCode(code: string): Promise<boolean> {
   }
 }
 
+// --- Session refresh ---
+
+/**
+ * Start a periodic timer that refreshes the session cookie before it expires.
+ * Also refreshes on visibility change (handles laptop sleep/wake).
+ */
+function startSessionRefreshTimer(): void {
+  stopSessionRefreshTimer();
+
+  refreshTimer = setInterval(async () => {
+    const result = await refreshCloudSession();
+    if (result === false) {
+      // Session truly expired and couldn't be refreshed — server rejected it
+      console.warn('[CloudSync] Session refresh failed, disconnecting');
+      disconnectCloudSync();
+    }
+  }, SESSION_REFRESH_INTERVAL_MS);
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+}
+
+function stopSessionRefreshTimer(): void {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+}
+
+/**
+ * When the app becomes visible (e.g. after laptop sleep), refresh the session
+ * immediately so the WebSocket auto-reconnect has a valid cookie.
+ */
+async function handleVisibilityChange(): Promise<void> {
+  if (document.hidden || !userDid) return;
+
+  const result = await refreshCloudSession();
+  if (result === false) {
+    console.warn('[CloudSync] Session expired after wake, disconnecting');
+    disconnectCloudSync();
+  }
+}
+
 // --- WebSocket sync ---
 
 /**
@@ -304,13 +351,24 @@ export function connectCloudSync(): void {
     adapter.on('peer-disconnected', () => {
       // Adapter auto-reconnects, so go to 'connecting' not 'disconnected'
       syncStatus = 'connecting';
-      console.log('[CloudSync] Peer disconnected, adapter will auto-reconnect');
+      console.log(
+        '[CloudSync] Peer disconnected, refreshing session before auto-reconnect'
+      );
+      // Refresh the session so the next auto-reconnect attempt has a valid cookie
+      refreshCloudSession().then((result) => {
+        if (result === false) {
+          console.warn('[CloudSync] Session expired, disconnecting');
+          disconnectCloudSync();
+        }
+      });
     });
 
     // Cast to NetworkAdapterInterface to work around type mismatch between slim and full imports
     repo.networkSubsystem.addNetworkAdapter(
       wsAdapter as unknown as NetworkAdapterInterface
     );
+
+    startSessionRefreshTimer();
   } catch (error) {
     syncStatus = 'error';
     lastSyncError = error instanceof Error ? error.message : 'Connection failed';
@@ -322,6 +380,7 @@ export function connectCloudSync(): void {
  * Disconnect from the cloud sync server.
  */
 export function disconnectCloudSync(): void {
+  stopSessionRefreshTimer();
   if (wsAdapter) {
     wsAdapter.disconnect();
     wsAdapter = null;
