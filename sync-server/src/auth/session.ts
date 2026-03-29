@@ -92,6 +92,42 @@ export async function verifySessionTokenAsync(
   }
 }
 
+// Max age for token refresh — if the token is older than this, require re-login
+const MAX_REFRESH_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/**
+ * Verify a session token for refresh purposes.
+ * Accepts expired JWTs (up to 30 days old) as long as the signature is valid.
+ * Does NOT require the DB session to still exist (it may have been cleaned up).
+ */
+export async function verifySessionForRefresh(
+  token: string
+): Promise<{ userDid: string; sessionId: string } | null> {
+  try {
+    // Try normal verification first
+    const { payload } = await jose.jwtVerify(token, getJwtSecret());
+    if (!payload.sub || !payload.sessionId) return null;
+    return { userDid: payload.sub, sessionId: payload.sessionId as string };
+  } catch (err) {
+    // If the token is expired but signature is valid, jose throws JWTExpired
+    // which still carries the verified payload
+    if (err instanceof jose.errors.JWTExpired) {
+      const payload = err.payload;
+      if (!payload.sub || !payload.sessionId) return null;
+
+      // Reject tokens that are too old (>30 days)
+      const iat = payload.iat;
+      if (iat && Date.now() / 1000 - iat > MAX_REFRESH_AGE_MS / 1000) {
+        return null;
+      }
+
+      return { userDid: payload.sub, sessionId: payload.sessionId as string };
+    }
+    // Any other error (bad signature, malformed token) — reject
+    return null;
+  }
+}
+
 export function deleteSession(sessionId: string): void {
   const db = getDb();
   db.query('DELETE FROM sessions WHERE session_id = ?').run(sessionId);
