@@ -3,6 +3,7 @@ import { getOAuthClient } from './atproto-oauth.js';
 import {
   createSessionToken,
   verifySessionTokenAsync,
+  verifySessionForRefresh,
   deleteSession,
   setSessionCookie,
   clearSessionCookie
@@ -130,6 +131,8 @@ export function createAuthRoutes(): Router {
   });
 
   // Refresh session token
+  // Accepts expired tokens (up to 30 days) so clients that haven't
+  // connected in a while can still refresh without re-authenticating.
   router.post('/refresh', async (req, res) => {
     const oldToken = req.cookies?.flint_session;
     if (!oldToken) {
@@ -137,13 +140,13 @@ export function createAuthRoutes(): Router {
       return;
     }
 
-    const oldSession = await verifySessionTokenAsync(oldToken);
+    const oldSession = await verifySessionForRefresh(oldToken);
     if (!oldSession) {
       res.status(401).json({ error: 'Invalid or expired session' });
       return;
     }
 
-    // Delete old session and create new one
+    // Delete old session (if it still exists) and create new one
     deleteSession(oldSession.sessionId);
     const { token } = await createSessionToken(oldSession.userDid);
 
