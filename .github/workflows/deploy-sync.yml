@@ -1,12 +1,8 @@
 name: Deploy Sync Server to Fly.io
 
+# Automatic deploys on push to main are disabled. Run manually via
+# workflow_dispatch if a deploy is needed.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'sync-server/**'
-      - '.github/workflows/deploy-sync.yml'
   workflow_dispatch:
 
 permissions:
